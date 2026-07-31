@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 7s ease-in-out 1.5s infinite;
+}
+
+.animate-float-slow {
+  animation: float 8s ease-in-out 3s infinite;
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.35) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.premium-glass {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.72));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(16, 185, 129, 0.14);
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(16, 185, 129, 0.04);
+}
+
+.premium-glass-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.premium-glass-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.1), 0 4px 16px rgba(16, 185, 129, 0.08);
+}
+
+@media (width < 64rem) {
+  .sidebar-hidden {
+    translate: -100% 0;
+  }
+
+  [dir="rtl"] .sidebar-hidden {
+    translate: 100% 0;
+  }
+}
+
+@media (width >= 64rem) {
+  .sidebar-hidden {
+    translate: 0 0;
+  }
+}
+
+/* Custom Scrollbar — default light theme (dashboard, tables, modals) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #16a34a;
+}
+
+/* Dark theme / public landing scope */
+.dark ::-webkit-scrollbar-track,
+.bg-slate-950 ::-webkit-scrollbar-track {
+  background: #090d16;
+}
+
+.dark ::-webkit-scrollbar-thumb,
+.bg-slate-950 ::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-color: #090d16;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover,
+.bg-slate-950 ::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.dark *,
+.bg-slate-950 * {
+  scrollbar-color: #1e293b #090d16;
+}
+
+*:hover {
+  scrollbar-color: #16a34a #f1f5f9;
+}
+
+.dark *:hover,
+.bg-slate-950 *:hover {
+  scrollbar-color: #059669 #090d16;
+}
+
+

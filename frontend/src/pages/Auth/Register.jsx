@@ -16,6 +16,26 @@ const TERRAIN_STEPS = [
 
 const CATEGORIES = ['adult', 'teenager', 'children'];
 
+function Header({ subtitle, appName }) {
+  return (
+    <div className="text-center mb-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-700 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/25">
+        <Trophy size={26} className="text-white" />
+      </div>
+      <h1 className="text-3xl font-black text-white tracking-tight">{appName}</h1>
+      <p className="text-slate-400 mt-2">{subtitle}</p>
+    </div>
+  );
+}
+
+function Card({ children }) {
+  return (
+    <div className="bg-slate-900/70 backdrop-blur-md border border-slate-700/80 rounded-2xl p-8 shadow-2xl shadow-black/30">
+      {children}
+    </div>
+  );
+}
+
 export default function Register() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -126,22 +146,6 @@ export default function Register() {
     }
   };
 
-  const Header = ({ subtitle }) => (
-    <div className="text-center mb-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-700 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/25">
-        <Trophy size={26} className="text-white" />
-      </div>
-      <h1 className="text-3xl font-black text-white tracking-tight">{t('common.appName')}</h1>
-      <p className="text-slate-400 mt-2">{subtitle}</p>
-    </div>
-  );
-
-  const Card = ({ children }) => (
-    <div className="bg-slate-900/70 backdrop-blur-md border border-slate-700/80 rounded-2xl p-8 shadow-2xl shadow-black/30">
-      {children}
-    </div>
-  );
-
   if (!regType) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 flex items-center justify-center px-4 py-8 relative overflow-hidden">
@@ -203,209 +207,208 @@ export default function Register() {
         <Header subtitle={regType === 'terrain_owner' ? t('auth.registerAsTerrainOwner') : t('auth.registerAsManager')} />
 
         <Card>
-          {steps.length > 1 && (
-            <div className="flex items-center justify-between mb-8">
-              {steps.map((s, i) => {
-                const Icon = s.icon;
-                const isActive = i === step;
-                const isDone = i < step;
-                return (
-                  <div key={s.key} className="flex-1 flex flex-col items-center relative">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition ${
-                      isDone ? 'bg-emerald-400 text-slate-950' :
-                      isActive ? 'bg-emerald-400/15 text-emerald-300 ring-2 ring-emerald-400' :
-                      'bg-slate-800 text-slate-500'
-                    }`}>
-                      {isDone ? '✓' : i + 1}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {steps.length > 1 && (
+              <div className="flex items-center justify-between mb-8">
+                {steps.map((s, i) => {
+                  const Icon = s.icon;
+                  const isActive = i === step;
+                  const isDone = i < step;
+                  return (
+                    <div key={s.key} className="flex-1 flex flex-col items-center relative">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition ${isDone ? 'bg-emerald-400 text-slate-950' :
+                          isActive ? 'bg-emerald-400/15 text-emerald-300 ring-2 ring-emerald-400' :
+                            'bg-slate-800 text-slate-500'
+                        }`}>
+                        {isDone ? '✓' : i + 1}
+                      </div>
+                      <span className={`text-xs mt-2 text-center ${isActive ? 'text-emerald-300 font-medium' : 'text-slate-500'}`}>
+                        {t(s.label)}
+                      </span>
+                      {i < steps.length - 1 && (
+                        <div className={`absolute top-5 start-full w-full h-0.5 -translate-x-1/2 ${isDone ? 'bg-emerald-400' : 'bg-slate-700'}`} />
+                      )}
                     </div>
-                    <span className={`text-xs mt-2 text-center ${isActive ? 'text-emerald-300 font-medium' : 'text-slate-500'}`}>
-                      {t(s.label)}
-                    </span>
-                    {i < steps.length - 1 && (
-                      <div className={`absolute top-5 start-full w-full h-0.5 -translate-x-1/2 ${isDone ? 'bg-emerald-400' : 'bg-slate-700'}`} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {error && (
-            <div className="flex items-center gap-2 bg-red-500/10 text-red-300 p-3 rounded-lg mb-6 text-sm border border-red-500/20">
-              <AlertTriangle size={18} className="shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Manager Step 0 or Terrain Owner */}
-          {(step === 0 || regType === 'terrain_owner') && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 text-emerald-400 mb-2">
-                {regType === 'terrain_owner' ? <Landmark size={20} /> : <User size={20} />}
-                <span className="font-semibold">{regType === 'terrain_owner' ? t('auth.personalInfo') : t('auth.managerInfo')}</span>
+                  );
+                })}
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.fullName')}</label>
-                <input type="text" name="name" value={form.name} onChange={handleChange}
-                  className={inputCls(stepErrors.name)}
-                  placeholder={t('auth.fullNamePlaceholder')} />
-                {stepErrors.name && <p className="text-red-400 text-xs mt-1">{stepErrors.name}</p>}
+            {error && (
+              <div className="flex items-center gap-2 bg-red-500/10 text-red-300 p-3 rounded-lg mb-6 text-sm border border-red-500/20">
+                <AlertTriangle size={18} className="shrink-0" />
+                <span>{error}</span>
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.phoneLabel')}</label>
-                <input type="tel" name="phone" value={form.phone} onChange={handleChange}
-                  className={inputCls(stepErrors.phone)}
-                  placeholder="0600000000" />
-                {stepErrors.phone && <p className="text-red-400 text-xs mt-1">{stepErrors.phone}</p>}
-              </div>
-
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" name="is_whatsapp" checked={form.is_whatsapp} onChange={handleChange}
-                  className="w-4 h-4 text-emerald-400 border-slate-600 rounded focus:ring-emerald-400 bg-slate-950/60" />
-                <span className="text-sm text-slate-300">{t('auth.hasWhatsapp')}</span>
-              </label>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.emailOptional')}</label>
-                <input type="email" name="email" value={form.email} onChange={handleChange}
-                  className={inputCls(false)}
-                  placeholder="example@email.com" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.password')} *</label>
-                <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange}
-                    className={`${inputCls(stepErrors.password)} pe-10`}
-                    placeholder="••••••••" />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
-                    aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
+            {/* Manager Step 0 or Terrain Owner */}
+            {(step === 0 || regType === 'terrain_owner') && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 text-emerald-400 mb-2">
+                  {regType === 'terrain_owner' ? <Landmark size={20} /> : <User size={20} />}
+                  <span className="font-semibold">{regType === 'terrain_owner' ? t('auth.personalInfo') : t('auth.managerInfo')}</span>
                 </div>
-                {stepErrors.password && <p className="text-red-400 text-xs mt-1">{stepErrors.password}</p>}
-              </div>
 
-              {regType === 'terrain_owner' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.fullName')}</label>
+                  <input type="text" name="name" value={form.name} onChange={handleChange}
+                    className={inputCls(stepErrors.name)}
+                    placeholder={t('auth.fullNamePlaceholder')} />
+                  {stepErrors.name && <p className="text-red-400 text-xs mt-1">{stepErrors.name}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.phoneLabel')}</label>
+                  <input type="tel" name="phone" value={form.phone} onChange={handleChange}
+                    className={inputCls(stepErrors.phone)}
+                    placeholder="0600000000" />
+                  {stepErrors.phone && <p className="text-red-400 text-xs mt-1">{stepErrors.phone}</p>}
+                </div>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" name="is_whatsapp" checked={form.is_whatsapp} onChange={handleChange}
+                    className="w-4 h-4 text-emerald-400 border-slate-600 rounded focus:ring-emerald-400 bg-slate-950/60" />
+                  <span className="text-sm text-slate-300">{t('auth.hasWhatsapp')}</span>
+                </label>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.emailOptional')}</label>
+                  <input type="email" name="email" value={form.email} onChange={handleChange}
+                    className={inputCls(false)}
+                    placeholder="example@email.com" />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.password')} *</label>
+                  <div className="relative">
+                    <input type={showPassword ? 'text' : 'password'} name="password" value={form.password} onChange={handleChange}
+                      className={`${inputCls(stepErrors.password)} pe-10`}
+                      placeholder="••••••••" />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+                      aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {stepErrors.password && <p className="text-red-400 text-xs mt-1">{stepErrors.password}</p>}
+                </div>
+
+                {regType === 'terrain_owner' && (
+                  <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 p-4 rounded-lg text-sm">
+                    <Shield size={18} />
+                    <span>{t('auth.pendingMessage')}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Manager Step 1: Team Info */}
+            {regType === 'manager' && step === 1 && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 text-emerald-400 mb-2">
+                  <Users size={20} />
+                  <span className="font-semibold">{t('auth.teamInfo')}</span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.teamNameLabel')}</label>
+                  <input type="text" name="team_name" value={form.team_name} onChange={handleChange}
+                    className={inputCls(stepErrors.team_name)}
+                    placeholder={t('auth.teamNamePlaceholder')} />
+                  {stepErrors.team_name && <p className="text-red-400 text-xs mt-1">{stepErrors.team_name}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.memberCountLabel')}</label>
+                  <input type="number" name="member_count" value={form.member_count} onChange={handleChange} min="1"
+                    className={inputCls(stepErrors.member_count)}
+                    placeholder={t('auth.memberCountPlaceholder')} />
+                  {stepErrors.member_count && <p className="text-red-400 text-xs mt-1">{stepErrors.member_count}</p>}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.ageCategory')}</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {CATEGORIES.map((cat) => (
+                      <label key={cat}
+                        className={`flex items-center justify-center gap-2 p-3 border rounded-lg cursor-pointer transition text-sm ${form.team_category === cat ? 'border-emerald-400 bg-emerald-400/10 text-emerald-300 font-medium' : 'border-slate-700 hover:border-slate-600 text-slate-400'
+                          }`}>
+                        <input type="radio" name="team_category" value={cat} checked={form.team_category === cat} onChange={handleChange} className="sr-only" />
+                        {t(`categories.${cat}`)}
+                      </label>
+                    ))}
+                  </div>
+                  {stepErrors.team_category && <p className="text-red-400 text-xs mt-1">{stepErrors.team_category}</p>}
+                </div>
+              </div>
+            )}
+
+            {/* Manager Step 2: Association */}
+            {regType === 'manager' && step === 2 && (
+              <div className="space-y-5">
+                <div className="flex items-center gap-2 text-emerald-400 mb-2">
+                  <Building size={20} />
+                  <span className="font-semibold">{t('auth.associationInfo')}</span>
+                </div>
+
+                <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 p-3 rounded-lg text-sm">
+                  <Info size={18} />
+                  <span>{t('auth.associationHint')}</span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.associationNameLabel')}</label>
+                  <input type="text" name="association_name" value={form.association_name} onChange={handleChange}
+                    className={inputCls(false)}
+                    placeholder={t('auth.associationNamePlaceholder')} />
+                </div>
+
                 <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 p-4 rounded-lg text-sm">
                   <Shield size={18} />
-                  <span>{t('auth.pendingMessage')}</span>
+                  <span>{t('auth.pendingApproval')}</span>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* Manager Step 1: Team Info */}
-          {regType === 'manager' && step === 1 && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 text-emerald-400 mb-2">
-                <Users size={20} />
-                <span className="font-semibold">{t('auth.teamInfo')}</span>
+            {/* Navigation */}
+            <div className="flex items-center justify-between mt-8">
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { setRegType(null); setStep(0); setError(''); }}
+                  className="px-4 py-2.5 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition text-sm">
+                  {t('common.back')}
+                </button>
+                {step > 0 && (
+                  <button type="button" onClick={handlePrev}
+                    className="flex items-center gap-2 px-5 py-2.5 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition text-sm">
+                    <ChevronRight size={16} /> {t('auth.previous')}
+                  </button>
+                )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.teamNameLabel')}</label>
-                <input type="text" name="team_name" value={form.team_name} onChange={handleChange}
-                  className={inputCls(stepErrors.team_name)}
-                  placeholder={t('auth.teamNamePlaceholder')} />
-                {stepErrors.team_name && <p className="text-red-400 text-xs mt-1">{stepErrors.team_name}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.memberCountLabel')}</label>
-                <input type="number" name="member_count" value={form.member_count} onChange={handleChange} min="1"
-                  className={inputCls(stepErrors.member_count)}
-                  placeholder={t('auth.memberCountPlaceholder')} />
-                {stepErrors.member_count && <p className="text-red-400 text-xs mt-1">{stepErrors.member_count}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">{t('auth.ageCategory')}</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {CATEGORIES.map((cat) => (
-                    <label key={cat}
-                      className={`flex items-center justify-center gap-2 p-3 border rounded-lg cursor-pointer transition text-sm ${
-                        form.team_category === cat ? 'border-emerald-400 bg-emerald-400/10 text-emerald-300 font-medium' : 'border-slate-700 hover:border-slate-600 text-slate-400'
-                      }`}>
-                      <input type="radio" name="team_category" value={cat} checked={form.team_category === cat} onChange={handleChange} className="sr-only" />
-                      {t(`categories.${cat}`)}
-                    </label>
-                  ))}
-                </div>
-                {stepErrors.team_category && <p className="text-red-400 text-xs mt-1">{stepErrors.team_category}</p>}
-              </div>
-            </div>
-          )}
-
-          {/* Manager Step 2: Association */}
-          {regType === 'manager' && step === 2 && (
-            <div className="space-y-5">
-              <div className="flex items-center gap-2 text-emerald-400 mb-2">
-                <Building size={20} />
-                <span className="font-semibold">{t('auth.associationInfo')}</span>
-              </div>
-
-              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 text-blue-300 p-3 rounded-lg text-sm">
-                <Info size={18} />
-                <span>{t('auth.associationHint')}</span>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">{t('auth.associationNameLabel')}</label>
-                <input type="text" name="association_name" value={form.association_name} onChange={handleChange}
-                  className={inputCls(false)}
-                  placeholder={t('auth.associationNamePlaceholder')} />
-              </div>
-
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 p-4 rounded-lg text-sm">
-                <Shield size={18} />
-                <span>{t('auth.pendingApproval')}</span>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-8">
-            <div className="flex gap-2">
-              <button type="button" onClick={() => { setRegType(null); setStep(0); setError(''); }}
-                className="px-4 py-2.5 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition text-sm">
-                {t('common.back')}
-              </button>
-              {step > 0 && (
-                <button type="button" onClick={handlePrev}
-                  className="flex items-center gap-2 px-5 py-2.5 border border-slate-700 rounded-lg text-slate-300 hover:bg-slate-800 transition text-sm">
-                  <ChevronRight size={16} /> {t('auth.previous')}
+              {(step < steps.length - 1 && regType === 'manager') ? (
+                <button type="button" onClick={handleNext}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-lg transition text-sm font-bold">
+                  {t('common.next')} <ChevronLeft size={16} />
+                </button>
+              ) : (
+                <button type="submit" disabled={loading}
+                  className={`flex items-center gap-2 px-5 py-2.5 text-slate-950 rounded-lg transition text-sm font-bold disabled:opacity-50 ${regType === 'terrain_owner' ? 'bg-teal-400 hover:bg-teal-300' : 'bg-emerald-400 hover:bg-emerald-300'
+                    }`}>
+                  <UserPlus size={16} />
+                  {loading ? t('common.loading') : t('auth.submitRequest')}
                 </button>
               )}
             </div>
 
-            {(step < steps.length - 1 && regType === 'manager') ? (
-              <button type="button" onClick={handleNext}
-                className="flex items-center gap-2 px-5 py-2.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 rounded-lg transition text-sm font-bold">
-                {t('common.next')} <ChevronLeft size={16} />
-              </button>
-            ) : (
-              <button type="button" onClick={handleSubmit} disabled={loading}
-                className={`flex items-center gap-2 px-5 py-2.5 text-slate-950 rounded-lg transition text-sm font-bold disabled:opacity-50 ${
-                  regType === 'terrain_owner' ? 'bg-teal-400 hover:bg-teal-300' : 'bg-emerald-400 hover:bg-emerald-300'
-                }`}>
-                <UserPlus size={16} />
-                {loading ? t('common.loading') : t('auth.submitRequest')}
-              </button>
-            )}
-          </div>
-
-          <div className="mt-6 text-center">
-            <Link to="/login" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition">
-              {t('auth.hasAccount')} {t('auth.login')}
-            </Link>
-          </div>
+            <div className="mt-6 text-center">
+              <Link to="/login" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition">
+                {t('auth.hasAccount')} {t('auth.login')}
+              </Link>
+            </div>
+          </form>
         </Card>
       </div>
     </div>

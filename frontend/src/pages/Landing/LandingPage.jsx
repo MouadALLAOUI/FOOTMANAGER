@@ -20,14 +20,14 @@ const RANKINGS = [
   { rank: 3, team: 'landing.samples.rajaaTaza', pts: 25 },
 ];
 
-function Section({ id, min = false, from = 'from-emerald-600/20', children }) {
+function Section({ id, from = 'from-emerald-600/20', children }) {
   return (
-    <section id={id} className={`${min ? 'min-h-screen' : 'h-screen'} w-full snap-start flex flex-col relative overflow-hidden bg-slate-950`}>
+    <section id={id} className="min-h-screen w-full snap-start flex flex-col relative overflow-hidden bg-slate-950">
       <div className={`absolute inset-0 bg-gradient-to-br ${from} via-slate-900 to-slate-950`} />
       <div className="absolute inset-0 opacity-[0.06] grid-bg pointer-events-none" />
       <div className="absolute -top-24 -start-24 w-80 h-80 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-24 -end-24 w-80 h-80 rounded-full bg-amber-500/10 blur-3xl pointer-events-none" />
-      <div className="relative z-10 flex-1 w-full overflow-y-auto">
+      <div className="relative z-10 flex-1 w-full">
         <div className="min-h-full m-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 flex flex-col justify-center">
           {children}
         </div>
@@ -479,7 +479,7 @@ export default function LandingPage() {
         </div>
       </Section>
 
-      <Section id="contact" min from="from-emerald-600/15">
+      <Section id="contact" from="from-emerald-600/15">
         <div className="text-center max-w-2xl mx-auto">
           <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">{t('landing.nav.contact')}</span>
           <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-black text-white">{t('landing.contact.title')}</h2>

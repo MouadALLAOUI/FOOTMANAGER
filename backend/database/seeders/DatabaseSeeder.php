@@ -16,11 +16,14 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Admin
+        // Default data — always seeded (admin user + facilities)
         $this->call(AdminSeeder::class);
-
-        // Facilities
         $this->call(FacilitySeeder::class);
+
+        // Factories and demo data are for local/development only
+        if (app()->environment('production')) {
+            return;
+        }
 
         // Test Terrain Owner — always accessible after migration
         $testTerrainOwner = User::create([

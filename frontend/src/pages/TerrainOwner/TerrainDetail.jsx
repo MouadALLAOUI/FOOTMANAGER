@@ -14,15 +14,15 @@ const TYPE_MAP = {
   salle: { emoji: '🏟️', color: 'bg-blue-100 text-blue-700' },
   grass: { emoji: '🌿', color: 'bg-emerald-100 text-emerald-700' },
   synthetic: { emoji: '🟩', color: 'bg-teal-100 text-teal-700' },
+  cement: { emoji: '🧱', color: 'bg-orange-100 text-orange-700' },
 };
 
 const FORMATS = ['5v5', '7v7', '9v9', '11v11'];
 
 const TERRAIN_TYPES = [
-  { value: 'minifoot', icon: '⚽' },
   { value: 'salle', icon: '🏟️' },
-  { value: 'grass', icon: '🌿' },
   { value: 'synthetic', icon: '🟩' },
+  { value: 'cement', icon: '🧱' },
 ];
 
 export default function TerrainDetail() {
@@ -41,7 +41,7 @@ export default function TerrainDetail() {
 
   const [form, setForm] = useState({
     name: '', city: '', address: '', google_maps_url: '',
-    type: 'minifoot', player_format: '7v7',
+    type: 'salle', player_format: '7v7',
     has_benches: false, supports_tournaments: false,
     has_lighting: false, has_vestiaires: false,
     price_per_team: '',
@@ -56,7 +56,7 @@ export default function TerrainDetail() {
       const t = res.data.terrain;
       setForm({
         name: t.name || '', city: t.city || '', address: t.address || '',
-        google_maps_url: t.google_maps_url || '', type: t.type || 'minifoot',
+        google_maps_url: t.google_maps_url || '', type: t.type || 'salle',
         player_format: t.player_format || '7v7',
         has_benches: !!t.has_benches, supports_tournaments: !!t.supports_tournaments,
         has_lighting: !!t.has_lighting, has_vestiaires: !!t.has_vestiaires,
@@ -118,7 +118,7 @@ export default function TerrainDetail() {
     const t = terrain;
     setForm({
       name: t.name || '', city: t.city || '', address: t.address || '',
-      google_maps_url: t.google_maps_url || '', type: t.type || 'minifoot',
+      google_maps_url: t.google_maps_url || '', type: t.type || 'salle',
       player_format: t.player_format || '7v7',
       has_benches: !!t.has_benches, supports_tournaments: !!t.supports_tournaments,
       has_lighting: !!t.has_lighting, has_vestiaires: !!t.has_vestiaires,
@@ -186,7 +186,7 @@ export default function TerrainDetail() {
     );
   }
 
-  const typeInfo = TYPE_MAP[terrain.type] || TYPE_MAP.minifoot;
+  const typeInfo = TYPE_MAP[terrain.type] || TYPE_MAP.salle;
   const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
   const inputClass = 'w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none';

@@ -5,11 +5,11 @@ import api from '../../services/api';
 import { resolveApiError } from '../../utils/apiError';
 import { formatDate } from '../../utils/dateFormatter';
 
-const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩' };
+const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩', cement: '🧱' };
 
 export default function CreateMatchModal({ onClose, onCreated }) {
   const { t } = useTranslation();
-  const TYPE_LABEL = { minifoot: t('terrain.minifoot'), salle: t('terrain.salle'), grass: t('terrain.grass'), synthetic: t('terrain.synthetic') };
+  const TYPE_LABEL = { minifoot: t('terrain.minifoot'), salle: t('terrain.salle'), grass: t('terrain.grass'), synthetic: t('terrain.synthetic'), cement: t('terrain.cement') };
   const suggestions = t('match.suggestions', { returnObjects: true });
 
   const [stadiums, setStadiums] = useState([]);
@@ -198,10 +198,12 @@ export default function CreateMatchModal({ onClose, onCreated }) {
                         <Banknote size={14} className="text-emerald-600" />
                         <span className="font-bold text-emerald-700">{t('match.stadiumPricePerTeam', { price: selectedTerrain.price_per_team })}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm">
-                        <Banknote size={14} className="text-blue-600" />
-                        <span className="font-bold text-blue-700">{t('match.stadiumPricePerMatch', { price: selectedTerrain.total_price })}</span>
-                      </div>
+                      {selectedTerrain.total_price && (
+                        <div className="flex items-center gap-1 text-sm">
+                          <Banknote size={14} className="text-blue-600" />
+                          <span className="font-bold text-blue-700">{t('match.stadiumPricePerMatch', { price: selectedTerrain.total_price })}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {selectedTerrain.has_benches && <span className="text-xs bg-white text-gray-600 px-2 py-0.5 rounded-full border border-gray-200 flex items-center gap-0.5"><Armchair size={10} /> {t('terrain.benches')}</span>}

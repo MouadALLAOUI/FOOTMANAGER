@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Loader2, X, MessageCircle } from 'lucide-react';
 
-const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩' };
+const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩', cement: '🧱' };
 
 export default function BookingSummaryModal({ terrain, slot, date, flowType, purpose, reservationType, subscriptionDuration, notes, onClose, onSubmit, submitting }) {
   const { t } = useTranslation();

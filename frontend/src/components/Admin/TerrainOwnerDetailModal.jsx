@@ -9,6 +9,7 @@ export default function TerrainOwnerDetailModal({ owner, onClose, onApprove, onR
     salle: { label: t('terrain.salle'), color: 'bg-blue-100 text-blue-700' },
     grass: { label: t('terrain.grass'), color: 'bg-emerald-100 text-emerald-700' },
     synthetic: { label: t('terrain.synthetic'), color: 'bg-teal-100 text-teal-700' },
+    cement: { label: t('terrain.cement'), color: 'bg-orange-100 text-orange-700' },
   };
 
   return (
@@ -81,9 +82,11 @@ export default function TerrainOwnerDetailModal({ owner, onClose, onApprove, onR
                         <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
                           <Banknote size={10} /> {terrain.price_per_team} {t('common.currency')}{t('common.perTeam')}
                         </span>
-                        <span className="text-xs text-blue-700 font-medium flex items-center gap-1">
-                          <Banknote size={10} /> {terrain.total_price} {t('common.currency')}{t('common.perMatch')}
-                        </span>
+                        {terrain.total_price && (
+                          <span className="text-xs text-blue-700 font-medium flex items-center gap-1">
+                            <Banknote size={10} /> {terrain.total_price} {t('common.currency')}{t('common.perMatch')}
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {terrain.has_benches && <span className="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded flex items-center gap-0.5"><Armchair size={8} /> {t('terrainForm.benches')}</span>}

@@ -5,12 +5,12 @@ import api from '../../services/api';
 import BookingSummaryModal from './BookingSummaryModal';
 import WhatsAppNoticeModal from '../Booking/WhatsAppNoticeModal';
 
-const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩' };
+const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩', cement: '🧱' };
 
 export default function SlotPickerModal({ terrain, flowType = 'direct', onClose, onBooked }) {
   const { t } = useTranslation();
 
-  const TYPE_LABEL = { minifoot: t('terrain.minifoot'), salle: t('terrain.salle'), grass: t('terrain.grass'), synthetic: t('terrain.synthetic') };
+  const TYPE_LABEL = { minifoot: t('terrain.minifoot'), salle: t('terrain.salle'), grass: t('terrain.grass'), synthetic: t('terrain.synthetic'), cement: t('terrain.cement') };
   const DAY_NAMES = [t('weekdays.sunday'), t('weekdays.monday'), t('weekdays.tuesday'), t('weekdays.wednesday'), t('weekdays.thursday'), t('weekdays.friday'), t('weekdays.saturday')];
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [slots, setSlots] = useState([]);

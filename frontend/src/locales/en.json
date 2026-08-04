@@ -424,6 +424,8 @@
     "grassDesc": "Natural grass",
     "synthetic": "Synthetic Turf",
     "syntheticDesc": "Artificial turf",
+    "cement": "Cement Terrain",
+    "cementDesc": "Cement pitch",
     "playerFormat": "Player Format",
     "pricePerTeam": "Price per team",
     "pricePerTeamDirham": "Price per team (MAD)",

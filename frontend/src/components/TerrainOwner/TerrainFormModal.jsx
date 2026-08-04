@@ -12,10 +12,9 @@ export default function TerrainFormModal({ terrain, onClose, onSaved }) {
   const [loadingFacilities, setLoadingFacilities] = useState(true);
 
   const TERRAIN_TYPES = [
-    { value: 'minifoot', label: t('terrain.minifoot'), icon: '⚽', desc: t('terrain.minifootDesc') },
     { value: 'salle', label: t('terrain.salle'), icon: '🏟️', desc: t('terrain.salleDesc') },
-    { value: 'grass', label: t('terrain.grass'), icon: '🌿', desc: t('terrain.grassDesc') },
     { value: 'synthetic', label: t('terrain.synthetic'), icon: '🟩', desc: t('terrain.syntheticDesc') },
+    { value: 'cement', label: t('terrain.cement'), icon: '🧱', desc: t('terrain.cementDesc') },
   ];
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -24,7 +23,7 @@ export default function TerrainFormModal({ terrain, onClose, onSaved }) {
     city: terrain?.city || '',
     address: terrain?.address || '',
     google_maps_url: terrain?.google_maps_url || '',
-    type: terrain?.type || 'minifoot',
+    type: terrain?.type || 'salle',
     player_format: terrain?.player_format || '7v7',
     has_benches: terrain?.has_benches || false,
     supports_tournaments: terrain?.supports_tournaments || false,

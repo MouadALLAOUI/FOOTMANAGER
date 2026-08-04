@@ -10,6 +10,7 @@ const TYPE_MAP = {
   salle: { color: 'bg-blue-100 text-blue-700' },
   grass: { color: 'bg-emerald-100 text-emerald-700' },
   synthetic: { color: 'bg-teal-100 text-teal-700' },
+  cement: { color: 'bg-orange-100 text-orange-700' },
 };
 
 export default function MyTerrains() {
@@ -80,7 +81,7 @@ export default function MyTerrains() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {terrains.map((terrain) => {
-            const typeInfo = TYPE_MAP[terrain.type] || TYPE_MAP.minifoot;
+            const typeInfo = TYPE_MAP[terrain.type] || TYPE_MAP.salle;
             return (
               <div key={terrain.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="p-5">
@@ -111,11 +112,6 @@ export default function MyTerrains() {
                       <Banknote size={14} className="text-emerald-600" />
                       <span className="font-bold text-emerald-700">{terrain.price_per_team} {t('common.currency')}</span>
                       <span className="text-gray-400 text-xs">{t('common.perTeam')}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <Banknote size={14} className="text-blue-600" />
-                      <span className="font-bold text-blue-700">{terrain.total_price} {t('common.currency')}</span>
-                      <span className="text-gray-400 text-xs">{t('common.perMatch')}</span>
                     </div>
                   </div>
 

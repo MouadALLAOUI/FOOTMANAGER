@@ -5,7 +5,7 @@ import api from '../../services/api';
 import TerrainActionCard from '../../components/Terrain/TerrainActionCard';
 import SlotPickerModal from '../../components/Terrain/SlotPickerModal';
 
-const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩' };
+const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩', cement: '🧱' };
 const FORMAT_OPTIONS = ['5v5', '7v7', '9v9', '11v11'];
 
 export default function TerrainBrowse() {
@@ -19,10 +19,9 @@ export default function TerrainBrowse() {
   const [flowType, setFlowType] = useState(null);
 
   const TYPE_LABEL = {
-    minifoot: t('terrain.minifoot'),
     salle: t('terrain.salle'),
-    grass: t('terrain.grass'),
     synthetic: t('terrain.synthetic'),
+    cement: t('terrain.cement'),
   };
 
   useEffect(() => {
@@ -174,6 +173,7 @@ function TerrainCard({ terrain, onAmicalMatch, onDirectBooking }) {
     salle: t('terrain.salle'),
     grass: t('terrain.grass'),
     synthetic: t('terrain.synthetic'),
+    cement: t('terrain.cement'),
   };
 
   return (

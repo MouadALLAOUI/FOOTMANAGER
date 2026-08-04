@@ -9,8 +9,8 @@ import SendDefiModal from '../../components/Manager/SendDefiModal';
 import SkeletonCard from '../../components/UI/SkeletonCard';
 
 const CATEGORY_KEYS = { adult: 'categories.adult', teenager: 'categories.teenager', children: 'categories.children' };
-const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩' };
-const TYPE_LABEL_KEYS = { minifoot: 'terrain.minifoot', salle: 'terrain.salle', grass: 'terrain.grass', synthetic: 'terrain.synthetic' };
+const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩', cement: '🧱' };
+const TYPE_LABEL_KEYS = { minifoot: 'terrain.minifoot', salle: 'terrain.salle', grass: 'terrain.grass', synthetic: 'terrain.synthetic', cement: 'terrain.cement' };
 
 const CATEGORY_TABS = [
   { value: '', labelKey: 'categories.all' },

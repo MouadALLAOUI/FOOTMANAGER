@@ -11,7 +11,7 @@ import WhatsAppNoticeModal from '../../components/Booking/WhatsAppNoticeModal';
 import AccordionSection from '../../components/UI/AccordionSection';
 import WeeklyGrid from '../../components/Calendar/WeeklyGrid';
 
-const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩' };
+const TYPE_EMOJI = { minifoot: '⚽', salle: '🏟️', grass: '🌿', synthetic: '🟩', cement: '🧱' };
 
 const toDateStr = (d) => {
   const y = d.getFullYear();

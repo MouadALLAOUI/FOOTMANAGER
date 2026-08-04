@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { Globe, Menu, Trophy, ChevronDown, LayoutDashboard, Settings, LogOut } from 'lucide-react';
+import { Globe, Menu, ChevronDown, LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import NotificationBell from '../NotificationBell';
 
 export default function DashboardHeader({ navItems = [], onMenuClick, settingsTo }) {
@@ -52,11 +52,9 @@ export default function DashboardHeader({ navItems = [], onMenuClick, settingsTo
       </button>
 
       <Link to="/" className="flex items-center gap-2 shrink-0 group">
-        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-300">
-          <Trophy size={18} className="text-white" />
-        </span>
+        <img src="/ajin9ssro.jpeg" alt={t('common.appName')} className="w-9 h-9 rounded-xl object-cover shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform duration-300" />
         <span className="hidden sm:block text-base font-black tracking-tight text-gray-800">
-          Foot<span className="text-emerald-600">MANAGER</span>
+          {t('common.appName')}
         </span>
       </Link>
 

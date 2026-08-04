@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "FootMANAGER",
+    "appName": "AJIN9SSRO",
     "loading": "Loading...",
     "saving": "Saving...",
     "submitting": "Submitting...",
@@ -903,9 +903,10 @@
       "success": "Your message was sent successfully! We'll get back to you soon.",
       "infoTitle": "Contact Information",
       "supportLabel": "Support",
-      "supportPhone": "+212 6 00 00 00 00",
+      "supportPhone": "+212 601962582 (Mohamed)",
       "emailLabel": "Email",
-      "supportEmail": "contact@footmanager.ma",
+      "supportEmail": "moadallaoui1@gmail.com",
+      "supportPhone2": "+212 770894841 (Mouad)",
       "locationLabel": "Location",
       "location": "Morocco",
       "quickLinks": "Quick Links",
@@ -938,6 +939,9 @@
     "ownersTitle": "Terrain Owners",
     "ownersDesc": "Maximize pitch occupancy, handle automated bookings, and eliminate scheduling overlaps for good.",
     "valuesTitle": "Our Core Values",
+    "teamTitle": "The Team",
+    "developerRole": "Developer & Code",
+    "managerRole": "Manager & Ideas",
     "values": [
       {
         "title": "Transparency",
@@ -976,7 +980,7 @@
         "title": "General",
         "items": [
           {
-            "q": "Is FootMANAGER free for team managers?",
+            "q": "Is AJIN9SSRO free for team managers?",
             "a": "Yes, account registration and creating match requests are completely free for team managers."
           },
           {

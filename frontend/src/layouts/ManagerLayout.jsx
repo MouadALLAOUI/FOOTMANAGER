@@ -40,7 +40,7 @@ export default function ManagerLayout() {
           ) : (
             <Shield className="text-green-600 shrink-0" size={22} />
           )}
-          {!collapsed && <span className="font-bold text-gray-800 truncate">{user?.name || 'FootMANAGER'}</span>}
+          {!collapsed && <span className="font-bold text-gray-800 truncate">{user?.name || t('common.appName')}</span>}
         </div>
 
         {!collapsed && user?.team && (

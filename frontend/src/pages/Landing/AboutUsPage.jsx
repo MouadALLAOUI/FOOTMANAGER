@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Landmark, ShieldCheck, Sparkles, Target, Users } from 'lucide-react';
+import { Code2, Landmark, Lightbulb, ShieldCheck, Sparkles, Target, Users } from 'lucide-react';
 import LandingHeader from '../../components/Landing/LandingHeader';
 
 export default function AboutUsPage() {
@@ -79,6 +79,26 @@ export default function AboutUsPage() {
                 <p className="mt-2 text-sm text-slate-400 leading-relaxed">{v.desc}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="max-w-5xl mx-auto px-4 mt-14">
+          <h2 className="text-2xl font-bold text-white text-center">{t('about.teamTitle')}</h2>
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
+            <div className="rounded-2xl bg-slate-900/70 backdrop-blur-md border border-slate-800 p-8 text-center hover:border-emerald-400/40 transition">
+              <span className="w-14 h-14 mx-auto rounded-2xl bg-emerald-400/15 flex items-center justify-center">
+                <Code2 size={26} className="text-emerald-400" />
+              </span>
+              <h3 className="mt-4 text-lg font-bold text-white">Mouad Allaoui</h3>
+              <p className="mt-1 text-sm font-medium text-emerald-300">{t('about.developerRole')}</p>
+            </div>
+            <div className="rounded-2xl bg-slate-900/70 backdrop-blur-md border border-slate-800 p-8 text-center hover:border-emerald-400/40 transition">
+              <span className="w-14 h-14 mx-auto rounded-2xl bg-emerald-400/15 flex items-center justify-center">
+                <Lightbulb size={26} className="text-emerald-400" />
+              </span>
+              <h3 className="mt-4 text-lg font-bold text-white">Mohamed Allaoui</h3>
+              <p className="mt-1 text-sm font-medium text-emerald-300">{t('about.managerRole')}</p>
+            </div>
           </div>
         </section>
       </main>

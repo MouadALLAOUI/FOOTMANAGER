@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Globe, LogIn, LayoutDashboard, LogOut, Menu, Trophy, UserPlus, User, X, ChevronDown } from 'lucide-react';
+import { Globe, LogIn, LayoutDashboard, LogOut, Menu, UserPlus, User, X, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export default function LandingHeader() {
@@ -64,11 +64,9 @@ export default function LandingHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-20">
           <Link to="/" onClick={() => setMobileOpen(false)} className="flex items-center gap-2.5 group">
-            <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-700 flex items-center justify-center shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition-transform duration-300">
-              <Trophy size={22} className="text-white" />
-            </span>
+            <img src="/ajin9ssro.jpeg" alt={t('common.appName')} className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition-transform duration-300" />
             <span className="text-xl font-black tracking-tight text-white">
-              Foot<span className="text-emerald-400">MANAGER</span>
+              {t('common.appName')}
             </span>
           </Link>
 

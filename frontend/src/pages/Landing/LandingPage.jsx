@@ -492,6 +492,7 @@ export default function LandingPage() {
           </div>
           <div className="lg:col-span-2 space-y-4">
             <InfoRow icon={Phone} label={t('landing.contact.supportLabel')} value={t('landing.contact.supportPhone')} />
+            <InfoRow icon={Phone} label={t('landing.contact.supportLabel')} value={t('landing.contact.supportPhone2')} />
             <InfoRow icon={Mail} label={t('landing.contact.emailLabel')} value={t('landing.contact.supportEmail')} />
             <InfoRow icon={MapPin} label={t('landing.contact.locationLabel')} value={t('landing.contact.location')} />
             <QuickLinks t={t} />

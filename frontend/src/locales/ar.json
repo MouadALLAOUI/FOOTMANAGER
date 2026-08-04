@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "FootMANAGER",
+    "appName": "أجي نقصرو",
     "loading": "كنحمّل...",
     "saving": "كنحفظ...",
     "submitting": "كيتم...",
@@ -814,9 +814,10 @@
       "success": "تم إرسال رسالتك بنجاح! سنتواصل معك في أقرب وقت.",
       "infoTitle": "معلومات التواصل",
       "supportLabel": "الدعم",
-      "supportPhone": "+212 6 00 00 00 00",
+      "supportPhone": "+212 601962582 (Mohamed)",
       "emailLabel": "البريد الإلكتروني",
-      "supportEmail": "contact@footmanager.ma",
+      "supportEmail": "moadallaoui1@gmail.com",
+      "supportPhone2": "+212 770894841 (Mouad)",
       "locationLabel": "الموقع",
       "location": "المغرب",
       "quickLinks": "روابط سريعة",
@@ -849,6 +850,9 @@
     "ownersTitle": "أصحاب الملاعب",
     "ownersDesc": "عزّز إشغال ملعبك، استقبل حجوزات آلية، وتخلّص من تداخل المواعيد نهائياً.",
     "valuesTitle": "قيمنا",
+    "teamTitle": "فريق التطوير",
+    "developerRole": "مطوّر وبرمجة",
+    "managerRole": "مدير وأفكار",
     "values": [
       {
         "title": "الشفافية",

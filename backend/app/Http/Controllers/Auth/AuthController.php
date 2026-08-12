@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Http\Controllers\Controller;
+use App\Domains\Player\Models\PlayerProfile;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Team\Models\Team;
+use App\Http\Requests\RegisterPlayerRequest;
 use App\Http\Requests\RegisterRequest;
-use App\Models\Stadium;
-use App\Models\Team;
+use App\Mail\NewRegistrationMail;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
@@ -26,6 +28,8 @@ class AuthController extends Controller
                 'phone' => $data['phone'],
                 'is_whatsapp' => $data['is_whatsapp'] ?? false,
                 'password' => Hash::make($data['password']),
+                'role' => 'manager',
+                'status' => 'pending',
             ]);
 
             Team::create([
@@ -38,6 +42,15 @@ class AuthController extends Controller
 
             return $user;
         });
+
+        $this->notifyAdminOfNewRegistration([
+            'type' => 'manager',
+            'name' => $data['name'],
+            'phone' => $data['phone'],
+            'email' => $data['email'] ?? null,
+            'team_name' => $data['team_name'],
+            'team_category' => $data['team_category'],
+        ]);
 
         return response()->json([
             'message' => 'تم تسجيل طلب الانضمام بنجاح، بانتظار موافقة الإدارة',
@@ -64,7 +77,7 @@ class AuthController extends Controller
 
         $user = $query->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             return response()->json([
                 'message' => 'بيانات الدخول غير صحيحة',
             ], 401);
@@ -79,6 +92,12 @@ class AuthController extends Controller
         if ($user->status === 'rejected') {
             return response()->json([
                 'message' => 'تم رفض طلب الانضمام الخاص بك',
+            ], 403);
+        }
+
+        if ($user->status === 'blocked') {
+            return response()->json([
+                'message' => 'تم حظر حسابك من قبل الإدارة',
             ], 403);
         }
 
@@ -112,9 +131,75 @@ class AuthController extends Controller
         } elseif ($user->role === 'terrain_owner') {
             $user->load('terrains');
             $data['terrains'] = $user->terrains;
+        } elseif ($user->role === 'player') {
+            $user->load('playerProfile');
+            $data['player_profile'] = $user->playerProfile;
         }
 
         return response()->json(['user' => $data]);
+    }
+
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'email' => 'sometimes|email|max:255|unique:users,email,'.$user->id,
+            'phone' => 'sometimes|string|max:20|unique:users,phone,'.$user->id,
+            'is_whatsapp' => 'sometimes|boolean',
+            'password' => 'sometimes|string|min:8|confirmed',
+        ]);
+
+        if (! empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            unset($data['password']);
+        }
+
+        $user->update($data);
+
+        $fresh = $user->fresh()->only('id', 'name', 'email', 'phone', 'is_whatsapp', 'role', 'status');
+
+        return response()->json([
+            'message' => 'تم تحديث الملف الشخصي بنجاح.',
+            'user' => $fresh,
+        ]);
+    }
+
+    public function registerPlayer(RegisterPlayerRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'] ?? null,
+            'phone' => $validated['phone'],
+            'is_whatsapp' => $validated['is_whatsapp'] ?? false,
+            'password' => Hash::make($validated['password']),
+            'role' => 'player',
+            'status' => 'pending',
+        ]);
+
+        PlayerProfile::create([
+            'user_id' => $user->id,
+            'position' => $validated['position'] ?? null,
+            'skill_level' => $validated['skill_level'] ?? null,
+            'birth_year' => $validated['birth_year'] ?? null,
+            'city' => $validated['city'] ?? null,
+        ]);
+
+        $this->notifyAdminOfNewRegistration([
+            'type' => 'player',
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'email' => $validated['email'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'تم تسجيل طلب حساب اللاعب بنجاح، بانتظار موافقة الإدارة',
+            'user' => $user->only('id', 'name', 'email', 'phone', 'role', 'status'),
+        ], 201);
     }
 
     public function registerTerrainOwner(Request $request): JsonResponse
@@ -124,7 +209,7 @@ class AuthController extends Controller
             'email' => 'nullable|email|max:255',
             'phone' => 'required|string|unique:users,phone|max:20',
             'is_whatsapp' => 'boolean',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:8',
         ]);
 
         $user = User::create([
@@ -137,9 +222,85 @@ class AuthController extends Controller
             'status' => 'pending',
         ]);
 
+        $this->notifyAdminOfNewRegistration([
+            'type' => 'terrain_owner',
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'email' => $validated['email'] ?? null,
+        ]);
+
         return response()->json([
             'message' => 'تم تسجيل طلب حساب صاحب التيران بنجاح، بانتظار موافقة الإدارة',
             'user' => $user->only('id', 'name', 'email', 'phone', 'role', 'status'),
         ], 201);
+    }
+
+    public function registerCommittee(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'nullable|email|max:255',
+            'phone' => 'required|string|unique:users,phone|max:20',
+            'is_whatsapp' => 'boolean',
+            'password' => 'required|string|min:8',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'] ?? null,
+            'phone' => $validated['phone'],
+            'is_whatsapp' => $validated['is_whatsapp'] ?? false,
+            'password' => Hash::make($validated['password']),
+            'role' => 'committee',
+            'status' => 'pending',
+        ]);
+
+        $this->notifyAdminOfNewRegistration([
+            'type' => 'committee',
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'email' => $validated['email'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'تم تسجيل طلب حساب اللجنة المنظمة بنجاح، بانتظار موافقة الإدارة',
+            'user' => $user->only('id', 'name', 'email', 'phone', 'role', 'status'),
+        ], 201);
+    }
+
+    private function notifyAdminOfNewRegistration(array $data): void
+    {
+        try {
+            $recipients = User::where('role', 'admin')->pluck('email')->filter();
+            $adminEmail = config('mail.admin_email');
+
+            if ($recipients->isEmpty() && $adminEmail) {
+                $recipients = collect([$adminEmail]);
+            }
+
+            if ($recipients->isEmpty()) {
+                return;
+            }
+
+            $approvalPath = match ($data['type']) {
+                'terrain_owner' => '/admin/terrain-owners',
+                'player' => '/admin/players',
+                'committee' => '/admin/committees',
+                default => '/admin/managers',
+            };
+
+            Mail::to($recipients->all())
+                ->send(new NewRegistrationMail(
+                    type: $data['type'],
+                    name: $data['name'],
+                    phone: $data['phone'],
+                    email: $data['email'] ?? null,
+                    teamName: $data['team_name'] ?? null,
+                    teamCategory: $data['team_category'] ?? null,
+                    approvalUrl: rtrim(env('FRONTEND_URL', 'http://localhost:5173'), '/').$approvalPath,
+                ));
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

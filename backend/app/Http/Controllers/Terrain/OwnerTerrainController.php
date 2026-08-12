@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Terrain;
 
-use App\Http\Controllers\Controller;
-use App\Models\Stadium;
-use App\Models\TerrainSchedule;
+use App\Domains\Booking\Models\TerrainSchedule;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Shared\Support\PublicCache;
+use App\Domains\Stadium\Models\Stadium;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,6 +26,8 @@ class OwnerTerrainController extends Controller
             'is_open' => $validated['is_open'],
             'closure_reason' => $validated['is_open'] ? null : ($validated['closure_reason'] ?? null),
         ]);
+
+        PublicCache::flushTerrains();
 
         return response()->json([
             'message' => $terrain->is_open
@@ -63,6 +66,8 @@ class OwnerTerrainController extends Controller
         $schedules = TerrainSchedule::where('terrain_id', $terrain->id)
             ->orderBy('day_of_week')
             ->get();
+
+        PublicCache::flushTerrains();
 
         return response()->json([
             'message' => 'تم حفظ أوقات العمل بنجاح',

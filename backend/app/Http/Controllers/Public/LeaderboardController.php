@@ -2,37 +2,24 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Http\Controllers\Controller;
-use App\Models\Team;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Shared\Support\PublicCache;
+use App\Domains\Team\Queries\TeamLeaderboardQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class LeaderboardController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Team::with(['manager:id,name', 'primaryStadium:id,name,city'])
-            ->select([
-                'id', 'name', 'logo_path', 'logo_url', 'category',
-                'points', 'matches_played', 'wins', 'draws', 'losses',
-                'goals_for', 'goals_against', 'goal_difference',
-                'primary_color', 'secondary_color', 'member_count',
-                'manager_id', 'primary_stadium_id',
-            ])
-            ->whereHas('manager', function ($q) {
-                $q->where('status', 'approved');
-            });
+        $category = $request->query('category');
 
-        if ($request->filled('category')) {
-            $query->where('category', $request->query('category'));
-        }
-
-        $teams = $query
-            ->orderByDesc('points')
-            ->orderByDesc('goal_difference')
-            ->orderByDesc('goals_for')
-            ->orderByDesc('wins')
-            ->paginate(20);
+        $teams = Cache::remember(
+            PublicCache::teamLeaderboard((int) $request->query('page', 1), $category),
+            (int) config('public.cache.team_leaderboard_ttl', 300),
+            fn () => TeamLeaderboardQuery::base($category)->paginate(TeamLeaderboardQuery::PER_PAGE),
+        );
 
         return response()->json([
             'teams' => $teams->items(),

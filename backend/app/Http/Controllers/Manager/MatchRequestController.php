@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Manager;
 
-use App\Http\Controllers\Controller;
-use App\Models\AppNotification;
-use App\Models\MatchRequest;
-use App\Models\Stadium;
-use App\Models\TerrainBooking;
+use App\Domains\Booking\Models\TerrainBooking;
+use App\Domains\Match\Models\MatchRequest;
+use App\Domains\Match\Services\MatchMembershipService;
+use App\Domains\Match\Queries\MatchRequestQuery;
+use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Stadium\Models\Stadium;
+use App\Domains\Team\Models\Team;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -18,57 +21,57 @@ class MatchRequestController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->team) {
+        if (! $user->team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
         $teamId = $user->team->id;
 
         $status = $request->query('status');
+        $perPage = (int) $request->input('per_page', 50);
 
-        $query = MatchRequest::with(['stadium.images', 'hostTeam', 'opponentTeam.manager', 'targetTeam'])
-            ->where(function ($q) use ($teamId) {
-                $q->where('host_team_id', $teamId)
-                  ->orWhere('opponent_team_id', $teamId);
-            });
+        $requests = MatchRequestQuery::forTeam($teamId, $status)->paginate($perPage);
 
-        if ($status) {
-            $query->where('status', $status);
-        }
-
-        $requests = $query->latest('match_datetime')->get();
-
-        return response()->json(['match_requests' => $requests]);
+        return response()->json([
+            'match_requests' => $requests->items(),
+            'pagination' => [
+                'current_page' => $requests->currentPage(),
+                'last_page' => $requests->lastPage(),
+                'per_page' => $requests->perPage(),
+                'total' => $requests->total(),
+            ],
+        ]);
     }
 
     public function receivedChallenges(Request $request): JsonResponse
     {
         $user = $request->user();
 
-        if (!$user->team) {
+        if (! $user->team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
         $teamId = $user->team->id;
+        $perPage = (int) $request->input('per_page', 50);
 
-        $challenges = MatchRequest::with(['hostTeam.manager', 'stadium.images', 'targetTeam'])
-            ->where('target_team_id', $teamId)
-            ->where('type', 'direct_challenge')
-            ->where('status', 'open')
-            ->whereHas('hostTeam.manager', function ($q) {
-                $q->where('status', 'approved');
-            })
-            ->latest('match_datetime')
-            ->get();
+        $challenges = MatchRequestQuery::receivedChallenges($teamId)->paginate($perPage);
 
-        return response()->json(['challenges' => $challenges]);
+        return response()->json([
+            'challenges' => $challenges->items(),
+            'pagination' => [
+                'current_page' => $challenges->currentPage(),
+                'last_page' => $challenges->lastPage(),
+                'per_page' => $challenges->perPage(),
+                'total' => $challenges->total(),
+            ],
+        ]);
     }
 
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
 
-        if (!$user->team) {
+        if (! $user->team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
@@ -77,14 +80,29 @@ class MatchRequestController extends Controller
             'custom_terrain_name' => 'nullable|string|max:255',
             'match_datetime' => 'required|date|after:now',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
+            'end_time' => 'nullable|date_format:H:i|after:start_time',
             'reservation_type' => 'sometimes|in:single,weekly_subscription',
             'day_of_week' => 'nullable|integer|in:0,1,2,3,4,5,6',
             'start_date' => 'nullable|date|after_or_equal:today',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'notes' => 'nullable|string|max:500',
             'price_per_player' => 'nullable|numeric|min:0',
+            'needs_players' => 'sometimes|boolean',
+            'players_needed' => 'nullable|integer|min:1|max:50|required_if:needs_players,true',
         ]);
+
+        $needsPlayers = (bool) ($validated['needs_players'] ?? false);
+
+        $teamId = $user->team->id;
+        $datetime = Carbon::parse($validated['match_datetime']);
+
+        if (MatchMembershipService::teamHasMatchConflict($teamId, $datetime)) {
+            return response()->json(['message' => 'فريقك لديه مباراة أخرى في نفس التوقيت'], 422);
+        }
+
+        if (MatchMembershipService::teamHasPlayerConflict($teamId, $datetime)) {
+            return response()->json(['message' => 'أحد لاعبي فريقك مشغول بمباراة أخرى في نفس التوقيت'], 422);
+        }
 
         if (empty($validated['stadium_id']) && empty($validated['custom_terrain_name'])) {
             return response()->json([
@@ -92,21 +110,28 @@ class MatchRequestController extends Controller
             ], 422);
         }
 
-        $matchRequest = MatchRequest::create([
-            'host_team_id' => $user->team->id,
-            'stadium_id' => $validated['stadium_id'] ?? null,
-            'custom_terrain_name' => $validated['custom_terrain_name'] ?? null,
-            'match_datetime' => $validated['match_datetime'],
-            'notes' => $validated['notes'] ?? null,
-            'price_per_player' => $validated['price_per_player'] ?? null,
-        ]);
+        $endTime = $validated['end_time']
+            ?? Carbon::parse($validated['start_time'])->addHours(2)->format('H:i');
 
-        if (!empty($validated['stadium_id'])) {
+        $matchRequest = null;
+
+        if (empty($validated['stadium_id'])) {
+            $matchRequest = MatchRequest::create([
+                'host_team_id' => $user->team->id,
+                'stadium_id' => null,
+                'custom_terrain_name' => $validated['custom_terrain_name'] ?? null,
+                'match_datetime' => $validated['match_datetime'],
+                'notes' => $validated['notes'] ?? null,
+                'price_per_player' => $validated['price_per_player'] ?? null,
+                'needs_players' => $needsPlayers,
+                'players_needed' => $needsPlayers ? ($validated['players_needed'] ?? null) : null,
+            ]);
+        } else {
             $terrain = Stadium::find($validated['stadium_id']);
 
-            if (!$terrain->is_open) {
+            if (! $terrain->is_available || ! $terrain->is_open) {
                 return response()->json([
-                    'message' => 'الملعب مغلق حالياً — لا يمكن إرسال طلب المباراة',
+                    'message' => 'الملعب غير متاح حالياً — لا يمكن إرسال طلب المباراة',
                 ], 422);
             }
 
@@ -115,43 +140,86 @@ class MatchRequestController extends Controller
                 ? ($validated['start_date'] ?? $validated['match_datetime'])
                 : ($validated['start_date'] ?? date('Y-m-d', strtotime($validated['match_datetime'])));
 
-            $conflictMsg = TerrainBooking::getConflictMessage(
-                $validated['stadium_id'],
-                $checkDate,
-                $validated['start_time'],
-                $validated['end_time'],
-                $user->id
-            );
+            try {
+                DB::transaction(function () use ($validated, $terrain, $user, $checkDate, $endTime, $isWeekly, &$matchRequest) {
+                    $matchRequest = MatchRequest::create([
+                        'host_team_id' => $user->team->id,
+                        'stadium_id' => $validated['stadium_id'],
+                        'custom_terrain_name' => $validated['custom_terrain_name'] ?? null,
+                        'match_datetime' => $validated['match_datetime'],
+                        'notes' => $validated['notes'] ?? null,
+                        'price_per_player' => $validated['price_per_player'] ?? null,
+                        'needs_players' => (bool) ($validated['needs_players'] ?? false),
+                        'players_needed' => ($validated['needs_players'] ?? false) ? ($validated['players_needed'] ?? null) : null,
+                    ]);
 
-            if ($conflictMsg) {
-                return response()->json(['message' => $conflictMsg], 422);
+                    $dateToLock = $checkDate;
+                    TerrainBooking::where('terrain_id', $validated['stadium_id'])
+                        ->where(function ($q) use ($dateToLock) {
+                            $q->where('booking_date', $dateToLock)
+                                ->orWhere(function ($sq) use ($dateToLock) {
+                                    $sq->where('reservation_type', 'weekly_subscription')
+                                        ->where(function ($wq) use ($dateToLock) {
+                                            $wq->whereNull('start_date')->orWhere('start_date', '<=', $dateToLock);
+                                        })
+                                        ->where(function ($wq) use ($dateToLock) {
+                                            $wq->whereNull('end_date')->orWhere('end_date', '>=', $dateToLock);
+                                        });
+                                });
+                        })->lockForUpdate()->get();
+
+                    $conflictMsg = TerrainBooking::getConflictMessage(
+                        $validated['stadium_id'],
+                        $checkDate,
+                        $validated['start_time'],
+                        $endTime,
+                        $user->id
+                    );
+
+                    if (! $conflictMsg && MatchMembershipService::stadiumHasFixtureConflict(
+                        $validated['stadium_id'],
+                        Carbon::parse($checkDate.' '.$validated['start_time'])
+                    )) {
+                        $conflictMsg = 'هذا الملعب محجوز مسبقاً لمباراة في البطولة في التوقيت المحدد.';
+                    }
+
+                    if ($conflictMsg) {
+                        throw new \RuntimeException($conflictMsg);
+                    }
+
+                    $price = $terrain->price_per_team ?? 0;
+
+                    if ($isWeekly && ! empty($validated['end_date'])) {
+                        $weeks = (int) ceil(Carbon::parse($validated['start_date'])->diffInWeeks(Carbon::parse($validated['end_date'])));
+                        $price = $price * max($weeks, 1);
+                    }
+
+                    TerrainBooking::create([
+                        'terrain_id' => $validated['stadium_id'],
+                        'manager_id' => $user->id,
+                        'team_id' => $user->team->id,
+                        'booking_type' => 'match',
+                        'flow_type' => 'amical',
+                        'reservation_type' => $validated['reservation_type'] ?? 'single',
+                        'match_request_id' => $matchRequest->id,
+                        'booking_date' => $checkDate,
+                        'day_of_week' => $isWeekly ? ($validated['day_of_week'] ?? null) : null,
+                        'start_date' => $isWeekly ? ($validated['start_date'] ?? null) : null,
+                        'end_date' => $validated['end_date'] ?? null,
+                        'start_time' => $validated['start_time'],
+                        'end_time' => $endTime,
+                        'price' => $price,
+                        'status' => 'pending',
+                        'notes' => $validated['notes'] ?? null,
+                    ]);
+                });
+            } catch (\RuntimeException $e) {
+                return response()->json(['message' => $e->getMessage()], 422);
             }
+        }
 
-            $price = $terrain->price_per_team ?? 0;
-
-            if ($isWeekly && !empty($validated['end_date'])) {
-                $weeks = (int) ceil(Carbon::parse($validated['start_date'])->diffInWeeks(Carbon::parse($validated['end_date'])));
-                $price = $price * max($weeks, 1);
-            }
-
-            TerrainBooking::create([
-                'terrain_id' => $validated['stadium_id'],
-                'manager_id' => $user->id,
-                'team_id' => $user->team->id,
-                'booking_type' => 'match',
-                'flow_type' => 'amical',
-                'reservation_type' => $validated['reservation_type'] ?? 'single',
-                'match_request_id' => $matchRequest->id,
-                'booking_date' => $checkDate,
-                'day_of_week' => $isWeekly ? ($validated['day_of_week'] ?? null) : null,
-                'start_date' => $isWeekly ? ($validated['start_date'] ?? null) : null,
-                'end_date' => $validated['end_date'] ?? null,
-                'start_time' => $validated['start_time'],
-                'end_time' => $validated['end_time'],
-                'price' => $price,
-                'status' => 'pending',
-                'notes' => $validated['notes'] ?? null,
-            ]);
+        if (! $matchRequest) {
+            return response()->json(['message' => 'حدث خطأ أثناء إنشاء طلب المباراة'], 500);
         }
 
         return response()->json([
@@ -164,7 +232,7 @@ class MatchRequestController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->team) {
+        if (! $user->team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
@@ -175,9 +243,22 @@ class MatchRequestController extends Controller
             'match_datetime' => 'required|date|after:now',
             'notes' => 'nullable|string|max:500',
             'price_per_player' => 'nullable|numeric|min:0',
+            'needs_players' => 'sometimes|boolean',
+            'players_needed' => 'nullable|integer|min:1|max:50|required_if:needs_players,true',
         ]);
 
         $teamId = $user->team->id;
+        $needsPlayers = (bool) ($validated['needs_players'] ?? false);
+
+        $datetime = Carbon::parse($validated['match_datetime']);
+
+        if (MatchMembershipService::teamHasMatchConflict($teamId, $datetime)) {
+            return response()->json(['message' => 'فريقك لديه مباراة أخرى في نفس التوقيت'], 422);
+        }
+
+        if (MatchMembershipService::teamHasPlayerConflict($teamId, $datetime)) {
+            return response()->json(['message' => 'أحد لاعبي فريقك مشغول بمباراة أخرى في نفس التوقيت'], 422);
+        }
 
         if ($validated['target_team_id'] == $teamId) {
             return response()->json([
@@ -185,14 +266,14 @@ class MatchRequestController extends Controller
             ], 403);
         }
 
-        $targetTeam = \App\Models\Team::with('manager')->find($validated['target_team_id']);
-        if (!$targetTeam->manager || $targetTeam->manager->status !== 'approved') {
+        $targetTeam = Team::with('manager')->find($validated['target_team_id']);
+        if (! $targetTeam->manager || $targetTeam->manager->status !== 'approved') {
             return response()->json([
                 'message' => 'لا يمكن إرسال تحدي لهذا الفريق',
             ], 403);
         }
 
-        $matchRequest = DB::transaction(function () use ($validated, $teamId) {
+        $matchRequest = DB::transaction(function () use ($validated, $teamId, $needsPlayers) {
             return MatchRequest::create([
                 'host_team_id' => $teamId,
                 'target_team_id' => $validated['target_team_id'],
@@ -201,6 +282,8 @@ class MatchRequestController extends Controller
                 'match_datetime' => $validated['match_datetime'],
                 'notes' => $validated['notes'] ?? null,
                 'price_per_player' => $validated['price_per_player'] ?? null,
+                'needs_players' => $needsPlayers,
+                'players_needed' => $needsPlayers ? ($validated['players_needed'] ?? null) : null,
                 'type' => 'direct_challenge',
             ]);
         });
@@ -224,7 +307,7 @@ class MatchRequestController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->team) {
+        if (! $user->team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
@@ -232,58 +315,78 @@ class MatchRequestController extends Controller
 
         $validated = $request->validate([
             'action' => 'required|in:accept,decline',
+            'needs_players' => 'sometimes|boolean',
+            'players_needed' => 'nullable|integer|min:1|max:50|required_if:needs_players,true',
         ]);
 
-        return DB::transaction(function () use ($id, $teamId, $validated, $user) {
-            $matchRequest = MatchRequest::with(['hostTeam.manager', 'stadium.images'])
-                ->where('id', $id)
-                ->where('target_team_id', $teamId)
-                ->where('type', 'direct_challenge')
-                ->where('status', 'open')
-                ->lockForUpdate()
-                ->firstOrFail();
+        $needsPlayers = (bool) ($validated['needs_players'] ?? false);
 
-            if ($matchRequest->hostTeam->manager->status !== 'approved') {
-                return response()->json([
-                    'message' => 'هذا التحدي لم يعد متاحاً',
-                ], 403);
-            }
+        try {
+            return DB::transaction(function () use ($id, $teamId, $validated, $user, $needsPlayers) {
+                $matchRequest = MatchRequest::with(['hostTeam.manager', 'stadium.images'])
+                    ->where('id', $id)
+                    ->where('target_team_id', $teamId)
+                    ->where('type', 'direct_challenge')
+                    ->where('status', 'open')
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-            if ($validated['action'] === 'decline') {
-                $matchRequest->update(['status' => 'declined']);
+                if ($matchRequest->hostTeam->manager->status !== 'approved') {
+                    return response()->json([
+                        'message' => 'هذا التحدي لم يعد متاحاً',
+                    ], 403);
+                }
 
-                AppNotification::create([
-                    'user_id' => $matchRequest->hostTeam->manager_id,
-                    'type' => 'challenge_declined',
-                    'title' => 'تم رفض التحدي',
-                    'body' => "الفريق {$user->team?->name} رفض التحدي الخاص بك",
-                    'data' => ['match_request_id' => $matchRequest->id],
-                    'action_url' => '/dashboard',
-                ]);
+                if ($validated['action'] === 'decline') {
+                    $matchRequest->update(['status' => 'declined']);
 
-                return response()->json([
-                    'message' => 'تم رفض التحدي',
-                ]);
-            }
+                    AppNotification::create([
+                        'user_id' => $matchRequest->hostTeam->manager_id,
+                        'type' => 'challenge_declined',
+                        'title' => 'تم رفض التحدي',
+                        'body' => "الفريق {$user->team?->name} رفض التحدي الخاص بك",
+                        'data' => ['match_request_id' => $matchRequest->id],
+                        'action_url' => '/dashboard',
+                    ]);
 
-            $matchRequest->update([
-                'opponent_team_id' => $teamId,
-                'status' => 'accepted',
-            ]);
+                    return response()->json([
+                        'message' => 'تم رفض التحدي',
+                    ]);
+                }
 
-            AppNotification::create([
-                'user_id' => $matchRequest->hostTeam->manager_id,
-                'type' => 'challenge_accepted',
-                'title' => 'تم قبول التحدي',
-                'body' => "الفريق {$user->team?->name} قبل التحدي الخاص بك",
-                'data' => ['match_request_id' => $matchRequest->id],
-                'action_url' => '/dashboard',
-            ]);
+                $datetime = Carbon::parse($matchRequest->match_datetime);
 
-            if (!empty($matchRequest->stadium_id)) {
-                $terrain = Stadium::find($matchRequest->stadium_id);
-                if ($terrain && $terrain->is_open) {
+                if (MatchMembershipService::teamHasMatchConflict($matchRequest->host_team_id, $datetime, $matchRequest->id)
+                    || MatchMembershipService::teamHasMatchConflict($teamId, $datetime, $matchRequest->id)) {
+                    throw new \RuntimeException('أحد الفريقين لديه مباراة أخرى في نفس التوقيت');
+                }
+
+                if (MatchMembershipService::teamHasPlayerConflict($matchRequest->host_team_id, $datetime, $matchRequest->id)
+                    || MatchMembershipService::teamHasPlayerConflict($teamId, $datetime, $matchRequest->id)) {
+                    throw new \RuntimeException('أحد لاعبي الفريقين مشغول بمباراة أخرى في نفس التوقيت');
+                }
+
+                if (! empty($matchRequest->stadium_id)) {
+                    $terrain = Stadium::find($matchRequest->stadium_id);
+                    if (! $terrain || ! $terrain->is_open) {
+                        throw new \RuntimeException('الملعب غير متاح حالياً — لا يمكن قبول التحدي');
+                    }
+
                     $dateTime = Carbon::parse($matchRequest->match_datetime);
+                    $dateToLock = $dateTime->toDateString();
+                    TerrainBooking::where('terrain_id', $matchRequest->stadium_id)
+                        ->where(function ($q) use ($dateToLock) {
+                            $q->where('booking_date', $dateToLock)
+                                ->orWhere(function ($sq) use ($dateToLock) {
+                                    $sq->where('reservation_type', 'weekly_subscription')
+                                        ->where(function ($wq) use ($dateToLock) {
+                                            $wq->whereNull('start_date')->orWhere('start_date', '<=', $dateToLock);
+                                        })
+                                        ->where(function ($wq) use ($dateToLock) {
+                                            $wq->whereNull('end_date')->orWhere('end_date', '>=', $dateToLock);
+                                        });
+                                });
+                        })->lockForUpdate()->get();
 
                     $conflictMsg = TerrainBooking::getConflictMessage(
                         $matchRequest->stadium_id,
@@ -292,53 +395,87 @@ class MatchRequestController extends Controller
                         $dateTime->copy()->addHours(2)->format('H:i')
                     );
 
-                    if (!$conflictMsg) {
-                        $price = $terrain->price_per_team ?? 0;
-
-                        TerrainBooking::create([
-                            'terrain_id' => $matchRequest->stadium_id,
-                            'manager_id' => $user->id,
-                            'team_id' => $teamId,
-                            'booking_type' => 'match',
-                            'flow_type' => 'amical',
-                            'reservation_type' => 'single',
-                            'match_request_id' => $matchRequest->id,
-                            'booking_date' => $dateTime->toDateString(),
-                            'start_time' => $dateTime->format('H:i'),
-                            'end_time' => $dateTime->copy()->addHours(2)->format('H:i'),
-                            'price' => $price,
-                            'status' => 'pending',
-                        ]);
+                    if (! $conflictMsg && MatchMembershipService::stadiumHasFixtureConflict($matchRequest->stadium_id, $dateTime)) {
+                        $conflictMsg = 'هذا الملعب محجوز مسبقاً لمباراة في البطولة في التوقيت المحدد.';
                     }
+
+                    if ($conflictMsg) {
+                        throw new \RuntimeException($conflictMsg);
+                    }
+
+                    $price = $terrain->price_per_team ?? 0;
+                    TerrainBooking::create([
+                        'terrain_id' => $matchRequest->stadium_id,
+                        'manager_id' => $user->id,
+                        'team_id' => $teamId,
+                        'booking_type' => 'match',
+                        'flow_type' => 'amical',
+                        'reservation_type' => 'single',
+                        'match_request_id' => $matchRequest->id,
+                        'booking_date' => $dateTime->toDateString(),
+                        'start_time' => $dateTime->format('H:i'),
+                        'end_time' => $dateTime->copy()->addHours(2)->format('H:i'),
+                        'price' => $price,
+                        'status' => 'pending',
+                    ]);
                 }
-            }
 
-            $matchRequest->load(['hostTeam.manager', 'stadium']);
+                $matchRequest->update([
+                    'opponent_team_id' => $teamId,
+                    'status' => 'accepted',
+                    'needs_players' => $needsPlayers,
+                    'players_needed' => $needsPlayers ? ($validated['players_needed'] ?? null) : null,
+                ]);
 
-            return response()->json([
-                'message' => 'تم قبول التحدي بنجاح! يمكنك الآن التواصل مع الفريق المنظم',
-                'match_request' => $matchRequest,
-                'host_manager' => [
-                    'name' => $matchRequest->hostTeam->manager->name,
-                    'phone' => $matchRequest->hostTeam->manager->phone,
-                    'is_whatsapp' => $matchRequest->hostTeam->manager->is_whatsapp,
-                ],
-            ]);
-        });
+                AppNotification::create([
+                    'user_id' => $matchRequest->hostTeam->manager_id,
+                    'type' => 'challenge_accepted',
+                    'title' => 'تم قبول التحدي',
+                    'body' => "الفريق {$user->team?->name} قبل التحدي الخاص بك",
+                    'data' => ['match_request_id' => $matchRequest->id],
+                    'action_url' => '/dashboard',
+                ]);
+
+                if (! empty($matchRequest->stadium_id)) {
+                    $matchRequest->load(['hostTeam.manager', 'stadium']);
+
+                    return response()->json([
+                        'message' => 'تم قبول التحدي بنجاح! يمكنك الآن التواصل مع الفريق المنظم',
+                        'match_request' => $matchRequest,
+                        'host_manager' => [
+                            'name' => $matchRequest->hostTeam->manager->name,
+                            'phone' => $matchRequest->hostTeam->manager->phone,
+                            'is_whatsapp' => $matchRequest->hostTeam->manager->is_whatsapp,
+                        ],
+                    ]);
+                }
+
+                return response()->json([
+                    'message' => 'تم قبول التحدي بنجاح',
+                    'match_request' => $matchRequest->fresh()->load(['hostTeam.manager', 'stadium']),
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
     }
 
     public function createFromBooking(Request $request, int $bookingId): JsonResponse
     {
         $user = $request->user();
 
-        if (!$user->team) {
+        if (! $user->team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
         $validated = $request->validate([
             'notes' => 'nullable|string|max:500',
             'date' => 'nullable|date',
+            'needs_players' => 'sometimes|boolean',
+            'players_needed' => 'nullable|integer|min:1|max:50|required_if:needs_players,true',
         ]);
+
+        $needsPlayers = (bool) ($validated['needs_players'] ?? false);
 
         $booking = TerrainBooking::where('id', $bookingId)
             ->where('manager_id', $user->id)
@@ -353,9 +490,9 @@ class MatchRequestController extends Controller
         }
 
         if ($booking->reservation_type === 'weekly_subscription') {
-            $date = !empty($validated['date']) ? Carbon::parse($validated['date']) : $booking->displayDate();
+            $date = ! empty($validated['date']) ? Carbon::parse($validated['date']) : $booking->displayDate();
 
-            if (!$date) {
+            if (! $date) {
                 return response()->json(['message' => 'حدد تاريخ المباراة'], 422);
             }
 
@@ -377,7 +514,7 @@ class MatchRequestController extends Controller
         } else {
             $date = $booking->booking_date;
 
-            if (!$date) {
+            if (! $date) {
                 return response()->json(['message' => 'الحجز بدون تاريخ محدد'], 422);
             }
 
@@ -388,18 +525,49 @@ class MatchRequestController extends Controller
             return response()->json(['message' => 'لا يمكن إنشاء مباراة في وقت مضى'], 422);
         }
 
-        $matchRequest = MatchRequest::create([
-            'host_team_id' => $user->team->id,
-            'stadium_id' => $booking->terrain_id,
-            'match_datetime' => $matchDatetime,
-            'notes' => $validated['notes'] ?? $booking->notes,
-        ]);
+        $datetime = Carbon::parse($matchDatetime);
 
-        $booking->update([
-            'match_request_id' => $matchRequest->id,
-            'booking_type' => 'match',
-            'flow_type' => 'amical',
-        ]);
+        if (MatchMembershipService::teamHasMatchConflict($user->team->id, $datetime)) {
+            return response()->json(['message' => 'فريقك لديه مباراة أخرى في نفس التوقيت'], 422);
+        }
+
+        if (MatchMembershipService::teamHasPlayerConflict($user->team->id, $datetime)) {
+            return response()->json(['message' => 'أحد لاعبي فريقك مشغول بمباراة أخرى في نفس التوقيت'], 422);
+        }
+
+        if (MatchMembershipService::stadiumHasFixtureConflict($booking->terrain_id, $datetime)) {
+            return response()->json(['message' => 'هذا الملعب محجوز مسبقاً لمباراة في البطولة في التوقيت المحدد.'], 422);
+        }
+
+        $matchRequest = null;
+
+        DB::transaction(function () use ($user, $booking, $matchDatetime, $validated, $needsPlayers, &$matchRequest) {
+            $bookingLock = TerrainBooking::where('id', $booking->id)->lockForUpdate()->first();
+
+            // Re-check booking status
+            if ($bookingLock->status !== 'approved') {
+                throw new \RuntimeException('Booking must be approved to create match request from it');
+            }
+
+            $matchRequest = MatchRequest::create([
+                'host_team_id' => $user->team->id,
+                'stadium_id' => $booking->terrain_id,
+                'match_datetime' => $matchDatetime,
+                'notes' => $validated['notes'] ?? $booking->notes,
+                'needs_players' => $needsPlayers,
+                'players_needed' => $needsPlayers ? ($validated['players_needed'] ?? null) : null,
+            ]);
+
+            $bookingLock->update([
+                'match_request_id' => $matchRequest->id,
+                'booking_type' => 'match',
+                'flow_type' => 'amical',
+            ]);
+        });
+
+        if (! $matchRequest) {
+            return response()->json(['message' => 'حدث خطأ أثناء إنشاء طلب المباراة من الحجز'], 500);
+        }
 
         return response()->json([
             'message' => 'تم إنشاء طلب المباراة من الحجز بنجاح',
@@ -407,11 +575,40 @@ class MatchRequestController extends Controller
         ], 201);
     }
 
+    public function start(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->team) {
+            return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
+        }
+
+        $teamId = $user->team->id;
+
+        $matchRequest = MatchRequest::where('id', $id)
+            ->whereIn('status', ['open', 'accepted'])
+            ->firstOrFail();
+
+        if ($matchRequest->host_team_id !== $teamId && $matchRequest->opponent_team_id !== $teamId) {
+            return response()->json(['message' => 'غير مصرح لك ببدء هذه المباراة'], 403);
+        }
+
+        $matchRequest->update([
+            'status' => 'live',
+            'started_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'تم بدء المباراة بنجاح',
+            'match_request' => $matchRequest->fresh(),
+        ]);
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
 
-        if (!$user->team) {
+        if (! $user->team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 

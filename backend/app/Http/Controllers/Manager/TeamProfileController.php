@@ -2,8 +2,7 @@
 
 namespace App\Http\Controllers\Manager;
 
-use App\Http\Controllers\Controller;
-use App\Models\Team;
+use App\Domains\Shared\Base\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -16,7 +15,7 @@ class TeamProfileController extends Controller
             ->with(['primaryStadium', 'manager'])
             ->first();
 
-        if (!$team) {
+        if (! $team) {
             return response()->json(['message' => 'لا يوجد فريق مرتبط بحسابك'], 404);
         }
 
@@ -40,7 +39,7 @@ class TeamProfileController extends Controller
 
         $team = $request->user()->team;
 
-        if (!$team) {
+        if (! $team) {
             return response()->json(['message' => 'لا يوجد فريق مرتبط بحسابك'], 404);
         }
 
@@ -60,7 +59,7 @@ class TeamProfileController extends Controller
 
         $team = $request->user()->team;
 
-        if (!$team) {
+        if (! $team) {
             return response()->json(['message' => 'لا يوجد فريق مرتبط بحسابك'], 404);
         }
 
@@ -68,13 +67,22 @@ class TeamProfileController extends Controller
             Storage::disk('public')->delete($team->logo_path);
         }
 
-        $path = $request->file('logo')->store('teams/logos', 'public');
+        if ($team->logo_thumbnail_path && Storage::disk('public')->exists($team->logo_thumbnail_path)) {
+            Storage::disk('public')->delete($team->logo_thumbnail_path);
+        }
 
-        $team->update(['logo_path' => $path]);
+        $result = app(\App\Domains\Shared\Services\ImageThumbnailService::class)
+            ->storeWithThumbnail($request->file('logo'), 'teams/logos');
+
+        $team->update([
+            'logo_path' => $result['path'],
+            'logo_thumbnail_path' => $result['thumbnail_path'],
+        ]);
 
         return response()->json([
             'message' => 'تم رفع الشعار بنجاح!',
             'logo_url' => $team->logo_url,
+            'logo_thumbnail_url' => $team->logo_thumbnail_url,
             'team' => $team->load(['primaryStadium', 'manager']),
         ]);
     }

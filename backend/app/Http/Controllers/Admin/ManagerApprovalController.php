@@ -2,13 +2,26 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
+use App\Domains\Chat\Models\MatchChatMessage;
+use App\Domains\Review\Models\PlayerReview;
+use App\Domains\Review\Models\StadiumReview;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Social\Models\Comment;
+use App\Domains\Social\Models\Report;
+use App\Domains\Stadium\Models\Facility;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ManagerApprovalController extends Controller
 {
+    public const ACTIONS = [
+        'approve' => 'approved',
+        'reject' => 'rejected',
+        'block' => 'blocked',
+        'unblock' => 'approved',
+    ];
+
     public function index(Request $request): JsonResponse
     {
         $status = $request->query('status', 'pending');
@@ -25,14 +38,48 @@ class ManagerApprovalController extends Controller
             $search = $request->query('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        $managers = $query->get(['id', 'name', 'email', 'phone', 'is_whatsapp', 'status', 'created_at']);
+        $perPage = min(50, max(1, (int) $request->query('per_page', 15)));
+        $paginator = $query->paginate($perPage)->withQueryString();
 
-        return response()->json(['managers' => $managers]);
+        return response()->json([
+            'managers' => $paginator->getCollection(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
+    }
+
+    public function bulk(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|distinct',
+            'action' => 'required|in:approve,reject,block,unblock',
+        ]);
+
+        $count = User::where('role', 'manager')
+            ->whereIn('id', $data['ids'])
+            ->update(['status' => self::ACTIONS[$data['action']]]);
+
+        if (in_array($data['action'], ['reject', 'block'], true)) {
+            User::where('role', 'manager')
+                ->whereIn('id', $data['ids'])
+                ->get()
+                ->each(fn (User $user) => $user->revokeTokens());
+        }
+
+        return response()->json([
+            'message' => "تم تحديث {$count} حساب مسير.",
+            'updated' => $count,
+        ]);
     }
 
     public function show(int $id): JsonResponse
@@ -66,6 +113,7 @@ class ManagerApprovalController extends Controller
             ->firstOrFail();
 
         $user->update(['status' => 'rejected']);
+        $user->revokeTokens();
 
         return response()->json([
             'message' => 'تم رفض طلب الانضمام',
@@ -80,6 +128,7 @@ class ManagerApprovalController extends Controller
             ->firstOrFail();
 
         $user->update(['status' => 'blocked']);
+        $user->revokeTokens();
 
         return response()->json([
             'message' => 'تم حظر الحساب بنجاح',
@@ -103,6 +152,18 @@ class ManagerApprovalController extends Controller
 
     public function stats(): JsonResponse
     {
+        $hideable = [
+            Comment::class,
+            MatchChatMessage::class,
+            PlayerReview::class,
+            StadiumReview::class,
+        ];
+
+        $hiddenTotal = 0;
+        foreach ($hideable as $class) {
+            $hiddenTotal += $class::where('status', 'hidden')->count();
+        }
+
         $stats = [
             'total' => User::where('role', 'manager')->count(),
             'pending' => User::where('role', 'manager')->where('status', 'pending')->count(),
@@ -112,6 +173,21 @@ class ManagerApprovalController extends Controller
             'terrain_owners_total' => User::where('role', 'terrain_owner')->count(),
             'terrain_owners_pending' => User::where('role', 'terrain_owner')->where('status', 'pending')->count(),
             'terrain_owners_approved' => User::where('role', 'terrain_owner')->where('status', 'approved')->count(),
+            'terrain_owners_rejected' => User::where('role', 'terrain_owner')->where('status', 'rejected')->count(),
+            'terrain_owners_blocked' => User::where('role', 'terrain_owner')->where('status', 'blocked')->count(),
+            'players_total' => User::where('role', 'player')->count(),
+            'players_pending' => User::where('role', 'player')->where('status', 'pending')->count(),
+            'players_approved' => User::where('role', 'player')->where('status', 'approved')->count(),
+            'players_rejected' => User::where('role', 'player')->where('status', 'rejected')->count(),
+            'players_blocked' => User::where('role', 'player')->where('status', 'blocked')->count(),
+            'committees_total' => User::where('role', 'committee')->count(),
+            'committees_pending' => User::where('role', 'committee')->where('status', 'pending')->count(),
+            'committees_approved' => User::where('role', 'committee')->where('status', 'approved')->count(),
+            'committees_rejected' => User::where('role', 'committee')->where('status', 'rejected')->count(),
+            'committees_blocked' => User::where('role', 'committee')->where('status', 'blocked')->count(),
+            'facilities_total' => Facility::count(),
+            'reports_pending' => Report::where('status', Report::STATUS_PENDING)->count(),
+            'hidden_total' => $hiddenTotal,
         ];
 
         return response()->json(['stats' => $stats]);
@@ -133,14 +209,48 @@ class ManagerApprovalController extends Controller
             $search = $request->query('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        $owners = $query->get(['id', 'name', 'email', 'phone', 'is_whatsapp', 'status', 'created_at']);
+        $perPage = min(50, max(1, (int) $request->query('per_page', 15)));
+        $paginator = $query->paginate($perPage)->withQueryString();
 
-        return response()->json(['owners' => $owners]);
+        return response()->json([
+            'owners' => $paginator->getCollection(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ]);
+    }
+
+    public function bulkTerrainOwners(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer|distinct',
+            'action' => 'required|in:approve,reject,block,unblock',
+        ]);
+
+        $count = User::where('role', 'terrain_owner')
+            ->whereIn('id', $data['ids'])
+            ->update(['status' => self::ACTIONS[$data['action']]]);
+
+        if (in_array($data['action'], ['reject', 'block'], true)) {
+            User::where('role', 'terrain_owner')
+                ->whereIn('id', $data['ids'])
+                ->get()
+                ->each(fn (User $user) => $user->revokeTokens());
+        }
+
+        return response()->json([
+            'message' => "تم تحديث {$count} حساب صاحب تيران.",
+            'updated' => $count,
+        ]);
     }
 
     public function showTerrainOwner(int $id): JsonResponse
@@ -168,6 +278,7 @@ class ManagerApprovalController extends Controller
     {
         $user = User::where('id', $id)->where('role', 'terrain_owner')->firstOrFail();
         $user->update(['status' => 'rejected']);
+        $user->revokeTokens();
 
         return response()->json([
             'message' => 'تم رفض طلب صاحب التيران',
@@ -179,6 +290,7 @@ class ManagerApprovalController extends Controller
     {
         $user = User::where('id', $id)->where('role', 'terrain_owner')->firstOrFail();
         $user->update(['status' => 'blocked']);
+        $user->revokeTokens();
 
         return response()->json([
             'message' => 'تم حظر حساب صاحب التيران',

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Manager;
 
-use App\Http\Controllers\Controller;
-use App\Models\AppNotification;
-use App\Models\MatchRequest;
-use App\Models\Team;
+use App\Domains\Match\Models\MatchRequest;
+use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Player\Models\PlayerProfile;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Shared\Support\PublicCache;
+use App\Domains\Team\Models\Team;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +25,7 @@ class MatchResultController extends Controller
             ->where('match_datetime', '<=', now()->subHour())
             ->where(function ($q) use ($teamId) {
                 $q->where('host_team_id', $teamId)
-                  ->orWhere('opponent_team_id', $teamId);
+                    ->orWhere('opponent_team_id', $teamId);
             })
             ->orderBy('match_datetime', 'asc')
             ->get();
@@ -41,7 +43,7 @@ class MatchResultController extends Controller
             ->where('score_status', 'pending_confirmation')
             ->where(function ($q) use ($teamId) {
                 $q->where('host_team_id', $teamId)
-                  ->orWhere('opponent_team_id', $teamId);
+                    ->orWhere('opponent_team_id', $teamId);
             })
             ->where('score_submitted_by', '!=', $user->id)
             ->orderBy('match_datetime', 'asc')
@@ -163,7 +165,12 @@ class MatchResultController extends Controller
                 $opponentTeam->increment('draws');
                 $opponentTeam->increment('points');
             }
+
+            $this->updatePlayerStandings($match, $hostScore, $oppScore);
         });
+
+        PublicCache::flushTeamLeaderboard();
+        PublicCache::flushPlayerLeaderboard();
 
         $match->load(['hostTeam', 'opponentTeam']);
         if ($match->score_submitted_by) {
@@ -171,7 +178,7 @@ class MatchResultController extends Controller
                 'user_id' => $match->score_submitted_by,
                 'type' => 'score_confirmed',
                 'title' => 'تم تأكيد نتيجة المباراة',
-                'body' => "الفريق المنافس أكد النتيجة — تم تحديث الترتيب",
+                'body' => 'الفريق المنافس أكد النتيجة — تم تحديث الترتيب',
                 'data' => ['match_id' => $match->id],
                 'action_url' => '/dashboard',
             ]);
@@ -216,7 +223,7 @@ class MatchResultController extends Controller
                 'user_id' => $submittedBy,
                 'type' => 'score_disputed',
                 'title' => 'تم رفض النتيجة المسجلة',
-                'body' => "الفريق المنافس اعترض على النتيجة — يرجى إعادة تسجيل النتيجة الصحيحة",
+                'body' => 'الفريق المنافس اعترض على النتيجة — يرجى إعادة تسجيل النتيجة الصحيحة',
                 'data' => ['match_id' => $match->id],
                 'action_url' => '/dashboard',
             ]);
@@ -226,5 +233,35 @@ class MatchResultController extends Controller
             'message' => 'تم الاعتراض على النتيجة. يمكنك إعادة تسجيل النتيجة',
             'match' => $match->fresh()->load(['hostTeam', 'opponentTeam']),
         ]);
+    }
+
+    private function updatePlayerStandings(MatchRequest $match, int $hostScore, int $oppScore): void
+    {
+        if (! $match->mercenary_player_id) {
+            return;
+        }
+
+        $profile = PlayerProfile::where('user_id', $match->mercenary_player_id)->first();
+
+        if (! $profile) {
+            return;
+        }
+
+        $profile->increment('matches_played');
+
+        if ($hostScore > $oppScore) {
+            $profile->increment('wins');
+            $profile->increment('points', 3);
+        } elseif ($hostScore < $oppScore) {
+            $profile->increment('losses');
+        } else {
+            $profile->increment('draws');
+            $profile->increment('points');
+        }
+
+        $profile->fresh();
+        $played = max(1, $profile->matches_played);
+        $rating = round(($profile->points / ($played * 3)) * 5, 1);
+        $profile->update(['rating' => $rating]);
     }
 }

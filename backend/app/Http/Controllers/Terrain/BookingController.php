@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers\Terrain;
 
-use App\Http\Controllers\Controller;
-use App\Models\AppNotification;
-use App\Models\CancellationRequest;
-use App\Models\Stadium;
-use App\Models\TerrainBooking;
-use App\Models\TerrainSchedule;
-use App\Models\TerrainSlotClosure;
+use App\Domains\Booking\Models\CancellationRequest;
+use App\Domains\Booking\Models\TerrainBooking;
+use App\Domains\Booking\Models\TerrainSchedule;
+use App\Domains\Booking\Models\TerrainSlotClosure;
+use App\Domains\Booking\Services\CalendarSlotService;
+use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\WhatsAppNotificationService;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Stadium\Models\Stadium;
 use App\Models\User;
-use App\Services\CalendarSlotService;
-use App\Services\WhatsAppNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class BookingController extends Controller
 {
@@ -31,7 +32,7 @@ class BookingController extends Controller
 
         $terrain = Stadium::findOrFail($terrainId);
 
-        if (!$terrain->is_open) {
+        if (! $terrain->is_open) {
             return response()->json([
                 'terrain' => $terrain->only(['id', 'name', 'type', 'player_format', 'price_per_team', 'is_open', 'closure_reason']),
                 'slots' => [],
@@ -49,7 +50,7 @@ class BookingController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (!$schedule) {
+        if (! $schedule) {
             return response()->json([
                 'terrain' => $terrain->only(['id', 'name', 'type', 'player_format', 'price_per_team', 'is_open', 'closure_reason']),
                 'slots' => [],
@@ -105,7 +106,7 @@ class BookingController extends Controller
                     'status' => $booking->status,
                     'start_time' => $booking->start_time,
                     'end_time' => $booking->end_time,
-                    'manager' => $booking->manager?->only(['id', 'name', 'phone']),
+                    'manager' => $booking->manager?->only(['id', 'name']),
                     'team' => $booking->team?->only(['id', 'name']),
                 ] : null,
             ];
@@ -142,16 +143,16 @@ class BookingController extends Controller
 
         $terrain = Stadium::findOrFail($validated['terrain_id']);
 
-        if (!$terrain->is_available) {
+        if (! $terrain->is_available) {
             return response()->json(['message' => 'الملعب غير متاح حالياً'], 422);
         }
 
-        if (!$terrain->is_open) {
+        if (! $terrain->is_open) {
             return response()->json(['message' => 'الملعب مغلق حالياً — لا يمكن الحجز'], 422);
         }
 
         $team = $user->team;
-        if (!$team) {
+        if (! $team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
@@ -163,46 +164,76 @@ class BookingController extends Controller
             $checkDate = $validated['booking_date'];
         }
 
-        $conflictMsg = TerrainBooking::getConflictMessage(
-            $validated['terrain_id'],
-            $checkDate,
-            $validated['start_time'],
-            $validated['end_time']
-        );
+        $conflictMsg = null;
+        $weekPrice = $terrain->price_per_team ?? 0;
+
+        $booking = null;
+
+        DB::transaction(function () use ($validated, $terrain, $isWeekly, &$conflictMsg, &$weekPrice, &$booking, $user, $team) {
+            $dateToLock = $isWeekly ? $validated['start_date'] : $validated['booking_date'];
+            TerrainBooking::where('terrain_id', $validated['terrain_id'])
+                ->where(function ($q) use ($dateToLock) {
+                    $q->where('booking_date', $dateToLock)
+                        ->orWhere(function ($sq) use ($dateToLock) {
+                            $sq->where('reservation_type', 'weekly_subscription')
+                                ->where(function ($wq) use ($dateToLock) {
+                                    $wq->whereNull('start_date')->orWhere('start_date', '<=', $dateToLock);
+                                })
+                                ->where(function ($wq) use ($dateToLock) {
+                                    $wq->whereNull('end_date')->orWhere('end_date', '>=', $dateToLock);
+                                });
+                        });
+                })->lockForUpdate()->get();
+
+            $conflictMsg = TerrainBooking::getConflictMessage(
+                $validated['terrain_id'],
+                $dateToLock,
+                $validated['start_time'],
+                $validated['end_time']
+            );
+
+            if ($conflictMsg) {
+                return;
+            }
+
+            $price = $terrain->price_per_team ?? 0;
+
+            if ($isWeekly) {
+                $weeks = 4;
+                if ($validated['end_date']) {
+                    $weeks = (int) ceil(Carbon::parse($validated['start_date'])->diffInWeeks(Carbon::parse($validated['end_date'])) ?: 4);
+                }
+                $weekPrice = $price * $weeks;
+            } else {
+                $weekPrice = $price;
+            }
+
+            $booking = TerrainBooking::create([
+                'terrain_id' => $validated['terrain_id'],
+                'manager_id' => $user->id,
+                'team_id' => $team->id,
+                'booking_type' => $validated['booking_type'],
+                'flow_type' => 'direct',
+                'reservation_type' => $validated['reservation_type'],
+                'booking_date' => $isWeekly ? $validated['start_date'] : $validated['booking_date'],
+                'day_of_week' => $isWeekly ? $validated['day_of_week'] : null,
+                'start_date' => $isWeekly ? $validated['start_date'] : null,
+                'end_date' => $validated['end_date'] ?? null,
+                'start_time' => $validated['start_time'],
+                'end_time' => $validated['end_time'],
+                'price' => $weekPrice,
+                'status' => 'pending',
+                'notes' => $validated['notes'] ?? null,
+            ]);
+        });
 
         if ($conflictMsg) {
             return response()->json(['message' => $conflictMsg], 422);
         }
 
-        $price = $terrain->price_per_team ?? 0;
-
-        if ($isWeekly) {
-            $weekPrice = $price * 4;
-            if ($validated['end_date']) {
-                $weeks = (int) ceil(Carbon::parse($validated['start_date'])->diffInWeeks(Carbon::parse($validated['end_date'])) ?: 4);
-                $weekPrice = $price * $weeks;
-            }
-        } else {
-            $weekPrice = $price;
+        if (! $booking) {
+            return response()->json(['message' => 'تعذر إنشاء الحجز'], 500);
         }
-
-        $booking = TerrainBooking::create([
-            'terrain_id' => $validated['terrain_id'],
-            'manager_id' => $user->id,
-            'team_id' => $team->id,
-            'booking_type' => $validated['booking_type'],
-            'flow_type' => 'direct',
-            'reservation_type' => $validated['reservation_type'],
-            'booking_date' => $isWeekly ? $validated['start_date'] : $validated['booking_date'],
-            'day_of_week' => $isWeekly ? $validated['day_of_week'] : null,
-            'start_date' => $isWeekly ? $validated['start_date'] : null,
-            'end_date' => $validated['end_date'] ?? null,
-            'start_time' => $validated['start_time'],
-            'end_time' => $validated['end_time'],
-            'price' => $weekPrice,
-            'status' => 'pending',
-            'notes' => $validated['notes'] ?? null,
-        ]);
 
         $booking->load(['terrain.owner', 'team', 'manager']);
 
@@ -226,6 +257,7 @@ class BookingController extends Controller
         $request->validate([
             'date' => 'sometimes|date',
             'week_start' => 'sometimes|date',
+            'weeks' => 'sometimes|integer|min:1|max:12',
         ]);
 
         $date = $request->date ? Carbon::parse($request->date) : Carbon::today();
@@ -236,6 +268,9 @@ class BookingController extends Controller
 
         $endOfWeek = $startOfWeek->copy()->endOfWeek();
 
+        $weeks = min((int) $request->input('weeks', 1), 12);
+        $rangeEnd = $startOfWeek->copy()->addDays(7 * $weeks - 1);
+
         $schedules = TerrainSchedule::where('terrain_id', $terrainId)
             ->where('is_active', true)
             ->get()
@@ -245,8 +280,8 @@ class BookingController extends Controller
         $singleBookings = TerrainBooking::where('terrain_id', $terrainId)
             ->where('reservation_type', 'single')
             ->whereIn('status', ['pending', 'approved'])
-            ->whereBetween('booking_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
-            ->with(['manager', 'team', 'matchRequest'])
+            ->whereBetween('booking_date', [$startOfWeek->toDateString(), $rangeEnd->toDateString()])
+            ->with(['manager.playerProfile', 'team', 'matchRequest'])
             ->get();
 
         // Get active weekly subscriptions covering any day in this week range
@@ -260,23 +295,43 @@ class BookingController extends Controller
             ->where('reservation_type', 'weekly_subscription')
             ->whereIn('day_of_week', $weekDays)
             ->whereIn('status', ['pending', 'approved'])
-            ->with(['manager', 'team'])
+            ->with(['manager.playerProfile', 'team'])
             ->get()
-            ->filter(function ($sub) use ($startOfWeek, $endOfWeek) {
-                if ($sub->start_date && $sub->start_date->gt($endOfWeek)) return false;
-                if ($sub->end_date && $sub->end_date->lt($startOfWeek)) return false;
+            ->filter(function ($sub) use ($startOfWeek, $rangeEnd) {
+                if ($sub->start_date && $sub->start_date->gt($rangeEnd)) {
+                    return false;
+                }
+                if ($sub->end_date && $sub->end_date->lt($startOfWeek)) {
+                    return false;
+                }
+
                 return true;
             });
 
         $pendingBookings = TerrainBooking::where('terrain_id', $terrainId)
             ->where('status', 'pending')
-            ->with(['manager', 'team', 'terrain.owner'])
+            ->with(['manager.playerProfile', 'team', 'terrain.owner'])
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(fn ($booking) => array_merge(
-                $booking->toArray(),
-                ['whatsapp_notification_url' => $this->whatsapp->buildBookingRequestMessage($booking)]
-            ));
+            ->map(function (TerrainBooking $booking) {
+                return [
+                    'id' => $booking->id,
+                    'booking_date' => $booking->booking_date?->toDateString(),
+                    'start_time' => $booking->start_time,
+                    'end_time' => $booking->end_time,
+                    'price' => (float) $booking->price,
+                    'status' => $booking->status,
+                    'booking_type' => $booking->booking_type,
+                    'flow_type' => $booking->flow_type ?? 'direct',
+                    'reservation_type' => $booking->reservation_type ?? 'single',
+                    'notes' => $booking->notes,
+                    'created_at' => $booking->created_at,
+                    'manager' => $this->managerSummary($booking->manager),
+                    'team' => $booking->team?->only(['id', 'name']),
+                    'terrain' => $booking->terrain?->only(['id', 'name']),
+                    'whatsapp_notification_url' => $this->whatsapp->buildBookingRequestMessage($booking),
+                ];
+            });
 
         // Compute stats
         $totalBookings = TerrainBooking::where('terrain_id', $terrainId)
@@ -289,11 +344,11 @@ class BookingController extends Controller
         $emptySlots = 0;
 
         $closures = TerrainSlotClosure::where('terrain_id', $terrainId)
-            ->whereBetween('closure_date', [$startOfWeek->toDateString(), $endOfWeek->toDateString()])
+            ->whereBetween('closure_date', [$startOfWeek->toDateString(), $rangeEnd->toDateString()])
             ->get();
 
         $days = [];
-        for ($d = $startOfWeek->copy(); $d->lte($endOfWeek); $d->addDay()) {
+        for ($d = $startOfWeek->copy(); $d->lte($rangeEnd); $d->addDay()) {
             $daySingleBookings = $singleBookings->filter(fn($b) => $b->booking_date?->isSameDay($d));
             $schedule = $schedules->get($d->dayOfWeek);
 
@@ -317,7 +372,7 @@ class BookingController extends Controller
                     $slotBooking = $booking;
 
                     // Check weekly subscription if no single booking
-                    if (!$booking) {
+                    if (! $booking) {
                         $subscription = $weeklySubscriptions->first(function ($sub) use ($d, $slot) {
                             return $sub->day_of_week === $d->dayOfWeek
                                 && $sub->coversDate($d)
@@ -361,7 +416,7 @@ class BookingController extends Controller
                             'price' => $slotBooking->price,
                             'start_time' => $slotBooking->start_time,
                             'end_time' => $slotBooking->end_time,
-                            'manager' => $slotBooking->manager?->only(['id', 'name', 'phone', 'is_whatsapp']),
+                            'manager' => $this->managerSummary($slotBooking->manager),
                             'team' => $slotBooking->team?->only(['id', 'name']),
                         ] : null,
                         'closure' => $slotClosure ? [
@@ -384,7 +439,7 @@ class BookingController extends Controller
             'terrain' => $terrain->only(['id', 'name', 'type', 'player_format', 'price_per_team', 'is_open', 'closure_reason']),
             'week' => [
                 'start' => $startOfWeek->toDateString(),
-                'end' => $endOfWeek->toDateString(),
+                'end' => $rangeEnd->toDateString(),
             ],
             'stats' => [
                 'total_bookings' => $totalBookings,
@@ -412,7 +467,55 @@ class BookingController extends Controller
             return response()->json(['message' => 'هذا الحجز ليس في حالة انتظار'], 422);
         }
 
-        $booking->update(['status' => $validated['status']]);
+        if ($validated['status'] === 'approved') {
+            $conflictMsg = null;
+            $statusToSet = $validated['status'];
+            DB::transaction(function () use ($booking, &$conflictMsg, $statusToSet) {
+                $dateToLock = $booking->isWeeklySubscription() ? ($booking->start_date?->toDateString() ?? now()->toDateString()) : ($booking->booking_date?->toDateString() ?? now()->toDateString());
+
+                TerrainBooking::where('terrain_id', $booking->terrain_id)
+                    ->where(function ($q) use ($dateToLock) {
+                        $q->where('booking_date', $dateToLock)
+                            ->orWhere(function ($sq) use ($dateToLock) {
+                                $sq->where('reservation_type', 'weekly_subscription')
+                                    ->where(function ($wq) use ($dateToLock) {
+                                        $wq->whereNull('start_date')->orWhere('start_date', '<=', $dateToLock);
+                                    })
+                                    ->where(function ($wq) use ($dateToLock) {
+                                        $wq->whereNull('end_date')->orWhere('end_date', '>=', $dateToLock);
+                                    });
+                            });
+                    })->lockForUpdate()->get();
+
+                $conflictMsg = TerrainBooking::getConflictMessage(
+                    $booking->terrain_id,
+                    $dateToLock,
+                    $booking->start_time,
+                    $booking->end_time,
+                    $booking->id
+                );
+
+                if ($conflictMsg) {
+                    return;
+                }
+
+                $booking->update(['status' => $statusToSet]);
+            });
+
+            if ($conflictMsg) {
+                return response()->json(['message' => $conflictMsg], 422);
+            }
+        } else {
+            $statusToSet = $validated['status'];
+            DB::transaction(function () use ($booking, $statusToSet) {
+                $bookingLock = TerrainBooking::where('id', $booking->id)->lockForUpdate()->first();
+                if ($bookingLock->status !== 'pending') {
+                    return;
+                }
+                $bookingLock->update(['status' => $statusToSet]);
+            });
+            $booking->refresh();
+        }
 
         $booking->load(['manager', 'team', 'terrain']);
 
@@ -434,10 +537,125 @@ class BookingController extends Controller
         return response()->json($response);
     }
 
+    public function ownerCreateGuestBooking(Request $request, int $terrainId): JsonResponse
+    {
+        $user = $request->user();
+
+        $terrain = Stadium::where('id', $terrainId)
+            ->where('owner_id', $user->id)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'reservation_type' => 'required|in:single,weekly_subscription',
+            'booking_date' => 'required_if:reservation_type,single|date|after_or_equal:today',
+            'day_of_week' => 'required_if:reservation_type,weekly_subscription|nullable|integer|in:0,1,2,3,4,5,6',
+            'start_date' => 'required_if:reservation_type,weekly_subscription|nullable|date|after_or_equal:today',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i|after:start_time',
+            'booking_type' => 'required|in:training,private,match',
+            'guest_name' => 'required|string|max:255',
+            'guest_phone' => 'required|string|max:50',
+            'guest_email' => 'nullable|email|max:255',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        if (! $terrain->is_available) {
+            return response()->json(['message' => 'الملعب غير متاح حالياً'], 422);
+        }
+
+        if (! $terrain->is_open) {
+            return response()->json(['message' => 'الملعب مغلق حالياً — لا يمكن الحجز'], 422);
+        }
+
+        $isWeekly = $validated['reservation_type'] === 'weekly_subscription';
+
+        $checkDate = $isWeekly ? $validated['start_date'] : $validated['booking_date'];
+
+        // Create guest booking inside a transaction with locking to avoid races
+        $guestBooking = null;
+        DB::transaction(function () use ($terrainId, $validated, $isWeekly, &$guestBooking) {
+            $dateToLock = $isWeekly ? $validated['start_date'] : $validated['booking_date'];
+            TerrainBooking::where('terrain_id', $terrainId)
+                ->where(function ($q) use ($dateToLock) {
+                    $q->where('booking_date', $dateToLock)
+                        ->orWhere(function ($sq) use ($dateToLock) {
+                            $sq->where('reservation_type', 'weekly_subscription')
+                                ->where(function ($wq) use ($dateToLock) {
+                                    $wq->whereNull('start_date')->orWhere('start_date', '<=', $dateToLock);
+                                })
+                                ->where(function ($wq) use ($dateToLock) {
+                                    $wq->whereNull('end_date')->orWhere('end_date', '>=', $dateToLock);
+                                });
+                        });
+                })->lockForUpdate()->get();
+
+            $conflictMsg = TerrainBooking::getConflictMessage(
+                $terrainId,
+                $dateToLock,
+                $validated['start_time'],
+                $validated['end_time']
+            );
+
+            if ($conflictMsg) {
+                return;
+            }
+
+            $price = $terrain->price_per_team ?? 0;
+            if ($isWeekly) {
+                $weeks = 4;
+                if ($validated['end_date']) {
+                    $weeks = (int) ceil(Carbon::parse($validated['start_date'])->diffInWeeks(Carbon::parse($validated['end_date'])) ?: 4);
+                }
+                $price = $price * $weeks;
+            }
+
+            $guestBooking = TerrainBooking::create([
+                'terrain_id' => $terrainId,
+                'manager_id' => null,
+                'team_id' => null,
+                'booking_type' => $validated['booking_type'],
+                'flow_type' => 'direct',
+                'reservation_type' => $validated['reservation_type'],
+                'booking_date' => $isWeekly ? $validated['start_date'] : $validated['booking_date'],
+                'day_of_week' => $isWeekly ? $validated['day_of_week'] : null,
+                'start_date' => $isWeekly ? $validated['start_date'] : null,
+                'end_date' => $validated['end_date'] ?? null,
+                'start_time' => $validated['start_time'],
+                'end_time' => $validated['end_time'],
+                'price' => $price,
+                'status' => 'approved',
+                'notes' => $validated['notes'] ?? null,
+                'guest_name' => $validated['guest_name'],
+                'guest_phone' => $validated['guest_phone'],
+                'guest_email' => $validated['guest_email'] ?? null,
+            ]);
+        });
+
+        if (! empty($conflictMsg)) {
+            return response()->json(['message' => $conflictMsg], 422);
+        }
+
+        if (! $guestBooking) {
+            return response()->json(['message' => 'تعذر إنشاء الحجز الضيف'], 500);
+        }
+
+        $booking = $booking ?? $guestBooking;
+        $booking->load(['terrain.owner']);
+
+        return response()->json([
+            'message' => 'تم إنشاء الحجز الضيف بنجاح',
+            'booking' => $booking,
+            'whatsapp_notification_url' => $this->whatsapp->buildOwnerDecisionMessage($booking, 'approved'),
+        ], 201);
+    }
+
     public function getManagerBookings(Request $request): JsonResponse
     {
         $user = $request->user();
         $today = Carbon::today()->toDateString();
+
+        $perPage = (int) $request->input('per_page', 30);
 
         $bookings = TerrainBooking::with(['terrain:id,name,city,type', 'team:id,name'])
             ->where('manager_id', $user->id)
@@ -445,24 +663,34 @@ class BookingController extends Controller
             ->whereNull('match_request_id')
             ->where(function ($q) use ($today) {
                 $q->where('reservation_type', 'single')
-                  ->whereDate('booking_date', '>=', $today)
-                  ->orWhere(function ($sq) use ($today) {
-                      $sq->where('reservation_type', 'weekly_subscription')
-                         ->where(function ($ssq) use ($today) {
-                             $ssq->whereNull('end_date')
-                                 ->orWhereDate('end_date', '>=', $today);
-                         });
-                  });
+                    ->whereDate('booking_date', '>=', $today)
+                    ->orWhere(function ($sq) use ($today) {
+                        $sq->where('reservation_type', 'weekly_subscription')
+                            ->where(function ($ssq) use ($today) {
+                                $ssq->whereNull('end_date')
+                                    ->orWhereDate('end_date', '>=', $today);
+                            });
+                    });
             })
             ->orderBy('booking_date')
             ->orderBy('start_time')
-            ->get()
-            ->map(function ($b) {
-                $b->next_date = $b->displayDate()?->toDateString();
-                return $b;
-            });
+            ->paginate($perPage);
 
-        return response()->json(['bookings' => $bookings]);
+        $bookings->getCollection()->transform(function ($b) {
+            $b->next_date = $b->displayDate()?->toDateString();
+
+            return $b;
+        });
+
+        return response()->json([
+            'bookings' => $bookings->items(),
+            'pagination' => [
+                'current_page' => $bookings->currentPage(),
+                'last_page' => $bookings->lastPage(),
+                'per_page' => $bookings->perPage(),
+                'total' => $bookings->total(),
+            ],
+        ]);
     }
 
     public function myReservations(Request $request, int $terrainId): JsonResponse
@@ -506,7 +734,7 @@ class BookingController extends Controller
                 }
             } else {
                 $date = $booking->booking_date;
-                if (!$date || $date->isPast()) {
+                if (! $date || $date->isPast()) {
                     continue;
                 }
                 $reservations[] = [
@@ -574,5 +802,20 @@ class BookingController extends Controller
             'message' => 'تم إرسال طلب الإلغاء إلى صاحب الملعب',
             'cancellation' => $cancellation,
         ], 201);
+    }
+
+    private function managerSummary(?User $manager): ?array
+    {
+        if (! $manager) {
+            return null;
+        }
+
+        return [
+            'id' => $manager->id,
+            'name' => $manager->name,
+            'phone' => $manager->phone,
+            'email' => $manager->email,
+            'profile_image' => $manager->playerProfile?->photo_url,
+        ];
     }
 }

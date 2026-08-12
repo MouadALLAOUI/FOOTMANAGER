@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -44,5 +43,10 @@ class UserFactory extends Factory
     public function terrainOwner(): static
     {
         return $this->state(fn () => ['role' => 'terrain_owner']);
+    }
+
+    public function committee(): static
+    {
+        return $this->state(fn () => ['role' => 'committee']);
     }
 }

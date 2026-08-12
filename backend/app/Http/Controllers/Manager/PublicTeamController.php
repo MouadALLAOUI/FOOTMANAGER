@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Manager;
 
-use App\Http\Controllers\Controller;
-use App\Models\MatchRequest;
-use App\Models\Team;
+use App\Domains\Match\Models\MatchRequest;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Team\Models\Team;
 use Illuminate\Http\JsonResponse;
 
 class PublicTeamController extends Controller
@@ -22,7 +22,7 @@ class PublicTeamController extends Controller
             ->where('status', 'completed')
             ->where(function ($q) use ($id) {
                 $q->where('host_team_id', $id)
-                  ->orWhere('opponent_team_id', $id);
+                    ->orWhere('opponent_team_id', $id);
             })
             ->latest('match_datetime')
             ->limit(5)

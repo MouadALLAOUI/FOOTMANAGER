@@ -2,12 +2,14 @@
 
 namespace Database\Seeders;
 
-use App\Models\MatchRequest;
-use App\Models\Player;
-use App\Models\Stadium;
-use App\Models\Team;
-use App\Models\TerrainBooking;
-use App\Models\TerrainSchedule;
+use App\Domains\Booking\Models\TerrainBooking;
+use App\Domains\Booking\Models\TerrainSchedule;
+use App\Domains\Match\Models\MatchRequest;
+use App\Domains\Match\Models\PlayerMatchRequest;
+use App\Domains\Player\Models\Player;
+use App\Domains\Player\Models\PlayerProfile;
+use App\Domains\Stadium\Models\Stadium;
+use App\Domains\Team\Models\Team;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +21,9 @@ class DatabaseSeeder extends Seeder
         // Default data — always seeded (admin user + facilities)
         $this->call(AdminSeeder::class);
         $this->call(FacilitySeeder::class);
+        $this->call(SettingsSeeder::class);
+        $this->call(AchievementSeeder::class);
+        $this->call(PublicApiBackfillSeeder::class);
 
         // Factories and demo data are for local/development only
         if (app()->environment('production')) {
@@ -86,8 +91,8 @@ class DatabaseSeeder extends Seeder
             'member_count' => 18,
             'category' => 'adult',
             'association_name' => 'الجمعية الرياضية للتجربة',
-            'city' => 'الجزائر',
-            'region' => 'العاصمة',
+            'city' => 'tinghir',
+            'region' => 'kelaa mgouna',
             'primary_color' => '#16a34a',
             'secondary_color' => '#ffffff',
             'points' => 12,
@@ -99,6 +104,17 @@ class DatabaseSeeder extends Seeder
             'goals_against' => 4,
             'goal_difference' => 7,
             'manager_id' => $testManager->id,
+        ]);
+
+        // Test Committee — always accessible after migration
+        User::create([
+            'name' => 'لجنة تنظيمية تجريبية',
+            'email' => 'committee@footmanager.com',
+            'phone' => '0677000000',
+            'is_whatsapp' => true,
+            'password' => bcrypt('password'),
+            'role' => 'committee',
+            'status' => 'approved',
         ]);
 
         $testPositions = ['goalkeeper', 'defender', 'defender', 'defender', 'midfielder', 'midfielder', 'midfielder', 'forward', 'forward'];
@@ -142,6 +158,10 @@ class DatabaseSeeder extends Seeder
         $pendingOwners->each(function (User $owner) {
             Stadium::factory()->count(rand(1, 3))->create(['owner_id' => $owner->id]);
         });
+
+        // 2 pending committees + 1 rejected committee (for admin approval demo)
+        User::factory()->committee()->pending()->count(2)->create();
+        User::factory()->committee()->rejected()->count(1)->create();
 
         // 1 approved terrain owner (extra)
         $approvedOwner = User::factory()->terrainOwner()->approved()->create();
@@ -189,6 +209,94 @@ class DatabaseSeeder extends Seeder
 
         // Seed sample terrain bookings
         $this->seedTerrainBookings($testTerrain, $testTerrain2, $testTeam, $managers);
+
+        // Cancellation policies must be seeded after all stadiums exist to backfill them
+        $this->call(CancellationPolicySeeder::class);
+
+        $this->seedPlayers($testTeam);
+    }
+
+    private function seedPlayers(Team $testTeam): void
+    {
+        if (User::where('role', 'player')->exists()) {
+            return;
+        }
+
+        // Test Player — always accessible after migration
+        $testPlayer = User::create([
+            'name' => 'لاعب حر تجريبي',
+            'email' => 'player@footmanager.com',
+            'phone' => '0666000000',
+            'is_whatsapp' => true,
+            'password' => bcrypt('password'),
+            'role' => 'player',
+            'status' => 'approved',
+        ]);
+
+        PlayerProfile::create([
+            'user_id' => $testPlayer->id,
+            'position' => 'forward',
+            'skill_level' => 'amateur',
+            'birth_year' => 1998,
+            'city' => 'الدار البيضاء',
+            'description' => 'لاعب حر يبحث عن مباريات في الدار البيضاء',
+            'is_available' => true,
+            'points' => 6,
+            'matches_played' => 2,
+            'wins' => 2,
+            'draws' => 0,
+            'losses' => 0,
+            'rating' => 5.0,
+        ]);
+
+        // More approved players for the marketplace
+        $playerNames = ['أمين الرميلي', 'سفيان بلخير', 'حمزة الفاسي', 'إلياس الشرقاوي', 'مهدي برادة'];
+        $positions = ['goalkeeper', 'defender', 'midfielder', 'forward'];
+        $skills = ['beginner', 'amateur', 'semi_pro', 'pro'];
+        $cities = ['الدار البيضاء', 'الرباط', 'مراكش', 'فاس', 'طنجة'];
+
+        foreach ($playerNames as $i => $name) {
+            $player = User::create([
+                'name' => $name,
+                'phone' => "06661{$i}{$i}00",
+                'is_whatsapp' => true,
+                'password' => bcrypt('password'),
+                'role' => 'player',
+                'status' => $i % 5 === 4 ? 'pending' : 'approved',
+            ]);
+
+            PlayerProfile::create([
+                'user_id' => $player->id,
+                'position' => $positions[$i % 4],
+                'skill_level' => $skills[$i % 4],
+                'birth_year' => 1995 + $i,
+                'city' => $cities[$i],
+                'is_available' => true,
+                'points' => rand(0, 9),
+                'matches_played' => rand(0, 5),
+                'wins' => rand(0, 3),
+                'draws' => rand(0, 2),
+                'losses' => rand(0, 2),
+            ]);
+        }
+
+        // One pending player application to a test open match
+        $openMatch = MatchRequest::where('status', 'open')->first();
+        if ($openMatch) {
+            PlayerMatchRequest::create([
+                'player_id' => $testPlayer->id,
+                'match_request_id' => $openMatch->id,
+                'type' => 'apply',
+                'status' => 'pending',
+                'message' => 'سلام، أستطيع اللعب في مركز الهجوم',
+            ]);
+        }
+
+        // Attach the test player as mercenary to one completed match for the rating demo
+        $completedMatch = MatchRequest::where('status', 'completed')->whereNull('mercenary_player_id')->first();
+        if ($completedMatch) {
+            $completedMatch->update(['mercenary_player_id' => $testPlayer->id]);
+        }
     }
 
     private function seedCompletedMatches($approvedTeams): void

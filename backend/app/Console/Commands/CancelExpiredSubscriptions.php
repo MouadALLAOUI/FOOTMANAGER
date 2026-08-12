@@ -2,12 +2,13 @@
 
 namespace App\Console\Commands;
 
-use App\Models\TerrainBooking;
+use App\Domains\Booking\Models\TerrainBooking;
 use Illuminate\Console\Command;
 
 class CancelExpiredSubscriptions extends Command
 {
     protected $signature = 'subscriptions:cancel-expired';
+
     protected $description = 'Auto-complete weekly subscriptions that have passed their end date';
 
     public function handle(): int
@@ -18,6 +19,7 @@ class CancelExpiredSubscriptions extends Command
             ->update(['status' => 'completed']);
 
         $this->info("Completed {$expired} expired subscription(s).");
+
         return Command::SUCCESS;
     }
 }

@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers\Terrain;
 
-use App\Http\Controllers\Controller;
-use App\Models\AppNotification;
-use App\Models\CancellationRequest;
-use App\Models\TerrainBooking;
-use App\Services\WhatsAppNotificationService;
+use App\Domains\Booking\Events\BookingApproved;
+use App\Domains\Booking\Events\BookingRejected;
+use App\Domains\Booking\Models\CancellationRequest;
+use App\Domains\Booking\Models\TerrainBooking;
+use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\WhatsAppNotificationService;
+use App\Domains\Shared\Base\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Domains\Booking\Services\SlotAvailabilityService;
 
 class OwnerBookingController extends Controller
 {
@@ -28,9 +32,50 @@ class OwnerBookingController extends Controller
             return response()->json(['message' => 'هذا الحجز ليس في حالة انتظار'], 422);
         }
 
-        $booking->update(['status' => 'approved']);
+        $conflictMsg = null;
 
-        $booking->load(['terrain.owner', 'team', 'manager']);
+        DB::transaction(function () use ($booking, &$conflictMsg) {
+            // Lock existing bookings for this terrain and the relevant date/window
+            $dateToLock = $booking->isWeeklySubscription() ? ($booking->start_date?->toDateString() ?? now()->toDateString()) : ($booking->booking_date?->toDateString() ?? now()->toDateString());
+
+            TerrainBooking::where('terrain_id', $booking->terrain_id)
+                ->where(function ($q) use ($dateToLock) {
+                    $q->where('booking_date', $dateToLock)
+                        ->orWhere(function ($sq) use ($dateToLock) {
+                            $sq->where('reservation_type', 'weekly_subscription')
+                                ->where(function ($wq) use ($dateToLock) {
+                                    $wq->whereNull('start_date')->orWhere('start_date', '<=', $dateToLock);
+                                })
+                                ->where(function ($wq) use ($dateToLock) {
+                                    $wq->whereNull('end_date')->orWhere('end_date', '>=', $dateToLock);
+                                });
+                        });
+                })->lockForUpdate()->get();
+
+            // Check for conflicts excluding this booking
+            $conflictMsg = app(SlotAvailabilityService::class)->conflictMessage(
+                $booking->terrain_id,
+                $dateToLock,
+                $booking->start_time,
+                $booking->end_time,
+                SlotAvailabilityService::CONFLICT_STATUSES,
+                $booking->id
+            );
+
+            if ($conflictMsg) {
+                return;
+            }
+
+            $booking->update(['status' => 'approved']);
+        });
+
+        if ($conflictMsg) {
+            return response()->json(['message' => $conflictMsg], 422);
+        }
+
+        $booking->refresh()->load(['terrain.owner', 'team', 'manager']);
+
+        event(new BookingApproved($booking));
 
         if ($booking->manager_id) {
             AppNotification::create([
@@ -63,9 +108,26 @@ class OwnerBookingController extends Controller
             return response()->json(['message' => 'هذا الحجز ليس في حالة انتظار'], 422);
         }
 
-        $booking->update(['status' => 'rejected']);
+        $conflictMsg = null;
 
-        $booking->load(['terrain.owner', 'team', 'manager']);
+        DB::transaction(function () use ($booking, &$conflictMsg) {
+            $bookingLock = TerrainBooking::where('id', $booking->id)->lockForUpdate()->first();
+
+            if ($bookingLock->status !== 'pending') {
+                $conflictMsg = 'تم التعامل مع هذا الحجز مسبقاً';
+                return;
+            }
+
+            $bookingLock->update(['status' => 'rejected']);
+        });
+
+        if ($conflictMsg) {
+            return response()->json(['message' => $conflictMsg], 422);
+        }
+
+        $booking->refresh()->load(['terrain.owner', 'team', 'manager']);
+
+        event(new BookingRejected($booking));
 
         if ($booking->manager_id) {
             AppNotification::create([

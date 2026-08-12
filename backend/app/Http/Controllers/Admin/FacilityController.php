@@ -2,16 +2,23 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
-use App\Models\Facility;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Shared\Support\PublicCache;
+use App\Domains\Stadium\Models\Facility;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class FacilityController extends Controller
 {
     public function index(): JsonResponse
     {
-        $facilities = Facility::orderBy('name')->get();
+        $facilities = Cache::remember(
+            PublicCache::facilities(),
+            (int) config('public.cache.facilities_ttl', 3600),
+            fn () => Facility::orderBy('name')->get(),
+        );
+
         return response()->json(['facilities' => $facilities]);
     }
 
@@ -23,6 +30,8 @@ class FacilityController extends Controller
         ]);
 
         $facility = Facility::create($validated);
+
+        PublicCache::flushFacilities();
 
         return response()->json([
             'message' => 'تم إضافة المرفق بنجاح',
@@ -41,6 +50,8 @@ class FacilityController extends Controller
 
         $facility->update($validated);
 
+        PublicCache::flushFacilities();
+
         return response()->json([
             'message' => 'تم تحديث المرفق بنجاح',
             'facility' => $facility->fresh(),
@@ -52,6 +63,9 @@ class FacilityController extends Controller
         $facility = Facility::findOrFail($id);
         $facility->terrains()->detach();
         $facility->delete();
+
+        PublicCache::flushFacilities();
+        PublicCache::flushTerrains();
 
         return response()->json([
             'message' => 'تم حذف المرفق بنجاح',

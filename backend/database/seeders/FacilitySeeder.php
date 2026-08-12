@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Facility;
+use App\Domains\Stadium\Models\Facility;
 use Illuminate\Database\Seeder;
 
 class FacilitySeeder extends Seeder

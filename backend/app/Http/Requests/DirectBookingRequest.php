@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Rules\NoOverlappingBooking;
+use App\Domains\Booking\Services\SlotAvailabilityService;
+use App\Domains\Stadium\Models\Stadium;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DirectBookingRequest extends FormRequest
@@ -33,27 +34,27 @@ class DirectBookingRequest extends FormRequest
         $validator->after(function ($validator) {
             $terrainId = $this->terrain_id;
 
-            $terrain = \App\Models\Stadium::find($terrainId);
-            if ($terrain && !$terrain->is_open) {
+            $terrain = Stadium::find($terrainId);
+            if ($terrain && ! $terrain->is_open) {
                 $validator->errors()->add('terrain_id', 'الملعب مغلق حالياً — لا يمكن الحجز');
             }
 
             $team = $this->user()?->team;
-            if (!$team) {
+            if (! $team) {
                 $validator->errors()->add('team', 'يجب إنشاء ملف الفريق أولاً');
             }
 
-            if (!$validator->errors()->any() && $terrain) {
+            if (! $validator->errors()->any() && $terrain) {
                 $date = $this->reservation_type === 'weekly_subscription'
                     ? $this->start_date
                     : $this->booking_date;
 
                 if ($date) {
-                    $hasConflict = \App\Models\TerrainBooking::checkConflict(
-                        $terrainId,
-                        $date,
-                        $this->start_time,
-                        $this->end_time
+                    $hasConflict = app(SlotAvailabilityService::class)->hasConflict(
+                        terrainId: $terrainId,
+                        date: $date,
+                        startTime: $this->start_time,
+                        endTime: $this->end_time,
                     );
                     if ($hasConflict) {
                         $validator->errors()->add('time_slot', 'هذا الوقت محجوز بالفعل في التاريخ المحدد');

@@ -2,21 +2,20 @@
 
 namespace App\Http\Controllers\Manager;
 
-use App\Http\Controllers\Controller;
-use App\Models\Player;
+use App\Domains\Shared\Base\Controller;
+use App\Domains\Team\Services\ManagerRosterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PlayerController extends Controller
 {
+    public function __construct(private ManagerRosterService $roster) {}
+
     public function index(Request $request): JsonResponse
     {
         $teamId = $request->user()->team->id;
 
-        $players = Player::where('team_id', $teamId)
-            ->orderBy('number')
-            ->orderBy('name')
-            ->get();
+        $players = $this->roster->list($teamId);
 
         return response()->json(['players' => $players]);
     }
@@ -34,15 +33,7 @@ class PlayerController extends Controller
 
         $teamId = $request->user()->team->id;
 
-        $player = Player::create([
-            'team_id' => $teamId,
-            'name' => $validated['name'],
-            'position' => $validated['position'] ?? null,
-            'number' => $validated['number'] ?? null,
-            'phone' => $validated['phone'] ?? null,
-            'is_whatsapp' => $validated['is_whatsapp'] ?? false,
-            'notes' => $validated['notes'] ?? null,
-        ]);
+        $player = $this->roster->create($teamId, $validated);
 
         return response()->json([
             'message' => 'تم إضافة اللاعب بنجاح',
@@ -54,7 +45,8 @@ class PlayerController extends Controller
     {
         $teamId = $request->user()->team->id;
 
-        $player = Player::where('id', $id)->where('team_id', $teamId)->firstOrFail();
+        $player = $this->roster->findForTeam($teamId, $id);
+        abort_unless($player, 404);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -65,7 +57,7 @@ class PlayerController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        $player->update($validated);
+        $player = $this->roster->update($player, $validated);
 
         return response()->json([
             'message' => 'تم تحديث بيانات اللاعب بنجاح',
@@ -77,9 +69,10 @@ class PlayerController extends Controller
     {
         $teamId = $request->user()->team->id;
 
-        $player = Player::where('id', $id)->where('team_id', $teamId)->firstOrFail();
+        $player = $this->roster->findForTeam($teamId, $id);
+        abort_unless($player, 404);
 
-        $player->delete();
+        $this->roster->delete($player);
 
         return response()->json([
             'message' => 'تم حذف اللاعب بنجاح',

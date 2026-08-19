@@ -7,6 +7,7 @@ use App\Domains\Booking\Models\TerrainImage;
 use App\Domains\Booking\Models\TerrainSchedule;
 use App\Domains\Notification\Services\WhatsAppNotificationService;
 use App\Domains\Shared\Base\Controller;
+use App\Domains\Shared\Models\City;
 use App\Domains\Shared\Services\ImageThumbnailService;
 use App\Domains\Shared\Support\PublicCache;
 use App\Domains\Stadium\Models\Stadium;
@@ -55,7 +56,7 @@ class TerrainOwnerController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'city' => 'required|string|max:255',
+            'city_id' => 'required|integer|exists:cities,id',
             'address' => 'nullable|string|max:255',
             'google_maps_url' => 'nullable|url|max:500',
             'type' => 'required|in:salle,synthetic,cement,minifoot,grass',
@@ -67,11 +68,18 @@ class TerrainOwnerController extends Controller
             'price_per_team' => 'required|numeric|min:0',
             'facility_ids' => 'nullable|array',
             'facility_ids.*' => 'exists:facilities,id',
+        ], [
+            'city_id.required' => 'المدينة مطلوبة',
+            'city_id.exists' => 'المدينة المحددة غير موجودة',
         ]);
 
+        $city = City::findOrFail($validated['city_id']);
+        $validated['city'] = $city->name;
         $validated['owner_id'] = $request->user()->id;
+        unset($validated['city_id']);
 
         $terrain = Stadium::create($validated);
+        $terrain->update(['city_id' => $city->id]);
 
         if ($request->has('facility_ids')) {
             $terrain->facilities()->sync($validated['facility_ids']);
@@ -93,7 +101,7 @@ class TerrainOwnerController extends Controller
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:255',
-            'city' => 'sometimes|string|max:255',
+            'city_id' => 'sometimes|integer|exists:cities,id',
             'address' => 'nullable|string|max:255',
             'google_maps_url' => 'nullable|url|max:500',
             'type' => 'sometimes|in:salle,synthetic,cement,minifoot,grass',
@@ -106,7 +114,16 @@ class TerrainOwnerController extends Controller
             'is_available' => 'boolean',
             'facility_ids' => 'nullable|array',
             'facility_ids.*' => 'exists:facilities,id',
+        ], [
+            'city_id.exists' => 'المدينة المحددة غير موجودة',
         ]);
+
+        if (isset($validated['city_id'])) {
+            $city = City::findOrFail($validated['city_id']);
+            $validated['city'] = $city->name;
+            $terrain->update(['city_id' => $city->id]);
+            unset($validated['city_id']);
+        }
 
         $terrain->update($validated);
 

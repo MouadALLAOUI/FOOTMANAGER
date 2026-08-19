@@ -5,23 +5,32 @@ import { useDialogA11y } from './ui'
 
 const MIN_WIDTH = 320
 
+const SIZE_MAP = {
+  sm: 400,
+  md: 480,
+  lg: 560,
+  xl: 640,
+}
+
 function getViewport() {
   const vw = typeof window !== 'undefined' ? window.innerWidth : 1280
   return { vw, max: Math.round(vw * 0.95), mobile: vw < 640 }
 }
 
-function initialWidth() {
-  const { vw, max } = getViewport()
-  return Math.max(MIN_WIDTH, Math.min(Math.round(vw * 0.9), max))
+function resolveWidth(size, vp) {
+  if (!size) return SIZE_MAP.md
+  const num = Number(size)
+  const px = !isNaN(num) ? num : (SIZE_MAP[size] ?? SIZE_MAP.md)
+  return Math.max(MIN_WIDTH, Math.min(px, vp.max))
 }
 
-export default function Drawer({ open, onClose, title, subtitle, children }) {
+export default function Drawer({ open, onClose, title, subtitle, size, footer, children }) {
   const { t } = useTranslation()
   const panelRef = useRef(null)
-  const widthRef = useRef(initialWidth())
   const titleIdRef = useRef(`drawer-title-${Math.random().toString(36).slice(2)}`)
   const closingRef = useRef(false)
-  const [width, setWidth] = useState(initialWidth)
+  const resizeCleanupRef = useRef(null)
+  const [width, setWidth] = useState(() => resolveWidth(size, getViewport()))
   const [mobile, setMobile] = useState(() => getViewport().mobile)
   const [closing, setClosing] = useState(false)
   useDialogA11y(open, panelRef)
@@ -39,19 +48,18 @@ export default function Drawer({ open, onClose, title, subtitle, children }) {
 
   useEffect(() => {
     if (!open) return
-    widthRef.current = initialWidth()
-    setWidth(widthRef.current)
-    setMobile(getViewport().mobile)
+    const vp = getViewport()
+    setMobile(vp.mobile)
+    setWidth(resolveWidth(size, vp))
 
     const onResize = () => {
-      const { max, mobile: m } = getViewport()
-      setMobile(m)
-      widthRef.current = Math.max(MIN_WIDTH, Math.min(widthRef.current, max))
-      setWidth(widthRef.current)
+      const v = getViewport()
+      setMobile(v.mobile)
+      setWidth((prev) => Math.max(MIN_WIDTH, Math.min(prev, v.max)))
     }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
-  }, [open])
+  }, [open, size])
 
   useEffect(() => {
     if (!open) return
@@ -64,18 +72,25 @@ export default function Drawer({ open, onClose, title, subtitle, children }) {
     }
   }, [open, requestClose])
 
+  useEffect(() => () => {
+    if (resizeCleanupRef.current) {
+      resizeCleanupRef.current()
+      resizeCleanupRef.current = null
+    }
+  }, [])
+
   if (!open) return null
 
   const startResize = (e) => {
     e.preventDefault()
-    const dir = document.documentElement.dir === 'rtl' ? -1 : 1
+    const isRtl = document.documentElement.dir === 'rtl'
     const startX = e.clientX
-    const startW = widthRef.current
+    const startW = width
     const { max } = getViewport()
 
     const onMove = (ev) => {
-      const next = Math.max(MIN_WIDTH, Math.min(max, startW + dir * (ev.clientX - startX)))
-      widthRef.current = next
+      const delta = ev.clientX - startX
+      const next = Math.max(MIN_WIDTH, Math.min(max, isRtl ? startW + delta : startW - delta))
       setWidth(next)
     }
     const onUp = () => {
@@ -83,8 +98,10 @@ export default function Drawer({ open, onClose, title, subtitle, children }) {
       window.removeEventListener('pointerup', onUp)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
+      resizeCleanupRef.current = null
     }
 
+    resizeCleanupRef.current = onUp
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
     document.body.style.cursor = 'col-resize'
@@ -132,6 +149,7 @@ export default function Drawer({ open, onClose, title, subtitle, children }) {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">{footer}</div>}
       </div>
     </div>
   )

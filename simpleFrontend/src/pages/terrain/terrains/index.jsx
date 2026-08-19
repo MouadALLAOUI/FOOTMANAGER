@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { LayoutGrid, List, Plus, Search, Store } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
+import { useCitiesSelect } from '../../../api/queries'
 import { Button, Field, FieldRow, Modal, SectionTitle, SkeletonCards, Spinner, Toggle, inputClass } from '../../../components/dashboard/ui'
 import Drawer from '../../../components/dashboard/Drawer'
 import { useToast } from '../../../components/ui/Toast'
@@ -15,7 +16,7 @@ import PhotosModal from './photosModal'
 
 const emptyForm = {
   name: '',
-  city: '',
+  city_id: '',
   address: '',
   google_maps_url: '',
   type: 'salle',
@@ -42,6 +43,8 @@ export default function Terrains() {
     refetch: refetchFacilities,
   } = useApi(() => api.get('/facilities').then((r) => r.data))
 
+  const { data: citiesData, loading: citiesLoading, error: citiesError } = useCitiesSelect()
+
   const facilities = facilitiesData?.facilities || []
   const terrains = data?.terrains || []
 
@@ -63,7 +66,16 @@ export default function Terrains() {
   const [deleting, setDeleting] = useState(false)
   const [photosTarget, setPhotosTarget] = useState(null)
 
-  const cities = useMemo(() => [...new Set(terrains.map((t) => t.city).filter(Boolean))], [terrains])
+  const cities = useMemo(() => {
+    const apiCities = citiesData?.cities || []
+    const derivedCities = [...new Set(terrains.map((t) => t.city).filter(Boolean))]
+    const merged = new Map()
+    apiCities.forEach((c) => merged.set(c.localized_name, { id: c.id, name: c.localized_name }))
+    derivedCities.forEach((name) => {
+      if (!merged.has(name)) merged.set(name, { id: null, name })
+    })
+    return [...merged.values()]
+  }, [citiesData, terrains])
 
   useEffect(() => {
     if (params.get('new')) {
@@ -80,7 +92,7 @@ export default function Terrains() {
     setEditing(terrain)
     setForm({
       name: terrain.name || '',
-      city: terrain.city || '',
+      city_id: terrain.city_id || '',
       address: terrain.address || '',
       google_maps_url: terrain.google_maps_url || '',
       type: terrain.type || 'salle',
@@ -127,14 +139,14 @@ export default function Terrains() {
   const setBool = (k) => (v) => setForm((f) => ({ ...f, [k]: v }))
 
   const save = async () => {
-    if (!form.name || !form.city) {
+    if (!form.name || !form.city_id) {
       toast.error('الاسم والمدينة مطلوبان')
       return
     }
     setBusy(true)
     const payload = {
       name: form.name,
-      city: form.city,
+      city_id: Number(form.city_id),
       address: form.address || null,
       google_maps_url: form.google_maps_url || null,
       type: form.type,
@@ -232,7 +244,7 @@ export default function Terrains() {
   const filtered = terrains.filter((t) => {
     if (query && !t.name.includes(query)) return false
     if (fType && t.type !== fType) return false
-    if (fCity && t.city !== fCity) return false
+    if (fCity && String(t.city_id || '') !== fCity) return false
     if (fAvail === 'open' && t.is_open === false) return false
     if (fAvail === 'closed' && t.is_open !== false) return false
     return true
@@ -272,7 +284,7 @@ export default function Terrains() {
         <select className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 outline-none" value={fCity} onChange={(e) => setFCity(e.target.value)}>
           <option value="">كل المدن</option>
           {cities.map((c) => (
-            <option key={c} value={c}>{c}</option>
+            <option key={c.name} value={c.id || ''}>{c.name}</option>
           ))}
         </select>
         <select className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 outline-none" value={fAvail} onChange={(e) => setFAvail(e.target.value)}>
@@ -365,7 +377,21 @@ export default function Terrains() {
                     </Field>
                     <FieldRow>
                       <Field label="المدينة" required>
-                        <input className={inputClass} value={form.city} onChange={set('city')} />
+                        <select
+                          className={inputClass}
+                          value={form.city_id}
+                          onChange={(e) => setForm((f) => ({ ...f, city_id: e.target.value }))}
+                          disabled={citiesLoading}
+                        >
+                          <option value="">
+                            {citiesLoading ? 'جارٍ تحميل المدن…' : citiesError ? 'تعذر تحميل المدن' : 'اختر مدينة…'}
+                          </option>
+                          {cities.map((c) => (
+                            <option key={c.id ?? c.name} value={c.id || ''}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
                       </Field>
                       <Field label="السعر للفريق (د.م)" required>
                         <input type="number" min="0" className={inputClass} value={form.price_per_team} onChange={set('price_per_team')} />

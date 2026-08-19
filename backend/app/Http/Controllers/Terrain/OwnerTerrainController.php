@@ -73,6 +73,15 @@ class OwnerTerrainController extends Controller
             'schedule.*.open_time' => 'required_if:schedule.*.is_active,true|nullable|date_format:H:i',
             'schedule.*.close_time' => 'required_if:schedule.*.is_active,true|nullable|date_format:H:i|after:schedule.*.open_time',
             'schedule.*.is_active' => 'required|boolean',
+        ], [
+            'schedule.required' => 'يجب إرسال جدول أوقات العمل',
+            'schedule.size' => 'يجب أن يحتوي الجدول على 7 أيام (الأحد إلى السبت)',
+            'schedule.*.day_of_week.in' => 'رقم اليوم غير صحيح',
+            'schedule.*.open_time.required_if' => 'وقت الفتح مطلوب للأيام المفتوحة',
+            'schedule.*.open_time.date_format' => 'صيغة الوقت غير صحيحة (مثال: 09:00)',
+            'schedule.*.close_time.required_if' => 'وقت الإغلاق مطلوب للأيام المفتوحة',
+            'schedule.*.close_time.date_format' => 'صيغة الوقت غير صحيحة (مثال: 23:00)',
+            'schedule.*.close_time.after' => 'وقت الإغلاق يجب أن يكون بعد وقت الفتح',
         ]);
 
         foreach ($validated['schedule'] as $day) {

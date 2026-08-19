@@ -8,6 +8,7 @@ import Calendar from '../../../components/ui/Calendar/Calendar'
 import BookingDrawer from '../components/BookingDrawer'
 import PendingBookingsCard from '../components/PendingBookingsCard'
 import GuestBookingModal from '../components/GuestBookingModal'
+import ClosureDrawer from '../components/ClosureDrawer'
 import { useTerrainCalendar } from './useTerrainCalendar'
 
 export default function TerrainCalendarPage() {
@@ -32,6 +33,7 @@ export default function TerrainCalendarPage() {
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
   const [showGuestModal, setShowGuestModal] = useState(false)
+  const [closureSlot, setClosureSlot] = useState(null)
 
   const bookedThisWeek = useMemo(
     () => (calendar ? calendar.slots.filter((s) => s.status === 'booked' || s.status === 'pending').length : 0),
@@ -93,7 +95,10 @@ export default function TerrainCalendarPage() {
         toast.info(slot.metadata.closureReason ? `مغلق: ${slot.metadata.closureReason}` : 'هذا الموعد مغلق')
         return
       }
-      toast.info('هذا الموعد متاح للحجز')
+      if (slot.status === 'available') {
+        setClosureSlot({ date: slot.date, startTime: slot.startTime })
+        return
+      }
     },
     [toast],
   )
@@ -227,6 +232,16 @@ export default function TerrainCalendarPage() {
         terrainName={selectedTerrain?.name}
         date={selectedDate || new Date().toISOString().slice(0, 10)}
         refresh={refresh}
+      />
+
+      <ClosureDrawer
+        open={Boolean(closureSlot)}
+        onClose={() => setClosureSlot(null)}
+        terrainId={selectedTerrain?.id || terrainId}
+        terrainName={selectedTerrain?.name}
+        date={closureSlot?.date}
+        startTime={closureSlot?.startTime}
+        onSaved={refresh}
       />
     </div>
   )

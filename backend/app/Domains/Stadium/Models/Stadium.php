@@ -25,6 +25,7 @@ class Stadium extends Model
         'name',
         'slug',
         'city',
+        'city_id',
         'address',
         'description',
         'latitude',

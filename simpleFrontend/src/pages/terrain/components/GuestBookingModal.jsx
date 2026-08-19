@@ -3,6 +3,7 @@ import { CalendarRange, Mail, Phone, User } from 'lucide-react'
 import { Button, Field, FieldRow, inputClass, Modal, selectClass } from '../../../components/dashboard/ui'
 import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
+import TimesSelect, { addTimeMinutes } from '../../../components/TimesSelect'
 
 const DAY_LABELS = [
   { value: 0, label: 'الأحد' },
@@ -47,8 +48,6 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
   const { toast } = useToast()
   const todayStr = useMemo(() => toISODate(new Date()), [])
   const [reservationType, setReservationType] = useState('single')
-  const [slots, setSlots] = useState([])
-  const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     start_time: '',
     end_time: '',
@@ -60,11 +59,13 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
     start_date: date || todayStr,
     end_date: '',
   })
+  const [duration, setDuration] = useState(60)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setReservationType('single')
+    setDuration(60)
     setForm((f) => ({
       ...f,
       start_time: '',
@@ -76,21 +77,17 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
 
   const activeDate = form.start_date
 
-  useEffect(() => {
-    if (!open || !terrainId || !activeDate) return
-    setLoading(true)
-    api
-      .get(`/terrains/${terrainId}/slots`, { params: { date: activeDate } })
-      .then((r) => {
-        const available = (r.data.slots || []).filter((s) => s.status === 'available')
-        setSlots(available)
-        setForm((f) => ({ ...f, start_time: '', end_time: '' }))
-      })
-      .catch(() => toast.error('تعذر جلب الفتحات'))
-      .finally(() => setLoading(false))
-  }, [open, terrainId, activeDate, toast])
+  const handleStartTimeChange = (time) => {
+    const endTime = time ? addTimeMinutes(time, duration) : ''
+    setForm((f) => ({ ...f, start_time: time, end_time: endTime }))
+  }
 
-  const timeOptions = useMemo(() => slots.map((s) => ({ start: s.start, end: s.end })), [slots])
+  const handleDurationChange = (mins) => {
+    setDuration(mins)
+    if (form.start_time) {
+      setForm((f) => ({ ...f, end_time: addTimeMinutes(f.start_time, mins) }))
+    }
+  }
 
   const dayOfWeek = useMemo(() => {
     const d = form.start_date || todayStr
@@ -151,29 +148,6 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
     }
   }
 
-  const timeSelect = (
-    <Field label="الفتحات المتاحة" required hint={loading ? undefined : timeOptions.length === 0 ? 'لا فتحات متاحة في هذا اليوم' : undefined}>
-      <select
-        className={selectClass}
-        value={form.start_time + '|' + form.end_time}
-        onChange={(e) => {
-          const [s, eTime] = e.target.value.split('|')
-          setForm((f) => ({ ...f, start_time: s, end_time: eTime }))
-        }}
-      >
-        <option value="">{loading ? 'جارٍ التحميل...' : 'اختر توقيتاً'}</option>
-        {timeOptions.map((t) => (
-          <option key={`${t.start}|${t.end}`} value={`${t.start}|${t.end}`}>
-            {t.start} — {t.end}
-          </option>
-        ))}
-      </select>
-      {!loading && timeOptions.length === 0 && (
-        <span className="mt-1.5 block text-[11px] font-bold text-amber-600">لا فتحات متاحة في هذا اليوم</span>
-      )}
-    </Field>
-  )
-
   return (
     <Modal
       open={open}
@@ -214,7 +188,17 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
             <Field label="التاريخ" required>
               <FieldInput icon={CalendarRange} type="date" min={todayStr} value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
             </Field>
-            {timeSelect}
+            <TimesSelect
+              resourceId={terrainId}
+              date={activeDate}
+              value={form.start_time}
+              onChange={handleStartTimeChange}
+              duration={duration}
+              onDurationChange={handleDurationChange}
+              showDuration
+              disabled={submitting}
+              label="الفتحات المتاحة"
+            />
           </FieldRow>
         ) : (
           <>
@@ -244,7 +228,17 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
                 </div>
               </Field>
             </FieldRow>
-            {timeSelect}
+            <TimesSelect
+              resourceId={terrainId}
+              date={activeDate}
+              value={form.start_time}
+              onChange={handleStartTimeChange}
+              duration={duration}
+              onDurationChange={handleDurationChange}
+              showDuration
+              disabled={submitting}
+              label="الفتحات المتاحة"
+            />
           </>
         )}
 
@@ -268,7 +262,7 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
 
         <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          <Button onClick={submit} disabled={submitting || loading}>
+          <Button onClick={submit} disabled={submitting}>
             {submitting ? 'جارٍ...' : 'إنشاء الحجز'}
           </Button>
         </div>

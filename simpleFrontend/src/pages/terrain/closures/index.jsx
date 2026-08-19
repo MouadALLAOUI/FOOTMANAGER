@@ -1,19 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Ban, CalendarOff, Clock, Plus, X } from 'lucide-react'
 import api from '../../../api/client'
+import { queryClient } from '../../../api/queryClient'
 import { useApi } from '../../../hooks/useApi'
 import { mapHttpError } from '../../../lib/errorState'
 import { SectionError } from '../../../components/errors'
-import { queryClient } from '../../../api/queryClient'
-import { Badge, Button, Empty, Field, SectionTitle, SkeletonCards, Spinner, inputClass } from '../../../components/dashboard/ui'
-import Drawer from '../../../components/dashboard/Drawer'
-import TimePicker from '../../../components/TimePicker'
+import { Badge, Button, Empty, SectionTitle, SkeletonCards, Spinner } from '../../../components/dashboard/ui'
+import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import { useToast } from '../../../components/ui/Toast'
+import ClosureDrawer from '../components/ClosureDrawer'
 
 const weekdayNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 
 export default function Closures() {
   const { toast } = useToast()
+  const [params, setParams] = useSearchParams()
   const { data: terrainsData, loading: loadingTerrains } = useApi(() => api.get('/owner/terrains').then((r) => r.data))
   const terrains = terrainsData?.terrains || []
 
@@ -21,13 +23,19 @@ export default function Closures() {
   const [closures, setClosures] = useState([])
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(null)
-  const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ closure_date: '', start_time: '', end_time: '', reason: '' })
-  const [busy, setBusy] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
     if (terrains.length && !terrainId) setTerrainId(terrains[0].id)
   }, [terrains, terrainId])
+
+  // Handle ?new=1 query param
+  useEffect(() => {
+    if (params.get('new') === '1' && terrainId) {
+      setDrawerOpen(true)
+      setParams({}, { replace: true })
+    }
+  }, [params, terrainId, setParams])
 
   const fetchClosures = useCallback(
     async (id) => {
@@ -61,51 +69,31 @@ export default function Closures() {
     return Object.entries(m).sort((a, b) => (a[0] < b[0] ? 1 : -1))
   }, [closures])
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-
-  const invalidateCalendar = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['owner', 'terrain-calendar'] })
-    queryClient.invalidateQueries({ queryKey: ['owner', 'terrains'] })
-  }, [])
-
-  const addClosure = async () => {
-    if (!form.closure_date || !form.start_time || !form.end_time) {
-      toast.error('التاريخ ووقتا البداية والنهاية مطلوبة')
-      return
-    }
-    setBusy(true)
-    try {
-      await api.post(`/owner/terrains/${terrainId}/slot-closures`, {
-        closure_date: form.closure_date,
-        start_time: form.start_time,
-        end_time: form.end_time,
-        reason: form.reason || null,
-      })
-      toast.success('تم إضافة الإغلاق')
-      setOpen(false)
-      setForm({ closure_date: '', start_time: '', end_time: '', reason: '' })
-      fetchClosures(terrainId)
-      invalidateCalendar()
-    } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر إضافة الإغلاق')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const remove = async (id) => {
-    if (!window.confirm('حذف هذا الإغلاق؟')) return
-    try {
-      await api.delete(`/owner/terrains/${terrainId}/slot-closures/${id}`)
-      toast.success('تم حذف الإغلاق')
-      fetchClosures(terrainId)
-      invalidateCalendar()
-    } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر الحذف')
-    }
-  }
-
   const today = new Date().toISOString().slice(0, 10)
+
+  const removeConfirm = useConfirm()
+
+  const removeClosure = useCallback(
+    (id) => {
+      removeConfirm.run(async () => {
+        try {
+          await api.delete(`/owner/terrains/${terrainId}/slot-closures/${id}`)
+          toast.success('تم حذف الإغلاق')
+          fetchClosures(terrainId)
+          queryClient.invalidateQueries({ queryKey: ['owner', 'terrain-calendar'] })
+          return true
+        } catch (e) {
+          toast.error(e.response?.data?.message || 'تعذر الحذف')
+          return false
+        }
+      }, {
+        title: 'حذف هذا الإغلاق؟',
+        description: 'سيتم فتح هذا التوقيت مرة أخرى.',
+        confirmLabel: 'حذف',
+      })
+    },
+    [terrainId, fetchClosures, toast, removeConfirm],
+  )
 
   return (
     <div>
@@ -113,7 +101,7 @@ export default function Closures() {
         title="إغلاقات المواعيد"
         subtitle="حظر مواعيد محددة من الحجز مسبقًا"
         action={
-          <Button onClick={() => setOpen(true)}>
+          <Button onClick={() => setDrawerOpen(true)}>
             <Plus className="size-4" /> إغلاق موعد
           </Button>
         }
@@ -174,7 +162,7 @@ export default function Closures() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => remove(c.id)}
+                        onClick={() => removeClosure(c.id)}
                         className="grid size-8 place-items-center rounded-lg text-slate-300 transition-colors hover:bg-red-50 hover:text-red-500"
                         title="حذف"
                       >
@@ -189,31 +177,24 @@ export default function Closures() {
         </div>
       )}
 
-      {/* Add modal */}
-      <Drawer open={open} onClose={() => setOpen(false)} title="إغلاق موعد" subtitle="حدد يومًا ووقتًا للحظر">
-        <div className="space-y-4">
-          <Field label="التاريخ" required>
-            <input type="date" min={today} className={inputClass} value={form.closure_date} onChange={set('closure_date')} />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="من" required>
-              <TimePicker value={form.start_time} onChange={(v) => setForm((f) => ({ ...f, start_time: v }))} labels={{ ok: 'موافق', cancel: 'إلغاء' }} />
-            </Field>
-            <Field label="إلى" required>
-              <TimePicker value={form.end_time} onChange={(v) => setForm((f) => ({ ...f, end_time: v }))} labels={{ ok: 'موافق', cancel: 'إلغاء' }} />
-            </Field>
-          </div>
-          <Field label="السبب (اختياري)">
-            <input className={inputClass} value={form.reason} onChange={set('reason')} placeholder="مثال: صيانة" />
-          </Field>
-          <div className="flex gap-2 pt-2">
-            <Button className="flex-1" disabled={busy} onClick={addClosure}>
-              {busy ? 'جارٍ…' : 'تأكيد الإغلاق'}
-            </Button>
-            <Button variant="outline" className="flex-1" onClick={() => setOpen(false)}>إلغاء</Button>
-          </div>
-        </div>
-      </Drawer>
+      <ClosureDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        terrainId={terrainId}
+        terrainName={terrains.find((t) => t.id === terrainId)?.name}
+        onSaved={() => fetchClosures(terrainId)}
+      />
+
+      <ConfirmDialog
+        open={removeConfirm.open}
+        loading={removeConfirm.loading}
+        title={removeConfirm.options.title}
+        description={removeConfirm.options.description}
+        confirmLabel={removeConfirm.options.confirmLabel}
+        cancelLabel={removeConfirm.options.cancelLabel}
+        onConfirm={removeConfirm.confirm}
+        onClose={removeConfirm.close}
+      />
     </div>
   )
 }

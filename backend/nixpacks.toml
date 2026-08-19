@@ -1,11 +1,12 @@
 # nixpacks.toml
 
-providers = ["php"]
+providers = ["php", "node"]
 
 [phases.setup]
 nixPkgs = [
   "php",
   "phpPackages.composer",
+  "nodejs",
   "libpng",
   "libjpeg",
   "freetype",

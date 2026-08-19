@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Manager;
 
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Team\Services\ManagerRosterService;
+use App\Models\Player;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -32,6 +34,12 @@ class PlayerController extends Controller
         ]);
 
         $teamId = $request->user()->team->id;
+
+        $currentCount = Player::where('team_id', $teamId)->count();
+        $maxMembers = (int) Setting::get('max_team_members', 30);
+        if ($currentCount >= $maxMembers) {
+            return response()->json(['message' => 'تم الوصول للحد الأقصى لأعضاء الفريق'], 422);
+        }
 
         $player = $this->roster->create($teamId, $validated);
 

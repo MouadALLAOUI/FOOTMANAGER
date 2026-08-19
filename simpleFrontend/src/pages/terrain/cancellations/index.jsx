@@ -2,14 +2,16 @@ import { useMemo, useState } from 'react'
 import { AlertTriangle, Ban, Check, Inbox, Search, X } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
+import { SectionError } from '../../../components/errors'
 import { Button, Empty, SectionTitle, SkeletonCards, StatusBadge } from '../../../components/dashboard/ui'
 import Drawer from '../../../components/dashboard/Drawer'
 import { useToast } from '../../../components/ui/Toast'
+import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import BookingTimeline from '../components/BookingTimeline'
 
 export default function Cancellations() {
   const { toast } = useToast()
-  const { data, loading, refetch } = useApi(() => api.get('/owner/cancellation-requests').then((r) => r.data))
+  const { data, loading, errorState, refetch } = useApi(() => api.get('/owner/cancellation-requests').then((r) => r.data))
   const { data: terrainsData } = useApi(() => api.get('/owner/terrains').then((r) => r.data))
 
   const requests = useMemo(() => data?.cancellation_requests || data?.data || [], [data])
@@ -43,18 +45,30 @@ export default function Cancellations() {
   })
 
   const act = async (action) => {
-    if (!selected) return
+    if (!selected) return false
     setBusy(true)
     try {
       await api.put(`/owner/cancellation-requests/${selected.id}`, { action })
       toast.success(action === 'approve' ? 'تم قبول طلب الإلغاء' : 'تم رفض طلب الإلغاء')
       setSelected(null)
       refetch()
+      return true
     } catch (e) {
       toast.error(e.response?.data?.message || 'تعذرت العملية')
+      return false
     } finally {
       setBusy(false)
     }
+  }
+
+  const confirm = useConfirm()
+  const confirmReject = () => {
+    if (!selected) return
+    confirm.run(() => act('reject'), {
+      title: 'رفض طلب الإلغاء؟',
+      description: 'سيتم رفض طلب الإلغاء وإبقاء الحجز قائمًا.',
+      confirmLabel: 'رفض الطلب',
+    })
   }
 
   const stats = [
@@ -96,6 +110,7 @@ export default function Cancellations() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="ابحث عن فريق أو مسير أو سبب…"
+            aria-label="ابحث عن فريق أو مسير أو سبب"
             className="h-11 w-full rounded-xl border border-slate-200 bg-white ps-11 pe-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
           />
           <Search className="absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -125,7 +140,9 @@ export default function Cancellations() {
         </div>
       </div>
 
-      {loading ? (
+      {errorState ? (
+        <SectionError state={errorState} onRetry={refetch} />
+      ) : loading ? (
         <SkeletonCards count={3} />
       ) : filtered.length === 0 ? (
         <Empty title="لا توجد طلبات إلغاء" description="ستظهر هنا طلبات إلغاء الحجوزات المقدمة" />
@@ -208,7 +225,7 @@ export default function Cancellations() {
                 <Button className="flex-1" disabled={busy} onClick={() => act('approve')}>
                   <Check className="size-4" /> قبول الإلغاء
                 </Button>
-                <Button variant="dangerSoft" className="flex-1" disabled={busy} onClick={() => act('reject')}>
+                <Button variant="dangerSoft" className="flex-1" disabled={busy} onClick={confirmReject}>
                   <X className="size-4" /> رفض الطلب
                 </Button>
               </div>
@@ -216,6 +233,18 @@ export default function Cancellations() {
           </div>
         </Drawer>
       )}
+
+      <ConfirmDialog
+        open={confirm.open}
+        loading={confirm.loading}
+        title={confirm.options.title}
+        description={confirm.options.description}
+        confirmLabel={confirm.options.confirmLabel}
+        cancelLabel={confirm.options.cancelLabel}
+        tone={confirm.options.tone}
+        onConfirm={confirm.confirm}
+        onClose={confirm.close}
+      />
     </div>
   )
 }

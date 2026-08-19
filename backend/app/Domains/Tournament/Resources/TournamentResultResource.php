@@ -112,6 +112,7 @@ class TournamentResultResource extends JsonResource
                     'created_at' => $audit->created_at?->toIso8601String(),
                 ])->values(),
             ] : null,
+            'suspended_players' => $this->additional['suspended_players'] ?? [],
         ];
     }
 }

@@ -138,24 +138,36 @@ export default function AvailableFields() {
             className="group flex items-center gap-2 text-sm font-bold text-green-600 transition-colors hover:text-green-700"
           >
             <span>{t('landing.fields.viewAll')}</span>
-            <FontAwesomeIcon icon={faArrowLeft} className="size-4 transition-transform duration-300 group-hover:-translate-x-1" />
+            <FontAwesomeIcon icon={faArrowLeft} className="size-4 transition-transform duration-300 group-hover:-translate-x-1 ltr:rotate-180 ltr:group-hover:translate-x-1" />
           </button>
         </header>
 
         <div className="mt-12">
-          <Carousel>
-            {loading
-              ? [1, 2, 3].map((i) => <SkeletonCard key={i} />)
-              : cards.map((card) => (
-                  <FieldCard
-                    key={card.id}
-                    card={card}
-                    liked={!!liked[card.name]}
-                    onToggleLike={toggleLike}
-                    onBook={openBooking}
-                  />
-                ))}
-          </Carousel>
+          {loading ? (
+            <Carousel>
+              {[1, 2, 3].map((i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </Carousel>
+          ) : cards.length === 0 ? (
+            <div className="flex flex-col items-center rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center">
+              <FontAwesomeIcon icon={faCalendarCheck} className="size-9 text-slate-300" />
+              <p className="mt-4 text-sm font-bold text-slate-600">{t('landing.fields.empty')}</p>
+              <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-400">{t('landing.fields.emptyDesc')}</p>
+            </div>
+          ) : (
+            <Carousel>
+              {cards.map((card) => (
+                <FieldCard
+                  key={card.id}
+                  card={card}
+                  liked={!!liked[card.name]}
+                  onToggleLike={toggleLike}
+                  onBook={openBooking}
+                />
+              ))}
+            </Carousel>
+          )}
         </div>
       </div>
 

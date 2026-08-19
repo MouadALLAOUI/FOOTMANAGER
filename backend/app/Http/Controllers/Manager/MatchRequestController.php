@@ -6,10 +6,13 @@ use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Match\Services\MatchMembershipService;
 use App\Domains\Match\Queries\MatchRequestQuery;
-use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Stadium\Models\Stadium;
+use App\Domains\Subscription\Services\SubscriptionService;
 use App\Domains\Team\Models\Team;
+use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -17,6 +20,10 @@ use Illuminate\Support\Facades\DB;
 
 class MatchRequestController extends Controller
 {
+    public function __construct(
+        private SubscriptionService $subscription,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -75,6 +82,8 @@ class MatchRequestController extends Controller
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
+        $this->assertWithinMatchRequestLimit($user);
+
         $validated = $request->validate([
             'stadium_id' => 'nullable|exists:stadiums,id',
             'custom_terrain_name' => 'nullable|string|max:255',
@@ -111,7 +120,7 @@ class MatchRequestController extends Controller
         }
 
         $endTime = $validated['end_time']
-            ?? Carbon::parse($validated['start_time'])->addHours(2)->format('H:i');
+            ?? Carbon::parse($validated['start_time'])->addHours((int) Setting::get('default_match_hours', 2))->format('H:i');
 
         $matchRequest = null;
 
@@ -250,6 +259,8 @@ class MatchRequestController extends Controller
         $teamId = $user->team->id;
         $needsPlayers = (bool) ($validated['needs_players'] ?? false);
 
+        $this->assertWithinMatchRequestLimit($user);
+
         $datetime = Carbon::parse($validated['match_datetime']);
 
         if (MatchMembershipService::teamHasMatchConflict($teamId, $datetime)) {
@@ -288,14 +299,14 @@ class MatchRequestController extends Controller
             ]);
         });
 
-        AppNotification::create([
-            'user_id' => $targetTeam->manager_id,
-            'type' => 'challenge_received',
-            'title' => 'تحدي جديد من فريق',
-            'body' => "الفريق {$user->team?->name} أرسل لك تحدياً لمباراة ودية بتاريخ {$validated['match_datetime']}",
-            'data' => ['match_request_id' => $matchRequest->id],
-            'action_url' => '/dashboard',
-        ]);
+        NotificationService::push(
+            (int) $targetTeam->manager_id,
+            'challenge_received',
+            'تحدي جديد من فريق',
+            "الفريق {$user->team?->name} أرسل لك تحدياً لمباراة ودية بتاريخ {$validated['match_datetime']}",
+            ['match_request_id' => $matchRequest->id],
+            '/dashboard',
+        );
 
         return response()->json([
             'message' => 'تم إرسال التحدي المباشر للفريق بنجاح',
@@ -321,6 +332,14 @@ class MatchRequestController extends Controller
 
         $needsPlayers = (bool) ($validated['needs_players'] ?? false);
 
+        if ($validated['action'] === 'accept') {
+            $this->subscription->authorizeResource(
+                $user,
+                'friendly_match_requests',
+                $this->subscription->currentUsage($user, 'friendly_match_requests'),
+            );
+        }
+
         try {
             return DB::transaction(function () use ($id, $teamId, $validated, $user, $needsPlayers) {
                 $matchRequest = MatchRequest::with(['hostTeam.manager', 'stadium.images'])
@@ -340,14 +359,14 @@ class MatchRequestController extends Controller
                 if ($validated['action'] === 'decline') {
                     $matchRequest->update(['status' => 'declined']);
 
-                    AppNotification::create([
-                        'user_id' => $matchRequest->hostTeam->manager_id,
-                        'type' => 'challenge_declined',
-                        'title' => 'تم رفض التحدي',
-                        'body' => "الفريق {$user->team?->name} رفض التحدي الخاص بك",
-                        'data' => ['match_request_id' => $matchRequest->id],
-                        'action_url' => '/dashboard',
-                    ]);
+                    NotificationService::push(
+                        (int) $matchRequest->hostTeam->manager_id,
+                        'challenge_declined',
+                        'تم رفض التحدي',
+                        "الفريق {$user->team?->name} رفض التحدي الخاص بك",
+                        ['match_request_id' => $matchRequest->id],
+                        '/dashboard',
+                    );
 
                     return response()->json([
                         'message' => 'تم رفض التحدي',
@@ -392,7 +411,7 @@ class MatchRequestController extends Controller
                         $matchRequest->stadium_id,
                         $dateTime->toDateString(),
                         $dateTime->format('H:i'),
-                        $dateTime->copy()->addHours(2)->format('H:i')
+                        $dateTime->copy()->addHours((int) Setting::get('default_match_hours', 2))->format('H:i')
                     );
 
                     if (! $conflictMsg && MatchMembershipService::stadiumHasFixtureConflict($matchRequest->stadium_id, $dateTime)) {
@@ -414,7 +433,7 @@ class MatchRequestController extends Controller
                         'match_request_id' => $matchRequest->id,
                         'booking_date' => $dateTime->toDateString(),
                         'start_time' => $dateTime->format('H:i'),
-                        'end_time' => $dateTime->copy()->addHours(2)->format('H:i'),
+                        'end_time' => $dateTime->copy()->addHours((int) Setting::get('default_match_hours', 2))->format('H:i'),
                         'price' => $price,
                         'status' => 'pending',
                     ]);
@@ -427,14 +446,14 @@ class MatchRequestController extends Controller
                     'players_needed' => $needsPlayers ? ($validated['players_needed'] ?? null) : null,
                 ]);
 
-                AppNotification::create([
-                    'user_id' => $matchRequest->hostTeam->manager_id,
-                    'type' => 'challenge_accepted',
-                    'title' => 'تم قبول التحدي',
-                    'body' => "الفريق {$user->team?->name} قبل التحدي الخاص بك",
-                    'data' => ['match_request_id' => $matchRequest->id],
-                    'action_url' => '/dashboard',
-                ]);
+                NotificationService::push(
+                    (int) $matchRequest->hostTeam->manager_id,
+                    'challenge_accepted',
+                    'تم قبول التحدي',
+                    "الفريق {$user->team?->name} قبل التحدي الخاص بك",
+                    ['match_request_id' => $matchRequest->id],
+                    '/dashboard',
+                );
 
                 if (! empty($matchRequest->stadium_id)) {
                     $matchRequest->load(['hostTeam.manager', 'stadium']);
@@ -476,6 +495,8 @@ class MatchRequestController extends Controller
         ]);
 
         $needsPlayers = (bool) ($validated['needs_players'] ?? false);
+
+        $this->assertWithinMatchRequestLimit($user);
 
         $booking = TerrainBooking::where('id', $bookingId)
             ->where('manager_id', $user->id)
@@ -629,5 +650,18 @@ class MatchRequestController extends Controller
         return response()->json([
             'message' => 'تم إلغاء طلب المباراة بنجاح',
         ]);
+    }
+
+    /**
+     * Throws PLAN_LIMIT_REACHED / PLAN_FEATURE_REQUIRED when the team's plan
+     * does not allow another active friendly match request.
+     */
+    private function assertWithinMatchRequestLimit(User $user): void
+    {
+        $this->subscription->authorizeResource(
+            $user,
+            'friendly_match_requests',
+            $this->subscription->currentUsage($user, 'friendly_match_requests'),
+        );
     }
 }

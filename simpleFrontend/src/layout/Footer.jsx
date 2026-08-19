@@ -30,7 +30,7 @@ export default function Footer() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
 
-  const quickLinks = ['home', 'fields', 'matches', 'pricing', 'addField']
+  const quickLinks = ['home', 'fields', 'matches', 'about', 'pricing', 'addField']
   const supportLinks = ['help', 'faq', 'contact', 'privacy', 'terms']
 
   const subscribe = (e) => {
@@ -42,6 +42,11 @@ export default function Footer() {
   const goTo = (key) => {
     if (key === 'fields') navigate('/fields')
     else if (key === 'matches') navigate('/matches')
+    else if (key === 'about') navigate('/about')
+    else if (key === 'pricing') navigate('/pricing')
+    else if (key === 'contact') navigate('/contact')
+    else if (key === 'terms') navigate('/terms')
+    else if (key === 'privacy') navigate('/privacy')
     else if (key === 'home') navigate('/')
   }
 
@@ -137,6 +142,7 @@ export default function Footer() {
                   <li key={key}>
                     <button
                       type="button"
+                      onClick={() => goTo(key)}
                       className="text-sm text-slate-400 transition-colors duration-300 hover:text-green-400"
                     >
                       {t(`landing.footer.support.links.${key}`)}

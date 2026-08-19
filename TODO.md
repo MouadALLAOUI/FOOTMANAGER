@@ -1,67 +1,157 @@
 # TODO
 
+// all of this content is for simpleFrontend project. "frontend folder is the old version and not needed anymore"
+s
 ## admin
 
-- [ ] when i change the User management page to another one it won't show that page data until i refresh the page.
+- [ ] add remove and delete account (all roles)( avoid having too much in the db that may cause me problem).
+- [ ] in analytic if today is selected it will show data depend on hours
+- [ ] all setting page need to upgrade ui and ux (they are good but more things can still be added
+- [ ] maintenence mode isn't working (i should be able to select the page i want to close for maintenence or whole app)
+- [ ] user need to separate login data and info data (for example email a user can still change his email in info data but login with old email 'so changing email will not cause problem')
+- [ ] for admin can generate a one time login (email + password) if user ask for them (account lost)
+- [ ] lock activity (admin can lock other role activitée) in that state if they try update whatever in thier dashboard everything disable and request get blocked (still can see what already exist)
+- [ ] admin can create another admin account (and define his authorities for example accepting signin request ...) this new account will be considered an subadmin account with same admin dashboard but actiond are hidden depend on what he is authorized to do
+- [ ] player asking for teams build has no way to response
 
 ## terrain
 
-- [x] calendar need better ui
-- [x] editing terrain need to remove facilities that work with radio btn and keep only the ones that it get from backend
-- [x] in my fields page, on the terrain card remove the open calendar button keep only edit and suspend buttons and the more '...' button that will open a menu with delete option.
-- [x] in overview page, Your fields section, show this error when trigger the radio btn 'App\Http\Controllers\Terrain\OwnerTerrainController::toggleStatus(): Argument #2 ($id) must be of type int, string given, called in C:\Users\mouad\Desktop\FootMANAGER\backend\vendor\laravel\framework\src\Illuminate\Routing\ControllerDispatcher.php on line 46'
-- [x] for my fields page, when setting up an image i got this error "The images.0 field must be an image. (and 1 more error)".
-- [x] in booking page, booking data are duplicated, need to fix it.
-- [x] in booking page, when the user click on the booking card, it should open a modal with the booking details instead of redirecting to another page.
-- [x] in booking page, when refusing a booking, it should be removed from the list of bookings.
-- [x] in calendar page, when checking the reservation details, the user can see the manager profile ( name ,  phone number, email, and the manager profile pic).
-- [ ] cannot close a terrain if it has a reservation on it. need to show a message to the user that he cannot close the terrain because it has a reservation on it. and it need to contact the manager to cancel the reservation or change the date of the reservation.
-- [ ] terrain owner can create reservation for non users (guest users) and send them the reservation details by email or sms. (need to add a new input for the guest user email or phone number in the reservation form).
-- [x] in overview page, the chart take too much time to load, need to optimize it.
-- [ ] the overview page, can allow the user to do any task without switching to other pages lightly.
-- [ ] for profile page, the user should be able to set a pic for his profile.
+- [ ] الإيرادات doesn't show charts
+- [ ] analytics doesn't return any data 
+```
+exception
+: 
+"Error"
+file
+: 
+"C:\\Users\\mouad\\Desktop\\FootMANAGER\\backend\\app\\Http\\Controllers\\Terrain\\TerrainOwnerController.php"
+line
+: 
+749
+message
+: 
+"Class \"App\\Http\\Controllers\\Terrain\\Cache\" not found"
+```
+- [ ] the city in terrain edit should be a select dropdown related to `cities` table in backend
+- [ ] working time in edit terrain drawer should be in grid style not list 
+- [ ] when i try to resize a drawer but dragging it work reversed when i drag left it resize the other way
+- [ ] for closing a slot it can be done from the calendar by clicking on a empty slot '/closures' page is hard to use it make it easier for user to use (simple ux and ui give only open time when selecting a date to select from when to close
 
 ## manager
 
-- [x] creating a match should use the the timepicker components for hour selection.
-- [x] creating a match doesn't need an end time input.
-- [x] create a match doesn't need price per player input.
-- [x] for my match after accepting a match it disappear and i cannot find it anywhere.
-- [x] my booking page, it shouldn't show past bookings, only the upcoming ones.
-- [x] add need a player when starting a match or accepting a match,
+### overview
+
+- [ ] new match drawer time input and date use the default inputs should use timepicker component
+- [ ] changing player number return an error "The name field is required."
+- [ ] quick terrain reservation time should show only open to use times
+
+### analytics
+
+- [ ] ```
+
+exception
+: 
+"Symfony\\Component\\HttpKernel\\Exception\\NotFoundHttpException"
+file
+: 
+"C:\\Users\\mouad\\Desktop\\FootMANAGER\\backend\\vendor\\laravel\\framework\\src\\Illuminate\\Routing\\AbstractRouteCollection.php"
+line
+: 
+44
+message
+: 
+"The route api/v1/team/statistics could not be found."
+```
+
+### matches
+
+- [ ] found a match that says finished but no score shows (it should show the set score)
+- [ ] new match modal time input and date use the default inputs should use timepicker component
+- [ ] time picker show behind the modal (also its better to show the empty slots as a select dropdown (create a new component TimesSelect that show empty slot depend on time and terrain can be used for other thing than the terrains later on)
+- [ ] drawer should be 60% of page width
+
+### players
+
+- [ ] add a way to define plan and issential player and change and more of team control
+- [ ] can add player with account to be permantly in the team and they will get notification depend on manager action (eg : you're position has been changed from attack to middle)
+- [ ] the manager can set how will player play depend on terrain for example 5v5 (select player and give them position) 7v7 (choose another way to place players) ... 
+- [ ] choosing the capting and free kick and other roles
+
+### bookings
+
+- [ ] past reservation shouldn't showbut if reservation type is abonement it will select the next incoming avaible time.
+- 
 
 ## player
 
-- [ ] need a new dashboard design for the player.
-- [ ] overview page, should have all action that the player can do without switching to other pages.
-- [ ] add a way to form a team for the player by posting a request to form a team with other players. or manager.
+- [ ] clicking on a booking allow him to see manager profile and what is the empty position (manager should define what position he's looking for)
+- [ ] 
 
 ## committee
 
-- [ ] creating tournement ask for teams count and teams per group, number of group isn't needed (can be free grouping).
-- [ ] tournement should have a new state (open for registration) before starting the tournement. (addings new input in creation form for registration start and end date)
-- [ ] tournement should have have regestration start and end date, regestration fees, and rules and regulations. (adding a new tabs for tournement before the teams tab).
-- [ ] adding to settings a new section for tournement settings (regestration fees, rules and regulations, and regestration start and end date).
-- [ ] in tournement page, at draw tab. it have two auto draw buttons. also it should show only one group container and once a team is added it show the next group container empty, and if filled it show the next group container empty and so on until all groups are filled. (free mode)
-- [ ] for fixed mode it show all avaible groups containers and the user can add teams to any group container.
-- [ ] for matchs tab, generating fixture modal at Default time input should be changed to the timepicker component.
-- [ ] for HOST staduims it should show only stade that support tournement in thier facilities.
-- [ ] enter result modal still need to much work for next.
-- [ ] round 2 stay locked even if all matchs are finished in round 1.
-- [ ] also i need to add a tourneent landing page system. that allow the committee to create a landing page for the tournement with all the details and the teams and the matchs and the results and the standings and the scorers and the news and the gallery and the sponsors and the partners and the social media links and the contact us form.
-- [ ] committee can print the tournement details and the teams and the matchs and the results and the standings and the scorers and the news and the gallery and the sponsors and the partners and the social media links and the contact us form.
+- [ ] خطوات الإعداد show only steps but no text in them
+- [ ] for free team add a btn to be able to add bulk free team in one go
+- [ ] match result and event can be set only after they begin 'for example can't give a result to a match happening tomorrow'
+- [ ] event should be progressive for example adding an event at 35' min then next setting another event at 15' min should not be allowed
+- [ ] as i see in event it only accept one team event and goals the other team event show but with no effect on the match for example (team 1 vs team 2 // team 1 score a goal score change to 1-0 but if i add an event that say team 2 scored a goal i still get 1-0 for team 1 and 0 for team two with an error msg saying "النتيجة لا تتطابق مع أحداث المباراة المسجلة"
+- [ ] even round one all match are done i still get أكمل جميع مباريات الجولة السابقة لفتح هذا الدور  
+- [ ] partner modal doesn't close after i save a new one same for sponsor
+- [ ] in content order input has no meaning or need 
+- [ ] Publish date should be now() by default
+- [ ] news in tournoment landing thosen't show at all
 
 ## general
 
-- [ ] all roles should connect to each other. for example if a tournement is created on a terrain, the terrain should be reserved and for that tournement (only the time of matchs if not the terrain is free). also a player cannot be in two match, etc
-- [ ] landing page should have a tournement section to show avaible tournements.
-- [ ] guest user can see evrything on landing page but if they want to register for a tournement or reserve a terrain they should be redirected to the login page or but before show the manager or terrain owner or committee phone number and email depend on the wanted service.
-- [ ] the search in landing page uses raw city data it should be from db, same terrain and teams need to have an fk to city table.
-- [ ] need to add about us page and contact us page and terms and conditions page and privacy policy page. can access them from the footer of the landing page.
-- [ ] for pricing page, it should have a new design and it should show the features of each plan and the price and the duration and the payment methods and the terms and conditions and the privacy policy.
-- [ ] i18n some text still use raw data (text in arabic when selecting english) or (text in english when selecting arabic)
+- [ ] blocked or removed manager or teams should have a badge of blocked for all roles
+- [ ] clicking a profile photo allow you to see the whole pic
+- [ ] why did committee reseave a notification of a player wanting to create a team (where only admin can approve it)
 
 ## landing page
 
-- [x] closed terrain should not be shown in the landing page.
-- [x] add functionment to the book now btn of terrain so if logged in open a modal for booking depend on role (player or manager) and if not logged in redirect to login page. same for 'Send match request' btn for matchs
+- [ ] /privacy page and /terms TOC scroll on the content and that made it impossible to read the content
+- [ ] some of the landing page need margin bottom  to have a small space between them and the footer
+
+## for deploy production
+
+- [ ] update the backend composer.json to have all needed package and plugin
+```
+npm install cached
+0ms
+npm warn config production Use `--omit=dev` instead.
+
+npm prune --omit=dev --ignore-scripts cached
+0ms
+
+copy /app/node_modules cached
+0ms
+
+copy composer.lock, artisan
+1s
+
+composer install --optimize-autoloader --no-scripts --no-interaction
+2s
+Composer plugins have been disabled for safety in this non-interactive session.
+Set COMPOSER_ALLOW_SUPERUSER=1 if you want to allow plugins to run as root/super user.
+Do not run Composer as root/super user! See https://getcomposer.org/root for details
+Installing dependencies from lock file (including require-dev)
+Verifying lock file contents can be installed on current platform.
+Your lock file does not contain a compatible set of packages. Please run composer update.
+
+  Problem 1
+    - mpdf/mpdf is locked to version v8.3.1 and an update of this package was not requested.
+    - mpdf/mpdf v8.3.1 requires ext-gd * -> it is missing from your system. Install or enable PHP's gd extension.
+To enable extensions, verify that they are enabled in your .ini files:
+    - /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
+    - /usr/local/etc/php/conf.d/docker-php-ext-pdo_mysql.ini
+    - /usr/local/etc/php/conf.d/docker-php-ext-sodium.ini
+    - /usr/local/etc/php/conf.d/php.ini
+You can also run `php --ini` in a terminal to see which files are used by PHP in CLI mode.
+Alternatively, you can run Composer with `--ignore-platform-req=ext-gd` to temporarily ignore these required extensions.
+Build Failed: build daemon returned an error < failed to solve: process "composer install --optimize-autoloader --no-scripts --no-interaction" did not complete successfully: exit code: 2 >
+```
+- [ ] vercel.json file for simpleFrontend project
+
+## for the far future
+
+- [ ] add a page for team formation (tchkila) "drag and drop player profile to where they would play the ui may look like in fifa or like in pes"
+

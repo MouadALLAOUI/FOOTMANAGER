@@ -3,7 +3,7 @@
 namespace App\Domains\Booking\Listeners;
 
 use App\Domains\Booking\Events\BookingCompleted;
-use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\NotificationService;
 
 class BookingCompletedListener
 {
@@ -14,33 +14,33 @@ class BookingCompletedListener
         $manager = $booking->manager;
 
         if ($owner) {
-            AppNotification::create([
-                'user_id' => $owner->id,
-                'type' => 'booking_completed',
-                'title' => 'اكتمل الحجز',
-                'body' => 'اكتمل حجز فريق '.($booking->team?->name ?? '')
+            NotificationService::push(
+                (int) $owner->id,
+                'booking_completed',
+                'اكتمل الحجز',
+                'اكتمل حجز فريق '.($booking->team?->name ?? '')
                     .' بتاريخ '.$booking->booking_date?->format('Y-m-d'),
-                'data' => [
+                [
                     'booking_id' => $booking->id,
                     'reference' => $booking->booking_reference,
                 ],
-                'action_url' => '/owner/bookings',
-            ]);
+                '/owner/bookings',
+            );
         }
 
         if ($manager) {
-            AppNotification::create([
-                'user_id' => $manager->id,
-                'type' => 'booking_completed',
-                'title' => 'اكتمل حجزك',
-                'body' => 'اكتمل حجزك على ملعب '.($booking->terrain?->name ?? '')
+            NotificationService::push(
+                (int) $manager->id,
+                'booking_completed',
+                'اكتمل حجزك',
+                'اكتمل حجزك على ملعب '.($booking->terrain?->name ?? '')
                     .' بتاريخ '.$booking->booking_date?->format('Y-m-d'),
-                'data' => [
+                [
                     'booking_id' => $booking->id,
                     'reference' => $booking->booking_reference,
                 ],
-                'action_url' => '/dashboard/my-reservations',
-            ]);
+                '/dashboard/my-reservations',
+            );
         }
     }
 }

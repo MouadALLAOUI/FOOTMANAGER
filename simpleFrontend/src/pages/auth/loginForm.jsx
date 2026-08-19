@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -12,36 +12,58 @@ import {
   faCheck,
 } from '@fortawesome/free-solid-svg-icons'
 import { useAuth } from '../../context/AuthContext'
-import { consumeAction } from '../../lib/intent'
+import { consumeAction, peekAction } from '../../lib/intent'
+import { getFieldErrors } from '../../lib/errorState'
+import { takeAuthRedirect } from '../../api/client'
 import PremiumField from './premiumField'
 
 export default function LoginForm() {
   const { t } = useTranslation()
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [intentHint] = useState(() => peekAction())
+
+  const hintName =
+    intentHint?.name || intentHint?.teamName || (intentHint?.type === 'register_tournament' ? intentHint.slug : '')
+  const hintMessage = intentHint
+    ? hintName
+      ? t(`publicActions.loginHint.${intentHint.type}`, { name: hintName })
+      : t('publicActions.loginRequired')
+    : ''
 
   const [loginValue, setLoginValue] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [busy, setBusy] = useState(false)
+
+  const clearFieldError = (field) => {
+    setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev))
+  }
 
   const submit = async (e) => {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
     setBusy(true)
     try {
       const user = await login(loginValue, password)
+      const redirect = takeAuthRedirect()
       const intent = consumeAction()
       let dest
-      if (intent?.type === 'book') {
+      if (redirect && redirect.startsWith('/')) {
+        dest = redirect
+      } else if (intent?.type === 'book') {
         dest = `/fields?book=${intent.id}`
       } else if (intent?.type === 'challenge') {
         dest = `/matches?challenge=${intent.teamId}&teamName=${encodeURIComponent(intent.teamName || '')}`
+      } else if (intent?.type === 'register_tournament') {
+        dest = `/tournaments/${intent.slug}?register=1`
       } else {
         dest =
-          user.role === 'admin'
+          user.role === 'admin' || user.role === 'sub_admin'
             ? '/admin'
             : user.role === 'terrain_owner'
               ? '/terrain'
@@ -53,7 +75,14 @@ export default function LoginForm() {
       }
       navigate(dest)
     } catch (err) {
-      setError(err.response?.data?.message || t('auth.errors.loginFailed'))
+      const fe = getFieldErrors(err)
+      if (Object.keys(fe).length > 0) {
+        setFieldErrors(fe)
+        setError('')
+      } else {
+        setFieldErrors({})
+        setError(err.response?.data?.message || t('auth.errors.loginFailed'))
+      }
     } finally {
       setBusy(false)
     }
@@ -61,6 +90,15 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {hintMessage && (
+        <div className="fade-in flex items-start gap-2.5 rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700">
+          <span aria-hidden="true" className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-sky-100 text-[11px] font-black">
+            !
+          </span>
+          {hintMessage}
+        </div>
+      )}
+
       {error && (
         <div className="fade-in rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
           {error}
@@ -73,9 +111,13 @@ export default function LoginForm() {
         placeholder={t('auth.loginPlaceholder')}
         icon={<FontAwesomeIcon icon={faEnvelope} className="size-[18px]" />}
         value={loginValue}
-        onChange={(e) => setLoginValue(e.target.value)}
+        onChange={(e) => {
+          setLoginValue(e.target.value)
+          clearFieldError('login')
+        }}
         required
         autoComplete="username"
+        error={fieldErrors.login?.[0]}
       />
 
       <PremiumField
@@ -85,9 +127,13 @@ export default function LoginForm() {
         type={showPassword ? 'text' : 'password'}
         icon={<FontAwesomeIcon icon={faLock} className="size-[18px]" />}
         value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        onChange={(e) => {
+          setPassword(e.target.value)
+          clearFieldError('password')
+        }}
         required
         autoComplete="current-password"
+        error={fieldErrors.password?.[0]}
         endAdornment={
           <button
             type="button"
@@ -119,12 +165,12 @@ export default function LoginForm() {
           </span>
         </label>
 
-        <button
-          type="button"
+        <Link
+          to="/recovery"
           className="text-sm font-bold text-green-600 transition-all duration-300 hover:text-green-700 hover:underline hover:underline-offset-4"
         >
           {t('auth.forgotPassword')}
-        </button>
+        </Link>
       </div>
 
       <button

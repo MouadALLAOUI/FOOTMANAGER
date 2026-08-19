@@ -126,6 +126,11 @@ class TerrainBooking extends Model
         return Carbon::parse($this->booking_date->toDateString() . ' ' . $this->start_time);
     }
 
+    public function isGuest(): bool
+    {
+        return $this->manager_id === null && $this->guest_name !== null;
+    }
+
     public function isCancelable(): bool
     {
         return in_array($this->status, ['pending', 'confirmed', 'approved'], true)

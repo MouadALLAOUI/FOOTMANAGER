@@ -17,6 +17,7 @@ class AssignTeamToGroupRequest extends FormRequest
             'team_id' => ['required', 'integer'],
             'group_id' => ['nullable', 'integer'],
             'group_position' => ['nullable', 'integer', 'min:1'],
+            'new_group' => ['sometimes', 'boolean'],
         ];
     }
 

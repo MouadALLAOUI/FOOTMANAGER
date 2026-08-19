@@ -3,6 +3,7 @@ import { CalendarDays, Check, Percent } from 'lucide-react'
 import api from '../../../api/client'
 import { Button, Empty, SectionTitle } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import Calendar from '../../../components/ui/Calendar/Calendar'
 import BookingDrawer from '../components/BookingDrawer'
 import PendingBookingsCard from '../components/PendingBookingsCard'
@@ -58,8 +59,10 @@ export default function TerrainCalendarPage() {
         setSelected(null)
         refresh()
         if (wa) window.open(wa, '_blank')
+        return true
       } catch (e) {
         toast.error(e.response?.data?.message || 'تعذرت العملية')
+        return false
       } finally {
         setBusy(false)
       }
@@ -69,6 +72,19 @@ export default function TerrainCalendarPage() {
 
   const approveBooking = useCallback((id) => act(() => api.put(`/owner/bookings/${id}/approve`), 'تم قبول الحجز'), [act])
   const rejectBooking = useCallback((id) => act(() => api.put(`/owner/bookings/${id}/reject`), 'تم رفض الحجز'), [act])
+
+  const confirm = useConfirm()
+  const confirmReject = useCallback(
+    (id) => {
+      if (!id) return
+      confirm.run(() => rejectBooking(id), {
+        title: 'رفض الحجز؟',
+        description: 'سيتم رفض هذا الحجز ولن يكون الموعد متاحًا للمسير.',
+        confirmLabel: 'رفض الحجز',
+      })
+    },
+    [confirm, rejectBooking],
+  )
 
   const onSlotClick = useCallback(
     (slot) => {
@@ -86,6 +102,10 @@ export default function TerrainCalendarPage() {
     if (event.metadata?.rawBooking) setSelected(event.metadata.rawBooking)
   }, [])
 
+  const handleGoToToday = useCallback(() => {
+    goToToday()
+  }, [goToToday])
+
   const hasNoTerrains = terrains.length === 0 && !loadingTerrains
 
   return (
@@ -102,7 +122,9 @@ export default function TerrainCalendarPage() {
                 key={t.id}
                 type="button"
                 onClick={() => selectTerrain(t.id)}
-                className={`rounded-2xl border px-4 py-2 text-sm font-bold transition-all ${terrainId === t.id ? 'border-green-500 bg-green-50 text-green-700' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                className={`rounded-2xl border px-4 py-2 text-sm font-bold transition-all ${terrainId === t.id
+                    ? 'border-green-500 bg-green-50 text-green-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                   }`}
               >
                 {t.name}
@@ -116,7 +138,9 @@ export default function TerrainCalendarPage() {
       </div>
 
       <div className="mb-5 flex items-center justify-end">
-        <Button size="sm" onClick={() => setShowGuestModal(true)}>إنشاء حجز زائر</Button>
+        <Button size="sm" onClick={() => setShowGuestModal(true)}>
+          إنشاء حجز زائر
+        </Button>
       </div>
 
       {error && (
@@ -157,7 +181,7 @@ export default function TerrainCalendarPage() {
               selectedDate={selectedDate}
               onPrevious={previousWeek}
               onNext={nextWeek}
-              onToday={goToToday}
+              onToday={handleGoToToday}
               onDaySelect={(day) => setSelectedDate(typeof day === 'string' ? day : day.date)}
               onSlotClick={onSlotClick}
               onEventClick={onEventClick}
@@ -170,7 +194,7 @@ export default function TerrainCalendarPage() {
               busy={busy}
               onView={(b) => setSelected(b.metadata.rawBooking)}
               onApprove={approveBooking}
-              onReject={rejectBooking}
+              onReject={confirmReject}
             />
           </div>
         </div>
@@ -180,14 +204,27 @@ export default function TerrainCalendarPage() {
         booking={selected}
         onClose={() => setSelected(null)}
         onApprove={() => selected && approveBooking(selected.id)}
-        onReject={() => selected && rejectBooking(selected.id)}
+        onReject={() => selected && confirmReject(selected.id)}
         busy={busy}
+      />
+
+      <ConfirmDialog
+        open={confirm.open}
+        loading={confirm.loading}
+        title={confirm.options.title}
+        description={confirm.options.description}
+        confirmLabel={confirm.options.confirmLabel}
+        cancelLabel={confirm.options.cancelLabel}
+        tone={confirm.options.tone}
+        onConfirm={confirm.confirm}
+        onClose={confirm.close}
       />
 
       <GuestBookingModal
         open={showGuestModal}
         onClose={() => setShowGuestModal(false)}
         terrainId={selectedTerrain?.id || terrainId}
+        terrainName={selectedTerrain?.name}
         date={selectedDate || new Date().toISOString().slice(0, 10)}
         refresh={refresh}
       />

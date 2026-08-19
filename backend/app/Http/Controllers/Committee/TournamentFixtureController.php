@@ -8,6 +8,7 @@ use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
+use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Resources\TournamentFixtureResource;
 use App\Domains\Tournament\Services\TournamentFixtureService;
 use App\Http\Requests\Committee\GenerateFixturesRequest;
@@ -16,6 +17,7 @@ use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Carbon;
 
 class TournamentFixtureController extends Controller
 {
@@ -63,15 +65,100 @@ class TournamentFixtureController extends Controller
         return response()->json(['data' => $this->fixtures->matchRounds($tournament)]);
     }
 
-    public function store(GenerateFixturesRequest $request, Tournament $tournament): JsonResponse
+    public function knockoutQualified(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('view', $tournament);
+
+        return response()->json(['data' => $this->fixtures->qualifiedTeamsDetailed($tournament)]);
+    }
+
+    /**
+     * Tournament-capable terrains filtered/annotated server-side for the given
+     * slot (?date=Y-m-d&time=H:i), so the committee picker only sees relevant
+     * terrains and their availability.
+     */
+    public function terrains(Request $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('view', $tournament);
+
+        return response()->json([
+            'data' => $this->fixtures->tournamentTerrains(
+                $tournament,
+                $request->query('date') ?: null,
+                $request->query('time') ?: null,
+            ),
+        ]);
+    }
+
+    public function preview(GenerateFixturesRequest $request, Tournament $tournament): JsonResponse
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status === 'finished') {
+        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled()) {
             throw new DomainException('لا يمكن إنشاء برنامج بعد انتهاء البطولة');
         }
 
         $data = $request->validated();
+        $stage = $data['stage'] ?? 'group';
+
+        $result = $stage === 'knockout'
+            ? $this->fixtures->previewKnockoutFixtures(
+                $tournament,
+                $data['team_ids'] ?? [],
+                $data['starts_on'] ?? null,
+                $data['stadium_ids'] ?? null,
+                $data['default_time'] ?? '20:00',
+            )
+            : $this->fixtures->previewGroupFixtures(
+                $tournament,
+                $data['starts_on'] ?? null,
+                $data['stadium_ids'] ?? null,
+                $data['default_time'] ?? '20:00',
+                (bool) ($data['double_round_robin'] ?? false),
+            );
+
+        return response()->json(['data' => $result]);
+    }
+
+    public function store(GenerateFixturesRequest $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled()) {
+            throw new DomainException('لا يمكن إنشاء برنامج بعد انتهاء البطولة');
+        }
+
+        $data = $request->validated();
+        $stage = $data['stage'] ?? 'group';
+        $strategy = $data['conflict_strategy'] ?? TournamentFixtureService::STRATEGY_ABORT;
+
+        if ($stage === 'knockout') {
+            $existingKnockout = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->whereHas('round', fn ($q) => $q->where('stage', '!=', 'group'))
+                ->exists();
+
+            if ($existingKnockout && ! $request->boolean('regenerate')) {
+                throw new DomainException('برنامج الأدوار الإقصائية موجود مسبقاً، استخدم إعادة الإنشاء إذا أردت استبداله');
+            }
+
+            $result = $this->fixtures->generateKnockoutFixtures(
+                $tournament,
+                $data['team_ids'] ?? [],
+                $data['starts_on'] ?? null,
+                $data['stadium_ids'] ?? null,
+                $data['default_time'] ?? '20:00',
+                $strategy,
+            );
+
+            return response()->json([
+                'data' => $result,
+                'message' => "تم إنشاء {$result['generated']} مباراة في الأدوار الإقصائية",
+            ], 201);
+        }
+
+        $this->assertDrawReadyForFixtures($tournament);
 
         if ($request->boolean('regenerate')) {
             $result = $this->fixtures->regenerateGroupFixtures(
@@ -80,6 +167,7 @@ class TournamentFixtureController extends Controller
                 $data['stadium_ids'] ?? null,
                 $data['default_time'] ?? '20:00',
                 (bool) ($data['double_round_robin'] ?? false),
+                $strategy,
             );
         } else {
             $existing = Fixture::query()
@@ -98,6 +186,7 @@ class TournamentFixtureController extends Controller
                 $data['stadium_ids'] ?? null,
                 $data['default_time'] ?? '20:00',
                 (bool) ($data['double_round_robin'] ?? false),
+                $strategy,
             );
         }
 
@@ -130,6 +219,14 @@ class TournamentFixtureController extends Controller
         }
 
         $data = $request->validated();
+
+        $this->fixtures->assertRescheduleAvailable(
+            $data['stadium_id'] ?? $fixture->stadium_id,
+            Carbon::parse($data['scheduled_at']),
+            (int) ($fixture->home_team_id ?? 0),
+            (int) ($fixture->away_team_id ?? 0),
+            $fixture->match_id,
+        );
 
         $fixture->forceFill([
             'scheduled_at' => $data['scheduled_at'],
@@ -177,6 +274,27 @@ class TournamentFixtureController extends Controller
         }
 
         return response()->json(['message' => 'تم إلغاء المباراة']);
+    }
+
+    private function assertDrawReadyForFixtures(Tournament $tournament): void
+    {
+        if (! in_array($tournament->tournament_format, ['groups_knockout', 'groups_only'], true)) {
+            return;
+        }
+
+        $unassigned = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->whereNull('group_id')
+            ->exists();
+
+        if ($unassigned) {
+            throw new DomainException('وزّع جميع الفرق في المجموعات قبل إنشاء برنامج المباريات');
+        }
+
+        if ($tournament->draw_confirmed_at === null) {
+            throw new DomainException('قم بتأكيد القرعة قبل إنشاء برنامج المباريات');
+        }
     }
 
     private function assertBelongsToTournament(Tournament $tournament, Fixture $fixture): void

@@ -3,8 +3,12 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowRight,
+  BarChart3,
+  FileDown,
+  LayoutGrid,
   ListOrdered,
   Lock,
+  MessageSquareText,
   Network,
   Settings2,
   SlidersHorizontal,
@@ -17,12 +21,16 @@ import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Card, Empty, SectionTitle, Skeleton, StatusBadge } from '../../../components/dashboard/ui'
 import OverviewTab from './overviewTab'
 import TeamsTab from './teamsTab'
-import DrawTab from './drawTab'
+import DrawBoard from './draw'
 import FixturesTab from './fixturesTab'
 import StandingsTab from './standingsTab'
 import BracketTab from './bracketTab'
 import StatisticsTab from './statisticsTab'
+import AnalyticsTab from './analyticsTab'
 import SettingsTab from './settingsTab'
+import ContentTab from './contentTab'
+import CommunicationTab from './communicationTab'
+import TournamentExport from './export'
 
 const tabs = [
   { key: 'overview', icon: Settings2, label: 'committee.detail.overview' },
@@ -33,6 +41,9 @@ const tabs = [
   { key: 'standings', icon: Trophy, label: 'committee.detail.standings' },
   { key: 'bracket', icon: Network, label: 'committee.detail.bracket' },
   { key: 'statistics', icon: Trophy, label: 'committee.detail.statistics' },
+  { key: 'analytics', icon: BarChart3, label: 'committee.detail.analytics' },
+  { key: 'content', icon: LayoutGrid, label: 'committee.detail.content' },
+  { key: 'communication', icon: MessageSquareText, label: 'committee.detail.communication' },
 ]
 
 export default function TournamentDetail() {
@@ -40,6 +51,7 @@ export default function TournamentDetail() {
   const { id } = useParams()
   const [active, setActive] = useState('overview')
   const [refresh, setRefresh] = useState(0)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const { data: tour, loading } = useApi(
     () => api.get(`/committee/tournaments/${id}`).then((r) => r.data.data),
@@ -75,12 +87,12 @@ export default function TournamentDetail() {
     )
   }
 
-  const isDraft = tour.status === 'draft'
+  const editableStatuses = ['draft', 'open_for_registration', 'registration_closed']
 
-  const gatedTabs = ['draw', 'fixtures', 'standings', 'bracket', 'statistics']
+  const gatedTabs = ['draw', 'fixtures', 'standings', 'bracket', 'statistics', 'analytics']
   const teamsComplete =
     (tour.stats?.registered_teams ?? 0) === (tour.teams_count ?? 0) && (tour.stats?.registered_teams ?? 0) > 0
-  const canProceed = tour.status === 'finished' || teamsComplete
+  const canProceed = ['in_progress', 'completed'].includes(tour.status) || teamsComplete
 
   const renderStep = (key, Component) => {
     if (active !== key) return null
@@ -107,6 +119,14 @@ export default function TournamentDetail() {
         subtitle={`${tour.edition || ''} ${tour.category || ''} • ${t(`committee.tournaments.formats.${tour.tournament_format}`)}`}
         action={
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExportOpen(true)}
+              className="inline-flex h-9 items-center gap-2 rounded-xl bg-green-500 px-3.5 text-xs font-bold text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)] transition-opacity hover:opacity-90"
+            >
+              <FileDown className="size-4" />
+              {t('committee.export.openButton')}
+            </button>
             <StatusBadge status={tour.status} />
             <Badge variant="info">{t('committee.detail.teamsCount', { count: tour.stats?.registered_teams ?? 0 })}</Badge>
             <Link
@@ -145,14 +165,19 @@ export default function TournamentDetail() {
         })}
       </div>
 
-      {active === 'overview' && <OverviewTab {...tabProps} isDraft={isDraft} />}
+      {active === 'overview' && <OverviewTab {...tabProps} editable={editableStatuses.includes(tour.status)} />}
       {active === 'settings' && <SettingsTab {...tabProps} />}
       {active === 'teams' && <TeamsTab {...tabProps} />}
-      {renderStep('draw', DrawTab)}
+      {renderStep('draw', DrawBoard)}
       {renderStep('fixtures', FixturesTab)}
       {renderStep('standings', StandingsTab)}
       {renderStep('bracket', BracketTab)}
       {renderStep('statistics', StatisticsTab)}
+      {renderStep('analytics', AnalyticsTab)}
+      {active === 'content' && <ContentTab {...tabProps} />}
+      {active === 'communication' && <CommunicationTab {...tabProps} />}
+
+      {exportOpen && <TournamentExport tournament={tour} onClose={() => setExportOpen(false)} />}
     </div>
   )
 }

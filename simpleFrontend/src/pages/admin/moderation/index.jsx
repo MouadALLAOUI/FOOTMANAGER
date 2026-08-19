@@ -5,6 +5,7 @@ import { useApi } from '../../../hooks/useApi'
 import DataTable from '../../../components/admin/DataTable'
 import { PageHeader, Button, Badge, Tabs } from '../../../components/admin/ui'
 import { toast } from '../../../components/ui/Toast'
+import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 
 const typeLabels = {
   comment: 'تعليق',
@@ -67,11 +68,23 @@ export default function Moderation() {
       toast.success('تم إخفاء المحتوى وحل البلاغ')
       refetchReports()
       refetchHidden()
+      return true
     } catch (e) {
       toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      return false
     } finally {
       setBusyId(null)
     }
+  }
+
+  const confirm = useConfirm()
+  const confirmHide = (report) => {
+    if (!report) return
+    confirm.run(() => hideAndResolve(report), {
+      title: 'إخفاء المحتوى وحل البلاغ؟',
+      description: 'سيتم إخفاء المحتوى المُبلّغ عنه عن الجميع وسيُحل البلاغ.',
+      confirmLabel: 'إخفاء وحل',
+    })
   }
 
   const unhide = async (item) => {
@@ -148,7 +161,7 @@ export default function Moderation() {
         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
           {r.status === 'pending' ? (
             <>
-              <Button size="sm" variant="soft" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => hideAndResolve(r)}>
+                <Button size="sm" variant="soft" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => confirmHide(r)}>
                 <EyeOff className="size-3.5" />
                 إخفاء وحل
               </Button>
@@ -166,7 +179,7 @@ export default function Moderation() {
                 مراجعة
               </Button>
               {r.reportable && (
-                <Button size="sm" variant="soft" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => hideAndResolve(r)}>
+              <Button size="sm" variant="soft" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => confirmHide(r)}>
                   <EyeOff className="size-3.5" />
                   إخفاء
                 </Button>
@@ -274,6 +287,18 @@ export default function Moderation() {
           emptyDescription="كل المحتوى مرئي حالياً."
         />
       )}
+
+      <ConfirmDialog
+        open={confirm.open}
+        loading={confirm.loading}
+        title={confirm.options.title}
+        description={confirm.options.description}
+        confirmLabel={confirm.options.confirmLabel}
+        cancelLabel={confirm.options.cancelLabel}
+        tone={confirm.options.tone}
+        onConfirm={confirm.confirm}
+        onClose={confirm.close}
+      />
     </div>
   )
 }

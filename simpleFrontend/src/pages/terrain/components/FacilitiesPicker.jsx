@@ -57,6 +57,7 @@ export default function FacilitiesPicker({ facilities, selected, onChange, loadi
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="ابحث عن مرافق…"
+          aria-label="ابحث عن مرافق"
           className="h-11 w-full rounded-xl border border-slate-200 bg-white ps-11 pe-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
         />
         <Search className="absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />

@@ -9,6 +9,7 @@ use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Resources\TournamentFixtureResource;
 use App\Domains\Tournament\Resources\TournamentResultResource;
 use App\Domains\Tournament\Services\TournamentResultService;
+use App\Domains\Tournament\Services\TournamentSuspensionService;
 use App\Http\Requests\Committee\StoreFixtureResultRequest;
 use App\Http\Requests\Committee\UpdateFixtureResultRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -20,6 +21,7 @@ class TournamentResultController extends Controller
 
     public function __construct(
         private readonly TournamentResultService $results,
+        private readonly TournamentSuspensionService $suspensions,
     ) {}
 
     public function store(StoreFixtureResultRequest $request, Tournament $tournament, Fixture $fixture): JsonResponse
@@ -45,7 +47,8 @@ class TournamentResultController extends Controller
         $fixture = $this->results->resultDetail($fixture);
 
         return response()->json([
-            'data' => new TournamentResultResource($fixture),
+            'data' => (new TournamentResultResource($fixture))
+                ->additional(['suspended_players' => $this->suspensions->suspendedFor($fixture)]),
         ]);
     }
 
@@ -59,7 +62,8 @@ class TournamentResultController extends Controller
         $fixture = $this->results->resultDetail($fixture);
 
         return response()->json([
-            'data' => new TournamentResultResource($fixture),
+            'data' => (new TournamentResultResource($fixture))
+                ->additional(['suspended_players' => $this->suspensions->suspendedFor($fixture)]),
             'message' => 'تم تحديث النتيجة',
         ]);
     }

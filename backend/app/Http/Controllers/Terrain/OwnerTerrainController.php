@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Terrain;
 
+use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Booking\Models\TerrainSchedule;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Support\PublicCache;
@@ -21,6 +22,29 @@ class OwnerTerrainController extends Controller
             'is_open' => 'required|boolean',
             'closure_reason' => 'nullable|string|max:255',
         ]);
+
+        if (! $validated['is_open']) {
+            $hasActiveBookings = TerrainBooking::where('terrain_id', $terrain->id)
+                ->whereIn('status', ['pending', 'approved'])
+                ->where(function ($q) {
+                    $q->where(function ($single) {
+                        $single->where('reservation_type', 'single')
+                            ->where('booking_date', '>=', now()->toDateString());
+                    })->orWhere(function ($weekly) {
+                        $weekly->where('reservation_type', 'weekly_subscription')
+                            ->where(function ($end) {
+                                $end->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString());
+                            });
+                    });
+                })
+                ->exists();
+
+            if ($hasActiveBookings) {
+                return response()->json([
+                    'message' => 'لا يمكن إغلاق الملعب لوجود حجوزات قادمة أو معلقة. يرجى التواصل مع أصحاب الحجوزات أو إدارة حجوزاتهم من صفحة الحجوزات.',
+                ], 422);
+            }
+        }
 
         $terrain->update([
             'is_open' => $validated['is_open'],

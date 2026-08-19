@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   X,
@@ -20,53 +20,64 @@ export function Button({
   className = '',
   type = 'button',
   loading = false,
+  disabled = false,
   ...props
 }) {
   const styles = {
-    primary: 'bg-green-500 text-white hover:bg-green-600 shadow-[0_10px_24px_rgba(34,197,94,0.3)]',
+    primary: 'bg-green-500 text-white shadow-[0_8px_20px_rgba(22,163,74,0.28)] hover:bg-green-600 hover:shadow-[0_10px_24px_rgba(22,163,74,0.34)]',
     outline: 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50',
-    ghost: 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-    danger: 'bg-red-500 text-white hover:bg-red-600 shadow-[0_10px_24px_rgba(239,68,68,0.3)]',
+    ghost: 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
     soft: 'bg-green-50 text-green-700 hover:bg-green-100',
-    softRed: 'bg-red-50 text-red-600 hover:bg-red-100',
+    danger: 'bg-rose-500 text-white shadow-[0_8px_20px_rgba(244,63,94,0.28)] hover:bg-rose-600',
+    dangerSoft: 'bg-rose-50 text-rose-600 hover:bg-rose-100',
+    softRed: 'bg-rose-50 text-rose-600 hover:bg-rose-100',
     softAmber: 'bg-amber-50 text-amber-700 hover:bg-amber-100',
+    softViolet: 'bg-violet-50 text-violet-700 hover:bg-violet-100',
+    red: 'bg-rose-500 text-white shadow-[0_8px_20px_rgba(244,63,94,0.28)] hover:bg-rose-600',
   }
   const sizes = {
-    sm: 'h-9 px-3.5 text-xs',
-    md: 'h-11 px-5 text-sm',
-    lg: 'h-12 px-6 text-[15px]',
+    sm: 'h-9 gap-1.5 rounded-xl px-3.5 text-xs',
+    md: 'h-11 gap-2 rounded-xl px-5 text-sm',
+    lg: 'h-12 gap-2 rounded-2xl px-6 text-sm',
   }
   return (
     <button
       type={type}
-      disabled={loading || props.disabled}
+      aria-busy={loading || undefined}
+      disabled={loading || disabled}
       className={cn(
-        'btn-ripple inline-flex items-center justify-center gap-2 rounded-2xl font-bold transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
-        styles[variant],
+        'inline-flex items-center justify-center gap-2 font-bold transition-all duration-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50',
+        styles[variant] || styles.primary,
         sizes[size],
         className,
       )}
       {...props}
     >
-      {loading && <Loader2 className="size-4 animate-spin" />}
+      {loading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
       {children}
     </button>
   )
 }
 
 const toneMap = {
-  green: 'bg-emerald-50 text-emerald-700 ring-emerald-200/70',
-  amber: 'bg-amber-50 text-amber-700 ring-amber-200/70',
-  red: 'bg-red-50 text-red-600 ring-red-200/70',
-  sky: 'bg-sky-50 text-sky-700 ring-sky-200/70',
-  violet: 'bg-violet-50 text-violet-700 ring-violet-200/70',
-  slate: 'bg-slate-100 text-slate-600 ring-slate-200/70',
-  blue: 'bg-blue-50 text-blue-700 ring-blue-200/70',
+  green: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  amber: 'bg-amber-50 text-amber-700 ring-amber-200',
+  red: 'bg-rose-50 text-rose-600 ring-rose-200',
+  sky: 'bg-sky-50 text-sky-700 ring-sky-200',
+  violet: 'bg-violet-50 text-violet-700 ring-violet-200',
+  slate: 'bg-slate-100 text-slate-600 ring-slate-200',
+  blue: 'bg-blue-50 text-blue-700 ring-blue-200',
+  neutral: 'bg-slate-100 text-slate-600 ring-slate-200',
+  info: 'bg-sky-50 text-sky-700 ring-sky-200',
+  warning: 'bg-amber-50 text-amber-700 ring-amber-200',
+  success: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  danger: 'bg-rose-50 text-rose-600 ring-rose-200',
 }
 
-export function Badge({ tone = 'slate', children, className = '' }) {
+export function Badge({ tone = 'slate', variant, children, className = '' }) {
+  const toneClass = toneMap[tone] || toneMap[variant] || toneMap.slate
   return (
-    <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1', toneMap[tone], className)}>
+    <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1', toneClass, className)}>
       {children}
     </span>
   )
@@ -79,17 +90,32 @@ const statusMeta = {
   confirmed: { tone: 'green', label: 'status.confirmed' },
   completed: { tone: 'green', label: 'status.completed' },
   accepted: { tone: 'green', label: 'status.accepted' },
-  reviewed: { tone: 'sky', label: 'status.reviewed' },
   resolved: { tone: 'green', label: 'status.resolved' },
+  published: { tone: 'green', label: 'status.published' },
+  available: { tone: 'green', label: 'status.available' },
+  open_for_registration: { tone: 'green', label: 'status.open_for_registration' },
+  reviewed: { tone: 'sky', label: 'status.reviewed' },
+  vacation: { tone: 'sky', label: 'status.vacation' },
+  private: { tone: 'sky', label: 'status.private' },
+  finished: { tone: 'sky', label: 'status.finished' },
+  in_progress: { tone: 'sky', label: 'status.in_progress' },
   pending: { tone: 'amber', label: 'status.pending' },
   pending_confirmation: { tone: 'amber', label: 'status.pending_confirmation' },
   disputed: { tone: 'amber', label: 'status.disputed' },
+  busy: { tone: 'amber', label: 'status.busy' },
+  registration_closed: { tone: 'amber', label: 'status.registration_closed' },
   rejected: { tone: 'red', label: 'status.rejected' },
   declined: { tone: 'red', label: 'status.declined' },
-  dismissed: { tone: 'slate', label: 'status.dismissed' },
   blocked: { tone: 'red', label: 'status.blocked' },
+  live: { tone: 'red', label: 'status.live' },
+  unavailable: { tone: 'red', label: 'status.unavailable' },
+  injured: { tone: 'red', label: 'status.injured' },
+  dismissed: { tone: 'slate', label: 'status.dismissed' },
   cancelled: { tone: 'slate', label: 'status.cancelled' },
+  none: { tone: 'slate', label: 'status.none' },
+  draft: { tone: 'slate', label: 'status.draft' },
   hidden: { tone: 'violet', label: 'status.hidden' },
+  training: { tone: 'violet', label: 'status.training' },
 }
 
 export function StatusBadge({ status }) {
@@ -100,34 +126,38 @@ export function StatusBadge({ status }) {
 
 export function PageHeader({ title, subtitle, actions }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && <div className="flex items-center gap-3">{actions}</div>}
     </div>
   )
 }
 
-export function Card({ children, className = '', title, action, pad = true }) {
+export function Card({ children, className = '', title, subtitle, action, pad = true, noPadding = false, bodyClassName = '' }) {
+  const noPad = noPadding || pad === false
   return (
-    <div className={cn('rounded-3xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_12px_32px_-16px_rgba(15,23,42,0.14)] ring-1 ring-slate-200/60', className)}>
+    <div className={cn('rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]', className)}>
       {(title || action) && (
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
-          {title && <h3 className="text-sm font-bold text-slate-900">{title}</h3>}
+          <div className="min-w-0">
+            {title && <h3 className="text-sm font-extrabold text-slate-900">{title}</h3>}
+            {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+          </div>
           {action}
         </div>
       )}
-      <div className={pad ? 'p-6' : ''}>{children}</div>
+      <div className={noPad ? bodyClassName : cn('p-6', bodyClassName)}>{children}</div>
     </div>
   )
 }
 
 const statTones = {
-  green: 'bg-green-500/15 text-green-600',
+  green: 'bg-emerald-500/15 text-emerald-600',
   amber: 'bg-amber-500/15 text-amber-600',
-  red: 'bg-red-500/15 text-red-600',
+  red: 'bg-rose-500/15 text-rose-600',
   sky: 'bg-sky-500/15 text-sky-600',
   violet: 'bg-violet-500/15 text-violet-600',
   slate: 'bg-slate-500/15 text-slate-600',
@@ -135,14 +165,14 @@ const statTones = {
 
 export function StatWidget({ icon: Icon, label, value, hint, tone = 'green' }) {
   const body = (
-    <div className="group relative overflow-hidden rounded-3xl bg-white p-6 shadow-[0_1px_3px_rgba(15,23,42,0.06),0_12px_32px_-16px_rgba(15,23,42,0.14)] ring-1 ring-slate-200/60 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_44px_-18px_rgba(15,23,42,0.25)]">
+    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[13px] font-semibold text-slate-500">{label}</p>
           <p className="mt-2 text-3xl font-black tracking-tight text-slate-900">{value}</p>
         </div>
-        <div className={cn('grid size-12 shrink-0 place-items-center rounded-2xl', statTones[tone])}>
-          <Icon className="size-6" strokeWidth={2.2} />
+        <div className={cn('grid size-11 shrink-0 place-items-center rounded-2xl', statTones[tone])}>
+          <Icon className="size-5" strokeWidth={2.2} />
         </div>
       </div>
       {hint && <p className="mt-3 text-[11px] font-medium text-slate-500">{hint}</p>}
@@ -154,18 +184,18 @@ export function StatWidget({ icon: Icon, label, value, hint, tone = 'green' }) {
 export function Field({ label, children, hint, required }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-bold text-slate-600">
+      <span className="mb-1.5 block text-xs font-bold text-slate-700">
         {label}
-        {required && <span className="ms-1 text-red-500">*</span>}
+        {required && <span className="text-rose-500"> *</span>}
       </span>
       {children}
-      {hint && <span className="mt-1.5 block text-[11px] text-slate-500">{hint}</span>}
+      {hint && <span className="mt-1 block text-[11px] text-slate-500">{hint}</span>}
     </label>
   )
 }
 
 export const inputClass =
-  'h-11 w-full rounded-2xl border border-slate-200 bg-slate-50/60 px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500/60 focus:bg-white focus:ring-4 focus:ring-green-500/10'
+  'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10'
 
 export function Input(props) {
   return <input {...props} className={cn(inputClass, props.className)} />
@@ -179,12 +209,14 @@ export function Select({ children, ...props }) {
   )
 }
 
-export function Toggle({ checked, onChange, disabled }) {
+export function Toggle({ checked, onChange, disabled, label, title }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label}
+      title={title || label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
@@ -204,14 +236,14 @@ export function Toggle({ checked, onChange, disabled }) {
 
 export function Spinner({ className = '' }) {
   return (
-    <div className={cn('flex items-center justify-center py-20', className)}>
-      <Loader2 className="size-9 animate-spin text-green-500" />
+    <div className={cn('flex items-center justify-center py-16', className)}>
+      <Loader2 className="size-9 animate-spin text-green-500" aria-hidden="true" />
     </div>
   )
 }
 
 export function Skeleton({ className = '' }) {
-  return <div className={cn('animate-pulse rounded-xl bg-slate-200/70', className)} />
+  return <div className={cn('animate-pulse rounded-xl bg-slate-200/80', className)} />
 }
 
 export function TableSkeleton({ rows = 5, columns = 4 }) {
@@ -262,50 +294,64 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
   const { t } = useTranslation()
   const panelRef = useRef(null)
   const titleIdRef = useRef(`amodal-title-${Math.random().toString(36).slice(2)}`)
+  const closingRef = useRef(false)
+  const [closing, setClosing] = useState(false)
   useDialogA11y(open, panelRef)
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return
+    closingRef.current = true
+    setClosing(true)
+    window.setTimeout(() => {
+      closingRef.current = false
+      setClosing(false)
+      onClose()
+    }, 180)
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const onKey = (e) => e.key === 'Escape' && requestClose()
     window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  }, [open, onClose])
+  }, [open, requestClose])
 
   if (!open) return null
 
-  const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl' }
+  const widths = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
+  const titleId = titleIdRef.current
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center">
-      <div className="overlay-in absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
+      <div className={`${closing ? 'overlay-out' : 'overlay-in'} absolute inset-0 bg-slate-900/50 backdrop-blur-sm`} onClick={requestClose} aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleIdRef.current}
+        aria-labelledby={titleId}
         tabIndex={-1}
-        className={cn('pop-in relative w-full rounded-3xl bg-white p-6 shadow-2xl outline-none', widths[size])}
+        className={cn(`${closing ? 'pop-out' : 'pop-in'} relative w-full max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl outline-none sm:rounded-3xl`, widths[size])}
       >
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h3 id={titleIdRef.current} className="text-lg font-black text-slate-900">{title}</h3>
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-white px-6 py-4">
+          <div className="min-w-0">
+            <h3 id={titleId} className="text-base font-extrabold text-slate-900">{title}</h3>
             {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label={t('common.close')}
             className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
-            <X className="size-5" />
+            <X className="size-4" />
           </button>
         </div>
-        {children}
-        {footer && <div className="mt-6 flex flex-wrap justify-end gap-2">{footer}</div>}
+        <div className="px-6 py-5">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">{footer}</div>}
       </div>
     </div>
   )
@@ -315,31 +361,44 @@ export function Drawer({ open, onClose, title, subtitle, children, footer, width
   const { t } = useTranslation()
   const panelRef = useRef(null)
   const titleIdRef = useRef(`adrawer-title-${Math.random().toString(36).slice(2)}`)
+  const closingRef = useRef(false)
+  const [closing, setClosing] = useState(false)
   useDialogA11y(open, panelRef)
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return
+    closingRef.current = true
+    setClosing(true)
+    window.setTimeout(() => {
+      closingRef.current = false
+      setClosing(false)
+      onClose()
+    }, 240)
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const onKey = (e) => e.key === 'Escape' && requestClose()
     window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  }, [open, onClose])
+  }, [open, requestClose])
 
   if (!open) return null
 
   return (
     <div className="fixed inset-0 z-[110]">
-      <div className="overlay-in absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
+      <div className={`${closing ? 'overlay-out' : 'overlay-in'} absolute inset-0 bg-slate-950/40 backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
       <aside
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleIdRef.current}
         tabIndex={-1}
-        className={cn('drawer-in absolute inset-y-0 end-0 flex w-full flex-col bg-white shadow-2xl outline-none', width)}
+        className={cn(`${closing ? 'drawer-out' : 'drawer-in'} absolute inset-y-0 end-0 flex w-full flex-col bg-white shadow-2xl outline-none`, width)}
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5">
           <div className="min-w-0">
@@ -348,7 +407,7 @@ export function Drawer({ open, onClose, title, subtitle, children, footer, width
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label={t('common.close')}
             className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
@@ -395,13 +454,16 @@ export function Tabs({ items, value, onChange }) {
   )
 }
 
-export function Pagination({ page, lastPage, total, perPage, onChange }) {
+export function Pagination({ page, lastPage, total, perPage, onChange, bare = false }) {
   const { t } = useTranslation()
   if (!total) return null
   const from = (page - 1) * perPage + 1
   const to = Math.min(page * perPage, total)
+  const wrap = bare
+    ? 'mt-8 flex flex-wrap items-center justify-between gap-3'
+    : 'flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4'
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4">
+    <div className={wrap}>
       <p className="text-xs font-medium text-slate-400">
         {t('pagination.showing', { from, to, total })}
       </p>

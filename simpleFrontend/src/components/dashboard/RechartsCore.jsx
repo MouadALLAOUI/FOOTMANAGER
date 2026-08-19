@@ -1,4 +1,4 @@
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Cell, Pie, PieChart } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Cell, Pie, PieChart } from 'recharts'
 
 const tooltipStyle = {
   background: '#0f172a',
@@ -58,6 +58,43 @@ export function AreaTrend({ data, xKey = 'label', series, height = 220 }) {
 }
 
 const donutColors = ['#22c55e', '#0ea5e9', '#f59e0b', '#8b5cf6', '#f43f5e', '#14b8a6']
+
+export function Bars({ data, xKey = 'label', bars = [], height = 220 }) {
+  return (
+    <div dir="ltr" style={{ height }} className="w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 8, right: 4, left: 4, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <XAxis
+            dataKey={xKey}
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }}
+            dy={8}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }}
+            width={32}
+            allowDecimals={false}
+          />
+          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(226,232,240,0.5)' }} />
+          {bars.map((b) => (
+            <Bar
+              key={b.dataKey}
+              dataKey={b.dataKey}
+              name={b.name}
+              fill={b.color || '#22c55e'}
+              radius={[6, 6, 0, 0]}
+              maxBarSize={28}
+            />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
 
 export function Donut({ data, height = 200, innerRadius = 58, outerRadius = 80, centerLabel, centerValue }) {
   return (

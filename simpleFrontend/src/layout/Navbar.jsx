@@ -14,7 +14,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { useAuth, homeForRole } from '../context/AuthContext'
 
-const links = ['home', 'fields', 'matches', 'tournaments', 'pricing']
+const links = ['home', 'fields', 'matches', 'tournaments', 'about', 'pricing']
 
 export default function Navbar() {
   const { t, i18n } = useTranslation()
@@ -29,6 +29,8 @@ export default function Navbar() {
     if (location.pathname.startsWith('/fields')) setActive('fields')
     else if (location.pathname.startsWith('/matches')) setActive('matches')
     else if (location.pathname.startsWith('/tournaments')) setActive('tournaments')
+    else if (location.pathname.startsWith('/about')) setActive('about')
+    else if (location.pathname.startsWith('/pricing')) setActive('pricing')
     else setActive('home')
   }, [location.pathname])
 
@@ -70,6 +72,16 @@ export default function Navbar() {
     }
     if (key === 'tournaments') {
       if (location.pathname !== '/tournaments') navigate('/tournaments')
+      else window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    if (key === 'about') {
+      if (location.pathname !== '/about') navigate('/about')
+      else window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
+    }
+    if (key === 'pricing') {
+      if (location.pathname !== '/pricing') navigate('/pricing')
       else window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
@@ -150,7 +162,7 @@ export default function Navbar() {
                 className="flex h-11 items-center gap-2 rounded-2xl bg-green-500 px-6 text-sm font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 active:translate-y-0"
               >
                 <FontAwesomeIcon icon={faGaugeHigh} className="size-4" />
-                لوحة التحكم
+                {t('landing.nav.dashboard')}
               </button>
               <button
                 type="button"
@@ -158,7 +170,7 @@ export default function Navbar() {
                 className="flex h-11 items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white"
               >
                 <FontAwesomeIcon icon={faArrowRightFromBracket} className="size-4" />
-                خروج
+                {t('landing.nav.logout')}
               </button>
             </div>
           ) : (
@@ -185,7 +197,7 @@ export default function Navbar() {
 
           <button
             type="button"
-            aria-label="menu"
+            aria-label={t('landing.nav.menuAria')}
             onClick={() => setOpen((v) => !v)}
             className="grid size-11 place-items-center rounded-2xl text-white transition-colors hover:bg-white/10 md:hidden"
           >
@@ -223,7 +235,7 @@ export default function Navbar() {
                 className="flex h-11 items-center justify-center gap-2 rounded-2xl bg-green-500 text-sm font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-colors hover:bg-green-600"
               >
                 <FontAwesomeIcon icon={faGaugeHigh} className="size-4" />
-                لوحة التحكم
+                {t('landing.nav.dashboard')}
               </button>
               <button
                 type="button"
@@ -231,7 +243,7 @@ export default function Navbar() {
                 className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-white/20 text-sm font-semibold text-white/80 transition-colors hover:bg-white/10"
               >
                 <FontAwesomeIcon icon={faArrowRightFromBracket} className="size-4" />
-                خروج
+                {t('landing.nav.logout')}
               </button>
             </>
           ) : (

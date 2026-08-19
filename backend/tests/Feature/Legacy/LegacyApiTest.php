@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\StreamsProgress;
 use Tests\TestCase;
 
 /**
@@ -22,6 +23,7 @@ use Tests\TestCase;
 class LegacyApiTest extends TestCase
 {
     use RefreshDatabase;
+    use StreamsProgress;
 
     private function approvedManagerWithTeam(): array
     {
@@ -33,6 +35,8 @@ class LegacyApiTest extends TestCase
 
     public function test_register_creates_pending_manager_and_team(): void
     {
+        $this->step('registering a manager with a team');
+
         Mail::fake();
 
         $payload = [
@@ -92,6 +96,8 @@ class LegacyApiTest extends TestCase
 
     public function test_manager_roster_crud(): void
     {
+        $this->step('manager roster: create, read, update, delete');
+
         [$manager, $team] = $this->approvedManagerWithTeam();
         Sanctum::actingAs($manager);
 
@@ -142,6 +148,8 @@ class LegacyApiTest extends TestCase
 
     public function test_single_booking_conflict_returns_clean_arabic_message(): void
     {
+        $this->step('single booking conflict: seeding manager, team and terrain');
+
         [$manager, $team] = $this->approvedManagerWithTeam();
         $terrain = Stadium::factory()->create();
         $date = now()->addDay()->toDateString();
@@ -175,9 +183,17 @@ class LegacyApiTest extends TestCase
 
     public function test_weekly_subscription_conflict_returns_clean_arabic_message(): void
     {
+        $this->section('weekly subscription conflict');
+        $this->step('creating approved manager and team');
+
         [$manager, $team] = $this->approvedManagerWithTeam();
+
+        $this->note('creating the terrain');
+
         $terrain = Stadium::factory()->create();
         $startDate = now()->addDay()->toDateString();
+
+        $this->note('creating an approved weekly subscription on the terrain');
 
         TerrainBooking::create([
             'terrain_id' => $terrain->id,
@@ -198,6 +214,8 @@ class LegacyApiTest extends TestCase
 
         Sanctum::actingAs($manager);
 
+        $this->note('posting a conflicting weekly booking request');
+
         $this->postJson('/api/manager/bookings/training', [
             'terrain_id' => $terrain->id,
             'reservation_type' => 'weekly_subscription',
@@ -209,10 +227,14 @@ class LegacyApiTest extends TestCase
             'booking_type' => 'training',
         ])->assertStatus(422)
             ->assertJsonPath('message', 'هذا التوقيت محجوز مسبقاً عبر أبونمان أسبوعي.');
+
+        $this->note('conflict message verified');
     }
 
     public function test_leaderboard_shape_and_pending_team_exclusion(): void
     {
+        $this->step('leaderboard: approved teams only, pending teams excluded');
+
         [$approvedManager, $approvedTeam] = $this->approvedManagerWithTeam();
         $pendingManager = User::factory()->pending()->create();
         Team::factory()->create(['manager_id' => $pendingManager->id]);
@@ -226,6 +248,8 @@ class LegacyApiTest extends TestCase
 
     public function test_leaderboard_flushed_after_score_confirmation(): void
     {
+        $this->step('leaderboard: warm cache, confirm score, verify flush');
+
         [$hostManager, $hostTeam] = $this->approvedManagerWithTeam();
         [$opponentManager, $opponentTeam] = $this->approvedManagerWithTeam();
 
@@ -261,6 +285,8 @@ class LegacyApiTest extends TestCase
 
     public function test_public_read_endpoints_return_expected_shape(): void
     {
+        $this->step('public read endpoints: stadiums, terrains, facilities, settings');
+
         $owner = User::factory()->approved()->create(['role' => 'terrain_owner']);
         $terrain = Stadium::factory()->create(['owner_id' => $owner->id]);
         $facility = Facility::create(['name' => 'ملعب عشبي', 'icon' => '🏟']);

@@ -19,6 +19,7 @@ import HeaderBlock from '../../../domains/committee/components/HeaderBlock'
 import ScoreActions from '../../../domains/committee/components/ScoreActions'
 import SummarySidebar from '../../../domains/committee/components/SummarySidebar'
 import FooterActions from '../../../domains/committee/components/FooterActions'
+import ConfirmResultModal from '../../../domains/committee/components/ConfirmResultModal'
 import { QUICK_ACTIONS, TYPE_OPTIONS, REFEREE_ROLES } from '../../../data/matchConstants'
 
 
@@ -69,6 +70,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [mvpId, setMvpId] = useState('')
   const [mvpRating, setMvpRating] = useState(0)
   const [rosters, setRosters] = useState({})
+  const [suspendedByTeam, setSuspendedByTeam] = useState({})
 
   const [referees, setReferees] = useState([])
   const [assigned, setAssigned] = useState({})
@@ -132,6 +134,16 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         if (cancelled) return
         const data = r.data?.data
         const m = data?.match
+        const suspended = data?.suspended_players || []
+        const byTeam = {}
+        for (const s of suspended) {
+          if (s.team_id == null || s.player_id == null) continue
+          if (!byTeam[s.team_id]) byTeam[s.team_id] = new Set()
+          byTeam[s.team_id].add(s.player_id)
+        }
+        const mapped = {}
+        for (const teamId of Object.keys(byTeam)) mapped[teamId] = Array.from(byTeam[teamId])
+        setSuspendedByTeam(mapped)
         if (m) {
           setStoredScore({ home: m.home_score ?? 0, away: m.away_score ?? 0 })
           if (m.home_penalties != null) setHomePen(m.home_penalties)
@@ -182,7 +194,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       minute: liveMinute > 0 ? liveMinute : 1,
       added_time: 0,
       goalType: 'regular',
-      cardColor: 'yellow_card',
+      cardColor: type === 'red_card' ? 'red_card' : type === 'second_yellow' ? 'second_yellow' : 'yellow_card',
       missed: false,
       reason: '',
       note: '',
@@ -210,7 +222,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       minute: ev.minute || 1,
       added_time: ev.added_time || 0,
       goalType: ev.goalType || 'regular',
-      cardColor: ev.type === 'red_card' ? 'red_card' : 'yellow_card',
+      cardColor: ev.type === 'red_card' ? 'red_card' : ev.type === 'second_yellow' ? 'second_yellow' : 'yellow_card',
       missed: ev.type === 'missed_penalty',
       reason: ev.reason || '',
       note: ev.note || '',
@@ -362,8 +374,16 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const isPlayerRedCarded = (playerId, minute) => {
     if (!playerId) return false
     const m = Number(minute) || 0
-    return events.some((e) => e.type === 'red_card' && e.player_id === playerId && (Number(e.minute) || 0) <= m)
+    return events.some((e) => (e.type === 'red_card' || e.type === 'second_yellow') && e.player_id === playerId && (Number(e.minute) || 0) <= m)
   }
+
+  useEffect(() => {
+    if (!['yellow_card', 'second_yellow', 'red_card'].includes(selectedType)) return
+    const pid = form.player_id
+    if (!pid || form.cardColor !== 'yellow_card') return
+    const alreadyYellow = events.some((e) => e.type === 'yellow_card' && e.player_id === pid)
+    if (alreadyYellow) setForm((f) => ({ ...f, cardColor: 'second_yellow' }))
+  }, [selectedType, form.player_id, form.cardColor, events, setForm])
 
   const submitEvent = async () => {
     const type = selectedType
@@ -380,6 +400,11 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         setValidation('needPlayer')
         return
       }
+      const suspendedIds = suspendedByTeam[form.team_id] || []
+      if (suspendedIds.includes(form.player_id)) {
+        setValidation('playerSuspended')
+        return
+      }
       if (isPlayerRedCarded(form.player_id, form.minute)) {
         setValidation('playerRedCarded')
         return
@@ -394,6 +419,11 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         setValidation('invalidSubPlayers')
         return
       }
+      const suspendedIds = suspendedByTeam[form.team_id] || []
+      if (suspendedIds.includes(form.assist_player_id)) {
+        setValidation('playerSuspended')
+        return
+      }
       if (isPlayerRedCarded(form.assist_player_id, form.minute)) {
         setValidation('playerRedCarded')
         return
@@ -405,7 +435,13 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     }
 
     setValidation(null)
-    const eventType = type === 'goal' ? goalEventType() : type === 'penalty_goal' && form.missed ? 'missed_penalty' : type
+    const eventType = type === 'goal'
+      ? goalEventType()
+      : type === 'penalty_goal' && form.missed
+        ? 'missed_penalty'
+        : (type === 'yellow_card' || type === 'second_yellow' || type === 'red_card')
+          ? (form.cardColor || type)
+          : type
 
     const ev = {
       _key: editingKey || uid(),
@@ -473,6 +509,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       if (e.type === 'goal' || e.type === 'penalty_goal' || e.type === 'own_goal') goals += 1
       if (e.type === 'yellow_card') yellows += 1
       if (e.type === 'red_card') reds += 1
+      if (e.type === 'second_yellow') { yellows += 1; reds += 1 }
       if (e.type === 'substitution') subs += 1
       if (e.type === 'penalty_goal') pens += 1
     }
@@ -617,6 +654,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                   t={t}
                   validation={validation}
                   onSubmit={submitEvent}
+                  suspendedIds={suspendedByTeam[form.team_id] || []}
                 />
               ) : (
                 <div className="grid grid-cols-2 gap-2">
@@ -673,27 +711,23 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       )}
 
       {confirmOpen && (
-        <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/90 p-4 backdrop-blur-sm">
-          <div className="pop-in w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <span className="grid size-12 place-items-center rounded-2xl bg-green-50 text-2xl">🏁</span>
-            <h3 className="mt-4 text-lg font-black text-slate-900">{t('committee.result.finishTitle')}</h3>
-            <p className="mt-1 text-xs font-semibold text-slate-500">{t('committee.result.finishDesc')}</p>
-            <ul className="mt-4 space-y-2">
-              {['result', 'standings', 'teamStats', 'playerStats', 'bracket'].map((k) => (
-                <li key={k} className="flex items-center gap-2 text-xs font-bold text-slate-700">
-                  <span className="grid size-4 place-items-center rounded-full bg-emerald-50 text-emerald-600"><Check className="size-3" /></span>
-                  {t(`committee.result.finishUpdates.${k}`)}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-6 flex gap-2">
-              <Button variant="outline" className="flex-1" onClick={() => setConfirmOpen(false)}>{t('common.cancel')}</Button>
-              <Button className="flex-1" loading={saving} onClick={confirmFinish}>
-                {t('committee.result.confirmFinish')}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ConfirmResultModal
+          events={events}
+          score={displayScore}
+          homeName={homeName}
+          awayName={awayName}
+          homeId={homeId}
+          awayId={awayId}
+          isKnockout={isKnockout}
+          homePen={homePen}
+          awayPen={awayPen}
+          referees={referees}
+          assigned={assigned}
+          saving={saving}
+          onConfirm={confirmFinish}
+          onCancel={() => setConfirmOpen(false)}
+          t={t}
+        />
       )}
     </ModalShell>
   )

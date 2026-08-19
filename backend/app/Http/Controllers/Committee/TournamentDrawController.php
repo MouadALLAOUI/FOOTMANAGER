@@ -31,9 +31,7 @@ class TournamentDrawController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if (! in_array($tournament->status, ['draft', 'published'], true)) {
-            return response()->json(['message' => 'لا يمكن سحب القرعة بعد انطلاق البطولة'], 422);
-        }
+        $this->assertEditableDraw($tournament);
 
         return response()->json(['data' => $this->draw->autoDraw($tournament)]);
     }
@@ -42,13 +40,7 @@ class TournamentDrawController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if (! in_array($tournament->status, ['draft', 'published'], true)) {
-            throw new DomainException('لا يمكن تعديل القرعة بعد انطلاق البطولة');
-        }
-
-        if ($tournament->fixtures()->count() > 0) {
-            throw new DomainException('لا يمكن تعديل القرعة بعد إنشاء برنامج المباريات');
-        }
+        $this->assertEditableDraw($tournament);
 
         return response()->json([
             'data' => $this->draw->assignTeam(
@@ -56,6 +48,7 @@ class TournamentDrawController extends Controller
                 (int) $request->input('team_id'),
                 $request->filled('group_id') ? (int) $request->input('group_id') : null,
                 $request->filled('group_position') ? (int) $request->input('group_position') : null,
+                $request->boolean('new_group'),
             ),
         ]);
     }
@@ -64,16 +57,14 @@ class TournamentDrawController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if (! in_array($tournament->status, ['draft', 'published'], true)) {
-            throw new DomainException('لا يمكن تعديل القرعة بعد انطلاق البطولة');
-        }
-
-        if ($tournament->fixtures()->count() > 0) {
-            throw new DomainException('لا يمكن تعديل القرعة بعد إنشاء برنامج المباريات');
-        }
+        $this->assertEditableDraw($tournament);
 
         return response()->json([
-            'data' => $this->draw->saveDraw($tournament, $request->input('teams', [])),
+            'data' => $this->draw->saveDraw(
+                $tournament,
+                $request->input('teams', []),
+                collect($request->input('groups', []))->pluck('key')->all(),
+            ),
         ]);
     }
 
@@ -81,12 +72,65 @@ class TournamentDrawController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->fixtures()->count() > 0) {
-            return response()->json(['message' => 'لا يمكن إلغاء القرعة بعد إنشاء برنامج المباريات'], 422);
-        }
+        $this->assertEditableDraw($tournament);
 
         $this->draw->resetDraw($tournament);
 
         return response()->noContent();
+    }
+
+    /**
+     * Finalize the draw. After this the board is locked until it is unlocked
+     * explicitly (and permanently once fixtures have been generated).
+     */
+    public function confirm(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if (! $tournament->isEditable()) {
+            throw new DomainException('لا يمكن تأكيد القرعة بعد انطلاق البطولة');
+        }
+
+        if ($tournament->fixtures()->count() > 0) {
+            throw new DomainException('لا يمكن تأكيد القرعة بعد إنشاء برنامج المباريات');
+        }
+
+        return response()->json(['data' => $this->draw->confirmDraw($tournament)]);
+    }
+
+    /**
+     * Re-open the draw for editing. Only possible while the tournament is
+     * editable and no fixtures depend on the draw yet.
+     */
+    public function unconfirm(Tournament $tournament): Response
+    {
+        $this->authorize('manage', $tournament);
+
+        if (! $tournament->isEditable()) {
+            throw new DomainException('لا يمكن فتح القرعة بعد انطلاق البطولة');
+        }
+
+        if ($tournament->fixtures()->count() > 0) {
+            throw new DomainException('لا يمكن فتح القرعة بعد إنشاء برنامج المباريات');
+        }
+
+        $this->draw->unconfirmDraw($tournament);
+
+        return response()->noContent();
+    }
+
+    private function assertEditableDraw(Tournament $tournament): void
+    {
+        if (! $tournament->isEditable()) {
+            throw new DomainException('لا يمكن تعديل القرعة بعد انطلاق البطولة');
+        }
+
+        if ($tournament->fixtures()->count() > 0) {
+            throw new DomainException('لا يمكن تعديل القرعة بعد إنشاء برنامج المباريات');
+        }
+
+        if ($tournament->draw_confirmed_at !== null) {
+            throw new DomainException('القرعة مؤكدة، افتحها أولاً لتعديل التوزيع');
+        }
     }
 }

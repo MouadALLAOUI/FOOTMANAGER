@@ -13,7 +13,7 @@ export default function Overview() {
   const { data, loading } = useApi(() => api.get('/committee/tournaments', { params: { per_page: 50 } }).then((r) => r.data))
   const tournaments = data?.data || []
   const totalTeams = tournaments.reduce((sum, tour) => sum + (tour.teams_count || 0), 0)
-  const published = tournaments.filter((tour) => tour.status === 'published' || tour.status === 'finished').length
+  const published = tournaments.filter((tour) => !['draft', 'cancelled'].includes(tour.status)).length
   const drafts = tournaments.length - published
 
   return (
@@ -91,7 +91,7 @@ export default function Overview() {
                   <div className="flex items-center justify-between gap-3">
                     <p className="truncate text-sm font-extrabold text-slate-900">{tour.name}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${tour.status === 'draft' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-50 text-emerald-600'}`}>
-                      {tour.status}
+                      {t(`status.${tour.status}`)}
                     </span>
                   </div>
                   <p className="mt-1.5 text-[11px] font-semibold text-slate-400">

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import api from '../../../api/client';
 import { useToast } from '../../../components/ui/Toast';
 import { useStadiums } from '../../../api/queries';
@@ -7,6 +8,7 @@ import TimePicker from '../../../components/TimePicker';
 import NeedPlayersField from '../../../components/NeedPlayersField';
 
 export default function NewMatchModal({ open, onClose, onSaved }) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const { data: stadiumsData } = useStadiums({ per_page: 50 }, { enabled: open })
   const [mode, setMode] = useState('stadium')
@@ -34,23 +36,23 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
         players_needed: needsPlayers ? Number(playersNeeded) : undefined,
       }
       await api.post('/manager/match-requests', payload)
-      toast.success('تم نشر طلب المباراة بنجاح')
+      toast.success(t('ov.newMatch.successToast'))
       onSaved()
       onClose()
     } catch (e) {
-      setError(e.response?.data?.message || 'تعذر إنشاء طلب المباراة')
+      setError(e.response?.data?.message || t('ov.newMatch.failToast'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="مباراة جديدة" subtitle="انشر طلب مباراة ودية يبحث عن خصم" size="lg">
+    <Modal open={open} onClose={onClose} title={t('ov.newMatch.title')} subtitle={t('ov.newMatch.subtitle')} size="lg">
       <div className="space-y-4">
         <div className="flex gap-2 rounded-2xl bg-slate-100 p-1">
           {[
-            { key: 'stadium', label: 'ملعب من المنصة' },
-            { key: 'custom', label: 'ملعب خارجي' },
+            { key: 'stadium', label: t('ov.newMatch.fromPlatform') },
+            { key: 'custom', label: t('ov.newMatch.externalField') },
           ].map((m) => (
             <button
               key={m.key}
@@ -65,36 +67,36 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
         </div>
 
         {mode === 'stadium' ? (
-          <Field label="اختر الملعب" required>
+          <Field label={t('ov.newMatch.selectField')} required>
             <select className={selectClass} value={form.stadium_id || ''} onChange={set('stadium_id')}>
-              <option value="">اختر ملعبًا…</option>
+              <option value="">{t('ov.newMatch.fieldPlaceholder')}</option>
               {stadiums.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name} — {s.city} {s.price_per_team ? `(${s.price_per_team} د.م)` : ''}
+                  {s.name} — {s.city} {s.price_per_team ? `(${s.price_per_team} ${t('ov.common.currency')})` : ''}
                 </option>
               ))}
             </select>
           </Field>
         ) : (
-          <Field label="اسم الملعب" required>
+          <Field label={t('ov.newMatch.fieldName')} required>
             <input className={inputClass} value={form.custom_terrain_name || ''} onChange={set('custom_terrain_name')} />
           </Field>
         )}
 
-        <Field label="تاريخ ووقت المباراة" required>
+        <Field label={t('ov.newMatch.datetime')} required>
           <input type="datetime-local" className={inputClass} value={form.match_datetime || ''} onChange={set('match_datetime')} />
         </Field>
 
-        <Field label="وقت البداية" required>
+        <Field label={t('ov.newMatch.startTime')} required>
           <TimePicker
             value={form.start_time || ''}
             onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
-            labels={{ ok: 'موافق', cancel: 'إلغاء' }}
+            labels={{ ok: t('ov.newMatch.ok'), cancel: t('ov.newMatch.cancel') }}
             className="h-11 rounded-xl border border-slate-200 bg-white"
           />
         </Field>
 
-        <Field label="ملاحظات">
+        <Field label={t('ov.newMatch.notes')}>
           <textarea rows={3} className={`${inputClass} h-auto py-3`} value={form.notes || ''} onChange={set('notes')} />
         </Field>
 
@@ -103,7 +105,7 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
         {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
 
         <Button className="w-full" disabled={busy} onClick={submit}>
-          {busy ? 'جارٍ النشر…' : 'نشر الطلب'}
+          {busy ? t('ov.newMatch.posting') : t('ov.newMatch.submit')}
         </Button>
       </div>
     </Modal>

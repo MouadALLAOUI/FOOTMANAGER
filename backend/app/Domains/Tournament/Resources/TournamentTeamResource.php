@@ -19,6 +19,7 @@ class TournamentTeamResource extends JsonResource
                 'name' => $this->team->name,
                 'logo_url' => $this->team->logo_url,
                 'city' => $this->team->city,
+                'category' => $this->team->category,
                 'level' => $this->team->level,
                 'is_free' => (bool) $this->team->is_free,
             ]),
@@ -28,6 +29,7 @@ class TournamentTeamResource extends JsonResource
             ] : null),
             'group_position' => $this->group_position,
             'status' => $this->status,
+            'payment_status' => $this->payment_status,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

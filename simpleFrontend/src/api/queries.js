@@ -17,6 +17,7 @@ export const q = {
   leaderboard: (params) => ['v1', 'leaderboard', params],
   notifications: (params) => ['notifications', params],
   notificationPrefs: () => ['notifications', 'prefs'],
+  notificationUnreadCount: () => ['notifications', 'unread-count'],
   teamProfile: () => ['manager', 'team-profile'],
   matchRequests: (params) => ['manager', 'match-requests', params],
   bookings: () => ['manager', 'bookings'],
@@ -28,6 +29,7 @@ export const q = {
   ownerTerrains: () => ['owner', 'terrains'],
   ownerStats: () => ['owner', 'stats'],
   ownerBookings: () => ['owner', 'bookings'],
+  ownerOverview: () => ['owner', 'overview'],
   ownerOverviewAnalytics: (mode) => ['owner', 'analytics', 'overview', mode],
   ownerCalendar: (id, week) => ['owner', 'terrains', id, 'calendar', week],
   adminStats: () => ['admin', 'stats'],
@@ -64,6 +66,8 @@ export const useNotifications = (params, options) =>
   useTypedQuery(q.notifications(params), () => get('/notifications', params), options)
 export const useNotificationPrefs = (options) =>
   useTypedQuery(q.notificationPrefs(), () => get('/notifications/preferences'), options)
+export const useNotificationUnreadCount = (options) =>
+  useTypedQuery(q.notificationUnreadCount(), () => get('/notifications/unread-count'), options)
 export const useTeamProfile = (options) =>
   useTypedQuery(q.teamProfile(), () => get('/manager/team-profile'), options)
 export const useMatchRequests = (params, options) =>
@@ -86,6 +90,8 @@ export const useOwnerBookings = (options) =>
   useTypedQuery(q.ownerBookings(), () => get('/owner/bookings'), options)
 export const useOwnerOverviewAnalytics = (mode, options) =>
   useTypedQuery(q.ownerOverviewAnalytics(mode), () => get('/owner/analytics/overview', { mode }), options)
+export const useOwnerOverview = (options) =>
+  useTypedQuery(q.ownerOverview(), () => get('/owner/overview'), options)
 export const useAdminStats = (options) =>
   useTypedQuery(q.adminStats(), () => get('/admin/stats'), options)
 export const usePlayerStats = (options) =>

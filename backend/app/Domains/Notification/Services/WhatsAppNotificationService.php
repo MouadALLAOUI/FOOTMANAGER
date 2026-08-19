@@ -10,22 +10,27 @@ class WhatsAppNotificationService
 
     public function buildBookingRequestMessage(TerrainBooking $booking): string
     {
-        $phone = $this->formatPhone($booking->manager->phone);
-        $ownerPhone = $this->formatPhone($booking->terrain->owner->phone);
+        $ownerPhone = $booking->terrain?->owner?->phone;
 
-        $bookingTypeLabel = match ($booking->booking_type) {
-            'match' => 'مباراة ودية',
-            'training' => 'حصة تدريبية',
-            'private' => 'استعمال خاص',
-            default => $booking->booking_type,
-        };
+        if (! $ownerPhone) {
+            return '';
+        }
+
+        $ownerPhone = $this->formatPhone($ownerPhone);
+
+        $bookingTypeLabel = $this->bookingTypeLabel($booking);
+        $dateLabel = $booking->booking_date ? $booking->booking_date->format('Y-m-d') : '—';
+        $teamName = $booking->team?->name ?? 'غير محدد';
+        $partyLabel = $booking->isGuest()
+            ? '• الزبون: '.$booking->guest_name
+            : '• الفريق: '.$teamName;
 
         $message = 'السلام عليكم، عندك طلب حجز جديد بانتظار التأكيد! 🏟️'."\n"
             ."\n"
             ."• الملعب: {$booking->terrain->name}"."\n"
             ."• النوع: {$bookingTypeLabel}"."\n"
-            ."• الفريق: {$booking->team->name}"."\n"
-            ."• التاريخ: {$booking->booking_date->format('Y-m-d')}"."\n"
+            .$partyLabel."\n"
+            ."• التاريخ: {$dateLabel}"."\n"
             ."• التوقيت: {$booking->start_time} - {$booking->end_time}"."\n"
             ."• الثمن: {$booking->price} درهم"."\n"
             ."\n"
@@ -34,40 +39,71 @@ class WhatsAppNotificationService
         return $this->buildWaLink($ownerPhone, $message);
     }
 
+    /**
+     * Build a plain WhatsApp chat link for a given phone number.
+     */
+    public function contactLink(string $phone, string $message = ''): string
+    {
+        if (! $phone) {
+            return '';
+        }
+
+        return $this->buildWaLink($this->formatPhone($phone), $message);
+    }
+
     public function buildOwnerDecisionMessage(TerrainBooking $booking, string $status): string
     {
-        $managerPhone = $this->formatPhone($booking->manager->phone);
+        $isGuest = $booking->isGuest();
+        $recipientName = $isGuest ? $booking->guest_name : $booking->manager?->name;
+        $recipientPhone = $isGuest ? ($booking->guest_phone ?? '') : $booking->manager?->phone;
 
-        $bookingTypeLabel = match ($booking->booking_type) {
-            'match' => 'مباراة ودية',
-            'training' => 'حصة تدريبية',
-            'private' => 'استعمال خاص',
-            default => $booking->booking_type,
-        };
+        if (! $recipientName) {
+            $recipientName = 'المسير';
+        }
+        if (! $recipientPhone) {
+            return '';
+        }
+
+        $bookingTypeLabel = $this->bookingTypeLabel($booking);
+        $dateLabel = $booking->booking_date ? $booking->booking_date->format('Y-m-d') : '—';
+        $teamName = $booking->team?->name ?? 'غير محدد';
+        $partyLine = $isGuest
+            ? '• الزبون: '.$booking->guest_name
+            : '• الفريق: '.$teamName;
 
         if ($status === 'approved') {
-            $message = "مرحباً {$booking->manager->name}، تم تأكيد حجزك بنجاح! ✅"."\n"
+            $message = "مرحباً {$recipientName}، تم تأكيد حجزك بنجاح! ✅"."\n"
                 ."\n"
                 ."• الملعب: {$booking->terrain->name}"."\n"
                 ."• النوع: {$bookingTypeLabel}"."\n"
-                ."• الفريق: {$booking->team->name}"."\n"
-                ."• التاريخ: {$booking->booking_date->format('Y-m-d')}"."\n"
+                .$partyLine."\n"
+                ."• التاريخ: {$dateLabel}"."\n"
                 ."• التوقيت: {$booking->start_time} - {$booking->end_time}"."\n"
                 ."\n"
-                .'نتمنى لكم مباراة ممتعة! ⚽';
+                .'نتمنى لكم وقتاً ممتعاً! ⚽';
         } else {
-            $message = "مرحباً {$booking->manager->name}، تعذر قبول طلب الحجز ❌"."\n"
+            $message = "مرحباً {$recipientName}، تعذر قبول طلب الحجز ❌"."\n"
                 ."\n"
                 ."• الملعب: {$booking->terrain->name}"."\n"
                 ."• النوع: {$bookingTypeLabel}"."\n"
-                ."• الفريق: {$booking->team->name}"."\n"
-                ."• التاريخ: {$booking->booking_date->format('Y-m-d')}"."\n"
+                .$partyLine."\n"
+                ."• التاريخ: {$dateLabel}"."\n"
                 ."• التوقيت: {$booking->start_time} - {$booking->end_time}"."\n"
                 ."\n"
                 .'يمكنك تجربة ملعب آخر من خلال المنصة.';
         }
 
-        return $this->buildWaLink($managerPhone, $message);
+        return $this->buildWaLink($this->formatPhone($recipientPhone), $message);
+    }
+
+    private function bookingTypeLabel(TerrainBooking $booking): string
+    {
+        return match ($booking->booking_type) {
+            'match' => 'مباراة ودية',
+            'training' => 'حصة تدريبية',
+            'private' => 'استعمال خاص',
+            default => $booking->booking_type ?? 'حجز',
+        };
     }
 
     private function formatPhone(string $phone): string

@@ -6,9 +6,11 @@ use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Match\Services\MatchMembershipService;
 use App\Domains\Match\Queries\MatchFeedQuery;
-use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Stadium\Models\Stadium;
+use App\Domains\Subscription\Services\SubscriptionService;
+use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,6 +18,10 @@ use Illuminate\Support\Facades\DB;
 
 class MatchFeedController extends Controller
 {
+    public function __construct(
+        private SubscriptionService $subscription,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -49,6 +55,12 @@ class MatchFeedController extends Controller
         }
 
         $teamId = $user->team->id;
+
+        $this->subscription->authorizeResource(
+            $user,
+            'friendly_match_requests',
+            $this->subscription->currentUsage($user, 'friendly_match_requests'),
+        );
 
         $validated = $request->validate([
             'needs_players' => 'sometimes|boolean',
@@ -108,7 +120,7 @@ class MatchFeedController extends Controller
                         $matchRequest->stadium_id,
                         $dateTime->toDateString(),
                         $dateTime->format('H:i'),
-                        $dateTime->copy()->addHours(2)->format('H:i')
+$dateTime->copy()->addHours((int) Setting::get('default_match_hours', 2))->format('H:i')
                     );
 
                     if (! $conflictMsg && MatchMembershipService::stadiumHasFixtureConflict($matchRequest->stadium_id, $dateTime)) {
@@ -131,7 +143,7 @@ class MatchFeedController extends Controller
                         'match_request_id' => $matchRequest->id,
                         'booking_date' => $dateTime->toDateString(),
                         'start_time' => $dateTime->format('H:i'),
-                        'end_time' => $dateTime->copy()->addHours(2)->format('H:i'),
+                        'end_time' => $dateTime->copy()->addHours((int) Setting::get('default_match_hours', 2))->format('H:i'),
                         'price' => $price,
                         'status' => 'pending',
                     ]);
@@ -146,14 +158,14 @@ class MatchFeedController extends Controller
 
                 $matchRequest->load(['hostTeam.manager', 'stadium']);
 
-                AppNotification::create([
-                    'user_id' => $matchRequest->hostTeam->manager_id,
-                    'type' => 'match_accepted',
-                    'title' => 'تم قبول طلب المباراة',
-                    'body' => "الفريق {$user->team?->name} قبل طلب المباراة في {$matchRequest->match_datetime}",
-                    'data' => ['match_request_id' => $matchRequest->id],
-                    'action_url' => '/dashboard',
-                ]);
+                NotificationService::push(
+                    (int) $matchRequest->hostTeam->manager_id,
+                    'match_accepted',
+                    'تم قبول طلب المباراة',
+                    "الفريق {$user->team?->name} قبل طلب المباراة في {$matchRequest->match_datetime}",
+                    ['match_request_id' => $matchRequest->id],
+                    '/dashboard',
+                );
 
                 return response()->json([
                     'message' => 'تم تأكيد المباراة بنجاح! يمكنك الآن التواصل مع مسير الفريق المنظم',

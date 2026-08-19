@@ -3,6 +3,7 @@ import { KeyRound, Phone, Save, UserRound } from 'lucide-react'
 import api from '../../../api/client'
 import { useMe } from '../../../api/queries'
 import { Button, Field, FieldRow, SectionTitle, Skeleton, Toggle, inputClass } from '../../../components/dashboard/ui'
+import ProfileImageUploader from '../../../components/profile/ProfileImageUploader'
 import { useAuth } from '../../../context/AuthContext'
 import { useToast } from '../../../components/ui/Toast'
 
@@ -83,9 +84,7 @@ export default function Profile() {
       <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-l from-[#0b1220] to-[#12321f] p-7 text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)]">
         <div className="pointer-events-none absolute -end-16 -top-16 size-56 rounded-full bg-green-500/20 blur-3xl" />
         <div className="relative flex flex-wrap items-center gap-5">
-          <span className="grid size-20 shrink-0 place-items-center rounded-3xl bg-gradient-to-br from-green-400 to-emerald-600 text-3xl font-black text-white shadow-[0_12px_28px_rgba(34,197,94,0.4)]">
-            {(user?.name || '؟').slice(0, 1)}
-          </span>
+          <ProfileImageUploader user={user} size="size-20" rounded="rounded-3xl" fontSize="text-3xl" />
           <div className="min-w-0">
             <p className="text-xl font-black">{user?.name}</p>
             <p className="mt-1 text-xs font-semibold text-white/50">

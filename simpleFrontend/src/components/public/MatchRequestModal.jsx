@@ -4,6 +4,7 @@ import api from '../../api/client'
 import { useStadiums } from '../../api/queries'
 import { useToast } from '../ui/Toast'
 import { Modal, Field, Button, inputClass, selectClass } from '../dashboard/ui'
+import { getApiErrorMessage } from '../../lib/errors'
 
 export default function MatchRequestModal({ open, onClose, team }) {
   const { t } = useTranslation()
@@ -42,7 +43,7 @@ export default function MatchRequestModal({ open, onClose, team }) {
       toast.success(t('publicActions.challengeSuccess'))
       onClose()
     } catch (e) {
-      setError(e.response?.data?.message || t('publicActions.challengeError'))
+      setError(getApiErrorMessage(e, t, t('publicActions.challengeError')))
     } finally {
       setBusy(false)
     }

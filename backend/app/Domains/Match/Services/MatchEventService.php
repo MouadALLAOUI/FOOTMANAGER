@@ -51,7 +51,9 @@ class MatchEventService
                 event(new GoalScored($match, $event));
             }
 
-            if ($type === MatchEventType::YellowCard || $type === MatchEventType::RedCard) {
+            if ($type === MatchEventType::YellowCard
+                || $type === MatchEventType::SecondYellow
+                || $type === MatchEventType::RedCard) {
                 event(new CardGiven($match, $event));
             }
 
@@ -176,6 +178,7 @@ class MatchEventService
 
         match ($event->type) {
             MatchEventType::YellowCard => $statistics->increment($match, $event->team_id, 'yellow_cards'),
+            MatchEventType::SecondYellow,
             MatchEventType::RedCard => $statistics->increment($match, $event->team_id, 'red_cards'),
             MatchEventType::Goal,
             MatchEventType::PenaltyGoal,

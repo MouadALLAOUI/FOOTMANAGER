@@ -6,7 +6,7 @@ use App\Domains\Booking\Events\BookingApproved;
 use App\Domains\Booking\Events\BookingRejected;
 use App\Domains\Booking\Models\CancellationRequest;
 use App\Domains\Booking\Models\TerrainBooking;
-use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Notification\Services\WhatsAppNotificationService;
 use App\Domains\Shared\Base\Controller;
 use Illuminate\Http\JsonResponse;
@@ -78,14 +78,14 @@ class OwnerBookingController extends Controller
         event(new BookingApproved($booking));
 
         if ($booking->manager_id) {
-            AppNotification::create([
-                'user_id' => $booking->manager_id,
-                'type' => 'reservation_approved',
-                'title' => 'تم تأكيد حجز الملعب',
-                'body' => "صاحب الملعب {$booking->terrain?->name} قام بتأكيد حجزك في تاريخ {$booking->booking_date?->format('Y-m-d')}",
-                'data' => ['booking_id' => $booking->id, 'terrain_id' => $booking->terrain_id],
-                'action_url' => '/dashboard/my-reservations',
-            ]);
+            NotificationService::push(
+                (int) $booking->manager_id,
+                'reservation_approved',
+                'تم تأكيد حجز الملعب',
+                "صاحب الملعب {$booking->terrain?->name} قام بتأكيد حجزك في تاريخ {$booking->booking_date?->format('Y-m-d')}",
+                ['booking_id' => $booking->id, 'terrain_id' => $booking->terrain_id],
+                '/dashboard/my-reservations',
+            );
         }
 
         return response()->json([
@@ -130,14 +130,14 @@ class OwnerBookingController extends Controller
         event(new BookingRejected($booking));
 
         if ($booking->manager_id) {
-            AppNotification::create([
-                'user_id' => $booking->manager_id,
-                'type' => 'reservation_rejected',
-                'title' => 'تم رفض حجز الملعب',
-                'body' => "صاحب الملعب {$booking->terrain?->name} قام برفض حجزك في تاريخ {$booking->booking_date?->format('Y-m-d')}",
-                'data' => ['booking_id' => $booking->id],
-                'action_url' => '/dashboard/my-reservations',
-            ]);
+            NotificationService::push(
+                (int) $booking->manager_id,
+                'reservation_rejected',
+                'تم رفض حجز الملعب',
+                "صاحب الملعب {$booking->terrain?->name} قام برفض حجزك في تاريخ {$booking->booking_date?->format('Y-m-d')}",
+                ['booking_id' => $booking->id],
+                '/dashboard/my-reservations',
+            );
         }
 
         return response()->json([
@@ -183,25 +183,25 @@ class OwnerBookingController extends Controller
             $cancellation->booking->update(['status' => 'cancelled']);
             $cancellation->update(['status' => 'approved']);
             $message = 'تمت الموافقة على إلغاء الحجز';
-            AppNotification::create([
-                'user_id' => $cancellation->user_id,
-                'type' => 'cancellation_approved',
-                'title' => 'تمت الموافقة على إلغاء الحجز',
-                'body' => "صاحب الملعب {$cancellation->booking?->terrain?->name} وافق على إلغاء حجزك",
-                'data' => ['booking_id' => $cancellation->terrain_booking_id],
-                'action_url' => '/dashboard/my-reservations',
-            ]);
+            NotificationService::push(
+                (int) $cancellation->user_id,
+                'cancellation_approved',
+                'تمت الموافقة على إلغاء الحجز',
+                "صاحب الملعب {$cancellation->booking?->terrain?->name} وافق على إلغاء حجزك",
+                ['booking_id' => $cancellation->terrain_booking_id],
+                '/dashboard/my-reservations',
+            );
         } else {
             $cancellation->update(['status' => 'rejected']);
             $message = 'تم رفض طلب الإلغاء';
-            AppNotification::create([
-                'user_id' => $cancellation->user_id,
-                'type' => 'cancellation_rejected',
-                'title' => 'تم رفض إلغاء الحجز',
-                'body' => "صاحب الملعب {$cancellation->booking?->terrain?->name} رفض إلغاء حجزك",
-                'data' => ['booking_id' => $cancellation->terrain_booking_id],
-                'action_url' => '/dashboard/my-reservations',
-            ]);
+            NotificationService::push(
+                (int) $cancellation->user_id,
+                'cancellation_rejected',
+                'تم رفض إلغاء الحجز',
+                "صاحب الملعب {$cancellation->booking?->terrain?->name} رفض إلغاء حجزك",
+                ['booking_id' => $cancellation->terrain_booking_id],
+                '/dashboard/my-reservations',
+            );
         }
 
         return response()->json(['message' => $message]);

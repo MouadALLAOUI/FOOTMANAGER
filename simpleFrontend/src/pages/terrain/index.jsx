@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
-import { Ban, CalendarDays, CalendarCheck, CircleX, LayoutDashboard, Map } from 'lucide-react'
+import { Ban, BarChart3, CalendarDays, CalendarCheck, CircleX, LayoutDashboard, Map } from 'lucide-react'
 import Shell from '../../components/dashboard/Shell'
 
 const Overview = lazy(() => import('./overview'))
@@ -9,12 +9,14 @@ const Calendar = lazy(() => import('./calendar'))
 const Bookings = lazy(() => import('./bookings'))
 const Closures = lazy(() => import('./closures'))
 const Cancellations = lazy(() => import('./cancellations'))
+const Analytics = lazy(() => import('./analytics'))
 const Notifications = lazy(() => import('./notifications'))
 const Settings = lazy(() => import('./settings'))
 const Profile = lazy(() => import('./profile'))
 
 const items = [
   { to: '/terrain', label: 'nav.terrain.overview', icon: LayoutDashboard, prefetch: () => import('./overview') },
+  { to: '/terrain/analytics', label: 'nav.terrain.analytics', icon: BarChart3, prefetch: () => import('./analytics') },
   { to: '/terrain/terrains', label: 'nav.terrain.terrains', icon: Map, prefetch: () => import('./terrains') },
   { to: '/terrain/calendar', label: 'nav.terrain.calendar', icon: CalendarDays, prefetch: () => import('./calendar') },
   { to: '/terrain/bookings', label: 'nav.terrain.bookings', icon: CalendarCheck, prefetch: () => import('./bookings') },
@@ -29,11 +31,7 @@ const quickActions = [
   { label: 'nav.terrain.quick.addClosure', to: '/terrain/closures?new=1', icon: Ban },
 ]
 
-const Fallback = () => (
-  <div className="grid min-h-[60vh] place-items-center">
-    <div className="size-9 animate-spin rounded-full border-[3px] border-slate-200 border-t-green-500" />
-  </div>
-)
+import PageSkeleton from '../../components/system/PageSkeleton'
 
 export default function TerrainDashboard() {
   return (
@@ -47,9 +45,10 @@ export default function TerrainDashboard() {
       settingsPath="/terrain/settings"
       profilePath="/terrain/profile"
     >
-      <Suspense fallback={<Fallback />}>
+      <Suspense fallback={<PageSkeleton />}>
         <Routes>
           <Route path="/" element={<Overview />} />
+          <Route path="/analytics" element={<Analytics />} />
           <Route path="/terrains" element={<Terrains />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/bookings" element={<Bookings />} />

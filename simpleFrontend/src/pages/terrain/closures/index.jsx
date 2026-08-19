@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Ban, CalendarOff, Clock, Plus, X } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
+import { mapHttpError } from '../../../lib/errorState'
+import { SectionError } from '../../../components/errors'
 import { queryClient } from '../../../api/queryClient'
 import { Badge, Button, Empty, Field, SectionTitle, SkeletonCards, Spinner, inputClass } from '../../../components/dashboard/ui'
 import Drawer from '../../../components/dashboard/Drawer'
@@ -18,6 +20,7 @@ export default function Closures() {
   const [terrainId, setTerrainId] = useState(null)
   const [closures, setClosures] = useState([])
   const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(null)
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ closure_date: '', start_time: '', end_time: '', reason: '' })
   const [busy, setBusy] = useState(false)
@@ -30,10 +33,12 @@ export default function Closures() {
     async (id) => {
       if (!id) return
       setLoading(true)
+      setFailed(null)
       try {
         const r = await api.get(`/owner/terrains/${id}/slot-closures`)
         setClosures(r.data?.closures || r.data?.data || [])
       } catch (e) {
+        setFailed(mapHttpError(e))
         toast.error(e.response?.data?.message || 'تعذر تحميل الإغلاقات')
       } finally {
         setLoading(false)
@@ -134,7 +139,9 @@ export default function Closures() {
         )}
       </div>
 
-      {loading ? (
+      {failed ? (
+        <SectionError state={failed} onRetry={() => fetchClosures(terrainId)} />
+      ) : loading ? (
         <SkeletonCards count={3} />
       ) : grouped.length === 0 ? (
         <Empty title="لا توجد إغلاقات" description="أضف إغلاقًا لموعد معين أو ليوم كامل" icon={Ban} />

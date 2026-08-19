@@ -28,6 +28,7 @@ class StadiumResource extends JsonResource
             'reviews_count' => $this->reviews_count,
             'is_open' => (bool) $this->is_open,
             'is_available' => (bool) $this->is_available,
+            'supports_tournaments' => (bool) $this->supports_tournaments,
             'google_maps_url' => $this->google_maps_url,
             'cover_image_url' => $this->cover_image_url,
             'images' => $this->whenLoaded('images', fn () => $this->images->pluck('image_url')),

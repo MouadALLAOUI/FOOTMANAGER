@@ -1,57 +1,149 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Clock, User, Phone } from 'lucide-react'
-import Modal from '../../../components/ui/Modal'
-import { Button } from '../../../components/dashboard/ui'
+import { CalendarRange, Mail, Phone, User } from 'lucide-react'
+import { Button, Field, FieldRow, inputClass, Modal, selectClass } from '../../../components/dashboard/ui'
 import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
 
-export default function GuestBookingModal({ open, onClose, terrainId, date, refresh }) {
+const DAY_LABELS = [
+  { value: 0, label: 'الأحد' },
+  { value: 1, label: 'الاثنين' },
+  { value: 2, label: 'الثلاثاء' },
+  { value: 3, label: 'الأربعاء' },
+  { value: 4, label: 'الخميس' },
+  { value: 5, label: 'الجمعة' },
+  { value: 6, label: 'السبت' },
+]
+
+const RESERVATION_TYPES = [
+  { key: 'single', label: 'حجز فردي' },
+  { key: 'weekly_subscription', label: 'أبونمان أسبوعي' },
+]
+
+function toISODate(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function isValidPhone(v) {
+  return /^[0-9+\-() ]{8,20}$/.test(v)
+}
+
+function isValidEmail(v) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)
+}
+
+function FieldInput({ icon: Icon, className = '', ...props }) {
+  return (
+    <div className="relative">
+      {Icon && <Icon className="absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />}
+      <input className={`${inputClass} ${Icon ? 'ps-11' : ''} ${className}`} {...props} />
+    </div>
+  )
+}
+
+export default function GuestBookingModal({ open, onClose, terrainId, terrainName, date, refresh }) {
   const { toast } = useToast()
+  const todayStr = useMemo(() => toISODate(new Date()), [])
+  const [reservationType, setReservationType] = useState('single')
   const [slots, setSlots] = useState([])
   const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState({ start_time: '', end_time: '', booking_type: 'training', guest_name: '', guest_phone: '', guest_email: '', notes: '' })
+  const [form, setForm] = useState({
+    start_time: '',
+    end_time: '',
+    booking_type: 'training',
+    guest_name: '',
+    guest_phone: '',
+    guest_email: '',
+    notes: '',
+    start_date: date || todayStr,
+    end_date: '',
+  })
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (!open || !terrainId || !date) return
+    if (!open) return
+    setReservationType('single')
+    setForm((f) => ({
+      ...f,
+      start_time: '',
+      end_time: '',
+      start_date: date || todayStr,
+      end_date: '',
+    }))
+  }, [open, date, todayStr])
+
+  const activeDate = form.start_date
+
+  useEffect(() => {
+    if (!open || !terrainId || !activeDate) return
     setLoading(true)
     api
-      .get(`/terrains/${terrainId}/slots`, { params: { date } })
+      .get(`/terrains/${terrainId}/slots`, { params: { date: activeDate } })
       .then((r) => {
         const available = (r.data.slots || []).filter((s) => s.status === 'available')
         setSlots(available)
+        setForm((f) => ({ ...f, start_time: '', end_time: '' }))
       })
       .catch(() => toast.error('تعذر جلب الفتحات'))
       .finally(() => setLoading(false))
-  }, [open, terrainId, date, toast])
+  }, [open, terrainId, activeDate, toast])
 
-  const timeOptions = useMemo(() => {
-    return slots.map((s) => ({ start: s.start, end: s.end }))
-  }, [slots])
+  const timeOptions = useMemo(() => slots.map((s) => ({ start: s.start, end: s.end })), [slots])
+
+  const dayOfWeek = useMemo(() => {
+    const d = form.start_date || todayStr
+    return new Date(d + 'T00:00:00').getDay()
+  }, [form.start_date, todayStr])
+
+  const dayLabel = DAY_LABELS.find((d) => d.value === dayOfWeek)?.label || ''
 
   const submit = async () => {
-    if (!form.start_time || !form.end_time || !form.guest_name || !form.guest_phone) {
-      toast.error('الرجاء إكمال الحقول المطلوبة')
+    if (!form.start_time || !form.end_time || !form.guest_name.trim()) {
+      toast.error('الرجاء إكمال الاسم والتوقيت')
+      return
+    }
+    const phone = (form.guest_phone || '').trim()
+    const email = (form.guest_email || '').trim()
+    if (!phone && !email) {
+      toast.error('يجب إدخال هاتف أو بريد إلكتروني للزبون')
+      return
+    }
+    if (phone && !isValidPhone(phone)) {
+      toast.error('رقم الهاتف غير صالح')
+      return
+    }
+    if (email && !isValidEmail(email)) {
+      toast.error('البريد الإلكتروني غير صالح')
+      return
+    }
+    if (reservationType === 'weekly_subscription' && !form.start_date) {
+      toast.error('الرجاء تحديد تاريخ بداية الأبونمان')
       return
     }
     setSubmitting(true)
     try {
+      const isWeekly = reservationType === 'weekly_subscription'
       const payload = {
-        reservation_type: 'single',
-        booking_date: date,
+        reservation_type: reservationType,
+        booking_date: isWeekly ? null : form.start_date || date,
+        start_date: isWeekly ? form.start_date : null,
+        end_date: isWeekly ? form.end_date || null : null,
+        day_of_week: isWeekly ? dayOfWeek : null,
         start_time: form.start_time,
         end_time: form.end_time,
         booking_type: form.booking_type,
-        guest_name: form.guest_name,
-        guest_phone: form.guest_phone,
-        guest_email: form.guest_email || null,
+        guest_name: form.guest_name.trim(),
+        guest_phone: phone || null,
+        guest_email: email || null,
         notes: form.notes || null,
       }
       const r = await api.post(`/owner/terrains/${terrainId}/guest-bookings`, payload)
       toast.success(r.data?.message || 'تم إنشاء الحجز')
       if (r.data?.whatsapp_notification_url) window.open(r.data.whatsapp_notification_url, '_blank')
       onClose()
-      refresh && refresh()
+      if (refresh) refresh()
     } catch (e) {
       toast.error(e.response?.data?.message || 'فشل إنشاء الحجز')
     } finally {
@@ -59,68 +151,126 @@ export default function GuestBookingModal({ open, onClose, terrainId, date, refr
     }
   }
 
-  return (
-    <Modal open={open} onClose={onClose} title="إنشاء حجز زائر" size="lg">
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-bold text-slate-400">التاريخ</label>
-            <div className="mt-1 text-sm font-extrabold text-slate-800">{date}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-400">الفتحات المتاحة</label>
-            <select className="mt-1 w-full rounded-xl border p-2" value={form.start_time + '|' + form.end_time} onChange={(e) => {
-              const [s, eTime] = e.target.value.split('|')
-              setForm((f) => ({ ...f, start_time: s, end_time: eTime }))
-            }}>
-              <option value="">اختر توقيتاً</option>
-              {timeOptions.map((t) => (
-                <option key={`${t.start}|${t.end}`} value={`${t.start}|${t.end}`}>{t.start} — {t.end}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+  const timeSelect = (
+    <Field label="الفتحات المتاحة" required hint={loading ? undefined : timeOptions.length === 0 ? 'لا فتحات متاحة في هذا اليوم' : undefined}>
+      <select
+        className={selectClass}
+        value={form.start_time + '|' + form.end_time}
+        onChange={(e) => {
+          const [s, eTime] = e.target.value.split('|')
+          setForm((f) => ({ ...f, start_time: s, end_time: eTime }))
+        }}
+      >
+        <option value="">{loading ? 'جارٍ التحميل...' : 'اختر توقيتاً'}</option>
+        {timeOptions.map((t) => (
+          <option key={`${t.start}|${t.end}`} value={`${t.start}|${t.end}`}>
+            {t.start} — {t.end}
+          </option>
+        ))}
+      </select>
+      {!loading && timeOptions.length === 0 && (
+        <span className="mt-1.5 block text-[11px] font-bold text-amber-600">لا فتحات متاحة في هذا اليوم</span>
+      )}
+    </Field>
+  )
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-bold text-slate-400">نوع الحجز</label>
-            <select className="mt-1 w-full rounded-xl border p-2" value={form.booking_type} onChange={(e) => setForm((f) => ({ ...f, booking_type: e.target.value }))}>
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="إنشاء حجز زائر"
+      subtitle={terrainName ? `${terrainName} • ${date}` : date}
+      size="lg"
+    >
+      <div className="space-y-5">
+        <FieldRow cols={2}>
+          <Field label="نوع الحجز" required>
+            <div className="flex gap-1 rounded-2xl bg-slate-100 p-1">
+              {RESERVATION_TYPES.map((r) => (
+                <button
+                  key={r.key}
+                  type="button"
+                  onClick={() => setReservationType(r.key)}
+                  className={`flex-1 rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                    reservationType === r.key ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="نوع النشاط" required>
+            <select className={selectClass} value={form.booking_type} onChange={(e) => setForm((f) => ({ ...f, booking_type: e.target.value }))}>
               <option value="training">حصة تدريبية</option>
               <option value="private">حجز خاص</option>
               <option value="match">مباراة</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-400">ملاحظات</label>
-            <input className="mt-1 w-full rounded-xl border p-2" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
-          </div>
+          </Field>
+        </FieldRow>
+
+        {reservationType === 'single' ? (
+          <FieldRow cols={2}>
+            <Field label="التاريخ" required>
+              <FieldInput icon={CalendarRange} type="date" min={todayStr} value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
+            </Field>
+            {timeSelect}
+          </FieldRow>
+        ) : (
+          <>
+            <FieldRow cols={3}>
+              <Field label="تاريخ البداية" required>
+                <input
+                  type="date"
+                  min={todayStr}
+                  className={inputClass}
+                  value={form.start_date}
+                  onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+                />
+              </Field>
+              <Field label="تاريخ النهاية (اختياري)">
+                <input
+                  type="date"
+                  min={form.start_date || todayStr}
+                  className={inputClass}
+                  value={form.end_date}
+                  onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                />
+              </Field>
+              <Field label="اليوم الأسبوعي">
+                <div className={`${inputClass} flex cursor-default items-center gap-2 bg-slate-50 text-slate-700`}>
+                  <CalendarRange className="size-4 text-green-500" />
+                  {dayLabel}
+                </div>
+              </Field>
+            </FieldRow>
+            {timeSelect}
+          </>
+        )}
+
+        <div className="grid gap-4 border-t border-slate-100 pt-5 sm:grid-cols-2">
+          <Field label="اسم الزبون" required>
+            <FieldInput icon={User} value={form.guest_name} onChange={(e) => setForm((f) => ({ ...f, guest_name: e.target.value }))} />
+          </Field>
+          <Field label="هاتف الزبون (أو البريد)" hint="أدخل الهاتف أو البريد الإلكتروني للتواصل مع الزبون">
+            <FieldInput icon={Phone} value={form.guest_phone} onChange={(e) => setForm((f) => ({ ...f, guest_phone: e.target.value }))} />
+          </Field>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block text-xs font-bold text-slate-400">اسم الزبون</label>
-            <div className="mt-1 flex items-center gap-2">
-              <User className="size-4 text-slate-400" />
-              <input className="w-full rounded-xl border p-2" value={form.guest_name} onChange={(e) => setForm((f) => ({ ...f, guest_name: e.target.value }))} />
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-400">هاتف الزبون</label>
-            <div className="mt-1 flex items-center gap-2">
-              <Phone className="size-4 text-slate-400" />
-              <input className="w-full rounded-xl border p-2" value={form.guest_phone} onChange={(e) => setForm((f) => ({ ...f, guest_phone: e.target.value }))} />
-            </div>
-          </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="ايميل الزبون (اختياري)">
+            <FieldInput icon={Mail} value={form.guest_email} onChange={(e) => setForm((f) => ({ ...f, guest_email: e.target.value }))} />
+          </Field>
+          <Field label="ملاحظات">
+            <FieldInput value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+          </Field>
         </div>
 
-        <div>
-          <label className="block text-xs font-bold text-slate-400">ايميل الزبون (اختياري)</label>
-          <input className="mt-1 w-full rounded-xl border p-2" value={form.guest_email} onChange={(e) => setForm((f) => ({ ...f, guest_email: e.target.value }))} />
-        </div>
-
-        <div className="flex gap-2 justify-end">
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          <Button onClick={submit} disabled={submitting || loading}>{submitting ? 'جارٍ...' : 'إنشاء الحجز'}</Button>
+          <Button onClick={submit} disabled={submitting || loading}>
+            {submitting ? 'جارٍ...' : 'إنشاء الحجز'}
+          </Button>
         </div>
       </div>
     </Modal>

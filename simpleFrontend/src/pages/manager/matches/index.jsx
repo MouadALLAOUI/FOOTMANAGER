@@ -8,12 +8,12 @@ import {
   MapPin,
   Play,
   Plus,
-  Swords,
   Trophy,
   XCircle,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
+import { SectionError } from '../../../components/errors'
 import { useStadiums } from '../../../api/queries'
 import { useAuth } from '../../../context/AuthContext'
 import NewMatchModal from '../../../domains/manager/components/NewMatchModal'
@@ -21,6 +21,7 @@ import ScoreModal from '../../../domains/manager/components/ScoreModal'
 import MatchDetail from '../../../domains/manager/components/MatchDetail'
 import {
   Button,
+  Empty,
   Field,
   FieldRow,
   Modal,
@@ -51,7 +52,7 @@ export default function Matches() {
   const { user } = useAuth()
   const myTeamId = user?.team?.id
   const [tab, setTab] = useState('all')
-  const { data, loading, refetch } = useApi(() =>
+  const { data, loading, errorState, refetch } = useApi(() =>
     api.get('/manager/my-match-requests?status=all').then((r) => r.data),
   )
   const { data: pendingScores } = useApi(() => api.get('/manager/matches/pending-scores').then((r) => r.data))
@@ -197,25 +198,29 @@ export default function Matches() {
         ))}
       </div>
 
-      {loading ? (
+      {errorState ? (
+        <div className="mt-6">
+          <SectionError state={errorState} onRetry={refetch} />
+        </div>
+      ) : loading ? (
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <SkeletonCards count={4} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="mt-6 rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center">
-          <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300">
-            <Swords className="size-7" strokeWidth={1.6} />
-          </span>
-          <p className="mt-4 text-sm font-bold text-slate-700">لا مباريات في هذا التصنيف</p>
-          <p className="mt-1 text-xs text-slate-400">
-            {tab === 'all' ? 'انشر أول طلب مباراة لتبدأ' : 'جرّب تصنيفًا آخر'}
-          </p>
-          {tab === 'all' && (
-            <Button className="mt-4" size="sm" onClick={() => setNewOpen(true)}>
-              <Plus className="size-3.5" />
-              مباراة جديدة
-            </Button>
-          )}
+        <div className="mt-6">
+          <Empty
+            icon={CalendarDays}
+            title="لا مباريات في هذا التصنيف"
+            description={tab === 'all' ? 'انشر أول طلب مباراة لتبدأ' : 'جرّب تصنيفًا آخر'}
+            action={
+              tab === 'all' && (
+                <Button size="sm" onClick={() => setNewOpen(true)}>
+                  <Plus className="size-3.5" />
+                  مباراة جديدة
+                </Button>
+              )
+            }
+          />
         </div>
       ) : (
         <div className="mt-6 grid gap-4 lg:grid-cols-2">

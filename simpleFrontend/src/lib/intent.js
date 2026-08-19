@@ -15,3 +15,13 @@ export function consumeAction() {
     return null
   }
 }
+
+export function peekAction() {
+  try {
+    const raw = sessionStorage.getItem(KEY)
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}

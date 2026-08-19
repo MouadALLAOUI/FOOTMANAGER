@@ -3,6 +3,7 @@ import { Save, ShieldCheck, Phone, Mail, Lock, UserRound, CheckCircle2 } from 'l
 import api from '../../../api/client'
 import { useAuth } from '../../../context/AuthContext'
 import { PageHeader, Button, Card, Field, Input, Toggle, Badge, Skeleton } from '../../../components/admin/ui'
+import ProfileImageUploader from '../../../components/profile/ProfileImageUploader'
 import { toast } from '../../../components/ui/Toast'
 
 const roleLabels = {
@@ -141,9 +142,7 @@ export default function Profile() {
         <div>
           <Card title="حسابك">
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <div className="grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-green-500 to-emerald-600 text-3xl font-black text-white shadow-[0_16px_36px_rgba(34,197,94,0.4)]">
-                {user?.name?.charAt(0) || 'A'}
-              </div>
+              <ProfileImageUploader user={user} size="size-20" rounded="rounded-3xl" fontSize="text-3xl" />
               <div>
                 <p className="text-base font-black text-slate-900">{user?.name}</p>
                 <p className="text-xs text-slate-400" dir="ltr">{user?.email}</p>

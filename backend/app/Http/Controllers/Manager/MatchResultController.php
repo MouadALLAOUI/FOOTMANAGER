@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Manager;
 
 use App\Domains\Match\Models\MatchRequest;
-use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Player\Models\PlayerProfile;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Support\PublicCache;
@@ -88,14 +88,14 @@ class MatchResultController extends Controller
             : $match->hostTeam?->manager_id;
 
         if ($opponentManagerId) {
-            AppNotification::create([
-                'user_id' => $opponentManagerId,
-                'type' => 'score_submitted',
-                'title' => 'تم تسجيل نتيجة مباراة',
-                'body' => "الفريق {$user->team?->name} سجل نتيجة المباراة — يرجى مراجعتها وتأكيدها",
-                'data' => ['match_id' => $match->id],
-                'action_url' => '/dashboard',
-            ]);
+            NotificationService::push(
+                (int) $opponentManagerId,
+                'score_submitted',
+                'تم تسجيل نتيجة مباراة',
+                "الفريق {$user->team?->name} سجل نتيجة المباراة — يرجى مراجعتها وتأكيدها",
+                ['match_id' => $match->id],
+                '/dashboard',
+            );
         }
 
         return response()->json([
@@ -174,14 +174,14 @@ class MatchResultController extends Controller
 
         $match->load(['hostTeam', 'opponentTeam']);
         if ($match->score_submitted_by) {
-            AppNotification::create([
-                'user_id' => $match->score_submitted_by,
-                'type' => 'score_confirmed',
-                'title' => 'تم تأكيد نتيجة المباراة',
-                'body' => 'الفريق المنافس أكد النتيجة — تم تحديث الترتيب',
-                'data' => ['match_id' => $match->id],
-                'action_url' => '/dashboard',
-            ]);
+            NotificationService::push(
+                (int) $match->score_submitted_by,
+                'score_confirmed',
+                'تم تأكيد نتيجة المباراة',
+                'الفريق المنافس أكد النتيجة — تم تحديث الترتيب',
+                ['match_id' => $match->id],
+                '/dashboard',
+            );
         }
 
         return response()->json([
@@ -219,14 +219,14 @@ class MatchResultController extends Controller
         ]);
 
         if ($submittedBy) {
-            AppNotification::create([
-                'user_id' => $submittedBy,
-                'type' => 'score_disputed',
-                'title' => 'تم رفض النتيجة المسجلة',
-                'body' => 'الفريق المنافس اعترض على النتيجة — يرجى إعادة تسجيل النتيجة الصحيحة',
-                'data' => ['match_id' => $match->id],
-                'action_url' => '/dashboard',
-            ]);
+            NotificationService::push(
+                (int) $submittedBy,
+                'score_disputed',
+                'تم رفض النتيجة المسجلة',
+                'الفريق المنافس اعترض على النتيجة — يرجى إعادة تسجيل النتيجة الصحيحة',
+                ['match_id' => $match->id],
+                '/dashboard',
+            );
         }
 
         return response()->json([

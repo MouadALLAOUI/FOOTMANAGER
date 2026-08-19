@@ -19,11 +19,16 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Default data — always seeded (admin user + facilities)
+        $this->call(PermissionSeeder::class);
         $this->call(AdminSeeder::class);
         $this->call(FacilitySeeder::class);
         $this->call(SettingsSeeder::class);
         $this->call(AchievementSeeder::class);
         $this->call(PublicApiBackfillSeeder::class);
+        $this->call(PlanSeeder::class);
+        $this->call(FeatureSeeder::class);
+        $this->call(PlanFeatureSeeder::class);
+        $this->call(BackfillBronzeSubscriptionsSeeder::class);
 
         // Factories and demo data are for local/development only
         if (app()->environment('production')) {
@@ -214,6 +219,9 @@ class DatabaseSeeder extends Seeder
         $this->call(CancellationPolicySeeder::class);
 
         $this->seedPlayers($testTeam);
+
+        // Backfill again so demo users created above also resolve to Bronze
+        $this->call(BackfillBronzeSubscriptionsSeeder::class);
     }
 
     private function seedPlayers(Team $testTeam): void

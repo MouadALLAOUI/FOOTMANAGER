@@ -16,8 +16,10 @@ class SaveDrawRequest extends FormRequest
         return [
             'teams' => ['required', 'array', 'min:1'],
             'teams.*.team_id' => ['required', 'integer'],
-            'teams.*.group_id' => ['nullable', 'integer'],
+            'teams.*.group_id' => ['nullable'],
             'teams.*.group_position' => ['nullable', 'integer', 'min:1'],
+            'groups' => ['nullable', 'array'],
+            'groups.*.key' => ['required', 'string', 'distinct', 'max:60'],
         ];
     }
 
@@ -27,6 +29,7 @@ class SaveDrawRequest extends FormRequest
             'teams.required' => 'قائمة الفرق مطلوبة',
             'teams.*.team_id.required' => 'الفريق مطلوب',
             'teams.*.group_position.min' => 'ترتيب الفريق غير صالح',
+            'groups.*.key.distinct' => 'لا يمكن تكرار مفاتيح المجموعات الجديدة',
         ];
     }
 }

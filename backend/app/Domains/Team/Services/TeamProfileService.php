@@ -4,7 +4,9 @@ namespace App\Domains\Team\Services;
 
 use App\Domains\Shared\Services\ImageThumbnailService;
 use App\Domains\Shared\Support\TeamCache;
+use App\Domains\Subscription\Services\SubscriptionService;
 use App\Domains\Team\Models\Team;
+use App\Models\User;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -20,8 +22,12 @@ class TeamProfileService
         ]);
     }
 
-    public function update(Team $team, array $data): Team
+    public function update(User $user, Team $team, array $data): Team
     {
+        if (($data['visibility'] ?? null) === 'public') {
+            app(SubscriptionService::class)->authorizeFeature($user, 'landing_visibility');
+        }
+
         $team->update($data);
         TeamCache::flushTeam($team->id);
 

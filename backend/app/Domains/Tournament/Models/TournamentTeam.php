@@ -9,9 +9,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TournamentTeam extends Model
 {
+    public const STATUS_PENDING = 'pending';
+
     public const STATUS_REGISTERED = 'registered';
 
+    public const STATUS_REJECTED = 'rejected';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_REMOVED = 'removed';
+
+    public const PAYMENT_NOT_REQUIRED = 'not_required';
+
+    public const PAYMENT_PENDING = 'pending';
+
+    public const PAYMENT_COMPLETED = 'completed';
 
     protected $fillable = [
         'tournament_id',
@@ -19,6 +31,7 @@ class TournamentTeam extends Model
         'group_id',
         'group_position',
         'status',
+        'payment_status',
     ];
 
     protected function casts(): array

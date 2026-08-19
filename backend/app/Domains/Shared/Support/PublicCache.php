@@ -35,6 +35,16 @@ class PublicCache
         return sprintf('legacy:settings:v%d', self::segment('settings'));
     }
 
+    public static function moduleMaintenance(): string
+    {
+        return sprintf('legacy:module-maintenance:v%d', self::segment('module_maintenance'));
+    }
+
+    public static function pageMaintenance(): string
+    {
+        return sprintf('legacy:page-maintenance:v%d', self::segment('page_maintenance'));
+    }
+
     public static function stadiums(): string
     {
         return sprintf('legacy:stadiums:v%d', self::segment('terrains'));
@@ -63,6 +73,16 @@ class PublicCache
     public static function flushSettings(): void
     {
         self::bump('settings');
+    }
+
+    public static function flushModuleMaintenance(): void
+    {
+        self::bump('module_maintenance');
+    }
+
+    public static function flushPageMaintenance(): void
+    {
+        self::bump('page_maintenance');
     }
 
     public static function flushTerrains(): void

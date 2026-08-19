@@ -25,6 +25,10 @@ function formatDate(dateStr) {
 export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terrainName }) {
   const manager = booking.manager || booking.user || {}
   const team = booking.team || {}
+  const isGuest = booking.is_guest === true || Boolean(booking.guest_name)
+  const displayName = booking.guest_name || manager.name || 'مسير'
+  const displayInitial = (displayName || '؟').slice(0, 1)
+  const contactPhone = booking.guest_phone || manager.phone
   const start = booking.start_time
   const end = booking.end_time
   const date = booking.booking_date || booking.date
@@ -48,6 +52,9 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
             <p className="truncate text-sm font-extrabold text-slate-900">
               {bookingTypeLabels[booking.booking_type] || booking.booking_type || 'حجز'}
             </p>
+            {isGuest && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">ضيف</span>
+            )}
             <StatusBadge status={booking.status} />
           </div>
           <p className="mt-1.5 text-[11px] font-semibold text-slate-400">
@@ -74,24 +81,31 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
       </div>
 
       <div className="mx-5 mt-3 flex items-center gap-2.5 border-t border-slate-100 pt-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-green-100 to-emerald-200 text-xs font-black text-green-700">
-          {(manager.name || '؟').slice(0, 1)}
+        <span className={`grid size-8 shrink-0 place-items-center rounded-xl text-xs font-black text-white ${isGuest ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-gradient-to-br from-green-100 to-emerald-200 text-green-700'}`}>
+          {displayInitial}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-extrabold text-slate-800">{manager.name || 'مسير'}</p>
-          <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
-            <Users className="size-3" />
-            {team.name || 'فريق غير معروف'}
-          </p>
+          <p className="truncate text-xs font-extrabold text-slate-800">{displayName}</p>
+          {isGuest ? (
+            <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
+              <Users className="size-3" />
+              زبون • {booking.guest_phone || booking.guest_email || 'بدون تواصل'}
+            </p>
+          ) : (
+            <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
+              <Users className="size-3" />
+              {team.name || 'فريق غير معروف'}
+            </p>
+          )}
         </div>
-        {manager.phone && (
+        {contactPhone && (
           <a
-            href={`${manager.is_whatsapp ? 'https://wa.me/' : 'tel:'}${manager.phone}`}
+            href={`${isGuest ? 'https://wa.me/' : manager.is_whatsapp ? 'https://wa.me/' : 'tel:'}${contactPhone}`}
             onClick={(e) => e.stopPropagation()}
             className="inline-flex items-center gap-1 text-[10px] font-bold text-green-600 hover:text-green-700"
           >
             <Phone className="size-3" />
-            {manager.phone}
+            {contactPhone}
           </a>
         )}
       </div>

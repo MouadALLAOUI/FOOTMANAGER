@@ -185,6 +185,8 @@ class TournamentWorkflowTest extends TestCase
         $tournament = $this->createTournament();
         $this->addTeamsAndDraw($tournament, 8);
 
+        $this->deleteJson("/api/committee/tournaments/{$tournament->id}/draw/confirm")->assertOk();
+
         $draw = $this->getJson("/api/committee/tournaments/{$tournament->id}/draw")->assertOk()->json('data');
         $this->assertCount(2, $draw);
         $groupA = $draw[0]['group_id'];
@@ -248,6 +250,8 @@ class TournamentWorkflowTest extends TestCase
         $tournament = $this->createTournament();
         $this->addTeamsAndDraw($tournament, 8);
 
+        $this->deleteJson("/api/committee/tournaments/{$tournament->id}/draw/confirm")->assertOk();
+
         $draw = $this->getJson("/api/committee/tournaments/{$tournament->id}/draw")->assertOk()->json('data');
         $groupB = $draw[1]['group_id'];
 
@@ -276,6 +280,8 @@ class TournamentWorkflowTest extends TestCase
     {
         $tournament = $this->createTournament();
         $this->addTeamsAndDraw($tournament, 8);
+
+        $this->deleteJson("/api/committee/tournaments/{$tournament->id}/draw/confirm")->assertOk();
 
         $pivots = $tournament->tournamentTeams()->orderBy('id')->get();
         $first = $pivots->first();
@@ -309,6 +315,8 @@ class TournamentWorkflowTest extends TestCase
     {
         $tournament = $this->createTournament();
         $this->addTeamsAndDraw($tournament, 8);
+
+        $this->deleteJson("/api/committee/tournaments/{$tournament->id}/draw/confirm")->assertOk();
 
         $pivots = $tournament->tournamentTeams()->orderBy('id')->get();
         $groupB = $pivots->last()->group_id;
@@ -590,7 +598,7 @@ class TournamentWorkflowTest extends TestCase
 
         $tournament->refresh();
 
-        $this->assertEquals('finished', $tournament->status);
+        $this->assertEquals('completed', $tournament->status);
         $this->assertSame($champion, $tournament->plan['champion_team_id']);
 
         $stats = $this->getJson("/api/committee/tournaments/{$tournament->id}/statistics")
@@ -610,7 +618,7 @@ class TournamentWorkflowTest extends TestCase
 
         $this->getJson("/api/committee/tournaments/{$tournament->id}")->assertForbidden();
         $this->postJson("/api/committee/tournaments/{$tournament->id}/draw")->assertForbidden();
-        $this->postJson("/api/committee/tournaments/{$tournament->id}/publish")->assertForbidden();
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/open-registration")->assertForbidden();
     }
 
     public function test_non_committee_cannot_use_committee_endpoints(): void
@@ -631,11 +639,11 @@ class TournamentWorkflowTest extends TestCase
         $this->getJson("/api/v1/tournaments/{$tournament->id}")->assertNotFound();
         $this->getJson("/api/v1/tournaments/{$tournament->id}/fixtures")->assertNotFound();
 
-        $this->postJson("/api/committee/tournaments/{$tournament->id}/publish")->assertOk();
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/open-registration")->assertOk();
 
         $this->getJson("/api/v1/tournaments/{$tournament->id}")
             ->assertOk()
-            ->assertJsonPath('data.status', 'published');
+            ->assertJsonPath('data.status', 'open_for_registration');
 
         $this->getJson('/api/v1/tournaments')
             ->assertOk()

@@ -6,6 +6,7 @@ import LiveStatus from './liveStatus'
 import MySection from './mySection'
 import AvailableFields from './availableFields'
 import Matches from './matches'
+import Tournaments from './tournaments'
 import WhyUs from './whyUs'
 import SearchResultsSheet from './searchResults'
 
@@ -15,8 +16,8 @@ export default function Landing() {
 
   return (
     <>
-      <main>
-        <Hero>
+    <main id="main-content">
+      <Hero>
           <Search
             city={city}
             onCityChange={setCity}
@@ -28,6 +29,7 @@ export default function Landing() {
         <MySection />
         <AvailableFields />
         <Matches />
+        <Tournaments />
         <WhyUs />
       </main>
       <SearchResultsSheet open={resultsOpen} city={city} onClose={() => setResultsOpen(false)} />

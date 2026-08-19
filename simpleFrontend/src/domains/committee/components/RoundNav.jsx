@@ -1,6 +1,26 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Trophy, Lock } from 'lucide-react'
+import { Trophy, Lock, Check, Play, Loader2 } from 'lucide-react'
+
+const STATE_STYLES = {
+  locked: { labelKey: 'committee.detail.roundState.locked', cls: 'bg-slate-100 text-slate-500', icon: Lock },
+  available: { labelKey: 'committee.detail.roundState.available', cls: 'bg-green-100 text-green-700', icon: Play },
+  in_progress: { labelKey: 'committee.detail.roundState.inProgress', cls: 'bg-amber-100 text-amber-700', icon: Loader2 },
+  completed: { labelKey: 'committee.detail.roundState.completed', cls: 'bg-emerald-100 text-emerald-700', icon: Check },
+}
+
+function StateBadge({ status, locked }) {
+  const { t } = useTranslation()
+  const state = locked ? 'locked' : (STATE_STYLES[status] ? status : 'locked')
+  const meta = STATE_STYLES[state]
+  const Icon = meta.icon
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-black ${meta.cls}`}>
+      <Icon className={`size-3 ${state === 'in_progress' ? 'animate-spin' : ''}`} />
+      {t(meta.labelKey)}
+    </span>
+  )
+}
 
 export default function RoundNav({ structure, active, onSelect }) {
   const { t } = useTranslation()
@@ -12,7 +32,6 @@ export default function RoundNav({ structure, active, onSelect }) {
 
   const closed = (s) => (s.completed + (s.cancelled || 0) + (s.postponed || 0)) >= (s.total || 0)
   const lockedGroups = groupStage.map((s, i) => i > 0 && !groupStage.slice(0, i).every(closed))
-  const lockedKo = knockout.map((s, i) => i > 0 && !knockout.slice(0, i).every(closed))
 
   return (
     <div className="sticky top-4 rounded-3xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
@@ -31,14 +50,14 @@ export default function RoundNav({ structure, active, onSelect }) {
         <>
           <p className="mb-1.5 mt-4 px-1 text-[10px] font-black uppercase tracking-wider text-slate-300">{t('committee.detail.knockoutStages')}</p>
           <div className="space-y-1">
-            {knockout.map((s, i) => (
+            {knockout.map((s) => (
               <RoundButton
                 key={s.round_id}
                 active={isKoActive(s.round_id)}
-                locked={lockedKo[i]}
-                count={s.total}
+                locked={s.status === 'locked'}
                 final={s.stage === 'final'}
                 onClick={() => onSelect({ type: 'knockout', round_id: s.round_id })}
+                status={s.status}
               >
                 {s.name}
               </RoundButton>
@@ -50,7 +69,7 @@ export default function RoundNav({ structure, active, onSelect }) {
   )
 }
 
-export function RoundButton({ children, active, onClick, count, final, locked }) {
+export function RoundButton({ children, active, onClick, count, final, locked, status }) {
   return (
     <button
       type="button"
@@ -59,14 +78,17 @@ export function RoundButton({ children, active, onClick, count, final, locked })
     >
       <span className="flex min-w-0 items-center gap-1.5">
         {final && <Trophy className={`size-3.5 shrink-0 ${active ? 'text-amber-300' : 'text-amber-500'}`} />}
-        {locked && <Lock className={`size-3.5 shrink-0 ${active ? 'text-white/70' : 'text-slate-300'}`} />}
+        {locked && status !== 'completed' && <Lock className={`size-3.5 shrink-0 ${active ? 'text-white/70' : 'text-slate-300'}`} />}
         <span className="truncate">{children}</span>
       </span>
-      {count > 0 && (
-        <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
-          {count}
-        </span>
-      )}
+      <span className="flex shrink-0 items-center gap-1.5">
+        {status && !active && <StateBadge status={status} locked={locked} />}
+        {count > 0 && (
+          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>
+            {count}
+          </span>
+        )}
+      </span>
     </button>
   )
 }

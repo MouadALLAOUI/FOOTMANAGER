@@ -21,11 +21,7 @@ const quickActions = [
   { label: 'nav.committee.overview', to: '/committee', icon: LayoutDashboard },
 ]
 
-const Fallback = () => (
-  <div className="grid min-h-[60vh] place-items-center">
-    <div className="size-9 animate-spin rounded-full border-[3px] border-slate-200 border-t-green-500" />
-  </div>
-)
+import PageSkeleton from '../../components/system/PageSkeleton'
 
 export default function CommitteeDashboard() {
   return (
@@ -39,7 +35,7 @@ export default function CommitteeDashboard() {
       settingsPath="/committee/settings"
       profilePath="/committee/profile"
     >
-      <Suspense fallback={<Fallback />}>
+      <Suspense fallback={<PageSkeleton />}>
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/tournaments" element={<Tournaments />} />

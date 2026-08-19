@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 
 const LazyAreaTrend = lazy(() => import('./RechartsCore').then((m) => ({ default: m.AreaTrend })))
 const LazyDonut = lazy(() => import('./RechartsCore').then((m) => ({ default: m.Donut })))
+const LazyBars = lazy(() => import('./RechartsCore').then((m) => ({ default: m.Bars })))
 
 function useInView(threshold = 0.05) {
   const ref = useRef(null)
@@ -65,6 +66,21 @@ export function Donut(props) {
         </Suspense>
       ) : (
         <ChartFallback height={props.height || 200} />
+      )}
+    </div>
+  )
+}
+
+export function Bars(props) {
+  const [ref, inView] = useInView()
+  return (
+    <div ref={ref} style={{ height: props.height || 220 }} className="w-full">
+      {inView ? (
+        <Suspense fallback={<ChartFallback height={props.height || 220} />}>
+          <LazyBars {...props} />
+        </Suspense>
+      ) : (
+        <ChartFallback height={props.height || 220} />
       )}
     </div>
   )

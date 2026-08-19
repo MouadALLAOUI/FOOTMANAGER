@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Manager;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Match\Models\PlayerMatchRequest;
 use App\Domains\Match\Services\PlayerMatchGuard;
-use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Player\Models\PlayerProfile;
 use App\Domains\Shared\Base\Controller;
 use App\Models\User;
@@ -103,14 +103,14 @@ class PlayerRecruitController extends Controller
             'message' => $validated['message'] ?? null,
         ]);
 
-        AppNotification::create([
-            'user_id' => $playerId,
-            'type' => 'player_invite_received',
-            'title' => 'دعوة للانضمام لمباراة',
-            'body' => "فريق {$user->team->name} يدعوك للانضمام لمباراته",
-            'data' => ['player_match_request_id' => $request_->id, 'match_request_id' => $match->id],
-            'action_url' => '/player/applications',
-        ]);
+        NotificationService::push(
+            (int) $playerId,
+            'player_invite_received',
+            'دعوة للانضمام لمباراة',
+            "فريق {$user->team->name} يدعوك للانضمام لمباراته",
+            ['player_match_request_id' => $request_->id, 'match_request_id' => $match->id],
+            '/player/applications',
+        );
 
         return response()->json([
             'message' => 'تم إرسال الدعوة للاعب بنجاح',
@@ -232,12 +232,6 @@ class PlayerRecruitController extends Controller
 
     private function notifyPlayer(int $playerId, string $type, string $title, string $body): void
     {
-        AppNotification::create([
-            'user_id' => $playerId,
-            'type' => $type,
-            'title' => $title,
-            'body' => $body,
-            'action_url' => '/player/applications',
-        ]);
+        NotificationService::push($playerId, $type, $title, $body, [], '/player/applications');
     }
 }

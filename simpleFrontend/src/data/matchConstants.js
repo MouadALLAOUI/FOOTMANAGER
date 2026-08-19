@@ -10,6 +10,7 @@ export const QUICK_ACTIONS = [
 export const TYPE_OPTIONS = [
   { type: 'goal', icon: '⚽', labelKey: 'committee.result.ev.goal' },
   { type: 'yellow_card', icon: '🟨', labelKey: 'committee.result.ev.yellowCard' },
+  { type: 'second_yellow', icon: '🟨🟥', labelKey: 'committee.result.ev.secondYellow' },
   { type: 'red_card', icon: '🟥', labelKey: 'committee.result.ev.redCard' },
   { type: 'substitution', icon: '🔄', labelKey: 'committee.result.ev.substitution' },
   { type: 'penalty_goal', icon: '🥅', labelKey: 'committee.result.ev.penaltyGoal' },
@@ -28,6 +29,7 @@ export const GOAL_TYPES = [
 export const SUBMIT_KEYS = {
   goal: 'committee.result.addGoalBtn',
   yellow_card: 'committee.result.addCardBtn',
+  second_yellow: 'committee.result.addCardBtn',
   red_card: 'committee.result.addCardBtn',
   substitution: 'committee.result.addSubBtn',
   penalty_goal: 'committee.result.addPenaltyBtn',

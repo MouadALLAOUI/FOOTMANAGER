@@ -317,7 +317,7 @@ export default function SearchResultsSheet({ open, city, onClose }) {
         <div className="relative px-8 pt-2 pb-4">
           <button
             type="button"
-            aria-label="close"
+            aria-label={t('common.close')}
             onClick={onClose}
             className="absolute end-5 top-1 grid size-10 place-items-center rounded-full bg-white text-slate-500 shadow-[0_6px_20px_rgba(17,24,39,0.15)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:rotate-90 hover:text-slate-900 active:scale-95"
           >

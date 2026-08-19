@@ -3,6 +3,8 @@ import { Save, Settings2, CheckCircle2 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { PageHeader, Button, Card, Input, Toggle, Skeleton, Badge } from '../../../components/admin/ui'
+import ModuleMaintenance from '../../../components/admin/ModuleMaintenance'
+import PageMaintenance from '../../../components/admin/PageMaintenance'
 
 const groups = [
   { key: 'platform', label: 'معلومات المنصة', icon: Settings2, description: 'الاسم، بيانات التواصل، حسابات التواصل الاجتماعي' },
@@ -35,6 +37,26 @@ export default function Settings() {
   const save = async () => {
     const entries = dirtyKeys.map((key) => ({ key, value: values[key] }))
     if (entries.length === 0) return
+
+    const numberRules = {
+      max_team_members: { min: 2, max: 100 },
+      max_open_matches_per_team: { min: 1, max: 50 },
+      booking_window_days: { min: 1, max: 365 },
+      default_match_hours: { min: 1, max: 8 },
+      team_gallery_max_images: { min: 1, max: 100 },
+    }
+
+    for (const [key, rule] of Object.entries(numberRules)) {
+      if (dirtyKeys.includes(key)) {
+        const val = Number(values[key])
+        if (isNaN(val) || val < rule.min || val > rule.max) {
+          setError(`${key}: القيمة يجب أن تكون بين ${rule.min} و ${rule.max}`)
+          setBusy(false)
+          return
+        }
+      }
+    }
+
     setBusy(true)
     setMsg('')
     setError('')
@@ -89,6 +111,12 @@ export default function Settings() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <PageMaintenance />
+        </div>
+        <div className="lg:col-span-2">
+          <ModuleMaintenance />
+        </div>
         {groups.map((g) => {
           const list = settings[g.key] || []
           if (list.length === 0) return null
@@ -114,17 +142,26 @@ export default function Settings() {
                     return (
                       <div key={s.key}>
                         <div className="mb-2 flex items-center justify-between gap-3">
-                          <span className="text-xs font-bold text-slate-600">{s.label}</span>
+                          <div>
+                            <span className="text-xs font-bold text-slate-600">{s.label}</span>
+                            {s.description && <p className="text-[10px] text-slate-400 mt-0.5">{s.description}</p>}
+                          </div>
                           {changed && <span className="text-[10px] font-bold text-amber-500">تم التعديل</span>}
                         </div>
                         {s.type === 'boolean' ? (
                           <div className="flex items-center justify-between rounded-2xl bg-slate-50/80 p-3">
                             <span className="text-xs text-slate-500">{current ? 'مفعل' : 'معطل'}</span>
-                            <Toggle checked={Boolean(current)} onChange={(v) => setValue(s.key, s.type, v)} />
+                            <Toggle checked={Boolean(current)} onChange={(v) => {
+                              if (v && s.key === 'maintenance_mode') {
+                                if (!window.confirm('هل أنت متأكد من تفعيل وضع الصيانة؟ سيتم إخفاء المنصة عن جميع المستخدمين.')) return;
+                              }
+                              setValue(s.key, s.type, v)
+                            }} />
                           </div>
                         ) : s.type === 'number' ? (
                           <Input
                             type="number"
+                            min="0"
                             value={current ?? ''}
                             onChange={(e) => setValue(s.key, s.type, e.target.value === '' ? null : Number(e.target.value))}
                           />
@@ -146,7 +183,12 @@ export default function Settings() {
                             ))}
                           </div>
                         ) : (
-                          <Input value={current ?? ''} onChange={(e) => setValue(s.key, s.type, e.target.value)} />
+                          <Input
+                            type={s.key === 'contact_email' ? 'email' : (s.key === 'facebook_url' || s.key === 'instagram_url') ? 'url' : 'text'}
+                            placeholder={(s.key === 'facebook_url' || s.key === 'instagram_url') ? 'https://...' : undefined}
+                            value={current ?? ''}
+                            onChange={(e) => setValue(s.key, s.type, e.target.value)}
+                          />
                         )}
                       </div>
                     )

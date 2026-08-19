@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Plus,
   Search,
   Settings,
   Sparkles,
@@ -18,10 +17,14 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import ActivityLockBanner from '../ui/ActivityLockBanner'
+import ProfileAvatar from '../profile/ProfileAvatar'
 import ItemIcon from './ItemIcon'
-import { useNotifications } from '../../api/queries'
+import { useNotifications, useNotificationUnreadCount } from '../../api/queries'
 import { queryClient } from '../../api/queryClient'
 import api from '../../api/client'
+import CommandPalette from '../ui/CommandPalette'
+import QuickActions from '../ui/QuickActions'
 
 const brandGradient = 'from-green-400 to-emerald-600'
 
@@ -53,12 +56,11 @@ export default function Shell({
   const [quickOpen, setQuickOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const paletteRef = useRef(null)
 
-  const { data: notifData } = useNotifications({ filter: 'unread' })
+  const { data: unreadData } = useNotificationUnreadCount({ refetchInterval: 60_000 })
+  const unread = unreadData?.unread_count || 0
+  const { data: notifData } = useNotifications({ filter: 'unread' }, { enabled: notifOpen })
   const notifs = (notifData?.notifications || []).slice(0, 5)
-  const unread = notifData?.unread_count || 0
 
   const active = items.find((i) => location.pathname === i.to)
 
@@ -109,9 +111,10 @@ export default function Shell({
     navigate(to)
   }
 
-  const filteredItems = query
-    ? items.filter((i) => t(i.label).includes(query) || i.to.includes(query))
-    : items
+  const paletteGroups = [
+    { key: 'nav', items },
+    { key: 'quick', label: 'shell.quickActionsTitle', hiddenOnEmpty: true, items: quickActions },
+  ]
 
   const navLink = (item, onNavigate) => {
     const isActive = location.pathname === item.to
@@ -219,6 +222,12 @@ export default function Shell({
 
   return (
     <div className="min-h-screen bg-[#f6f7fb]">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[200] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-bold focus:text-slate-900 focus:shadow-lg focus:ring-2 focus:ring-green-500"
+      >
+        {t('common.skipToContent')}
+      </a>
       <aside
         className={`fixed inset-y-0 start-0 z-40 hidden flex-col bg-[#0b1220] transition-all duration-300 lg:flex ${
           collapsed ? 'w-[84px]' : 'w-[264px]'
@@ -242,7 +251,7 @@ export default function Shell({
         </div>
       )}
 
-      <main className={`min-w-0 transition-all duration-300 ${collapsed ? 'lg:ps-[84px]' : 'lg:ps-[264px]'}`}>
+      <main id="main-content" className={`min-w-0 transition-all duration-300 ${collapsed ? 'lg:ps-[84px]' : 'lg:ps-[264px]'}`}>
         <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
           <div className="flex h-16 items-center gap-3 px-5 lg:px-8">
             <button
@@ -274,38 +283,15 @@ export default function Shell({
               </kbd>
             </button>
 
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setQuickOpen((v) => !v)}
-                aria-expanded={quickOpen}
-                aria-haspopup="menu"
-                className="hidden h-10 items-center gap-2 rounded-xl bg-green-500 px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(22,163,74,0.28)] transition-all hover:bg-green-600 sm:inline-flex"
-              >
-                <Plus className="size-4" />
-                {t('shell.quickAction')}
-                <ChevronDown className={`size-3.5 transition-transform ${quickOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {quickOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setQuickOpen(false)} />
-                  <div role="menu" className="absolute end-0 top-12 z-50 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.16)]">
-                    {quickActions.map((a) => (
-                      <button
-                        key={a.to}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => go(a.to)}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-start text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-                      >
-                        <ItemIcon icon={a.icon} className="size-4 text-slate-500" />
-                        {t(a.label)}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            <QuickActions
+              open={quickOpen}
+              onToggle={() => setQuickOpen((v) => !v)}
+              onClose={() => setQuickOpen(false)}
+              onSelect={(a) => go(a.to)}
+              actions={quickActions}
+              label="shell.quickAction"
+              triggerClassName="hidden h-10 items-center rounded-xl bg-green-500 px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(22,163,74,0.28)] transition-all hover:bg-green-600 sm:inline-flex"
+            />
 
             <div className="relative">
               <button
@@ -379,9 +365,7 @@ export default function Shell({
                 aria-haspopup="menu"
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white py-1.5 ps-1.5 pe-3 transition-colors hover:bg-slate-50"
               >
-                <span className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-green-400 to-emerald-600 text-xs font-black text-white">
-                  {(user?.name || '؟').slice(0, 1)}
-                </span>
+                <ProfileAvatar user={user} className="size-8 rounded-lg" rounded="rounded-lg" fontSize="text-xs" />
                 <span className="hidden max-w-[90px] truncate text-start sm:block">
                   <span className="block truncate text-xs font-bold text-slate-800">{user?.name}</span>
                   <span className="block text-[10px] font-semibold text-slate-500">{t(roleLabel)}</span>
@@ -437,79 +421,20 @@ export default function Shell({
           </div>
         </header>
 
-        <div className="mx-auto max-w-[1400px] px-5 py-7 lg:px-8">{children}</div>
+        <div key={location.pathname} className="page-enter mx-auto max-w-[1400px] px-5 py-7 lg:px-8">
+          <ActivityLockBanner />
+          {children}
+        </div>
       </main>
 
-      {paletteOpen && (
-        <div className="fixed inset-0 z-[110] flex items-start justify-center p-4 pt-24">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setPaletteOpen(false)} aria-hidden="true" />
-          <div
-            ref={paletteRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('shell.searchPlaceholder')}
-            className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)]"
-          >
-            <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
-              <Search className="size-4 text-slate-500" />
-              <input
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={t('shell.palettePlaceholder')}
-                className="flex-1 bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-500"
-              />
-              <button
-                type="button"
-                onClick={() => setPaletteOpen(false)}
-                aria-label={t('common.close')}
-                className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold text-slate-500"
-              >
-                ESC
-              </button>
-            </div>
-            <div className="max-h-80 overflow-y-auto p-2">
-              {filteredItems.map((item) => (
-                <button
-                  key={item.to}
-                  type="button"
-                  onClick={() => go(item.to)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start transition-colors hover:bg-slate-50"
-                >
-                  <span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-500">
-                    <ItemIcon icon={item.icon} className="size-4" />
-                  </span>
-                  <span className="text-sm font-bold text-slate-700">{t(item.label)}</span>
-                  {location.pathname === item.to && <span className="ms-auto text-[10px] font-bold text-green-600">{t('shell.currentPage')}</span>}
-                </button>
-              ))}
-              {query && (
-                <div className="border-t border-slate-100 p-1 pt-2">
-                  <p className="px-2 py-1 text-[11px] font-bold text-slate-500">{t('shell.quickActionsTitle')}</p>
-                  {quickActions
-                    .filter((a) => t(a.label).includes(query) || a.to.includes(query))
-                    .map((a) => (
-                      <button
-                        key={a.to}
-                        type="button"
-                        onClick={() => go(a.to)}
-                        className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start transition-colors hover:bg-slate-50"
-                      >
-                        <span className="grid size-9 place-items-center rounded-xl bg-green-50 text-green-600">
-                          <ItemIcon icon={a.icon} className="size-4" />
-                        </span>
-                        <span className="text-sm font-bold text-slate-700">{t(a.label)}</span>
-                      </button>
-                    ))}
-                </div>
-              )}
-              {filteredItems.length === 0 && !query && (
-                <p className="px-4 py-8 text-center text-xs text-slate-500">{t('shell.paletteHint')}</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        groups={paletteGroups}
+        placeholder={t('shell.palettePlaceholder')}
+        hint={t('shell.paletteHint')}
+        currentTo={location.pathname}
+      />
     </div>
   )
 }

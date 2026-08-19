@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { Shield, LayoutDashboard, Clock, CheckCircle, XCircle, Ban, LogOut, Landmark, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Tag } from 'lucide-react';
+import { Shield, LayoutDashboard, Clock, CheckCircle, XCircle, Ban, LogOut, Landmark, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Tag, CreditCard } from 'lucide-react';
 import DashboardHeader from '../components/Navigation/DashboardHeader';
 
 export default function AdminLayout() {
@@ -36,6 +36,7 @@ export default function AdminLayout() {
     ...navItems,
     ...terrainOwnerItems,
     { to: '/admin/facilities', icon: Tag, label: t('admin.facilities') },
+    { to: '/admin/plans', icon: CreditCard, label: t('admin.plans') },
   ];
 
   return (
@@ -96,6 +97,20 @@ export default function AdminLayout() {
           >
             <Tag size={18} className="shrink-0" />
             {!collapsed && t('admin.facilities')}
+          </NavLink>
+
+          <div className={`border-t border-gray-100 my-3`} />
+          {!collapsed && <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-4 mb-2">{t('admin.plansSection')}</div>}
+          <NavLink
+            to="/admin/plans"
+            onClick={() => setMobileOpen(false)}
+            title={t('admin.plans')}
+            className={({ isActive }) =>
+              `flex items-center gap-3 rounded-lg text-sm transition ${collapsed ? 'justify-center px-2 py-2.5' : 'px-4 py-2.5'} ${isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`
+            }
+          >
+            <CreditCard size={18} className="shrink-0" />
+            {!collapsed && t('admin.plans')}
           </NavLink>
         </nav>
         <div className={`border-t border-gray-100 p-3 space-y-2 shrink-0 ${collapsed ? 'px-2' : ''}`}>

@@ -34,6 +34,7 @@ class HomeController extends Controller
                     'whatsapp_number' => Setting::get('whatsapp_number', ''),
                     'facebook_url' => Setting::get('facebook_url', ''),
                     'instagram_url' => Setting::get('instagram_url', ''),
+                    'footer_text' => Setting::get('footer_text', 'أجي نقصرو — منصة المباريات والملاعب'),
                 ],
                 'announcement' => $announcement,
                 'stats' => $this->statsService->stats(),

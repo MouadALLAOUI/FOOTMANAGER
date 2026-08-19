@@ -17,6 +17,7 @@ import AdminLayout from './layouts/AdminLayout';
 import AdminOverview from './pages/Admin/AdminOverview';
 import ManagerApprovals from './pages/Admin/ManagerApprovals';
 import AdminFacilities from './pages/Admin/AdminFacilities';
+import AdminPlans from './pages/Admin/AdminPlans';
 import TerrainOwnerLayout from './layouts/TerrainOwnerLayout';
 import TerrainOwnerDashboard from './pages/TerrainOwner/Dashboard';
 import MyTerrains from './pages/TerrainOwner/MyTerrains';
@@ -121,6 +122,7 @@ function AppRoutes() {
         <Route path="managers" element={<ManagerApprovals />} />
         <Route path="terrain-owners" element={<ManagerApprovals />} />
         <Route path="facilities" element={<AdminFacilities />} />
+        <Route path="plans" element={<AdminPlans />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

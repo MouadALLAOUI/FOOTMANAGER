@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\Committee;
 
+use App\Http\Requests\Committee\Concerns\ValidatesTournamentStructure;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreTournamentRequest extends FormRequest
 {
+    use ValidatesTournamentStructure;
+
     public function authorize(): bool
     {
         return $this->user()?->role === 'committee';
@@ -18,14 +21,18 @@ class StoreTournamentRequest extends FormRequest
             'edition' => 'nullable|string|max:60',
             'category' => 'nullable|string|max:60',
             'description' => 'nullable|string|max:2000',
+            'rules' => 'nullable|string|max:10000',
             'location' => 'nullable|string|max:255',
             'stadium_id' => 'nullable|integer|exists:stadiums,id',
             'start_date' => 'required|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
+            'registration_start_at' => 'nullable|date',
+            'registration_end_at' => 'nullable|date',
+            'registration_fee' => 'nullable|numeric|min:0|max:99999999',
             'tournament_format' => 'required|in:groups_knockout,groups_only,knockout_only,league,custom',
             'teams_count' => 'required|integer|min:2|max:64',
             'groups_count' => 'nullable|integer|min:1|max:16',
-            'teams_per_group' => 'nullable|integer|min:2|max:16',
+            'teams_per_group' => 'nullable|integer|min:2|max:16|required_if:tournament_format,groups_knockout,groups_only',
             'group_mode' => 'sometimes|in:free,fixed',
             'match_duration_minutes' => 'sometimes|integer|min:1|max:300',
             'matches_per_day' => 'nullable|integer|min:1|max:30',
@@ -48,35 +55,5 @@ class StoreTournamentRequest extends FormRequest
             'groups_count.min' => 'عدد المجموعات يجب أن يكون 1 على الأقل',
             'teams_per_group.min' => 'عدد الفرق في المجموعة يجب أن يكون 2 على الأقل',
         ];
-    }
-
-    public function withValidator($validator): void
-    {
-        $validator->after(function ($validator) {
-            $format = $this->input('tournament_format');
-
-            if (! in_array($format, ['groups_knockout', 'groups_only'], true)) {
-                return;
-            }
-
-            if ($this->input('group_mode', 'fixed') === 'free') {
-                return;
-            }
-
-            if ($this->input('groups_count') === null || $this->input('teams_per_group') === null) {
-                return;
-            }
-
-            $teams = (int) $this->input('teams_count');
-            $groups = (int) $this->input('groups_count');
-            $perGroup = (int) $this->input('teams_per_group');
-
-            if ($teams > $groups * $perGroup) {
-                $validator->errors()->add(
-                    'teams_count',
-                    'عدد الفرق يجب ألا يتجاوز سعة المجموعات',
-                );
-            }
-        });
     }
 }

@@ -15,6 +15,7 @@ export function usePublicActions({ onBooking, onChallenge }) {
     (type, payload, open) => {
       if (!user) {
         rememberAction({ type, ...payload })
+        toast.info(t('publicActions.loginRequired'))
         navigate('/login')
         return
       }

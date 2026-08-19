@@ -357,6 +357,101 @@ class TournamentResultEditingTest extends TestCase
             ->count());
     }
 
+    public function test_second_yellow_event_is_recorded_without_affecting_score(): void
+    {
+        $tournament = $this->createTournament();
+        $this->addTeamsAndDraw($tournament);
+        $this->generateFixtures($tournament);
+
+        $fixture = $this->firstFixture($tournament);
+        $home = $fixture->home_team_id;
+
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/result", [
+            'home_score' => 1,
+            'away_score' => 0,
+            'events' => [
+                ['type' => 'goal', 'team_id' => $home, 'minute' => 10],
+            ],
+        ])->assertOk();
+
+        $player = Player::factory()->create(['team_id' => $home]);
+
+        $event = $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/events", [
+            'type' => 'second_yellow',
+            'team_id' => $home,
+            'player_id' => $player->id,
+            'minute' => 60,
+            'added_time' => 5,
+        ])->assertCreated()
+            ->json('data');
+
+        $this->assertSame('second_yellow', $event['type']);
+        $this->assertSame(5, $event['added_time']);
+
+        $match = $fixture->fresh()->match;
+        $this->assertSame(1, $match->home_score);
+        $this->assertSame(0, $match->away_score);
+    }
+
+    public function test_second_yellow_counts_as_dismissal_and_blocks_later_events(): void
+    {
+        $tournament = $this->createTournament();
+        $this->addTeamsAndDraw($tournament);
+        $this->generateFixtures($tournament);
+
+        $fixture = $this->firstFixture($tournament);
+        $home = $fixture->home_team_id;
+
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/result", [
+            'home_score' => 0,
+            'away_score' => 0,
+        ])->assertOk();
+
+        $player = Player::factory()->create(['team_id' => $home]);
+
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/events", [
+            'type' => 'second_yellow',
+            'team_id' => $home,
+            'player_id' => $player->id,
+            'minute' => 30,
+        ])->assertCreated();
+
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/events", [
+            'type' => 'goal',
+            'team_id' => $home,
+            'player_id' => $player->id,
+            'minute' => 40,
+        ])->assertUnprocessable();
+    }
+
+    public function test_legacy_cards_array_accepts_second_yellow(): void
+    {
+        $tournament = $this->createTournament();
+        $this->addTeamsAndDraw($tournament);
+        $this->generateFixtures($tournament);
+
+        $fixture = $this->firstFixture($tournament);
+        $home = $fixture->home_team_id;
+
+        $player = Player::factory()->create(['team_id' => $home]);
+
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/result", [
+            'home_score' => 0,
+            'away_score' => 0,
+            'cards' => [
+                ['type' => 'second_yellow', 'team_id' => $home, 'player_id' => $player->id, 'minute' => 55],
+            ],
+        ])->assertOk();
+
+        $event = MatchEvent::query()
+            ->where('match_id', $fixture->fresh()->match_id)
+            ->where('type', MatchEventType::SecondYellow->value)
+            ->first();
+
+        $this->assertNotNull($event);
+        $this->assertSame((int) $player->id, (int) $event->player_id);
+    }
+
     public function test_knockout_penalties_edit_recomputes_winner(): void
     {
         $tournament = $this->createTournament();

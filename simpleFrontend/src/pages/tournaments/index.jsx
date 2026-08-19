@@ -29,14 +29,18 @@ export default function TournamentsIndex() {
           {tournaments.map((tour) => (
             <Link
               key={tour.id}
-              to={`/tournaments/${tour.id}`}
+              to={`/tournaments/${tour.slug || tour.id}`}
               className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
             >
               <div className="flex items-start justify-between gap-3">
-                <span className="grid size-11 place-items-center rounded-2xl bg-green-50 text-green-500">
-                  <Trophy className="size-5" strokeWidth={2} />
-                </span>
-                <Badge variant={tour.status === 'finished' ? 'neutral' : 'success'}>
+                {tour.logo_url ? (
+                  <img src={tour.logo_url} alt={tour.name} className="size-11 rounded-2xl object-cover" loading="lazy" />
+                ) : (
+                  <span className="grid size-11 place-items-center rounded-2xl bg-green-50 text-green-500">
+                    <Trophy className="size-5" strokeWidth={2} />
+                  </span>
+                )}
+                <Badge variant={tour.status === 'completed' ? 'neutral' : 'success'}>
                   {t(`status.${tour.status}`)}
                 </Badge>
               </div>

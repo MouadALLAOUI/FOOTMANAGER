@@ -4,7 +4,7 @@ namespace App\Domains\Booking\Listeners;
 
 use App\Domains\Booking\Events\BookingCancelled;
 use App\Domains\Booking\Notifications\BookingCancelledNotification;
-use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\NotificationService;
 
 class BookingCancelledListener
 {
@@ -39,22 +39,22 @@ class BookingCancelledListener
 
         $owner->notify(new BookingCancelledNotification($booking, wasManager: false));
 
-        AppNotification::create([
-            'user_id' => $owner->id,
-            'type' => 'booking_cancelled',
-            'title' => 'تم إلغاء حجز على ملعبك',
-            'body' => 'ألغى '.($booking->team?->name ?? 'الفريق')
+        NotificationService::push(
+            (int) $owner->id,
+            'booking_cancelled',
+            'تم إلغاء حجز على ملعبك',
+            'ألغى '.($booking->team?->name ?? 'الفريق')
                 .' حجزه بتاريخ '.$booking->booking_date?->format('Y-m-d')
                 .' الساعة '.$booking->start_time
                 .' (المرجع: '.$booking->booking_reference.')',
-            'data' => [
+            [
                 'booking_id' => $booking->id,
                 'reference' => $booking->booking_reference,
                 'refund_percentage' => $booking->refund_percentage,
                 'refund_amount' => $booking->refund_amount,
             ],
-            'action_url' => '/owner/bookings',
-        ]);
+            '/owner/bookings',
+        );
     }
 
     private function notifyManager($booking, $manager): void
@@ -65,19 +65,19 @@ class BookingCancelledListener
 
         $manager->notify(new BookingCancelledNotification($booking, wasManager: true));
 
-        AppNotification::create([
-            'user_id' => $manager->id,
-            'type' => 'booking_cancelled',
-            'title' => 'تم إلغاء حجزك',
-            'body' => 'تم إلغاء حجزك على ملعب '.($booking->terrain?->name ?? '')
+        NotificationService::push(
+            (int) $manager->id,
+            'booking_cancelled',
+            'تم إلغاء حجزك',
+            'تم إلغاء حجزك على ملعب '.($booking->terrain?->name ?? '')
                 .' بتاريخ '.$booking->booking_date?->format('Y-m-d'),
-            'data' => [
+            [
                 'booking_id' => $booking->id,
                 'reference' => $booking->booking_reference,
                 'refund_percentage' => $booking->refund_percentage,
                 'refund_amount' => $booking->refund_amount,
             ],
-            'action_url' => '/dashboard/my-reservations',
-        ]);
+            '/dashboard/my-reservations',
+        );
     }
 }

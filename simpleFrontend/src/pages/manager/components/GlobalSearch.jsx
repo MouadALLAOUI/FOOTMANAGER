@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarCheck, MapPin, Search, ShieldCheck, Swords, UserPlus, Users, X } from 'lucide-react'
+import { CalendarCheck, MapPin, RotateCw, Search, ShieldCheck, Swords, UserPlus, Users, X } from 'lucide-react'
 import api from '../../../api/client'
 import { Skeleton } from '../../../components/dashboard/ui'
 import { useCommandCenter } from './CommandCenterContext'
@@ -23,6 +23,7 @@ export default function GlobalSearch() {
   } = useCommandCenter()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState({ terrains: null, players: null, matches: null })
+  const [failed, setFailed] = useState(false)
   const seq = useRef(0)
 
   useEffect(() => {
@@ -32,23 +33,37 @@ export default function GlobalSearch() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, setOpen])
 
-  useEffect(() => {
-    if (!open) return
+  const runSearch = useCallback(() => {
     const q = query.trim()
     const id = ++seq.current
     if (q.length < 2) {
+      setFailed(false)
       setResults({ terrains: null, players: null, matches: null })
       return
     }
+    setFailed(false)
     const enc = encodeURIComponent(q)
-    Promise.all([
-      api.get(`/v1/stadiums?search=${enc}&per_page=4`).then((r) => r.data?.data || []).catch(() => []),
-      api.get(`/manager/recruitment/search?search=${enc}&per_page=4`).then((r) => r.data?.players || []).catch(() => []),
-      api.get(`/manager/match-feed?search=${enc}&per_page=4`).then((r) => r.data?.matches || []).catch(() => []),
-    ]).then(([terrains, players, matches]) => {
-      if (id === seq.current) setResults({ terrains, players, matches })
+    Promise.allSettled([
+      api.get(`/v1/stadiums?search=${enc}&per_page=4`).then((r) => r.data?.data || []),
+      api.get(`/manager/recruitment/search?search=${enc}&per_page=4`).then((r) => r.data?.players || []),
+      api.get(`/manager/match-feed?search=${enc}&per_page=4`).then((r) => r.data?.matches || []),
+    ]).then((results) => {
+      const failedNow = results.some((r) => r.status === 'rejected')
+      if (id === seq.current) {
+        setFailed(failedNow)
+        setResults({
+          terrains: failedNow ? [] : results[0].value,
+          players: failedNow ? [] : results[1].value,
+          matches: failedNow ? [] : results[2].value,
+        })
+      }
     })
-  }, [query, open])
+  }, [query])
+
+  useEffect(() => {
+    if (!open) return
+    runSearch()
+  }, [open, runSearch])
 
   const teams = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -92,11 +107,13 @@ export default function GlobalSearch() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t('ov.search.placeholder')}
+            aria-label={t('ov.search.placeholder')}
             className="flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
           />
           <button
             type="button"
             onClick={() => setOpen(false)}
+            aria-label={t('ov.search.close')}
             className="grid size-8 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="size-4" />
@@ -108,6 +125,19 @@ export default function GlobalSearch() {
             <p className="py-10 text-center text-xs font-semibold text-slate-400">{t('ov.search.minChars')}</p>
           ) : (
             <div className="space-y-4">
+              {failed && (
+                <div className="flex items-center justify-between gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-[11px] font-bold text-rose-600 ring-1 ring-rose-100">
+                  <span>{t('errors.network')}</span>
+                  <button
+                    type="button"
+                    onClick={runSearch}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-[10px] font-extrabold text-rose-600 ring-1 ring-rose-200 transition-colors hover:bg-rose-50"
+                  >
+                    <RotateCw className="size-3" />
+                    {t('errorPage.retry')}
+                  </button>
+                </div>
+              )}
               {groups.map((g) => {
                 const loading = g.key === 'players' || g.key === 'terrains' || g.key === 'matches'
                 const items = g.items

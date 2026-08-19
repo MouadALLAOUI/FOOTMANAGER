@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import CalendarHeader from './CalendarHeader'
 import CalendarGrid from './CalendarGrid'
 import CalendarSkeleton from './CalendarSkeleton'
@@ -43,6 +44,7 @@ export default function Calendar({
   onSlotClick,
   onEventClick,
 }) {
+  const { t } = useTranslation()
   const cardRef = useRef(null)
   const [view, setView] = useState('week')
   const [narrow, setNarrow] = useState(false)
@@ -93,6 +95,8 @@ export default function Calendar({
           view={isDay ? 'day' : 'week'}
           onViewChange={setView}
           weekDisabled={narrow}
+          dateValue={activeDate}
+          onDateChange={(iso) => onDaySelect?.(iso)}
           onPrevious={() => handleNavigate(-1)}
           onNext={() => handleNavigate(1)}
           onToday={onToday}
@@ -111,11 +115,11 @@ export default function Calendar({
       <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 px-4 py-2.5">
         <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
           <span className="size-3.5 rounded bg-gradient-to-br from-emerald-500 to-emerald-600" />
-          حجز مؤكد
+          {t('terrain.calendar.booked')}
         </span>
         <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
           <span className="size-3.5 rounded bg-gradient-to-br from-amber-400 to-amber-500" />
-          معلق
+          {t('terrain.calendar.pending')}
         </span>
         <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
           <span className="relative size-3.5 overflow-hidden rounded bg-gradient-to-br from-slate-400 to-slate-500">
@@ -125,7 +129,7 @@ export default function Calendar({
               style={{ background: 'repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 4px, transparent 4px 8px)' }}
             />
           </span>
-          أبونمان
+          {t('terrain.calendar.subscription')}
         </span>
       </div>
     </div>

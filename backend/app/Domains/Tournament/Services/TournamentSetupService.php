@@ -13,6 +13,7 @@ use App\Domains\Competition\Models\Round;
 use App\Domains\Competition\Models\Season;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
+use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
@@ -21,20 +22,6 @@ use Illuminate\Support\Facades\DB;
 
 class TournamentSetupService
 {
-    /**
-     * Derive a balanced (groups_count, teams_per_group) split from the number of
-     * teams, preferring roughly 4 teams per group with at least 2 groups.
-     *
-     * @return array{0: int, 1: int}
-     */
-    public static function deriveGroups(int $teams): array
-    {
-        $groups = min(max((int) round($teams / 4), 2), 8);
-        $perGroup = (int) ceil($teams / $groups);
-
-        return [$groups, $perGroup];
-    }
-
     public function buildStructure(Tournament $tournament): Tournament
     {
         return DB::transaction(function () use ($tournament) {
@@ -42,7 +29,7 @@ class TournamentSetupService
             $season = $this->ensureSeason($tournament);
 
             $groupRound = $this->ensureGroupRound($tournament, $season);
-            $groups = $this->ensureGroups($tournament, $season, $groupRound);
+            $groups = $this->ensureGroups($tournament, $season, $groupRound, $tournament->group_mode !== 'free');
             $this->ensureKnockoutRoundsWhenReady($tournament, $season);
 
             $tournament->competition_id = $competition->id;
@@ -113,9 +100,26 @@ class TournamentSetupService
     }
 
     /**
+     * Create (or top up) the full expected group set. Used by the draw service
+     * when a free-mode tournament is auto-drawn and needs its groups materialized.
+     *
      * @return Collection<int, Group>
      */
-    public function ensureGroups(Tournament $tournament, Season $season, Round $groupRound)
+    public function ensureGroupSet(Tournament $tournament)
+    {
+        $season = $this->ensureSeason($tournament);
+        $groupRound = $this->ensureGroupRound($tournament, $season);
+
+        return $this->ensureGroups($tournament, $season, $groupRound, true);
+    }
+
+    /**
+     * Create (or top up) the tournament's group set. Free-mode tournaments do not
+     * pre-create groups — they are created lazily while teams are assigned.
+     *
+     * @return Collection<int, Group>
+     */
+    public function ensureGroups(Tournament $tournament, Season $season, Round $groupRound, bool $createMissing = true)
     {
         $competitionId = $this->ensureCompetition($tournament)->id;
 
@@ -125,21 +129,28 @@ class TournamentSetupService
             ->orderBy('name')
             ->get();
 
-        if ($existing->isNotEmpty()) {
+        if (! $createMissing) {
             return $existing;
         }
 
-        $groups = [];
-        for ($i = 1; $i <= $tournament->groups_count; $i++) {
-            $groups[] = Group::create([
+        $groups = collect($existing);
+        $usedNames = $existing->pluck('name')->flip();
+        $index = $existing->count() + 1;
+
+        while ($groups->count() < $tournament->groups_count) {
+            do {
+                $name = $this->groupLabel($index++);
+            } while ($usedNames->has($name));
+
+            $groups->push(Group::create([
                 'competition_id' => $competitionId,
                 'season_id' => $season->id,
                 'round_id' => $groupRound->id,
-                'name' => $this->groupLabel($i),
-            ]);
+                'name' => $name,
+            ]));
         }
 
-        return collect($groups);
+        return $groups;
     }
 
     /**
@@ -228,6 +239,22 @@ class TournamentSetupService
         if ($existing->isNotEmpty()) {
             $roundIds = $existing->pluck('id');
 
+            $hasPlayed = Fixture::query()
+                ->whereIn('round_id', $roundIds)
+                ->whereHas('match', function ($query) {
+                    $query->whereIn('status', [
+                        MatchStatus::Finished->value,
+                        MatchStatus::Cancelled->value,
+                        MatchStatus::Postponed->value,
+                        ...MatchStatus::live(),
+                    ]);
+                })
+                ->exists();
+
+            if ($hasPlayed) {
+                throw new DomainException('لا يمكن إعادة بناء الأدوار الإقصائية بعد بدء مبارياتها');
+            }
+
             $matchIds = Fixture::query()
                 ->whereIn('round_id', $roundIds)
                 ->pluck('match_id')
@@ -245,13 +272,14 @@ class TournamentSetupService
         $rounds = [];
         $orderIndex = 2;
 
-        foreach ($tiers as $stage) {
+        foreach ($tiers as $index => $stage) {
             $rounds[] = Round::create([
                 'competition_id' => $competitionId,
                 'season_id' => $season->id,
                 'name' => $this->stageLabel($stage),
                 'stage' => $stage,
                 'order_index' => $orderIndex++,
+                'status' => $index === 0 ? Round::STATUS_AVAILABLE : Round::STATUS_LOCKED,
             ]);
         }
 
@@ -422,7 +450,7 @@ class TournamentSetupService
         return 'الموسم '.$tournament->start_date?->format('Y');
     }
 
-    private function groupLabel(int $index): string
+    public function groupLabel(int $index): string
     {
         if ($index <= 26) {
             return chr(64 + $index);

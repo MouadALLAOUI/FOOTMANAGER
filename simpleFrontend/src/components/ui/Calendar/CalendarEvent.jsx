@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Repeat } from 'lucide-react'
 
 const eventStyles = {
@@ -13,6 +14,7 @@ const subscriptionStripe = {
 }
 
 export default function CalendarEvent({ event, top, height, onClick }) {
+  const { t } = useTranslation()
   const compact = height < 40
   const showPrice = height >= 56 && event.price != null
   const isSubscription = event.reservationType === 'weekly_subscription'
@@ -43,13 +45,13 @@ export default function CalendarEvent({ event, top, height, onClick }) {
 
       {showPrice && (
         <span className="relative mt-0.5 truncate text-[10px] font-semibold opacity-90">
-          {Number(event.price).toLocaleString('ar-MA')} د.م
+          {Number(event.price).toLocaleString('ar-MA')} {t('ov.common.currency')}
         </span>
       )}
 
       {showTypeChip && (
         <span className="relative mt-0.5 w-fit rounded-md bg-white/25 px-1.5 py-px text-[8px] font-black leading-tight">
-          أبونمان
+          {t('terrain.calendar.subscription')}
         </span>
       )}
     </button>

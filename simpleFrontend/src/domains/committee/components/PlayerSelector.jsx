@@ -3,7 +3,7 @@ import { ChevronDown, Plus } from 'lucide-react'
 import api from '../../../api/client'
 import { inputClass } from '../../../components/dashboard/ui'
 
-export default function PlayerSelector({ teamId, value, valueName, onSelect, onClear, label, placeholder, t, autoFocus }) {
+export default function PlayerSelector({ teamId, value, valueName, onSelect, onClear, label, placeholder, t, autoFocus, suspendedIds = [] }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [list, setList] = useState([])
@@ -36,6 +36,7 @@ export default function PlayerSelector({ teamId, value, valueName, onSelect, onC
   }, [])
 
   const pick = (p) => {
+    if (suspendedIds.includes(p.id)) return
     onSelect(p)
     setOpen(false)
     setQuery('')
@@ -90,6 +91,7 @@ export default function PlayerSelector({ teamId, value, valueName, onSelect, onC
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('committee.result.searchPlayer')}
+              aria-label={t('committee.result.searchPlayer')}
               autoFocus={autoFocus}
               className={`${inputClass} h-9`}
             />
@@ -124,18 +126,27 @@ export default function PlayerSelector({ teamId, value, valueName, onSelect, onC
               <p className="px-3 py-2 text-xs font-semibold text-slate-400">{t('committee.result.noPlayers')}</p>
             ) : (
               <>
-                {list.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => pick(p)}
-                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start hover:bg-slate-50 ${p.id === value ? 'bg-green-50' : ''}`}
-                  >
-                    <span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-700">{p.name}</span>
-                    {p.number && <span className="shrink-0 text-[10px] font-black text-slate-400">#{p.number}</span>}
-                    {p.position && <span className="shrink-0 text-[10px] font-semibold text-slate-400">{p.position}</span>}
-                  </button>
-                ))}
+                {list.map((p) => {
+                  const suspended = suspendedIds.includes(p.id)
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => pick(p)}
+                      disabled={suspended}
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start hover:bg-slate-50 ${p.id === value ? 'bg-green-50' : ''} ${suspended ? 'cursor-not-allowed opacity-60' : ''}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-700">{p.name}</span>
+                      {suspended && (
+                        <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-600">
+                          {t('committee.result.suspendedBadge')}
+                        </span>
+                      )}
+                      {p.number && <span className="shrink-0 text-[10px] font-black text-slate-400">#{p.number}</span>}
+                      {p.position && <span className="shrink-0 text-[10px] font-semibold text-slate-400">{p.position}</span>}
+                    </button>
+                  )
+                })}
                 {query.trim() && (
                   <button
                     type="button"

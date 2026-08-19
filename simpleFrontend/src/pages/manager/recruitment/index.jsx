@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  ArrowLeft,
-  ArrowRight,
   Check,
   CheckCircle2,
   Handshake,
@@ -23,8 +21,10 @@ import { useApi } from '../../../hooks/useApi'
 import { useMatchRequests } from '../../../api/queries'
 import {
   Button,
+  Empty,
   Field,
   Modal,
+  Pagination,
   SectionTitle,
   SkeletonCards,
   StatusBadge,
@@ -79,12 +79,14 @@ function SearchBar({ meta }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ابحث عن لاعب بالاسم…"
+            aria-label="ابحث عن لاعب بالاسم"
             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pe-4 ps-10 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
           />
           {search && (
             <button
               type="button"
               onClick={() => setSearch('')}
+              aria-label="مسح البحث"
               className="absolute end-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-slate-200 text-slate-500"
             >
               <X className="size-3" />
@@ -388,21 +390,17 @@ function Applications({ hosted }) {
       {loading ? (
         <SkeletonCards count={2} />
       ) : !apps ? (
-        <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
-          <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300">
-            <Inbox className="size-7" strokeWidth={1.6} />
-          </span>
-          <p className="mt-4 text-sm font-bold text-slate-700">اختر مباراة لعرض طلبات اللاعبين</p>
-          <p className="mt-1 text-xs text-slate-400">عندما يطلب لاعب الانضمام لمباراتك ستظهر طلباته هنا</p>
-        </div>
+        <Empty
+          icon={Inbox}
+          title="اختر مباراة لعرض طلبات اللاعبين"
+          description="عندما يطلب لاعب الانضمام لمباراتك ستظهر طلباته هنا"
+        />
       ) : apps.applications.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
-          <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300">
-            <Users className="size-7" strokeWidth={1.6} />
-          </span>
-          <p className="mt-4 text-sm font-bold text-slate-700">لا طلبات لهذه المباراة</p>
-          <p className="mt-1 text-xs text-slate-400">بحث في اللاعبين الأحرار ودعوة من يناسبك</p>
-        </div>
+        <Empty
+          icon={Users}
+          title="لا طلبات لهذه المباراة"
+          description="بحث في اللاعبين الأحرار ودعوة من يناسبك"
+        />
       ) : (
         <div className="space-y-3">
           {apps.applications.map((app) => {
@@ -492,6 +490,7 @@ export default function Recruitment() {
   const total = data?.total || 0
   const currentPage = data?.current_page || 1
   const lastPage = data?.last_page || 1
+  const perPage = data?.per_page || 20
 
   const page = (p) => {
     const next = new URLSearchParams(searchParams)
@@ -528,12 +527,12 @@ export default function Recruitment() {
               <SkeletonCards count={6} />
             </div>
           ) : players.length === 0 ? (
-            <div className="mt-5 rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
-              <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300">
-                <Users className="size-7" strokeWidth={1.6} />
-              </span>
-              <p className="mt-4 text-sm font-bold text-slate-700">لا لاعبين يطابقون البحث</p>
-              <p className="mt-1 text-xs text-slate-400">عدّل الفلاتر وحاول مجددًا</p>
+            <div className="mt-5">
+              <Empty
+                icon={Users}
+                title="لا لاعبين يطابقون البحث"
+                description="عدّل الفلاتر وحاول مجددًا"
+              />
             </div>
           ) : (
             <>
@@ -559,30 +558,14 @@ export default function Recruitment() {
               </div>
 
               {lastPage > 1 && (
-                <div className="mt-8 flex items-center justify-center gap-2">
-                  <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => page(currentPage - 1)}>
-                    <ArrowRight className="size-3.5 rtl:rotate-180" />
-                    السابق
-                  </Button>
-                  {Array.from({ length: lastPage }).map((_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => page(i + 1)}
-                      className={`grid size-9 place-items-center rounded-xl text-xs font-bold transition-all ${
-                        i + 1 === currentPage
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                  <Button variant="outline" size="sm" disabled={currentPage >= lastPage} onClick={() => page(currentPage + 1)}>
-                    التالي
-                    <ArrowLeft className="size-3.5 rtl:rotate-180" />
-                  </Button>
-                </div>
+                <Pagination
+                  bare
+                  page={currentPage}
+                  lastPage={lastPage}
+                  total={total}
+                  perPage={perPage}
+                  onChange={page}
+                />
               )}
             </>
           )}

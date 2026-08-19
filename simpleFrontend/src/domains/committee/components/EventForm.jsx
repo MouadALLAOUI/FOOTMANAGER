@@ -11,7 +11,7 @@ const GOAL_TYPES = [
   { value: 'ownGoal', labelKey: 'committee.result.goalTypes.ownGoal' },
 ]
 
-export default function EventForm({ type, form, setField, setForm, homeId, awayId, homeName, awayName, onSelectPlayer, onSelectAssist, t, onSubmit, validation }) {
+export default function EventForm({ type, form, setField, setForm, homeId, awayId, homeName, awayName, onSelectPlayer, onSelectAssist, t, onSubmit, validation, suspendedIds = [] }) {
   const [fieldMinute, fieldAdded] = [setField('minute'), setField('added_time')]
 
   const changeTeam = (e) => {
@@ -66,16 +66,23 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
         </label>
       )}
 
-      {(type === 'yellow_card' || type === 'red_card') && (
+      {(type === 'yellow_card' || type === 'second_yellow' || type === 'red_card') && (
         <div>
           <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.cardType')}</span>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => setForm((f) => ({ ...f, cardColor: 'yellow_card' }))}
               className={`flex-1 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${form.cardColor === 'yellow_card' ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-slate-200 text-slate-500'}`}
             >
               🟨 {t('committee.result.yellow')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, cardColor: 'second_yellow' }))}
+              className={`flex-1 rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${form.cardColor === 'second_yellow' ? 'border-orange-300 bg-orange-50 text-orange-600' : 'border-slate-200 text-slate-500'}`}
+            >
+              🟨🟥 {t('committee.result.secondYellow')}
             </button>
             <button
               type="button"
@@ -99,6 +106,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
             label={t('committee.result.playerOut')}
             placeholder={t('committee.result.selectPlayer')}
             t={t}
+            suspendedIds={suspendedIds}
           />
           <div className="flex items-center gap-2">
             <ArrowDown className="size-4 shrink-0 text-rose-400" />
@@ -113,6 +121,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
             label={t('committee.result.playerIn')}
             placeholder={t('committee.result.selectPlayer')}
             t={t}
+            suspendedIds={suspendedIds}
           />
           <div className="flex items-center gap-2">
             <ArrowUp className="size-4 shrink-0 text-emerald-500" />
@@ -138,6 +147,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
           placeholder={t('committee.result.selectPlayer')}
           t={t}
           autoFocus
+          suspendedIds={suspendedIds}
         />
       )}
 
@@ -158,6 +168,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
           label={t('committee.result.assist')}
           placeholder={t('committee.result.selectPlayer')}
           t={t}
+          suspendedIds={suspendedIds}
         />
       )}
 
@@ -174,7 +185,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
         </div>
       )}
 
-      {(type === 'yellow_card' || type === 'red_card') && (
+      {(type === 'yellow_card' || type === 'second_yellow' || type === 'red_card') && (
         <label className="block">
           <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.cardReason')}</span>
           <input value={form.reason} onChange={setField('reason')} className={inputClass} />

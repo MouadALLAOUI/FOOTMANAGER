@@ -20,14 +20,27 @@ class NotificationPreferenceService
 
         foreach ($types as $type) {
             $preferences[$type] = [
+                'category' => NotificationService::categoryOf($type),
                 'database_enabled' => $this->enabled($rows, $type, 'database'),
                 'email_enabled' => $this->enabled($rows, $type, 'email'),
                 'push_enabled' => $this->enabled($rows, $type, 'push'),
                 'sms_enabled' => $this->enabled($rows, $type, 'sms'),
             ];
+
+            if (in_array($type, NotificationService::SYSTEM_TYPES, true)) {
+                $preferences[$type]['database_enabled'] = true;
+            }
         }
 
         return $preferences;
+    }
+
+    public function meta(): array
+    {
+        return [
+            'categories' => NotificationService::categories(),
+            'system_types' => NotificationService::SYSTEM_TYPES,
+        ];
     }
 
     public function update(User $user, array $data): array
@@ -54,6 +67,10 @@ class NotificationPreferenceService
 
             if (empty($payload)) {
                 continue;
+            }
+
+            if (in_array($type, NotificationService::SYSTEM_TYPES, true)) {
+                $payload['database_enabled'] = true;
             }
 
             NotificationPreference::query()->updateOrCreate(

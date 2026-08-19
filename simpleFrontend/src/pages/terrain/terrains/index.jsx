@@ -258,6 +258,7 @@ export default function Terrains() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="ابحث عن ملعب…"
+            aria-label="ابحث عن ملعب"
             className="h-11 w-full rounded-xl border border-slate-200 bg-white ps-11 pe-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
           />
           <Search className="absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -473,31 +474,27 @@ export default function Terrains() {
       </Drawer>
 
       {/* Closure reason modal */}
-      {closureModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setClosureModal(false)} />
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-            <h3 className="text-base font-extrabold text-slate-900">إغلاق الملعب</h3>
-            <p className="mt-1 text-xs text-slate-400">سيتم إيقاف استقبال الحجوزات الجديدة لهذا الملعب</p>
-            <div className="mt-4">
-              <Field label="سبب الإغلاق (اختياري)">
-                <textarea
-                  className={`${inputClass} h-24 resize-none !h-auto py-3`}
-                  value={closureReason}
-                  onChange={(e) => setClosureReason(e.target.value)}
-                  placeholder="مثال: صيانة العشب"
-                />
-              </Field>
-            </div>
-            <div className="mt-5 flex gap-2">
-              <Button variant="danger" className="flex-1" disabled={busy} onClick={confirmClosure}>
-                {busy ? 'جارٍ…' : 'تأكيد الإغلاق'}
-              </Button>
-              <Button variant="outline" className="flex-1" onClick={() => setClosureModal(false)}>إلغاء</Button>
-            </div>
-          </div>
+      <Modal
+        open={!!closureModal}
+        onClose={() => !busy && setClosureModal(false)}
+        title="إغلاق الملعب"
+        subtitle="سيتم إيقاف استقبال الحجوزات الجديدة لهذا الملعب"
+      >
+        <Field label="سبب الإغلاق (اختياري)">
+          <textarea
+            className={`${inputClass} h-24 resize-none !h-auto py-3`}
+            value={closureReason}
+            onChange={(e) => setClosureReason(e.target.value)}
+            placeholder="مثال: صيانة العشب"
+          />
+        </Field>
+        <div className="mt-5 flex gap-2">
+          <Button variant="danger" className="flex-1" disabled={busy} loading={busy} onClick={confirmClosure}>
+            {busy ? 'جارٍ…' : 'تأكيد الإغلاق'}
+          </Button>
+          <Button variant="outline" className="flex-1" disabled={busy} onClick={() => setClosureModal(false)}>إلغاء</Button>
         </div>
-      )}
+      </Modal>
 
       {/* Delete confirmation modal */}
       <Modal

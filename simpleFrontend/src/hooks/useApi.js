@@ -1,4 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
+import { getApiErrorMessage } from '../lib/errors'
+import { mapHttpError } from '../lib/errorState'
 
 const SOURCE_KEY_MAX = 300
 const sourceKeyCache = new Map()
@@ -22,6 +25,7 @@ function fnKey(fn) {
 }
 
 export function useApi(fn, deps = [], options = {}) {
+  const { t } = useTranslation()
   const {
     queryKey,
     enabled,
@@ -43,7 +47,8 @@ export function useApi(fn, deps = [], options = {}) {
   return {
     data: query.data ?? null,
     loading: query.isLoading,
-    error: query.error?.response?.data?.message || (query.error ? 'حدث خطأ أثناء التحميل' : ''),
+    error: query.error ? getApiErrorMessage(query.error, t) : '',
+    errorState: query.error ? mapHttpError(query.error) : null,
     refetch: query.refetch,
     isFetching: query.isFetching,
     isStale: query.isStale,
@@ -52,6 +57,7 @@ export function useApi(fn, deps = [], options = {}) {
 }
 
 export function useMutationApi(mutateFn, options = {}) {
+  const { t } = useTranslation()
   const mutation = useMutation({
     mutationFn: mutateFn,
     onSuccess: options.onSuccess,
@@ -61,6 +67,7 @@ export function useMutationApi(mutateFn, options = {}) {
     mutate: mutation.mutate,
     mutateAsync: mutation.mutateAsync,
     loading: mutation.isPending,
-    error: mutation.error?.response?.data?.message || (mutation.error ? 'حدث خطأ' : ''),
+    error: mutation.error ? getApiErrorMessage(mutation.error, t) : '',
+    errorState: mutation.error ? mapHttpError(mutation.error) : null,
   }
 }

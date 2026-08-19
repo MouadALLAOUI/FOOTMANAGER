@@ -103,16 +103,18 @@ class MatchMembershipService
             return true;
         }
 
-        $liveStatuses = array_merge([MatchStatus::Scheduled->value], MatchStatus::live());
-
-        return FootballMatch::query()
-            ->whereIn('status', $liveStatuses)
+        // Tournament fixtures carry their schedule on the fixtures table
+        // (matches.scheduled_at does not exist), so tournament conflicts are
+        // detected against fixtures, ignoring played/cancelled matches.
+        return Fixture::query()
             ->where(function ($q) use ($teamId) {
                 $q->where('home_team_id', $teamId)
                     ->orWhere('away_team_id', $teamId);
             })
             ->where('scheduled_at', '>', $start)
             ->where('scheduled_at', '<', $end)
+            ->whereNotIn('status', [FixtureStatus::Postponed->value, FixtureStatus::Cancelled->value])
+            ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Cancelled->value]))
             ->exists();
     }
 

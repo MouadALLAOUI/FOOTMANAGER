@@ -27,6 +27,7 @@ class TournamentResultService
         private readonly TournamentBracketService $bracket,
         private readonly TournamentStandingsService $standings,
         private readonly TournamentSetupService $setup,
+        private readonly TournamentSuspensionService $suspensions,
     ) {}
 
     /**
@@ -50,7 +51,7 @@ class TournamentResultService
         return DB::transaction(function () use ($fixture, $data, $userId) {
             $tournament = $this->tournamentFor($fixture);
 
-            if ($tournament->status === 'finished') {
+            if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
                 throw new DomainException('لا يمكن تعديل النتائج بعد انتهاء البطولة');
             }
 
@@ -88,6 +89,11 @@ class TournamentResultService
                 $fixture->forceFill(['match_id' => $match->id])->save();
             }
 
+            if (isset($data['events'])) {
+                $data['events'] = $this->normalizeCardTypes($data['events']);
+                $this->assertNoSuspendedPlayers($fixture, $data['events']);
+            }
+
             $this->replaceResultEvents($match, $data, $userId);
 
             if (isset($data['events'])) {
@@ -119,7 +125,7 @@ class TournamentResultService
             $fixture->forceFill(['status' => FixtureStatus::Played])->save();
 
             if ($isKnockout) {
-                $this->bracket->advance($fixture, $tournament);
+                $this->bracket->progress($fixture, $tournament);
 
                 if ($fixture->round?->stage === RoundStage::Final) {
                     $this->crownChampion($tournament, $winner);
@@ -198,7 +204,7 @@ class TournamentResultService
         return DB::transaction(function () use ($fixture, $data, $userId) {
             $tournament = $this->tournamentFor($fixture);
 
-            if ($tournament->status === 'finished') {
+            if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
                 throw new DomainException('لا يمكن تعديل النتائج بعد انتهاء البطولة');
             }
 
@@ -229,6 +235,9 @@ class TournamentResultService
             }
 
             if (array_key_exists('events', $data)) {
+                $data['events'] = $this->normalizeCardTypes($data['events']);
+                $this->assertNoSuspendedPlayers($fixture, $data['events']);
+
                 $this->replaceResultEvents($match, ['events' => $data['events']], $userId);
                 $this->recomputeScore($match);
             }
@@ -300,6 +309,8 @@ class TournamentResultService
                 'extra_time' => (bool) $match->extra_time,
             ]);
 
+            $this->bracket->syncRoundStatuses($tournament);
+
             return $fixture->fresh(['round', 'group', 'homeTeam', 'awayTeam', 'match']);
         });
     }
@@ -312,9 +323,11 @@ class TournamentResultService
         return DB::transaction(function () use ($fixture, $data, $userId) {
             $tournament = $this->tournamentFor($fixture);
 
-            if ($tournament->status === 'finished') {
+            if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
                 throw new DomainException('لا يمكن تعديل الأحداث بعد انتهاء البطولة');
             }
+
+            $this->applySecondYellowConversion($fixture, $data);
 
             $this->assertEventPayload($fixture, $data);
 
@@ -349,7 +362,7 @@ class TournamentResultService
 
             $tournament = $this->tournamentFor($fixture);
 
-            if ($tournament->status === 'finished') {
+            if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
                 throw new DomainException('لا يمكن تعديل الأحداث بعد انتهاء البطولة');
             }
 
@@ -364,6 +377,8 @@ class TournamentResultService
                 'description' => $event->description,
                 'metadata' => $event->metadata,
             ], $data);
+
+            $data = $this->applySecondYellowConversion($fixture, $data, $event->id);
 
             $this->assertEventPayload($fixture, $data, $event->id);
 
@@ -394,7 +409,7 @@ class TournamentResultService
 
             $tournament = $this->tournamentFor($fixture);
 
-            if ($tournament->status === 'finished') {
+            if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
                 throw new DomainException('لا يمكن تعديل الأحداث بعد انتهاء البطولة');
             }
 
@@ -460,6 +475,8 @@ class TournamentResultService
 
         $this->deleteResultEvents($match);
 
+        $cardEvents = [];
+
         foreach ($data['scorers'] ?? [] as $scorer) {
             $type = $this->eventType($scorer['type'] ?? 'goal');
 
@@ -467,14 +484,14 @@ class TournamentResultService
                 continue;
             }
 
-            MatchEvent::create($this->buildEventRecord($match->id, [
+            $cardEvents[] = [
                 'team_id' => $scorer['team_id'] ?? null,
                 'player_id' => $scorer['player_id'] ?? null,
                 'assist_player_id' => $scorer['assist_player_id'] ?? null,
                 'type' => $type->value,
                 'minute' => (int) ($scorer['minute'] ?? 1),
                 'period' => $scorer['period'] ?? null,
-            ], $userId));
+            ];
         }
 
         foreach ($data['cards'] ?? [] as $card) {
@@ -484,13 +501,19 @@ class TournamentResultService
                 continue;
             }
 
-            MatchEvent::create($this->buildEventRecord($match->id, [
+            $cardEvents[] = [
                 'team_id' => $card['team_id'] ?? null,
                 'player_id' => $card['player_id'] ?? null,
                 'type' => $type->value,
                 'minute' => (int) ($card['minute'] ?? 1),
                 'period' => $card['period'] ?? null,
-            ], $userId));
+            ];
+        }
+
+        $cardEvents = $this->normalizeCardTypes($cardEvents);
+
+        foreach ($cardEvents as $event) {
+            MatchEvent::create($this->buildEventRecord($match->id, $event, $userId));
         }
     }
 
@@ -528,6 +551,7 @@ class TournamentResultService
                 MatchEventType::PenaltyGoal->value,
                 MatchEventType::Assist->value,
                 MatchEventType::YellowCard->value,
+                MatchEventType::SecondYellow->value,
                 MatchEventType::RedCard->value,
             ])
             ->delete();
@@ -541,9 +565,123 @@ class TournamentResultService
             'penalty_goal' => MatchEventType::PenaltyGoal,
             'assist' => MatchEventType::Assist,
             'yellow_card' => MatchEventType::YellowCard,
+            'second_yellow' => MatchEventType::SecondYellow,
             'red_card' => MatchEventType::RedCard,
             default => null,
         };
+    }
+
+    /**
+     * Auto-convert a second yellow card for the same player (in the same
+     * match) into a `second_yellow` dismissal. Input events are re-ordered
+     * chronologically to decide which yellow is the "second" one.
+     *
+     * @param  array<int, array<string, mixed>>  $events
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeCardTypes(array $events): array
+    {
+        if ($events === []) {
+            return $events;
+        }
+
+        $indexed = [];
+
+        foreach ($events as $index => $event) {
+            $type = isset($event['type']) ? MatchEventType::tryFrom((string) $event['type']) : null;
+
+            $indexed[] = [
+                'index' => $index,
+                'event' => $event,
+                'type' => $type,
+                'minute' => (int) ($event['minute'] ?? 0),
+                'added_time' => (int) ($event['added_time'] ?? 0),
+            ];
+        }
+
+        usort($indexed, fn (array $a, array $b) => [$a['minute'], $a['added_time']] <=> [$b['minute'], $b['added_time']]);
+
+        $yellowByPlayer = [];
+
+        foreach ($indexed as &$entry) {
+            $event = &$entry['event'];
+            $type = $entry['type'];
+
+            if ($type === MatchEventType::YellowCard && isset($event['player_id'])) {
+                $playerId = (int) $event['player_id'];
+
+                if (isset($yellowByPlayer[$playerId])) {
+                    $event['type'] = MatchEventType::SecondYellow->value;
+                } else {
+                    $yellowByPlayer[$playerId] = true;
+                }
+            }
+        }
+
+        unset($entry);
+
+        usort($indexed, fn (array $a, array $b) => $a['index'] <=> $b['index']);
+
+        return array_map(fn (array $entry) => $entry['event'], $indexed);
+    }
+
+    /**
+     * For the single-event path: when recording a yellow card for a player
+     * who already holds one in this match, save it as a second yellow.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function applySecondYellowConversion(Fixture $fixture, array $data, ?int $ignoredEventId = null): array
+    {
+        $type = isset($data['type']) ? MatchEventType::tryFrom((string) $data['type']) : null;
+
+        if ($type !== MatchEventType::YellowCard || ! isset($data['player_id']) || ! $fixture->match_id) {
+            return $data;
+        }
+
+        $playerId = (int) $data['player_id'];
+
+        $hasYellow = MatchEvent::query()
+            ->where('match_id', $fixture->match_id)
+            ->where('player_id', $playerId)
+            ->where('type', MatchEventType::YellowCard->value)
+            ->when($ignoredEventId, fn ($query) => $query->where('id', '!=', $ignoredEventId))
+            ->exists();
+
+        if ($hasYellow) {
+            $data['type'] = MatchEventType::SecondYellow->value;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Reject an events payload that involves a player suspended for this
+     * fixture (derived from card accumulation in earlier matches).
+     *
+     * @param  array<int, array<string, mixed>>  $events
+     */
+    private function assertNoSuspendedPlayers(Fixture $fixture, array $events): void
+    {
+        $suspendedIds = collect($this->suspensions->suspendedFor($fixture))
+            ->pluck('player_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($suspendedIds === []) {
+            return;
+        }
+
+        foreach ($events as $event) {
+            foreach (['player_id', 'assist_player_id'] as $key) {
+                $playerId = isset($event[$key]) ? (int) $event[$key] : null;
+
+                if ($playerId !== null && $playerId > 0 && in_array($playerId, $suspendedIds, true)) {
+                    throw new DomainException('لا يمكن تسجيل أحداث للاعب الموقوف في هذه المباراة');
+                }
+            }
+        }
     }
 
     private function crownChampion(Tournament $tournament, int $winnerTeamId): void
@@ -553,7 +691,7 @@ class TournamentResultService
 
         $tournament->forceFill([
             'plan' => $plan,
-            'status' => 'finished',
+            'status' => Tournament::STATUS_COMPLETED,
         ])->save();
 
         $this->cleanupFreeTeams($tournament);
@@ -588,19 +726,55 @@ class TournamentResultService
         if ($this->isKnockout($fixture)) {
             $round = $fixture->round;
 
-            if ($round && $round->order_index > 1) {
-                $blockingRoundIds = Round::query()
-                    ->where('competition_id', $tournament->competition_id)
-                    ->where('season_id', $tournament->season_id)
-                    ->where('stage', '!=', RoundStage::Group->value)
-                    ->where('order_index', '<', $round->order_index)
-                    ->pluck('id');
+            if (! $round) {
+                return;
+            }
 
-                if ($blockingRoundIds->isNotEmpty() && ! $this->allClosed(
-                    Fixture::query()->whereIn('round_id', $blockingRoundIds->all())->get(['id', 'match_id', 'status'])
-                )) {
-                    throw new DomainException('أكمل جميع مباريات الدور السابق قبل تسجيل نتيجة هذا الدور');
+            if (! $fixture->home_team_id || ! $fixture->away_team_id) {
+                throw new DomainException('لا يمكن تسجيل نتيجة مباراة إقصائية بدون تحديد الفريقين');
+            }
+
+            $firstKnockoutRoundId = Round::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->where('stage', '!=', RoundStage::Group)
+                ->orderBy('order_index')
+                ->value('id');
+
+            if ($firstKnockoutRoundId && (int) $round->id === (int) $firstKnockoutRoundId) {
+                if ($tournament->tournament_format === 'groups_knockout' && ! $this->setup->groupStageComplete($tournament)) {
+                    throw new DomainException('أكمل جميع مباريات دور المجموعات قبل تسجيل نتائج الأدوار الإقصائية');
                 }
+
+                return;
+            }
+
+            if ($fixture->source_home_fixture_id && $fixture->source_away_fixture_id) {
+                $sources = Fixture::query()
+                    ->with('match')
+                    ->whereKey([$fixture->source_home_fixture_id, $fixture->source_away_fixture_id])
+                    ->get();
+
+                foreach ($sources as $source) {
+                    if (! $source->match?->winner_team_id) {
+                        throw new DomainException('لا يمكن تسجيل نتيجة هذا الدور قبل انتهاء المباريات المؤهلة له');
+                    }
+                }
+
+                return;
+            }
+
+            $blockingRoundIds = Round::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->where('stage', '!=', RoundStage::Group)
+                ->where('order_index', '<', $round->order_index)
+                ->pluck('id');
+
+            if ($blockingRoundIds->isNotEmpty() && ! $this->allClosed(
+                Fixture::query()->whereIn('round_id', $blockingRoundIds->all())->get(['id', 'match_id', 'status'])
+            )) {
+                throw new DomainException('أكمل جميع مباريات الدور السابق قبل تسجيل نتيجة هذا الدور');
             }
 
             return;
@@ -737,7 +911,7 @@ class TournamentResultService
     private function applyStandings(Fixture $fixture, Tournament $tournament): void
     {
         if ($this->isKnockout($fixture)) {
-            $this->bracket->advance($fixture, $tournament);
+            $this->bracket->progress($fixture, $tournament);
 
             if ($fixture->round?->stage === RoundStage::Final) {
                 $winner = $fixture->match?->winner_team_id;
@@ -941,6 +1115,10 @@ class TournamentResultService
             if ($this->playerRedCarded($fixture, $playerId, $minute, $ignoredEventId)) {
                 throw new DomainException('لا يمكن إضافة أحداث للاعب المطرود في هذه المباراة');
             }
+
+            if ($this->suspensions->playerIsSuspended($fixture, $playerId)) {
+                throw new DomainException('لا يمكن تسجيل أحداث للاعب الموقوف في هذه المباراة');
+            }
         }
 
         if ($assistPlayerId !== null) {
@@ -950,6 +1128,10 @@ class TournamentResultService
 
             if (! Player::query()->whereKey($assistPlayerId)->where('team_id', $teamId)->exists()) {
                 throw new DomainException('اللاعب المساعد لا ينتمي إلى الفريق المختار');
+            }
+
+            if ($this->suspensions->playerIsSuspended($fixture, $assistPlayerId)) {
+                throw new DomainException('لا يمكن تسجيل أحداث للاعب الموقوف في هذه المباراة');
             }
 
             if ($playerId !== null && $assistPlayerId === $playerId) {
@@ -978,7 +1160,7 @@ class TournamentResultService
         return MatchEvent::query()
             ->where('match_id', $fixture->match_id)
             ->where('player_id', $playerId)
-            ->where('type', MatchEventType::RedCard->value)
+            ->whereIn('type', [MatchEventType::RedCard->value, MatchEventType::SecondYellow->value])
             ->where('minute', '<=', $minute)
             ->when($ignoredEventId, fn ($query) => $query->where('id', '!=', $ignoredEventId))
             ->exists();

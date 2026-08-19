@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Inbox } from 'lucide-react'
 import { cn, Button, EmptyState, Pagination, TableSkeleton } from './ui'
 
@@ -12,7 +13,7 @@ export default function DataTable({
   onTabChange,
   search = '',
   onSearch,
-  searchPlaceholder = 'بحث...',
+  searchPlaceholder = '',
   sortKey,
   sortDir,
   onSort,
@@ -27,10 +28,11 @@ export default function DataTable({
   bulkActions = [],
   onBulk,
   onRowClick,
-  emptyTitle = 'لا توجد نتائج',
-  emptyDescription = 'جرّب تعديل البحث أو الفلاتر.',
+  emptyTitle = '',
+  emptyDescription = '',
   toolbar,
 }) {
+  const { t } = useTranslation()
   const [term, setTerm] = useState(search)
 
   useEffect(() => {
@@ -124,7 +126,8 @@ export default function DataTable({
                 <input
                   value={term}
                   onChange={(e) => setTerm(e.target.value)}
-                  placeholder={searchPlaceholder}
+                  placeholder={searchPlaceholder || t('admin.table.search')}
+                  aria-label={searchPlaceholder || t('admin.table.search')}
                   className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50/60 ps-10 pe-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500/60 focus:bg-white focus:ring-4 focus:ring-green-500/10 sm:w-64"
                 />
               </div>
@@ -135,7 +138,7 @@ export default function DataTable({
         {selectable && selected.length > 0 && (
           <div className="fade-in flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-900 px-4 py-3">
             <p className="text-xs font-bold text-white">
-              تم تحديد {selected.length} عنصر
+              {t('admin.table.selectedCount', { count: selected.length })}
             </p>
             <div className="flex flex-wrap gap-2">
               {bulkActions.map((a) => (
@@ -149,7 +152,7 @@ export default function DataTable({
                 </Button>
               ))}
               <Button size="sm" variant="ghost" className="!text-slate-300 hover:!bg-white/10" onClick={() => onSelectedChange?.([])}>
-                إلغاء التحديد
+                {t('admin.table.clearSelection')}
               </Button>
             </div>
           </div>
@@ -161,7 +164,11 @@ export default function DataTable({
           <TableSkeleton rows={6} columns={columns.length} />
         </div>
       ) : rows.length === 0 ? (
-        <EmptyState title={emptyTitle} description={emptyDescription} icon={Inbox} />
+        <EmptyState
+          title={emptyTitle || t('admin.table.empty')}
+          description={emptyDescription || t('admin.table.emptyDesc')}
+          icon={Inbox}
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-start">
@@ -195,6 +202,13 @@ export default function DataTable({
                   <tr
                     key={id}
                     onClick={() => onRowClick?.(row)}
+                    onKeyDown={(e) => {
+                      if (onRowClick && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault()
+                        onRowClick(row)
+                      }
+                    }}
+                    tabIndex={onRowClick ? 0 : undefined}
                     className={cn(
                       'border-b border-slate-50 transition-colors last:border-0',
                       onRowClick ? 'cursor-pointer hover:bg-green-50/40' : '',

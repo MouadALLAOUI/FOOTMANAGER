@@ -15,19 +15,29 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+const AUTH_REDIRECT_KEY = 'auth_redirect';
+
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    const isAuthCall = error.config?.url?.includes('/login') || error.config?.url?.includes('/register');
+    const url = error.config?.url || '';
+    const isAuthCall = url.includes('/login') || url.includes('/register');
     if (error.response?.status === 401 && !isAuthCall) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
       if (!window.location.pathname.startsWith('/login')) {
+        sessionStorage.setItem(AUTH_REDIRECT_KEY, window.location.pathname + window.location.search);
         window.location.href = '/login';
       }
     }
     return Promise.reject(error);
   },
 );
+
+export function takeAuthRedirect() {
+  const target = sessionStorage.getItem(AUTH_REDIRECT_KEY);
+  if (target) sessionStorage.removeItem(AUTH_REDIRECT_KEY);
+  return target;
+}
 
 export default api;

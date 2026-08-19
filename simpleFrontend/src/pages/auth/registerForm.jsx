@@ -98,7 +98,7 @@ export default function RegisterForm() {
           onClick={() => setRole(null)}
           className="flex items-center gap-2 text-sm font-semibold text-slate-400 transition-colors hover:text-green-600"
         >
-          <FontAwesomeIcon icon={faArrowRight} className="size-3.5" />
+          <FontAwesomeIcon icon={faArrowRight} className="size-3.5 ltr:rotate-180" />
           {t('auth.roles.back')}
         </button>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1.5 text-xs font-bold text-green-700 ring-1 ring-green-100">

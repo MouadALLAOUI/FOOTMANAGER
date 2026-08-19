@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faFutbol, faRightToBracket, faUserPlus } from '@fortawesome/free-solid-svg-icons'
@@ -33,7 +33,7 @@ export default function AuthPage({ initialTab = 'login' }) {
     <div className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-5">
       <PromoPanel />
 
-      <main className="relative flex flex-col overflow-hidden bg-slate-50 lg:order-1 lg:col-span-3">
+      <main id="main-content" className="relative flex flex-col overflow-hidden bg-slate-50 lg:order-1 lg:col-span-3">
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div className="absolute -top-28 end-[-140px] size-[460px] rounded-full bg-green-500/10 blur-[130px]" />
           <div className="absolute bottom-[-180px] start-[-120px] size-[420px] rounded-full bg-emerald-400/10 blur-[120px]" />
@@ -97,12 +97,12 @@ export default function AuthPage({ initialTab = 'login' }) {
 
             <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">
               {t('auth.footerNote.prefix')}{' '}
-              <a
-                href="#"
+              <Link
+                to="/terms"
                 className="font-bold text-slate-600 transition-colors hover:text-green-600 hover:underline hover:underline-offset-4"
               >
                 {t('auth.footerNote.terms')}
-              </a>{' '}
+              </Link>{' '}
               {t('auth.footerNote.and')}{' '}
               <a
                 href="#"

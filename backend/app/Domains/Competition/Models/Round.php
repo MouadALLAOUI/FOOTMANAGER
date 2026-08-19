@@ -9,12 +9,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Round extends Model
 {
+    public const STATUS_LOCKED = 'locked';
+
+    public const STATUS_AVAILABLE = 'available';
+
+    public const STATUS_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_COMPLETED = 'completed';
+
     protected $fillable = [
         'competition_id',
         'season_id',
         'name',
         'stage',
         'order_index',
+        'status',
     ];
 
     protected function casts(): array

@@ -4,6 +4,9 @@ namespace App\Models;
 
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Player\Models\Player;
+use App\Domains\Subscription\Enums\SubscriptionStatus;
+use App\Domains\Subscription\Models\Plan;
+use App\Domains\Subscription\Models\Subscription;
 use App\Domains\Player\Models\PlayerAchievement;
 use App\Domains\Player\Models\PlayerAvailabilitySlot;
 use App\Domains\Player\Models\PlayerGalleryImage;
@@ -14,19 +17,23 @@ use App\Domains\Player\Models\PlayerTeamHistory;
 use App\Domains\Player\Models\PlayerTransfer;
 use App\Domains\Stadium\Models\Stadium;
 use App\Domains\Team\Models\Team;
+use App\Models\AccountRecovery;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'name',
@@ -36,6 +43,17 @@ class User extends Authenticatable
         'password',
         'role',
         'status',
+        'avatar_path',
+        'avatar_thumbnail_path',
+        'activity_locked',
+        'activity_lock_reason',
+        'activity_locked_by',
+        'activity_locked_at',
+    ];
+
+    protected $appends = [
+        'avatar_url',
+        'avatar_thumbnail_url',
     ];
 
     protected $hidden = [
@@ -49,6 +67,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_whatsapp' => 'boolean',
+            'activity_locked' => 'boolean',
+            'activity_locked_at' => 'datetime',
         ];
     }
 
@@ -57,9 +77,49 @@ class User extends Authenticatable
         return $date->format('Y-m-d\TH:i:s');
     }
 
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->resolveStorageUrl($this->avatar_path);
+    }
+
+    public function getAvatarThumbnailUrlAttribute(): ?string
+    {
+        return $this->resolveStorageUrl($this->avatar_thumbnail_path);
+    }
+
+    private function resolveStorageUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
+    }
+
     public function team(): HasOne
     {
         return $this->hasOne(Team::class, 'manager_id');
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    public function activeSubscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)
+            ->where('status', SubscriptionStatus::Active)
+            ->latestOfMany();
+    }
+
+    public function currentPlan(): ?Plan
+    {
+        return $this->activeSubscription?->plan ?? Plan::free();
     }
 
     public function rosterPlayer(): HasOne
@@ -122,6 +182,43 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    public function isSubAdmin(): bool
+    {
+        return $this->role === 'sub_admin';
+    }
+
+    public function hasAdminAccess(): bool
+    {
+        return $this->role === 'admin' || $this->role === 'sub_admin';
+    }
+
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'user_permissions');
+    }
+
+    public function hasPermission(string $slug): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        if (! $this->isSubAdmin()) {
+            return false;
+        }
+
+        return $this->permissions()->where('slug', $slug)->exists();
+    }
+
+    public function getPermissionSlugs(): array
+    {
+        if ($this->isAdmin()) {
+            return Permission::pluck('slug')->toArray();
+        }
+
+        return $this->permissions()->pluck('slug')->toArray();
+    }
+
     public function isTerrainOwner(): bool
     {
         return $this->role === 'terrain_owner';
@@ -159,5 +256,96 @@ class User extends Authenticatable
     public function isCommittee(): bool
     {
         return $this->role === 'committee';
+    }
+
+    public function recoveries(): HasMany
+    {
+        return $this->hasMany(AccountRecovery::class, 'user_id');
+    }
+
+    public function initiatedRecoveries(): HasMany
+    {
+        return $this->hasMany(AccountRecovery::class, 'admin_id');
+    }
+
+    public function lockedBy(): HasOne
+    {
+        return $this->hasOne(User::class, 'id', 'activity_locked_by');
+    }
+
+    public function isActivityLocked(): bool
+    {
+        return (bool) $this->activity_locked;
+    }
+
+    public function lockActivity(string $reason, int $adminId): void
+    {
+        $this->update([
+            'activity_locked' => true,
+            'activity_lock_reason' => $reason,
+            'activity_locked_by' => $adminId,
+            'activity_locked_at' => now(),
+        ]);
+    }
+
+    public function unlockActivity(): void
+    {
+        $this->update([
+            'activity_locked' => false,
+            'activity_lock_reason' => null,
+            'activity_locked_by' => null,
+            'activity_locked_at' => null,
+        ]);
+    }
+
+    /**
+     * Check if this user can be safely deleted by an admin.
+     *
+     * Deletion is blocked when the user owns active resources that
+     * cannot be orphaned without breaking business logic.
+     */
+    public function canBeDeleted(): array
+    {
+        $blockers = [];
+
+        if ($this->isManager()) {
+            $team = $this->team;
+            if ($team) {
+                $activeBookings = $team->terrainBookings()
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->count();
+                if ($activeBookings > 0) {
+                    $blockers[] = "الفريق لديه {$activeBookings} حجز(ות) نشطة";
+                }
+
+                $pendingMatches = $team->hostMatchRequests()
+                    ->whereIn('status', ['open', 'accepted', 'pending_score', 'pending_confirmation'])
+                    ->count();
+                $pendingMatches += $team->opponentMatchRequests()
+                    ->whereIn('status', ['open', 'accepted', 'pending_score', 'pending_confirmation'])
+                    ->count();
+                if ($pendingMatches > 0) {
+                    $blockers[] = "الفريق لديه {$pendingMatches} مباراة(ات) نشطة";
+                }
+            }
+        }
+
+        if ($this->isTerrainOwner()) {
+            $activeBookings = $this->terrainBookings()
+                ->whereIn('status', ['pending', 'approved'])
+                ->count();
+            if ($activeBookings > 0) {
+                $blockers[] = "لديك {$activeBookings} حجز(ات) نشطة على أراضيك";
+            }
+        }
+
+        if ($this->isPlayer()) {
+            $activeTeam = $this->rosterPlayer()->where('status', 'active')->first();
+            if ($activeTeam) {
+                $blockers[] = 'أنت عضو نشط في فريق';
+            }
+        }
+
+        return $blockers;
     }
 }

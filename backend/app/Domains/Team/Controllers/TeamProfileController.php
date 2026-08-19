@@ -40,7 +40,7 @@ class TeamProfileController extends Controller
 
         return response()->json([
             'message' => 'تم تحديث بيانات الفريق بنجاح!',
-            'team' => new TeamResource($this->service->update($team, $validated)),
+            'team' => new TeamResource($this->service->update($request->user(), $team, $validated)),
         ]);
     }
 

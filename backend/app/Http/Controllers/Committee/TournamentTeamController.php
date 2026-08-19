@@ -33,26 +33,47 @@ class TournamentTeamController extends Controller
         return TournamentTeamResource::collection($teams);
     }
 
+    public function registrations(Tournament $tournament): AnonymousResourceCollection
+    {
+        $this->authorize('view', $tournament);
+
+        $registrations = $tournament->allRegistrations()
+            ->with(['team', 'group'])
+            ->latest()
+            ->get();
+
+        return TournamentTeamResource::collection($registrations);
+    }
+
     public function store(AddTournamentTeamsRequest $request, Tournament $tournament): AnonymousResourceCollection
     {
         $this->authorize('manage', $tournament);
 
         $this->assertEditable($tournament);
 
-        DB::transaction(function () use ($request, $tournament) {
-            foreach ($request->input('team_ids') as $teamId) {
-                TournamentTeam::query()->firstOrCreate(
-                    ['tournament_id' => $tournament->id, 'team_id' => $teamId],
-                    ['status' => TournamentTeam::STATUS_REGISTERED],
-                );
+        $teamIds = array_map('intval', $request->input('team_ids'));
+
+        DB::transaction(function () use ($tournament, $teamIds) {
+            $tournament = Tournament::query()->lockForUpdate()->findOrFail($tournament->id);
+
+            $existing = $tournament->allRegistrations()
+                ->whereIn('team_id', $teamIds)
+                ->pluck('team_id');
+
+            $newIds = array_values(array_diff($teamIds, $existing->all()));
+
+            $this->assertCapacity($tournament, count($newIds));
+
+            foreach ($newIds as $teamId) {
+                TournamentTeam::query()->create([
+                    'tournament_id' => $tournament->id,
+                    'team_id' => $teamId,
+                    'status' => TournamentTeam::STATUS_REGISTERED,
+                ]);
             }
         });
 
-        $teams = $tournament->tournamentTeams()
-            ->with(['team', 'group'])
-            ->get();
-
-        return TournamentTeamResource::collection($teams);
+        return $this->teamCollection($tournament);
     }
 
     public function storeFree(CreateFreeTeamRequest $request, Tournament $tournament): AnonymousResourceCollection
@@ -61,21 +82,92 @@ class TournamentTeamController extends Controller
 
         $this->assertEditable($tournament);
 
-        $team = Team::query()->create([
-            'name' => $request->input('name'),
-            'is_free' => true,
-        ]);
+        DB::transaction(function () use ($request, $tournament) {
+            $tournament = Tournament::query()->lockForUpdate()->findOrFail($tournament->id);
 
-        TournamentTeam::query()->firstOrCreate(
-            ['tournament_id' => $tournament->id, 'team_id' => $team->id],
-            ['status' => TournamentTeam::STATUS_REGISTERED],
+            $this->assertCapacity($tournament, 1);
+
+            $team = Team::query()->create([
+                'name' => $request->input('name'),
+                'is_free' => true,
+            ]);
+
+            TournamentTeam::query()->create([
+                'tournament_id' => $tournament->id,
+                'team_id' => $team->id,
+                'status' => TournamentTeam::STATUS_REGISTERED,
+            ]);
+        });
+
+        return $this->teamCollection($tournament);
+    }
+
+    public function approve(Tournament $tournament, int $teamId): AnonymousResourceCollection
+    {
+        $this->authorize('manage', $tournament);
+
+        DB::transaction(function () use ($tournament, $teamId) {
+            $tournament = Tournament::query()->lockForUpdate()->findOrFail($tournament->id);
+
+            $registration = $this->findRegistration($tournament, $teamId, TournamentTeam::STATUS_PENDING);
+
+            $this->assertCapacity($tournament, 1);
+
+            $registration->forceFill(['status' => TournamentTeam::STATUS_REGISTERED])->save();
+        });
+
+        return $this->teamCollection($tournament);
+    }
+
+    public function reject(Tournament $tournament, int $teamId): AnonymousResourceCollection
+    {
+        $this->authorize('manage', $tournament);
+
+        $registration = $this->findRegistration($tournament, $teamId, TournamentTeam::STATUS_PENDING);
+
+        $registration->forceFill(['status' => TournamentTeam::STATUS_REJECTED])->save();
+
+        return $this->teamCollection($tournament);
+    }
+
+    public function markPaid(Tournament $tournament, int $teamId): AnonymousResourceCollection
+    {
+        $this->authorize('manage', $tournament);
+
+        $registration = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('team_id', $teamId)
+            ->first();
+
+        if (! $registration || $registration->payment_status !== TournamentTeam::PAYMENT_PENDING) {
+            throw new DomainException('لا يوجد دفع معلق لهذا الفريق');
+        }
+
+        $registration->forceFill(['payment_status' => TournamentTeam::PAYMENT_COMPLETED])->save();
+
+        return $this->teamCollection($tournament);
+    }
+
+    private function findRegistration(Tournament $tournament, int $teamId, string $status): TournamentTeam
+    {
+        $registration = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('team_id', $teamId)
+            ->where('status', $status)
+            ->first();
+
+        if (! $registration) {
+            throw new DomainException('لا يوجد طلب تسجيل بهذه الحالة');
+        }
+
+        return $registration;
+    }
+
+    private function teamCollection(Tournament $tournament): AnonymousResourceCollection
+    {
+        return TournamentTeamResource::collection(
+            $tournament->tournamentTeams()->with(['team', 'group'])->get(),
         );
-
-        $teams = $tournament->tournamentTeams()
-            ->with(['team', 'group'])
-            ->get();
-
-        return TournamentTeamResource::collection($teams);
     }
 
     public function assignGroup(MoveTournamentTeamsRequest $request, Tournament $tournament): AnonymousResourceCollection
@@ -169,7 +261,7 @@ class TournamentTeamController extends Controller
 
     private function assertEditable(Tournament $tournament): void
     {
-        if (! in_array($tournament->status, ['draft', 'published'], true)) {
+        if (! $tournament->isEditable()) {
             throw new DomainException('لا يمكن تعديل الفرق بعد انطلاق البطولة');
         }
 
@@ -181,6 +273,21 @@ class TournamentTeamController extends Controller
 
         if ($groupFixtures > 0) {
             throw new DomainException('لا يمكن تعديل الفرق بعد إنشاء برنامج المباريات');
+        }
+    }
+
+    private function assertCapacity(Tournament $tournament, int $additional): void
+    {
+        if ($tournament->teams_count <= 0) {
+            return;
+        }
+
+        $registered = $tournament->registeredTeamsCount();
+
+        if ($registered + $additional > $tournament->teams_count) {
+            throw new DomainException(
+                "تجاوزت سعة البطولة: المسجل {$registered} من أصل {$tournament->teams_count}",
+            );
         }
     }
 }

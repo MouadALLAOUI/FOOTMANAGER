@@ -24,27 +24,43 @@ class NotificationController extends Controller
 
         $query = AppNotification::where('user_id', $user->id);
 
-        $type = $request->query('filter');
-        if ($type === 'unread') {
+        $filter = $request->query('filter');
+        if ($filter === 'unread') {
             $query->where('is_read', false);
-        } elseif ($type === 'important') {
+        } elseif ($filter === 'read') {
+            $query->where('is_read', true);
+        } elseif ($filter === 'important') {
             $query->where('is_important', true);
-        } elseif ($type === 'pinned') {
+        } elseif ($filter === 'pinned') {
             $query->where('is_pinned', true);
+        }
+
+        $category = $request->query('category');
+        if ($category && in_array($category, NotificationService::categories(), true)) {
+            $query->whereIn('type', NotificationService::typesInCategory($category));
         }
 
         $notifications = $query->orderBy('is_pinned', 'desc')
             ->orderBy('created_at', 'desc')
             ->paginate(20);
 
+        $items = array_map(
+            fn (AppNotification $notification): array => array_merge(
+                $notification->toArray(),
+                ['category' => NotificationService::categoryOf($notification->type)],
+            ),
+            $notifications->items(),
+        );
+
         $unreadCount = AppNotification::where('user_id', $user->id)
             ->where('is_read', false)
             ->count();
 
         return response()->json([
-            'notifications' => $notifications->items(),
+            'notifications' => $items,
             'unread_count' => $unreadCount,
             'has_more' => $notifications->hasMorePages(),
+            'categories' => NotificationService::categories(),
         ]);
     }
 
@@ -108,6 +124,7 @@ class NotificationController extends Controller
     {
         return response()->json([
             'preferences' => $this->preferences->get($request->user()),
+            'meta' => $this->preferences->meta(),
         ]);
     }
 
@@ -128,13 +145,20 @@ class NotificationController extends Controller
 
         $query = AppNotification::where('user_id', $user->id);
 
-        $type = $request->query('filter');
-        if ($type === 'unread') {
+        $filter = $request->query('filter');
+        if ($filter === 'unread') {
             $query->where('is_read', false);
-        } elseif ($type === 'important') {
+        } elseif ($filter === 'read') {
+            $query->where('is_read', true);
+        } elseif ($filter === 'important') {
             $query->where('is_important', true);
-        } elseif ($type === 'pinned') {
+        } elseif ($filter === 'pinned') {
             $query->where('is_pinned', true);
+        }
+
+        $category = $request->query('category');
+        if ($category && in_array($category, NotificationService::categories(), true)) {
+            $query->whereIn('type', NotificationService::typesInCategory($category));
         }
 
         $notifications = $query->orderBy('is_pinned', 'desc')

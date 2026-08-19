@@ -62,6 +62,7 @@ export default function NotificationsPanel() {
           <button
             type="button"
             onClick={() => setNotifOpen(false)}
+            aria-label={t('common.close')}
             className="grid size-9 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="size-4" />

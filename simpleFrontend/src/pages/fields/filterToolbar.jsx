@@ -130,7 +130,7 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="btn-ripple fixed bottom-6 start-1/2 z-40 flex h-14 -translate-x-1/2 items-center gap-2.5 rounded-2xl bg-green-500 px-7 text-base font-bold text-white shadow-[0_18px_45px_rgba(22,163,74,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-green-600 active:translate-x-[-50%] active:translate-y-0 md:hidden"
+        className="btn-ripple fixed bottom-6 start-1/2 z-40 flex h-14 -translate-x-1/2 items-center gap-2.5 rounded-2xl bg-green-500 px-7 text-base font-bold text-white shadow-[0_18px_45px_rgba(22,163,74,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-green-600 active:translate-x-[-50%] active:translate-y-0 md:hidden rtl:translate-x-1/2"
       >
         <FontAwesomeIcon icon={faSliders} className="size-5" />
         {t('fieldsPage.filtersButton')}
@@ -167,6 +167,7 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
+                  aria-label={t('common.close')}
                   className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:rotate-90 hover:text-slate-900"
                 >
                   <FontAwesomeIcon icon={faXmark} className="size-5" />

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import api from '../../api/client'
 import { useToast } from '../ui/Toast'
 import { Modal, Field, Button, inputClass } from '../dashboard/ui'
+import { getApiErrorMessage } from '../../lib/errors'
 
 const DURATIONS = [60, 90, 120]
 
@@ -122,12 +123,12 @@ export default function BookingModal({ open, onClose, field, onSaved }) {
       onSaved?.()
       onClose()
     } catch (e) {
-      const message = e.response?.data?.message
-      if (message) {
-        toast.error(message)
+      const msg = getApiErrorMessage(e, t, t('publicActions.bookingError'))
+      if (e.response?.data?.message) {
+        toast.error(msg)
         loadSlots(date)
       } else {
-        setSubmitError(t('publicActions.bookingError'))
+        setSubmitError(msg)
       }
     } finally {
       setBusy(false)

@@ -3,10 +3,13 @@ import { CalendarCheck, CircleDollarSign, Clock, History, Search, Swords } from 
 import { Button, Empty, SectionTitle, SkeletonCards, StatusBadge } from '../../../components/dashboard/ui'
 import { queryClient } from '../../../api/queryClient'
 import { useToast } from '../../../components/ui/Toast'
+import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import { OwnerBookingCard } from '../components/OwnerBookingCard'
 import BookingDrawer from '../components/BookingDrawer'
 import { fetchTerrainBookings } from '../components/bookingsData'
 import { useOwnerTerrains, useOwnerBookings } from '../../../api/queries'
+import { mapHttpError } from '../../../lib/errorState'
+import { SectionError } from '../../../components/errors'
 
 const segments = [
   { key: 'bookings', label: 'حجوزات المواعيد' },
@@ -31,7 +34,8 @@ function formatDate(str) {
 export default function Bookings() {
   const { toast } = useToast()
   const { data: terrainsData, isLoading: terrainsLoading, refetch: refetchTerrains } = useOwnerTerrains()
-  const { data: bookingsData, isLoading: bookingsLoading, refetch: refetchBookings } = useOwnerBookings()
+  const { data: bookingsData, isLoading: bookingsLoading, error: bookingsError, refetch: refetchBookings } = useOwnerBookings()
+  const bookingsErrorState = bookingsError ? mapHttpError(bookingsError) : null
   const terrains = terrainsData?.terrains || []
   const matchRequests = bookingsData?.bookings || []
 
@@ -79,7 +83,7 @@ export default function Bookings() {
     }
     if (query) {
       const q = query.trim()
-      const hay = [b.team?.name, b.manager?.name, b.terrain?.name, b.date, b.start_time].filter(Boolean).join(' ').toLowerCase()
+      const hay = [b.guest_name, b.team?.name, b.manager?.name, b.terrain?.name, b.date, b.start_time].filter(Boolean).join(' ').toLowerCase()
       if (!hay.includes(q.toLowerCase())) return false
     }
     return true
@@ -105,8 +109,10 @@ export default function Bookings() {
       refetchBookings()
       refetchTerrains()
       if (wa) window.open(wa, '_blank')
+      return true
     } catch (e) {
       toast.error(e.response?.data?.message || 'تعذرت العملية')
+      return false
     } finally {
       setBusy(false)
     }
@@ -114,6 +120,16 @@ export default function Bookings() {
 
   const approve = (b) => act(() => api.put(`/owner/bookings/${b.id}/approve`), 'تم قبول الحجز')
   const reject = (b) => act(() => api.put(`/owner/bookings/${b.id}/reject`), 'تم رفض الحجز')
+
+  const confirm = useConfirm()
+  const confirmReject = (b) => {
+    if (!b) return
+    confirm.run(() => reject(b), {
+      title: 'رفض الحجز؟',
+      description: `سيتم رفض حجز «${b.title || b.team?.name || 'الحجز'}».`,
+      confirmLabel: 'رفض الحجز',
+    })
+  }
 
   const stats = [
     { label: 'في الانتظار', value: counts.pending || 0, icon: Clock, color: 'bg-amber-50 text-amber-600' },
@@ -165,6 +181,7 @@ export default function Bookings() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="ابحث عن فريق أو مسير أو ملعب…"
+                aria-label="ابحث عن فريق أو مسير أو ملعب"
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white ps-11 pe-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
               />
               <Search className="absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -206,7 +223,9 @@ export default function Bookings() {
             </button>
           </div>
 
-          {(terrainsLoading || bookingsLoading) || !bookingsData ? (
+          {bookingsErrorState ? (
+            <SectionError state={bookingsErrorState} onRetry={refetchBookings} />
+          ) : (terrainsLoading || bookingsLoading) || !bookingsData ? (
             <SkeletonCards count={4} />
           ) : filtered.length === 0 ? (
             <Empty
@@ -231,7 +250,7 @@ export default function Bookings() {
                   booking={b}
                   terrainName={b.terrain?.name}
                   onView={() => setSelected(b)}
-                  onDecide={(v) => (v === 'approved' ? approve(b) : reject(b))}
+                  onDecide={(v) => (v === 'approved' ? approve(b) : confirmReject(b))}
                 />
               ))}
             </div>
@@ -282,9 +301,21 @@ export default function Bookings() {
         booking={selected}
         onClose={() => setSelected(null)}
         onApprove={() => approve(selected)}
-        onReject={() => reject(selected)}
+        onReject={() => confirmReject(selected)}
         busy={busy}
         variant="modal"
+      />
+
+      <ConfirmDialog
+        open={confirm.open}
+        loading={confirm.loading}
+        title={confirm.options.title}
+        description={confirm.options.description}
+        confirmLabel={confirm.options.confirmLabel}
+        cancelLabel={confirm.options.cancelLabel}
+        tone={confirm.options.tone}
+        onConfirm={confirm.confirm}
+        onClose={confirm.close}
       />
     </div>
   )

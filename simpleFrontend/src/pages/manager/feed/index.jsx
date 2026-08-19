@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
-  ArrowRight,
   CalendarDays,
   CheckCircle2,
   Radar,
@@ -13,8 +12,9 @@ import {
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
+import { SectionError } from '../../../components/errors'
 import { useStadiums } from '../../../api/queries'
-import { Button, Field, Modal, SectionTitle, SkeletonCards, selectClass } from '../../../components/dashboard/ui'
+import { Button, Empty, Field, Modal, Pagination, SectionTitle, SkeletonCards, selectClass } from '../../../components/dashboard/ui'
 import { ManagerContact, MatchCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
 import NeedPlayersField from '../../../components/NeedPlayersField'
@@ -58,12 +58,14 @@ function FilterBar({ onApply }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ابحث عن فريق أو ملعب…"
+            aria-label="ابحث عن فريق أو ملعب"
             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pe-4 ps-10 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
           />
           {search && (
             <button
               type="button"
               onClick={() => setSearch('')}
+              aria-label="مسح البحث"
               className="absolute end-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-slate-200 text-slate-500"
             >
               <X className="size-3" />
@@ -279,7 +281,7 @@ function AcceptModal({ match, onClose, onDone }) {
 
 export default function Feed() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const { data, loading, refetch } = useApi(() => {
+  const { data, loading, errorState, refetch } = useApi(() => {
     const params = new URLSearchParams(searchParams)
     params.set('per_page', '20')
     return api.get(`/manager/match-feed?${params}`).then((r) => r.data)
@@ -291,18 +293,13 @@ export default function Feed() {
   const total = data?.total || 0
   const currentPage = data?.current_page || 1
   const lastPage = data?.last_page || 1
+  const perPage = data?.per_page || 20
 
   const page = (p) => {
     const next = new URLSearchParams(searchParams)
     next.set('page', String(p))
     setSearchParams(next)
   }
-
-  const pages = useMemo(() => {
-    const arr = []
-    for (let i = 1; i <= lastPage; i++) arr.push(i)
-    return arr
-  }, [lastPage])
 
   return (
     <div>
@@ -323,24 +320,26 @@ export default function Feed() {
         </p>
       </div>
 
-      {loading ? (
+      {errorState ? (
+        <div className="mt-5">
+          <SectionError state={errorState} onRetry={refetch} />
+        </div>
+      ) : loading ? (
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <SkeletonCards count={4} />
         </div>
       ) : matches.length === 0 ? (
-        <div className="mt-5 rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
-          <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300">
-            <Radar className="size-7" strokeWidth={1.6} />
-          </span>
-          <p className="mt-4 text-sm font-bold text-slate-700">لا توجد مباريات متاحة</p>
-          <p className="mt-1 text-xs text-slate-400">عدّل الفلاتر أو عد لاحقًا — يمكنك أيضًا نشر طلب مباراة بنفسك</p>
-          <Button
-            className="mt-5"
-            size="sm"
-            onClick={() => window.location.assign('/dashboard/matches?new=1')}
-          >
-            انشر طلب مباراة
-          </Button>
+        <div className="mt-5">
+          <Empty
+            icon={Radar}
+            title="لا توجد مباريات متاحة"
+            description="عدّل الفلاتر أو عد لاحقًا — يمكنك أيضًا نشر طلب مباراة بنفسك"
+            action={
+              <Button size="sm" onClick={() => window.location.assign('/dashboard/matches?new=1')}>
+                انشر طلب مباراة
+              </Button>
+            }
+          />
         </div>
       ) : (
         <>
@@ -360,28 +359,14 @@ export default function Feed() {
           </div>
 
           {lastPage > 1 && (
-            <div className="mt-8 flex items-center justify-center gap-2">
-              <Button variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => page(currentPage - 1)}>
-                <ArrowRight className="size-3.5 rtl:rotate-180" />
-                السابق
-              </Button>
-              {pages.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => page(p)}
-                  className={`grid size-9 place-items-center rounded-xl text-xs font-bold transition-all ${
-                    p === currentPage ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-              <Button variant="outline" size="sm" disabled={currentPage >= lastPage} onClick={() => page(currentPage + 1)}>
-                التالي
-                <ArrowLeft className="size-3.5 rtl:rotate-180" />
-              </Button>
-            </div>
+            <Pagination
+              bare
+              page={currentPage}
+              lastPage={lastPage}
+              total={total}
+              perPage={perPage}
+              onChange={page}
+            />
           )}
         </>
       )}

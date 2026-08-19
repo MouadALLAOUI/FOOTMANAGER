@@ -12,7 +12,7 @@ export default function Pending() {
     if (!user) {
       navigate('/login', { replace: true })
     } else if (user.status === 'approved') {
-      const dest = user.role === 'admin' ? '/admin'
+      const dest = user.role === 'admin' || user.role === 'sub_admin' ? '/admin'
         : user.role === 'terrain_owner' ? '/terrain'
         : user.role === 'player' ? '/player'
         : user.role === 'committee' ? '/committee'

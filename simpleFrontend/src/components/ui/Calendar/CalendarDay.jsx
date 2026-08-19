@@ -1,4 +1,7 @@
+import { useTranslation } from 'react-i18next'
+
 export default function CalendarDay({ day, onSelect }) {
+  const { t } = useTranslation()
   const { dayName, dayNumber, isToday, isSelected, isClosed } = day
 
   return (
@@ -25,7 +28,7 @@ export default function CalendarDay({ day, onSelect }) {
         {dayNumber}
       </button>
       {isClosed ? (
-        <span className="mt-1 text-[9px] font-bold text-rose-400">مغلق</span>
+        <span className="mt-1 text-[9px] font-bold text-rose-400">{t('terrain.calendar.closed')}</span>
       ) : (
         <span className="mt-1 h-3" />
       )}

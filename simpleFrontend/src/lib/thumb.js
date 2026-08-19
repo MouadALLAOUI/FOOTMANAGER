@@ -15,6 +15,10 @@ export function photoThumb(profile, fallback = '') {
   return thumb(profile, 'photo_url', fallback) || thumb(profile, 'avatar_url', fallback);
 }
 
+export function avatarThumb(user, fallback = '') {
+  return thumb(user, 'avatar_url', fallback);
+}
+
 export function coverThumb(record, fallback = '') {
   if (!record) return fallback || '';
   return record.cover_thumbnail_url || record.cover_image_url || fallback || '';

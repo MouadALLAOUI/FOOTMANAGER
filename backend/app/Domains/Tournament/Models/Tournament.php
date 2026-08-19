@@ -15,10 +15,40 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Tournament extends Model
 {
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_OPEN_FOR_REGISTRATION = 'open_for_registration';
+
+    public const STATUS_REGISTRATION_CLOSED = 'registration_closed';
+
+    public const STATUS_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
+    public const CARD_ACCUMULATION_DISABLED = 'disabled';
+
+    public const CARD_ACCUMULATION_GROUP = 'group';
+
+    public const CARD_ACCUMULATION_TOURNAMENT = 'tournament';
+
+    /**
+     * Statuses during which the draw and team list are still editable.
+     *
+     * @var array<int, string>
+     */
+    public const STATUSES_EDITABLE = [
+        self::STATUS_DRAFT,
+        self::STATUS_OPEN_FOR_REGISTRATION,
+        self::STATUS_REGISTRATION_CLOSED,
+    ];
+
     protected $fillable = [
         'uuid',
         'organizer_id',
@@ -30,10 +60,17 @@ class Tournament extends Model
         'edition',
         'category',
         'description',
+        'rules',
         'logo_path',
+        'cover_path',
+        'primary_color',
+        'secondary_color',
         'location',
         'start_date',
         'end_date',
+        'registration_start_at',
+        'registration_end_at',
+        'registration_fee',
         'status',
         'tournament_format',
         'teams_count',
@@ -49,9 +86,17 @@ class Tournament extends Model
         'points_for_loss',
         'qualification_rules',
         'tiebreaker_rules',
+        'card_accumulation',
         'published_at',
         'draw_confirmed_at',
         'plan',
+        'contact_phone',
+        'contact_email',
+        'whatsapp_number',
+        'facebook_url',
+        'instagram_url',
+        'tiktok_url',
+        'youtube_url',
     ];
 
     protected function casts(): array
@@ -60,6 +105,9 @@ class Tournament extends Model
             'uuid' => 'string',
             'start_date' => 'date',
             'end_date' => 'date',
+            'registration_start_at' => 'datetime',
+            'registration_end_at' => 'datetime',
+            'registration_fee' => 'decimal:2',
             'teams_count' => 'integer',
             'groups_count' => 'integer',
             'teams_per_group' => 'integer',
@@ -110,6 +158,16 @@ class Tournament extends Model
         return $this->hasMany(TournamentTeam::class)->where('status', TournamentTeam::STATUS_REGISTERED)->orderBy('group_id')->orderBy('group_position');
     }
 
+    public function allRegistrations(): HasMany
+    {
+        return $this->hasMany(TournamentTeam::class);
+    }
+
+    public function pendingRegistrations(): HasMany
+    {
+        return $this->hasMany(TournamentTeam::class)->where('status', TournamentTeam::STATUS_PENDING);
+    }
+
     public function teams(): BelongsToMany
     {
         return $this->belongsToMany(Team::class, 'tournament_teams')
@@ -149,8 +207,126 @@ class Tournament extends Model
         return $this->hasMany(FootballMatch::class, 'competition_id', 'competition_id');
     }
 
+    public function news(): HasMany
+    {
+        return $this->hasMany(TournamentNews::class, 'tournament_id');
+    }
+
+    public function galleryImages(): HasMany
+    {
+        return $this->hasMany(TournamentGalleryImage::class, 'tournament_id');
+    }
+
+    public function sponsors(): HasMany
+    {
+        return $this->hasMany(TournamentSponsor::class, 'tournament_id');
+    }
+
+    public function partners(): HasMany
+    {
+        return $this->hasMany(TournamentPartner::class, 'tournament_id');
+    }
+
+    public function contactMessages(): HasMany
+    {
+        return $this->hasMany(TournamentContactMessage::class, 'tournament_id');
+    }
+
+    public function getLogoUrlAttribute(): ?string
+    {
+        return $this->logo_path
+            ? Storage::disk('public')->url($this->logo_path)
+            : null;
+    }
+
+    public function getCoverUrlAttribute(): ?string
+    {
+        return $this->cover_path
+            ? Storage::disk('public')->url($this->cover_path)
+            : null;
+    }
+
     public function isDraft(): bool
     {
-        return $this->status === 'draft';
+        return $this->status === self::STATUS_DRAFT;
+    }
+
+    public function isOpenForRegistration(): bool
+    {
+        return $this->status === self::STATUS_OPEN_FOR_REGISTRATION;
+    }
+
+    public function isRegistrationClosed(): bool
+    {
+        return $this->status === self::STATUS_REGISTRATION_CLOSED;
+    }
+
+    public function isInProgress(): bool
+    {
+        return $this->status === self::STATUS_IN_PROGRESS;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function isEditable(): bool
+    {
+        return in_array($this->status, self::STATUSES_EDITABLE, true);
+    }
+
+    public function isVisiblePublicly(): bool
+    {
+        return in_array($this->status, [
+            self::STATUS_OPEN_FOR_REGISTRATION,
+            self::STATUS_REGISTRATION_CLOSED,
+            self::STATUS_IN_PROGRESS,
+            self::STATUS_COMPLETED,
+        ], true);
+    }
+
+    public function registrationRequiresFee(): bool
+    {
+        return $this->registration_fee > 0;
+    }
+
+    public function registrationWindowPassed(): bool
+    {
+        return $this->registration_end_at !== null && $this->registration_end_at->isPast();
+    }
+
+    public function registrationWindowOpen(): bool
+    {
+        if ($this->registration_start_at && $this->registration_start_at->isFuture()) {
+            return false;
+        }
+
+        return ! $this->registrationWindowPassed();
+    }
+
+    public function canRegister(): bool
+    {
+        return $this->isOpenForRegistration() && $this->registrationWindowOpen();
+    }
+
+    public function registeredTeamsCount(): int
+    {
+        return $this->tournamentTeams()->count();
+    }
+
+    public function cardAccumulationEnabled(): bool
+    {
+        return $this->card_accumulation !== self::CARD_ACCUMULATION_DISABLED;
+    }
+
+    public function accumulatesAcrossGroupStageOnly(): bool
+    {
+        return $this->card_accumulation === self::CARD_ACCUMULATION_GROUP;
     }
 }

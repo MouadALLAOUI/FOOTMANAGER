@@ -142,7 +142,7 @@ export default function Fields() {
       <FieldsHero />
       <FieldsSearchPanel values={{ city, date, time, type: panelType }} onChange={handlePanelChange} onSearch={handleSearch} />
 
-      <main className="mx-auto max-w-[1400px] px-6 pb-48 pt-10 lg:pb-40">
+      <main id="main-content" className="mx-auto max-w-[1400px] px-6 pb-48 pt-10 lg:pb-40">
         <FilterToolbar
           filters={filters}
           onToggle={toggleFilter}

@@ -57,6 +57,7 @@ This is a separate, fresh frontend reworked for illiterate users (icon-driven, s
 
 ## 7. Test Execution Rules
 - DO NOT run any tests (backend `php artisan test` or otherwise) unless the user explicitly asks for them. Implement changes, then report what tests exist that could be run, and wait for user instruction.
+- Long/slow tests (PHPUnit class style) MUST use the `Tests\Concerns\StreamsProgress` trait (`use StreamsProgress;`) and emit `$this->step()` / `$this->note()` / `$this->section()` lines at major intervals so progress prints live to STDERR without PHPUnit output buffering (works with `--testdox`). Silence with `LIVE_TEST_OUTPUT=0`.
 
 ## 8. Available Skills
 - `customize-opencode`: Use when editing/creating opencode's own configuration (`opencode.json`, `.opencode/`, `~/.config/opencode/`, agents, subagents, skills, plugins, MCP servers, permissions).

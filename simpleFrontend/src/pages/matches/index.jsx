@@ -52,9 +52,9 @@ export default function Matches() {
   return (
     <>
       <MatchesHero />
-      <main>
-        {loading ? (
-          <LoadingState />
+    <main id="main-content">
+      {loading ? (
+        <LoadingState />
         ) : (
           <>
             <LiveMatches matches={liveMatches} onEmptyAction={() => scrollTo('create-match')} />

@@ -7,7 +7,8 @@ use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Booking\Models\TerrainSchedule;
 use App\Domains\Booking\Models\TerrainSlotClosure;
 use App\Domains\Booking\Services\CalendarSlotService;
-use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Competition\Models\Fixture;
+use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Notification\Services\WhatsAppNotificationService;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Stadium\Models\Stadium;
@@ -16,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class BookingController extends Controller
 {
@@ -88,27 +90,78 @@ class BookingController extends Controller
 
         $allBookings = $singleBookings->merge($weeklySubscriptions);
 
-        $slotResults = collect($slots)->map(function ($slot) use ($allBookings) {
+        $closures = TerrainSlotClosure::where('terrain_id', $terrainId)
+            ->where('closure_date', $dateStr)
+            ->get();
+
+        $fixtureConflicts = Fixture::where('stadium_id', $terrainId)
+            ->whereDate('scheduled_at', $dateStr)
+            ->get(['id', 'scheduled_at']);
+
+        $slotResults = collect($slots)->map(function ($slot) use ($allBookings, $closures, $fixtureConflicts) {
             $booking = $allBookings->first(function ($b) use ($slot) {
                 return $b->start_time <= $slot['start'] && $b->end_time > $slot['start']
                     || $b->start_time < $slot['end'] && $b->end_time >= $slot['end']
                     || $b->start_time >= $slot['start'] && $b->end_time <= $slot['end'];
             });
 
+            if ($booking) {
+                return [
+                    'start' => $slot['start'],
+                    'end' => $slot['end'],
+                    'status' => 'booked',
+                    'booking' => [
+                        'id' => $booking->id,
+                        'booking_type' => $booking->booking_type,
+                        'reservation_type' => $booking->reservation_type,
+                        'status' => $booking->status,
+                        'start_time' => $booking->start_time,
+                        'end_time' => $booking->end_time,
+                        'manager' => $booking->manager?->only(['id', 'name']),
+                        'team' => $booking->team?->only(['id', 'name']),
+                    ],
+                ];
+            }
+
+            $closure = $closures->first(function ($c) use ($slot) {
+                return $c->start_time <= $slot['start'] && $c->end_time > $slot['start'];
+            });
+
+            if ($closure) {
+                return [
+                    'start' => $slot['start'],
+                    'end' => $slot['end'],
+                    'status' => 'closed',
+                    'closure' => [
+                        'id' => $closure->id,
+                        'reason' => $closure->reason,
+                    ],
+                ];
+            }
+
+            $hasFixture = $fixtureConflicts->contains(function ($f) use ($slot) {
+                $start = Carbon::parse($f->scheduled_at);
+                $end = $start->copy()->addHours(2);
+
+                return $start->format('H:i') < $slot['end'] && $end->format('H:i') > $slot['start'];
+            });
+
+            if ($hasFixture) {
+                return [
+                    'start' => $slot['start'],
+                    'end' => $slot['end'],
+                    'status' => 'closed',
+                    'closure' => [
+                        'id' => null,
+                        'reason' => 'مباراة ضمن مسابقة',
+                    ],
+                ];
+            }
+
             return [
                 'start' => $slot['start'],
                 'end' => $slot['end'],
-                'status' => $booking ? 'booked' : 'available',
-                'booking' => $booking ? [
-                    'id' => $booking->id,
-                    'booking_type' => $booking->booking_type,
-                    'reservation_type' => $booking->reservation_type,
-                    'status' => $booking->status,
-                    'start_time' => $booking->start_time,
-                    'end_time' => $booking->end_time,
-                    'manager' => $booking->manager?->only(['id', 'name']),
-                    'team' => $booking->team?->only(['id', 'name']),
-                ] : null,
+                'status' => 'available',
             ];
         });
 
@@ -328,6 +381,10 @@ class BookingController extends Controller
                     'created_at' => $booking->created_at,
                     'manager' => $this->managerSummary($booking->manager),
                     'team' => $booking->team?->only(['id', 'name']),
+                    'guest_name' => $booking->guest_name,
+                    'guest_phone' => $booking->guest_phone,
+                    'guest_email' => $booking->guest_email,
+                    'is_guest' => $booking->isGuest(),
                     'terrain' => $booking->terrain?->only(['id', 'name']),
                     'whatsapp_notification_url' => $this->whatsapp->buildBookingRequestMessage($booking),
                 ];
@@ -416,9 +473,13 @@ class BookingController extends Controller
                             'price' => $slotBooking->price,
                             'start_time' => $slotBooking->start_time,
                             'end_time' => $slotBooking->end_time,
-                            'manager' => $this->managerSummary($slotBooking->manager),
-                            'team' => $slotBooking->team?->only(['id', 'name']),
-                        ] : null,
+                    'manager' => $this->managerSummary($slotBooking->manager),
+                    'team' => $slotBooking->team?->only(['id', 'name']),
+                    'guest_name' => $slotBooking->guest_name,
+                    'guest_phone' => $slotBooking->guest_phone,
+                    'guest_email' => $slotBooking->guest_email,
+                    'is_guest' => $slotBooking->isGuest(),
+                ] : null,
                         'closure' => $slotClosure ? [
                             'id' => $slotClosure->id,
                             'reason' => $slotClosure->reason,
@@ -555,8 +616,8 @@ class BookingController extends Controller
             'end_time' => 'required|date_format:H:i|after:start_time',
             'booking_type' => 'required|in:training,private,match',
             'guest_name' => 'required|string|max:255',
-            'guest_phone' => 'required|string|max:50',
-            'guest_email' => 'nullable|email|max:255',
+            'guest_phone' => ['nullable', 'string', 'max:20', 'required_without:guest_email', 'regex:/^[0-9+\-() ]+$/'],
+            'guest_email' => ['nullable', 'email', 'max:255', 'required_without:guest_phone'],
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -574,7 +635,9 @@ class BookingController extends Controller
 
         // Create guest booking inside a transaction with locking to avoid races
         $guestBooking = null;
-        DB::transaction(function () use ($terrainId, $validated, $isWeekly, &$guestBooking) {
+        $conflictMsg = null;
+        $unavailableMsg = null;
+        DB::transaction(function () use ($terrainId, $validated, $isWeekly, &$guestBooking, &$conflictMsg, &$unavailableMsg) {
             $dateToLock = $isWeekly ? $validated['start_date'] : $validated['booking_date'];
             TerrainBooking::where('terrain_id', $terrainId)
                 ->where(function ($q) use ($dateToLock) {
@@ -598,6 +661,49 @@ class BookingController extends Controller
             );
 
             if ($conflictMsg) {
+                return;
+            }
+
+            // Working hours
+            $schedule = TerrainSchedule::where('terrain_id', $terrainId)
+                ->where('day_of_week', Carbon::parse($dateToLock)->dayOfWeek)
+                ->where('is_active', true)
+                ->first();
+
+            if (! $schedule) {
+                $unavailableMsg = 'الملعب غير متاح في هذا اليوم';
+                return;
+            }
+
+            if ($validated['start_time'] < $schedule->open_time || $validated['end_time'] > $schedule->close_time) {
+                $unavailableMsg = 'التوقيت المطلوب خارج ساعات عمل الملعب';
+                return;
+            }
+
+            // Slot closures
+            $closure = TerrainSlotClosure::where('terrain_id', $terrainId)
+                ->where('closure_date', $dateToLock)
+                ->where('start_time', '<', $validated['end_time'])
+                ->where('end_time', '>', $validated['start_time'])
+                ->first();
+
+            if ($closure) {
+                $unavailableMsg = $closure->reason
+                    ? "هذا التوقيت مغلق — {$closure->reason}"
+                    : 'هذا التوقيت مغلق — لا يمكن الحجز';
+                return;
+            }
+
+            // Tournament fixture reservations on this terrain (2h slot convention)
+            $bookingStartAt = Carbon::parse($dateToLock.' '.$validated['start_time']);
+            $bookingEndAt = Carbon::parse($dateToLock.' '.$validated['end_time']);
+            $fixtureConflict = Fixture::where('stadium_id', $terrainId)
+                ->where('scheduled_at', '<', $bookingEndAt)
+                ->where('scheduled_at', '>', $bookingStartAt->copy()->subHours(2))
+                ->first();
+
+            if ($fixtureConflict) {
+                $unavailableMsg = 'هذا التوقيت محجوز لمباراة ضمن مسابقة';
                 return;
             }
 
@@ -627,26 +733,33 @@ class BookingController extends Controller
                 'status' => 'approved',
                 'notes' => $validated['notes'] ?? null,
                 'guest_name' => $validated['guest_name'],
-                'guest_phone' => $validated['guest_phone'],
+                'guest_phone' => $validated['guest_phone'] ?? null,
                 'guest_email' => $validated['guest_email'] ?? null,
+                'booking_reference' => TerrainBooking::generateReference(),
+                'uuid' => (string) Str::uuid(),
             ]);
         });
 
-        if (! empty($conflictMsg)) {
+        if ($conflictMsg) {
             return response()->json(['message' => $conflictMsg], 422);
+        }
+
+        if ($unavailableMsg) {
+            return response()->json(['message' => $unavailableMsg], 422);
         }
 
         if (! $guestBooking) {
             return response()->json(['message' => 'تعذر إنشاء الحجز الضيف'], 500);
         }
 
-        $booking = $booking ?? $guestBooking;
-        $booking->load(['terrain.owner']);
+        $guestBooking->load(['terrain.owner']);
+
+        $whatsappUrl = $this->whatsapp->buildOwnerDecisionMessage($guestBooking, 'approved');
 
         return response()->json([
             'message' => 'تم إنشاء الحجز الضيف بنجاح',
-            'booking' => $booking,
-            'whatsapp_notification_url' => $this->whatsapp->buildOwnerDecisionMessage($booking, 'approved'),
+            'booking' => $guestBooking,
+            'whatsapp_notification_url' => $whatsappUrl ?: null,
         ], 201);
     }
 
@@ -788,14 +901,14 @@ class BookingController extends Controller
 
         $booking->load('terrain.owner');
         if ($booking->terrain?->owner_id) {
-            AppNotification::create([
-                'user_id' => $booking->terrain->owner_id,
-                'type' => 'cancellation_requested',
-                'title' => 'طلب إلغاء حجز',
-                'body' => "المسير {$user->name} يطلب إلغاء حجز ملعب {$booking->terrain->name} في تاريخ {$booking->booking_date?->format('Y-m-d')}",
-                'data' => ['booking_id' => $booking->id, 'cancellation_id' => $cancellation->id],
-                'action_url' => '/terrain/calendar',
-            ]);
+            NotificationService::push(
+                (int) $booking->terrain->owner_id,
+                'cancellation_requested',
+                'طلب إلغاء حجز',
+                "المسير {$user->name} يطلب إلغاء حجز ملعب {$booking->terrain->name} في تاريخ {$booking->booking_date?->format('Y-m-d')}",
+                ['booking_id' => $booking->id, 'cancellation_id' => $cancellation->id],
+                '/terrain/calendar',
+            );
         }
 
         return response()->json([

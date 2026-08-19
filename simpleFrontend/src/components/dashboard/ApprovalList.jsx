@@ -49,6 +49,7 @@ export default function ApprovalList({ endpoint, dataKey, searchable = true }) {
           <input
             className={inputClass}
             placeholder="بحث بالاسم أو الهاتف..."
+            aria-label="بحث بالاسم أو الهاتف"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

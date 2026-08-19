@@ -1,13 +1,34 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Check, Eye, Globe, Loader2, Trash2 } from 'lucide-react'
+import {
+  Ban,
+  CalendarClock,
+  Check,
+  CheckCheck,
+  DoorClosed,
+  Eye,
+  Globe,
+  Loader2,
+  Play,
+  Trash2,
+  Users,
+  Wallet,
+  X,
+} from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
-import { Button, Card, Skeleton } from '../../../components/dashboard/ui'
+import { Button, Card, Empty, Skeleton } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 
-export default function OverviewTab({ tournament, refresh, refreshKey, isDraft }) {
+const fmtDate = (value) => {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleString()
+}
+
+export default function OverviewTab({ tournament, refresh, refreshKey, editable }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [busy, setBusy] = useState(null)
@@ -17,22 +38,48 @@ export default function OverviewTab({ tournament, refresh, refreshKey, isDraft }
     [tournament.id, refreshKey],
   )
 
+  const { data: registrations, loading: regLoading } = useApi(
+    () => api.get(`/committee/tournaments/${tournament.id}/registrations`).then((r) => r.data.data),
+    [tournament.id, refreshKey],
+  )
+
+  const pending = (registrations || []).filter((r) => r.status === 'pending')
+
   const doneCount = (progress?.stages || []).filter((s) => s.done).length
   const totalCount = (progress?.stages || []).length
   const pct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0
 
+  const registered = tournament.stats?.registered_teams ?? 0
+  const maxTeams = tournament.teams_count ?? 0
+  const remaining = Math.max(0, maxTeams - registered)
+  const requiresFee = tournament.requires_registration_fee ?? false
+
   const stats = [
-    { label: t('committee.detail.stat.teams'), value: tournament.stats?.registered_teams ?? 0 },
+    { label: t('committee.detail.stat.teams'), value: registered },
     { label: t('committee.detail.stat.groups'), value: tournament.stats?.groups ?? 0 },
     { label: t('committee.detail.stat.fixtures'), value: tournament.stats?.fixtures ?? 0 },
     { label: t('committee.detail.stat.finished'), value: tournament.stats?.finished_matches ?? 0 },
   ]
 
-  const publish = async () => {
-    setBusy('publish')
+  const runAction = async (key, endpoint, toastKey, confirmKey) => {
+    if (confirmKey && !window.confirm(t(confirmKey))) return
+    setBusy(key)
     try {
-      await api.post(`/committee/tournaments/${tournament.id}/publish`)
-      toast.success(t('committee.detail.publishedToast'))
+      await api.post(`/committee/tournaments/${tournament.id}${endpoint}`)
+      toast.success(t(toastKey))
+      refresh()
+    } catch (e) {
+      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const respond = async (teamId, action) => {
+    setBusy(`respond-${teamId}`)
+    try {
+      await api.post(`/committee/tournaments/${tournament.id}/teams/${teamId}/${action}`)
+      toast.success(t(action === 'approve' ? 'committee.detail.approveRequestToast' : 'committee.detail.rejectRequestToast'))
       refresh()
     } catch (e) {
       toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
@@ -54,6 +101,9 @@ export default function OverviewTab({ tournament, refresh, refreshKey, isDraft }
     }
   }
 
+  const periodStart = fmtDate(tournament.registration_start_at)
+  const periodEnd = fmtDate(tournament.registration_end_at)
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -63,6 +113,90 @@ export default function OverviewTab({ tournament, refresh, refreshKey, isDraft }
             <p className="mt-0.5 text-xs font-semibold text-slate-500">{s.label}</p>
           </div>
         ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card
+          title={t('committee.detail.registrationInfo')}
+          className="lg:col-span-2"
+        >
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                <CalendarClock className="size-3.5" />
+                {t('committee.detail.registrationPeriod')}
+              </div>
+              <p className="mt-1 text-sm font-bold text-slate-800">
+                {periodStart || periodEnd
+                  ? `${periodStart || '—'} → ${periodEnd || '—'}`
+                  : t('committee.detail.noRegistrationPeriod')}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                <Wallet className="size-3.5" />
+                {t('committee.detail.registrationFee')}
+              </div>
+              <p className="mt-1 text-sm font-bold text-slate-800">
+                {requiresFee ? `${tournament.registration_fee} DH` : t('committee.detail.feeFree')}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+                <Users className="size-3.5" />
+                {t('committee.detail.capacity')}
+              </div>
+              <p className="mt-1 text-sm font-bold text-slate-800">
+                {t('committee.detail.capacity', { count: registered, max: maxTeams })}
+              </p>
+              {remaining > 0 && <p className="text-[11px] font-semibold text-slate-400">{t('manager.tournaments.remaining', { count: remaining })}</p>}
+            </div>
+          </div>
+        </Card>
+
+        <Card title={t('committee.detail.pendingRequests')} subtitle={t('committee.detail.pendingRequestsDesc')}>
+          {regLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+            </div>
+          ) : pending.length === 0 ? (
+            <Empty icon={CheckCheck} title={t('committee.detail.noPendingRequests')} compact />
+          ) : (
+            <div className="space-y-2.5">
+              {pending.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-3.5 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-800">{r.team?.name}</p>
+                    {r.team?.city && <p className="text-[11px] text-slate-400">{r.team.city}</p>}
+                  </div>
+                  <Button
+                    size="sm"
+                    className="shrink-0"
+                    loading={busy === `respond-${r.team_id}`}
+                    onClick={() => respond(r.team_id, 'approve')}
+                  >
+                    <Check className="size-3.5" />
+                    {t('committee.detail.approveRequest')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="dangerSoft"
+                    className="shrink-0"
+                    loading={busy === `respond-${r.team_id}`}
+                    onClick={() => {
+                      if (!window.confirm(t('committee.detail.rejectRequestConfirm'))) return
+                      respond(r.team_id, 'reject')
+                    }}
+                  >
+                    <X className="size-3.5" />
+                    {t('committee.detail.rejectRequest')}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       </div>
 
       <Card title={t('committee.detail.progress')} subtitle={t('committee.detail.progressDesc')}>
@@ -110,16 +244,53 @@ export default function OverviewTab({ tournament, refresh, refreshKey, isDraft }
       </Card>
 
       <div className="flex flex-wrap gap-2">
-        {isDraft ? (
+        {editable ? (
           <>
-            <Button loading={busy === 'publish'} onClick={publish}>
-              <Globe className="size-4" />
-              {t('committee.detail.publish')}
-            </Button>
-            <Button variant="dangerSoft" loading={busy === 'delete'} onClick={remove}>
-              <Trash2 className="size-4" />
-              {t('committee.detail.delete')}
-            </Button>
+            {tournament.status === 'draft' && (
+              <>
+                <Button
+                  loading={busy === 'openRegistration'}
+                  onClick={() => runAction('openRegistration', '/open-registration', 'committee.detail.openRegistrationToast', 'committee.detail.openRegistrationConfirm')}
+                >
+                  <Globe className="size-4" />
+                  {t('committee.detail.openRegistration')}
+                </Button>
+                <Button variant="dangerSoft" loading={busy === 'delete'} onClick={remove}>
+                  <Trash2 className="size-4" />
+                  {t('committee.detail.delete')}
+                </Button>
+              </>
+            )}
+            {tournament.status === 'open_for_registration' && (
+              <Button
+                loading={busy === 'closeRegistration'}
+                onClick={() => runAction('closeRegistration', '/close-registration', 'committee.detail.closeRegistrationToast', 'committee.detail.closeRegistrationConfirm')}
+              >
+                <DoorClosed className="size-4" />
+                {t('committee.detail.closeRegistration')}
+              </Button>
+            )}
+            {tournament.status === 'registration_closed' && (
+              <Button
+                loading={busy === 'startTournament'}
+                disabled={remaining > 0}
+                title={remaining > 0 ? t('committee.detail.startRequired') : undefined}
+                onClick={() => runAction('startTournament', '/start', 'committee.detail.startTournamentToast', 'committee.detail.startTournamentConfirm')}
+              >
+                <Play className="size-4" />
+                {t('committee.detail.startTournament')}
+              </Button>
+            )}
+            {!['completed', 'cancelled'].includes(tournament.status) && (
+              <Button
+                variant="dangerSoft"
+                loading={busy === 'cancelTournament'}
+                onClick={() => runAction('cancelTournament', '/cancel', 'committee.detail.cancelToast', 'committee.detail.cancelTournamentConfirm')}
+              >
+                <Ban className="size-4" />
+                {t('committee.detail.cancelTournament')}
+              </Button>
+            )}
           </>
         ) : (
           <Link

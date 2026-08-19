@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CalendarDays, MapPin, Plus, Trophy } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
+import { SectionError } from '../../../components/errors'
 import { Button, Field, FieldRow, SectionTitle, SkeletonCards, StatusBadge, inputClass, selectClass } from '../../../components/dashboard/ui'
 import Drawer from '../../../components/dashboard/Drawer'
 import { useToast } from '../../../components/ui/Toast'
@@ -13,14 +14,15 @@ const emptyForm = {
   edition: '',
   category: '',
   description: '',
+  rules: '',
   location: '',
   stadium_id: '',
   start_date: '',
   end_date: '',
   tournament_format: 'groups_knockout',
   teams_count: '8',
-  groups_count: '2',
   teams_per_group: '4',
+  group_mode: 'fixed',
   qualify_per_group: '2',
   knockout_teams: '4',
   points_for_win: '3',
@@ -36,7 +38,7 @@ export default function Tournaments() {
   const { toast } = useToast()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { data, loading, refetch } = useApi(() => api.get('/committee/tournaments').then((r) => r.data))
+  const { data, loading, errorState, refetch } = useApi(() => api.get('/committee/tournaments').then((r) => r.data))
 
   const tournaments = data?.data || []
 
@@ -67,15 +69,18 @@ export default function Tournaments() {
 
   const isGroupFormat = form.tournament_format === 'groups_knockout' || form.tournament_format === 'groups_only'
   const isKnockout = form.tournament_format === 'groups_knockout' || form.tournament_format === 'knockout_only'
-  const autoTeams = Number(form.groups_count || 0) * Number(form.teams_per_group || 0)
+  const derivedGroups = isGroupFormat
+    ? Math.max(2, Math.min(16, Math.ceil(Number(form.teams_count || 0) / Math.max(2, Number(form.teams_per_group || 2)))))
+    : 0
+  const computedKnockout = derivedGroups * Number(form.qualify_per_group || 0)
 
   const save = async () => {
     if (!form.name || !form.start_date) {
       toast.error(t('committee.tournaments.form.required'))
       return
     }
-    if (isGroupFormat && autoTeams < 2) {
-      toast.error(t('committee.tournaments.form.groupsHint', { total: autoTeams }))
+    if (isGroupFormat && Number(form.teams_count) < 2) {
+      toast.error(t('committee.tournaments.form.teamsCountMin'))
       return
     }
     setBusy(true)
@@ -84,16 +89,17 @@ export default function Tournaments() {
       edition: form.edition || null,
       category: form.category || null,
       description: form.description || null,
+      rules: form.rules || null,
       location: form.location || null,
       stadium_id: form.stadium_id ? Number(form.stadium_id) : null,
       start_date: form.start_date,
       end_date: form.end_date || null,
       tournament_format: form.tournament_format,
-      teams_count: isGroupFormat ? autoTeams : Number(form.teams_count),
-      groups_count: Number(form.groups_count),
-      teams_per_group: Number(form.teams_per_group),
+      teams_count: Number(form.teams_count),
+      teams_per_group: isGroupFormat ? Number(form.teams_per_group) : null,
+      group_mode: isGroupFormat ? form.group_mode : null,
       knockout_teams: form.tournament_format === 'groups_knockout'
-        ? Number(form.groups_count || 0) * Number(form.qualify_per_group || 0)
+        ? computedKnockout
         : isKnockout && form.knockout_teams
           ? Number(form.knockout_teams)
           : null,
@@ -130,7 +136,9 @@ export default function Tournaments() {
         }
       />
 
-      {loading ? (
+      {errorState ? (
+        <SectionError state={errorState} onRetry={refetch} />
+      ) : loading ? (
         <SkeletonCards count={3} />
       ) : tournaments.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-14 text-center">
@@ -226,6 +234,9 @@ export default function Tournaments() {
               <Field label={t('committee.tournaments.form.description')}>
                 <textarea className={`${inputClass} h-24 resize-none !h-auto py-3`} value={form.description} onChange={set('description')} />
               </Field>
+              <Field label={t('committee.tournaments.form.rules')}>
+                <textarea className={`${inputClass} h-24 resize-none !h-auto py-3`} value={form.rules} onChange={set('rules')} />
+              </Field>
               <Field label={t('committee.tournaments.form.location')}>
                 <input className={inputClass} value={form.location} onChange={set('location')} />
               </Field>
@@ -258,25 +269,52 @@ export default function Tournaments() {
                   ))}
                 </select>
               </Field>
-              <FieldRow cols={3}>
-                <Field label={t('committee.tournaments.form.groupsCount')}>
-                  <input type="number" min="1" max="16" className={inputClass} value={form.groups_count} onChange={set('groups_count')} />
-                </Field>
-                <Field label={t('committee.tournaments.form.teamsPerGroup')}>
-                  <input type="number" min="2" max="16" className={inputClass} value={form.teams_per_group} onChange={set('teams_per_group')} />
-                </Field>
+              <FieldRow cols={2}>
                 <Field label={t('committee.tournaments.form.teamsCount')}>
-                  {isGroupFormat ? (
-                    <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700">{autoTeams}</div>
-                  ) : (
-                    <input type="number" min="2" max="64" className={inputClass} value={form.teams_count} onChange={set('teams_count')} />
-                  )}
+                  <input type="number" min="2" max="64" className={inputClass} value={form.teams_count} onChange={set('teams_count')} />
                 </Field>
+                {isGroupFormat && (
+                  <Field label={t('committee.tournaments.form.teamsPerGroup')}>
+                    <input type="number" min="2" max="16" className={inputClass} value={form.teams_per_group} onChange={set('teams_per_group')} />
+                  </Field>
+                )}
               </FieldRow>
               {isGroupFormat && (
-                <p className="rounded-xl bg-sky-50 px-3.5 py-2.5 text-[11px] font-semibold text-sky-700">
-                  {t('committee.tournaments.form.groupsHint', { total: autoTeams })}
-                </p>
+                <Field
+                  label={t('committee.tournaments.form.groupsCount')}
+                  hint={t('committee.tournaments.form.groupsDerivedHint')}
+                >
+                  <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700">
+                    {form.group_mode === 'free'
+                      ? t('committee.tournaments.form.groupsDynamic')
+                      : t('committee.tournaments.form.derivedGroups', { count: derivedGroups })}
+                  </div>
+                </Field>
+              )}
+              {isGroupFormat && (
+                <Field label={t('committee.tournaments.form.groupMode')}>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: 'fixed', label: t('committee.detail.modeFixed'), desc: t('committee.detail.modeFixedDesc') },
+                      { key: 'free', label: t('committee.detail.modeFree'), desc: t('committee.detail.modeFreeDesc') },
+                    ].map((m) => {
+                      const selected = form.group_mode === m.key
+                      return (
+                        <button
+                          key={m.key}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, group_mode: m.key }))}
+                          className={`flex flex-col items-start gap-0.5 rounded-xl border p-3 text-start transition-colors ${
+                            selected ? 'border-green-400 bg-green-50/70 ring-1 ring-green-400' : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="text-xs font-extrabold text-slate-800">{m.label}</span>
+                          <span className="text-[10px] font-semibold text-slate-500">{m.desc}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </Field>
               )}
               {form.tournament_format === 'groups_knockout' && (
                 <Field label={t('committee.tournaments.form.qualifyPerGroup')} hint={t('committee.tournaments.form.qualifyPerGroupHint')}>
@@ -286,7 +324,7 @@ export default function Tournaments() {
               {form.tournament_format === 'groups_knockout' && (
                 <Field label={t('committee.tournaments.form.knockoutTeams')} hint={t('committee.tournaments.form.knockoutTeamsHint')}>
                   <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700">
-                    {Number(form.groups_count || 0) * Number(form.qualify_per_group || 0)}
+                    {computedKnockout}
                   </div>
                 </Field>
               )}

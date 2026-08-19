@@ -7,6 +7,7 @@ import {
   faTiktok,
   faYoutube,
 } from '@fortawesome/free-brands-svg-icons'
+import { useNavigate } from 'react-router-dom'
 
 const featureIcons = [faCalendarDay, faPeopleGroup, faTrophy]
 
@@ -19,6 +20,7 @@ const socials = [
 
 export default function PromoPanel() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const features = t('auth.promo.features', { returnObjects: true })
 
   return (
@@ -36,7 +38,7 @@ export default function PromoPanel() {
       <div className="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-green-500/40 to-transparent" />
 
       <div className="relative z-10 flex flex-1 flex-col p-10 xl:p-12">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 cursor-pointer" onClick={(e) => navigate('/')}>
           <div className="grid size-12 place-items-center rounded-2xl bg-green-500 shadow-[0_14px_34px_rgba(22,163,74,0.5)]">
             <FontAwesomeIcon icon={faFutbol} className="size-7 text-white" />
           </div>

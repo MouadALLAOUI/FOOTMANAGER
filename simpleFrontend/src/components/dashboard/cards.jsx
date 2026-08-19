@@ -9,10 +9,12 @@ import {
   UserRound,
   Zap,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Button, StatusBadge } from './ui'
 import { thumb, logoThumb, photoThumb } from '../../lib/thumb'
 
 function TeamBadge({ team, logo, sub, align = 'start' }) {
+  const { t } = useTranslation()
   return (
     <div className={`flex min-w-0 items-center gap-2.5 ${align === 'end' ? 'flex-row-reverse text-end' : ''}`}>
       {team?.logo_url || logo ? (
@@ -28,7 +30,7 @@ function TeamBadge({ team, logo, sub, align = 'start' }) {
       )}
       <div className={`min-w-0 ${align === 'end' ? 'items-end' : ''}`}>
         <p className={`truncate text-sm font-extrabold text-slate-900 ${align === 'end' ? 'order-2' : ''}`}>
-          {team?.name || 'فريق غير معروف'}
+          {team?.name || t('ov.common.unknownTeam')}
         </p>
         {sub && <p className="truncate text-[11px] text-slate-400">{sub}</p>}
       </div>
@@ -37,15 +39,23 @@ function TeamBadge({ team, logo, sub, align = 'start' }) {
 }
 
 export function MatchCard({ match, actions, onClick }) {
+  const { t } = useTranslation()
   const isHost = Boolean(match.opponent_team)
   const datetime = match.match_datetime ? new Date(match.match_datetime) : null
   const hasScore = match.host_score !== null && match.host_score !== undefined
 
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]"
+      className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]"
       onClick={onClick}
       role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          onClick()
+        }
+      }}
     >
       <div className="flex items-center justify-between gap-3">
         <StatusBadge status={match.status} />
@@ -53,10 +63,10 @@ export function MatchCard({ match, actions, onClick }) {
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-600 ring-1 ring-amber-200">
             <Zap className="size-3" />
             {match.score_status === 'pending_confirmation'
-              ? 'بانتظار تأكيد النتيجة'
+              ? t('ov.common.scorePending')
               : match.score_status === 'disputed'
-                ? 'اعتراض على النتيجة'
-                : 'مؤكدة'}
+                ? t('ov.common.scoreDisputed')
+                : t('ov.common.scoreConfirmed')}
           </span>
         )}
       </div>
@@ -65,7 +75,7 @@ export function MatchCard({ match, actions, onClick }) {
         <TeamBadge
           team={match.host_team}
           logo={logoThumb(match.host_team)}
-          sub={match.host_team?.city || 'المضيف'}
+          sub={match.host_team?.city || t('ov.common.host')}
         />
         {isHost ? (
           <div className="flex shrink-0 flex-col items-center gap-1">
@@ -76,20 +86,20 @@ export function MatchCard({ match, actions, onClick }) {
               </span>
               <span className="text-xl font-black text-slate-900">{match.opponent_score ?? '–'}</span>
             </div>
-            {hasScore && <span className="text-[10px] font-bold text-slate-400">النتيجة</span>}
+            {hasScore && <span className="text-[10px] font-bold text-slate-400">{t('ov.common.score')}</span>}
           </div>
         ) : (
           <div className="flex shrink-0 flex-col items-center gap-0.5">
             <span className="grid size-9 place-items-center rounded-full bg-green-50 text-green-600">
               <Swords className="size-4" />
             </span>
-            <span className="text-[10px] font-bold text-green-600">يبحث عن خصم</span>
+            <span className="text-[10px] font-bold text-green-600">{t('ov.common.lookingOpponent')}</span>
           </div>
         )}
         <TeamBadge
           team={match.opponent_team}
           logo={logoThumb(match.opponent_team)}
-          sub={isHost ? match.opponent_team?.city : match.target_team?.name || 'خصم محتمل'}
+          sub={isHost ? match.opponent_team?.city : match.target_team?.name || t('ov.common.potentialOpponent')}
           align="end"
         />
       </div>
@@ -97,7 +107,7 @@ export function MatchCard({ match, actions, onClick }) {
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-4 text-[11px] font-semibold text-slate-400">
         <span className="inline-flex items-center gap-1.5">
           <CalendarDays className="size-3.5 text-green-500" />
-          {datetime ? new Intl.DateTimeFormat('ar-MA', { weekday: 'long', day: 'numeric', month: 'long' }).format(datetime) : 'بدون وقت'}
+          {datetime ? new Intl.DateTimeFormat('ar-MA', { weekday: 'long', day: 'numeric', month: 'long' }).format(datetime) : t('ov.common.noTime')}
         </span>
         {datetime && (
           <span className="inline-flex items-center gap-1.5">
@@ -107,12 +117,12 @@ export function MatchCard({ match, actions, onClick }) {
         )}
         <span className="inline-flex items-center gap-1.5">
           <MapPin className="size-3.5 text-green-500" />
-          {match.stadium?.name || match.custom_terrain_name || 'ملعب غير محدد'}
+          {match.stadium?.name || match.custom_terrain_name || t('ov.common.unspecifiedStadium')}
         </span>
         {match.price_per_player ? (
           <span className="ms-auto inline-flex items-center gap-1 font-extrabold text-slate-700">
             {match.price_per_player}
-            <span className="font-semibold text-slate-400">د.م / لاعب</span>
+            <span className="font-semibold text-slate-400">{t('ov.common.perPlayer')}</span>
           </span>
         ) : null}
         {match.needs_players ? (
@@ -135,16 +145,17 @@ export function MatchCard({ match, actions, onClick }) {
 }
 
 export function BookingCard({ booking, actions }) {
+  const { t } = useTranslation()
   const terrain = booking.terrain || {}
   const start = booking.start_time
   const end = booking.end_time
   const date = booking.next_date || booking.booking_date
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]">
+    <div className="group overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]">
       <div className="flex gap-4 p-5">
         {terrain.image_url ? (
-          <img loading="lazy" decoding="async" src={terrain.thumbnail_url || terrain.image_url} alt="" className="size-16 shrink-0 rounded-2xl object-cover" />
+          <img loading="lazy" decoding="async" src={terrain.thumbnail_url || terrain.image_url} alt="" className="size-16 shrink-0 rounded-2xl object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
           <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-green-50 to-emerald-100 text-green-600">
             <ShieldCheck className="size-7" />
@@ -153,7 +164,7 @@ export function BookingCard({ booking, actions }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-extrabold text-slate-900">{terrain.name || 'ملعب'}</p>
+              <p className="truncate text-sm font-extrabold text-slate-900">{terrain.name || t('ov.common.terrain')}</p>
               <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
                 <MapPin className="size-3 text-green-500" />
                 {terrain.city || '—'} {terrain.type ? `• ${terrain.type}` : ''}
@@ -176,7 +187,7 @@ export function BookingCard({ booking, actions }) {
           {typeof booking.price === 'number' && booking.price > 0 && (
             <p className="mt-2 text-sm font-black text-slate-900">
               {booking.price}
-              <span className="ms-1 text-[11px] font-bold text-slate-400">د.م</span>
+              <span className="ms-1 text-[11px] font-bold text-slate-400">{t('ov.common.currency')}</span>
             </p>
           )}
         </div>
@@ -189,14 +200,15 @@ export function BookingCard({ booking, actions }) {
 }
 
 export function PlayerCard({ player, actions, subtitle }) {
+  const { t } = useTranslation()
   const profile = player.player_profile || player
-  const name = player.name || profile?.user?.name || 'لاعب'
+  const name = player.name || profile?.user?.name || t('ov.common.player')
   const photo = photoThumb(profile) || profile?.photo
   const rating = profile?.rating ?? profile?.overall_rating
   const skill = profile?.skill_level
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]">
+    <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]">
       <div className="pointer-events-none absolute -end-10 -top-10 size-32 rounded-full bg-green-500/[0.05] blur-2xl" />
       <div className="flex items-start gap-4">
         {photo ? (
@@ -211,7 +223,7 @@ export function PlayerCard({ player, actions, subtitle }) {
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-slate-400">
             <span className="inline-flex items-center gap-1">
               <UserRound className="size-3 text-green-500" />
-              {profile?.position || 'غير محدد'}
+              {profile?.position || t('ov.common.unspecified')}
             </span>
             {profile?.city && (
               <span className="inline-flex items-center gap-1">
@@ -236,15 +248,15 @@ export function PlayerCard({ player, actions, subtitle }) {
       <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl bg-slate-50 px-3 py-2.5 text-center">
         <div>
           <p className="text-sm font-black text-slate-800">{profile?.points ?? 0}</p>
-          <p className="text-[10px] font-bold text-slate-400">النقاط</p>
+          <p className="text-[10px] font-bold text-slate-400">{t('ov.common.points')}</p>
         </div>
         <div>
           <p className="text-sm font-black text-slate-800">{profile?.matches_played ?? 0}</p>
-          <p className="text-[10px] font-bold text-slate-400">مباريات</p>
+          <p className="text-[10px] font-bold text-slate-400">{t('ov.common.matches')}</p>
         </div>
         <div>
           <p className="text-sm font-black text-slate-800">{profile?.preferred_foot || '—'}</p>
-          <p className="text-[10px] font-bold text-slate-400">القدم المفضلة</p>
+          <p className="text-[10px] font-bold text-slate-400">{t('ov.common.preferredFoot')}</p>
         </div>
       </div>
       {actions && <div className="mt-4 flex flex-wrap gap-2">{actions}</div>}
@@ -253,6 +265,7 @@ export function PlayerCard({ player, actions, subtitle }) {
 }
 
 export function ManagerContact({ manager }) {
+  const { t } = useTranslation()
   if (!manager) return null
   const isWa = manager.is_whatsapp
   return (
@@ -263,7 +276,7 @@ export function ManagerContact({ manager }) {
     >
       <Phone className="size-3.5" />
       {manager.phone}
-      {isWa && ' (واتساب)'}
+      {isWa && t('ov.common.whatsapp')}
     </a>
   )
 }

@@ -7,7 +7,10 @@ use App\Domains\Match\Models\PlayerMatchRequest;
 use App\Domains\Match\Queries\MatchFeedQuery;
 use App\Domains\Match\Services\PlayerMatchGuard;
 use App\Domains\Notification\Models\AppNotification;
+use App\Domains\Notification\Services\NotificationService;
+use App\Domains\Player\Models\PlayerTeamRequest;
 use App\Domains\Shared\Base\Controller;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -167,14 +170,14 @@ class PlayerController extends Controller
             'message' => $validated['message'] ?? null,
         ]);
 
-        AppNotification::create([
-            'user_id' => $match->hostTeam->manager_id,
-            'type' => 'player_application_received',
-            'title' => 'طلب انضمام لاعب',
-            'body' => "اللاعب {$user->name} طلب الانضمام لمباراتك",
-            'data' => ['player_match_request_id' => $application->id, 'match_request_id' => $matchId],
-            'action_url' => '/dashboard',
-        ]);
+        NotificationService::push(
+            (int) $match->hostTeam->manager_id,
+            'player_application_received',
+            'طلب انضمام لاعب',
+            "اللاعب {$user->name} طلب الانضمام لمباراتك",
+            ['player_match_request_id' => $application->id, 'match_request_id' => $matchId],
+            '/dashboard',
+        );
 
         return response()->json([
             'message' => 'تم إرسال طلب الانضمام بنجاح، بانتظار تأكيد المسير',
@@ -244,14 +247,14 @@ class PlayerController extends Controller
 
                 $application->update(['status' => 'accepted']);
 
-                AppNotification::create([
-                    'user_id' => $match->hostTeam->manager_id,
-                    'type' => 'player_invite_accepted',
-                    'title' => 'اللاعب قبل الدعوة',
-                    'body' => "اللاعب {$user->name} قبل دعوة الانضمام لمباراتك",
-                    'data' => ['match_request_id' => $match->id],
-                    'action_url' => '/dashboard',
-                ]);
+                NotificationService::push(
+                    (int) $match->hostTeam->manager_id,
+                    'player_invite_accepted',
+                    'اللاعب قبل الدعوة',
+                    "اللاعب {$user->name} قبل دعوة الانضمام لمباراتك",
+                    ['match_request_id' => $match->id],
+                    '/dashboard',
+                );
 
                 return response()->json([
                     'message' => 'تم قبول الدعوة والانضمام للمباراة بنجاح',
@@ -270,14 +273,14 @@ class PlayerController extends Controller
                 'status' => 'accepted',
             ]);
 
-            AppNotification::create([
-                'user_id' => $match->hostTeam->manager_id,
-                'type' => 'player_invite_accepted',
-                'title' => 'اللاعب قبل الدعوة',
-                'body' => "اللاعب {$user->name} قبل دعوة الانضمام لمباراتك",
-                'data' => ['match_request_id' => $match->id],
-                'action_url' => '/dashboard',
-            ]);
+            NotificationService::push(
+                (int) $match->hostTeam->manager_id,
+                'player_invite_accepted',
+                'اللاعب قبل الدعوة',
+                "اللاعب {$user->name} قبل دعوة الانضمام لمباراتك",
+                ['match_request_id' => $match->id],
+                '/dashboard',
+            );
 
             return response()->json([
                 'message' => 'تم قبول الدعوة والانضمام للمباراة بنجاح',
@@ -327,26 +330,162 @@ class PlayerController extends Controller
 
     public function stats(Request $request): JsonResponse
     {
-        $profile = $request->user()->playerProfile;
+        return response()->json([
+            'stats' => $this->statsFor($request->user()),
+        ]);
+    }
+
+    private function statsFor(User $user): array
+    {
+        $profile = $user->playerProfile;
 
         $total = $profile?->matches_played ?? 0;
         $wins = $profile?->wins ?? 0;
         $draws = $profile?->draws ?? 0;
         $losses = $profile?->losses ?? 0;
 
+        return [
+            'points' => $profile?->points ?? 0,
+            'rating' => $profile?->rating ?? 0,
+            'matches_played' => $total,
+            'wins' => $wins,
+            'draws' => $draws,
+            'losses' => $losses,
+            'win_rate' => $total > 0 ? round(($wins / $total) * 100, 1) : 0,
+            'position' => $profile?->position,
+            'skill_level' => $profile?->skill_level,
+            'is_available' => $profile?->is_available ?? true,
+        ];
+    }
+
+    public function overview(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $user->load(['playerProfile', 'rosterPlayer.team.manager', 'rosterPlayer.team.primaryStadium']);
+
+        $upcomingBase = MatchRequest::with([
+            'hostTeam.manager',
+            'hostTeam.primaryStadium',
+            'opponentTeam',
+            'stadium.images',
+            'mercenary',
+        ])
+            ->where('match_datetime', '>=', now())
+            ->whereIn('status', ['open', 'accepted'])
+            ->where(function ($query) use ($user) {
+                $query->where('mercenary_player_id', $user->id)
+                    ->orWhereIn('id', PlayerMatchRequest::query()
+                        ->where('player_id', $user->id)
+                        ->where('status', 'accepted')
+                        ->pluck('match_request_id'));
+            })
+            ->orderBy('match_datetime', 'asc');
+
+        $upcomingMatch = (clone $upcomingBase)->first();
+        $upcomingMatches = (clone $upcomingBase)->limit(3)->get();
+
+        $feedQuery = MatchFeedQuery::base(null);
+        $feedQuery = MatchFeedQuery::applyFilters($feedQuery, $request);
+
+        $feedQuery->whereNotIn('id', function ($query) use ($user) {
+            $query->select('match_request_id')
+                ->from('player_match_requests')
+                ->where('player_id', $user->id);
+        });
+
+        if ($user->playerProfile?->city) {
+            $feedQuery->where(function ($query) use ($user) {
+                $query->whereHas('hostTeam', fn ($team) => $team->where('city', $user->playerProfile->city))
+                    ->orWhere('mercenary_player_id', null);
+            });
+        }
+
+        $feed = $feedQuery->limit(3)->get();
+
+        $notifications = AppNotification::where('user_id', $user->id)
+            ->where(function ($query) {
+                $query->where('is_important', true)
+                    ->orWhere('is_read', false);
+            })
+            ->orderBy('is_pinned', 'desc')
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get();
+
+        $team = $user->rosterPlayer?->team;
+
         return response()->json([
-            'stats' => [
-                'points' => $profile?->points ?? 0,
-                'rating' => $profile?->rating ?? 0,
-                'matches_played' => $total,
-                'wins' => $wins,
-                'draws' => $draws,
-                'losses' => $losses,
-                'win_rate' => $total > 0 ? round(($wins / $total) * 100, 1) : 0,
-                'position' => $profile?->position,
-                'skill_level' => $profile?->skill_level,
-                'is_available' => $profile?->is_available ?? true,
-            ],
+            'user' => $user->only('id', 'name', 'email', 'phone', 'role', 'status', 'is_whatsapp'),
+            'profile' => $user->playerProfile,
+            'stats' => $this->statsFor($user),
+            'upcoming_match' => $upcomingMatch,
+            'upcoming_matches' => $upcomingMatches,
+            'team' => $team ? [
+                'id' => $team->id,
+                'name' => $team->name,
+                'logo' => $team->logo_thumbnail_url ?: $team->logo_url,
+                'category' => $team->category,
+                'level' => $team->level,
+                'city' => $team->city,
+                'primary_stadium' => $team->primaryStadium?->name,
+                'manager' => $team->manager?->name,
+            ] : null,
+            'team_request' => PlayerTeamRequest::where('player_id', $user->id)
+                ->latest()
+                ->first(),
+            'feed' => $feed,
+            'notifications' => $notifications,
+            'unread_count' => AppNotification::where('user_id', $user->id)
+                ->where('is_read', false)
+                ->count(),
         ]);
+    }
+
+    public function storeTeamRequest(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'team_name' => 'nullable|string|max:255',
+            'message' => 'nullable|string|max:2000',
+        ]);
+
+        if ($user->rosterPlayer?->team_id) {
+            return response()->json(['message' => 'أنت منضم لفريق بالفعل'], 422);
+        }
+
+        $hasPending = PlayerTeamRequest::where('player_id', $user->id)
+            ->where('status', PlayerTeamRequest::STATUS_PENDING)
+            ->exists();
+
+        if ($hasPending) {
+            return response()->json(['message' => 'لديك طلب قيد المراجعة بالفعل'], 409);
+        }
+
+        $teamRequest = PlayerTeamRequest::create([
+            'player_id' => $user->id,
+            'team_name' => $validated['team_name'] ?? null,
+            'message' => $validated['message'] ?? null,
+            'status' => PlayerTeamRequest::STATUS_PENDING,
+        ]);
+
+        User::whereIn('role', ['admin', 'committee'])
+            ->where('status', 'approved')
+            ->pluck('id')
+            ->each(function (int $adminId) use ($user, $teamRequest) {
+                NotificationService::push(
+                    $adminId,
+                    'team_formation_request',
+                    'طلب تشكيل فريق جديد',
+                    "اللاعب {$user->name} يطلب تشكيل فريق جديد",
+                    ['player_team_request_id' => $teamRequest->id, 'player_id' => $user->id],
+                    '/admin',
+                );
+            });
+
+        return response()->json([
+            'message' => 'تم إرسال طلب تشكيل الفريق بنجاح، بانتظار مراجعة الإدارة',
+            'team_request' => $teamRequest,
+        ], 201);
     }
 }

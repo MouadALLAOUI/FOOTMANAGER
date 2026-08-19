@@ -42,7 +42,10 @@ use App\Domains\Team\Policies\TeamAnnouncementPolicy;
 use App\Domains\Team\Policies\TeamPolicy;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Policies\TournamentPolicy;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -91,5 +94,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('chat.pin', fn ($user, $match) => app(MatchChatPolicy::class)->pin($user, $match));
         Gate::define('chat.update', fn ($user, $message) => app(MatchChatPolicy::class)->update($user, $message));
         Gate::define('chat.delete', fn ($user, $message) => app(MatchChatPolicy::class)->delete($user, $message));
+
+        RateLimiter::for('contact', function (Request $request) {
+            return Limit::perMinute(5)->by($request->ip());
+        });
     }
 }

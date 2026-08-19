@@ -4,9 +4,13 @@ use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Team\Events;
 use App\Domains\Team\Listeners;
 use App\Http\Middleware\AddSecurityHeaders;
+use App\Http\Middleware\EnsureActivityNotLocked;
+use App\Http\Middleware\EnsureAdminAccess;
 use App\Http\Middleware\EnsureCommitteeApproved;
 use App\Http\Middleware\EnsureIsAdmin;
 use App\Http\Middleware\EnsureManagerApproved;
+use App\Http\Middleware\EnsureModuleMaintenance;
+use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsurePlayerApproved;
 use App\Http\Middleware\EnsureTerrainOwner;
 use App\Http\Middleware\EnsureUserApproved;
@@ -36,11 +40,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'admin' => EnsureIsAdmin::class,
+            'admin.access' => EnsureAdminAccess::class,
+            'permission' => EnsurePermission::class,
             'manager.approved' => EnsureManagerApproved::class,
             'committee.approved' => EnsureCommitteeApproved::class,
             'terrain.owner' => EnsureTerrainOwner::class,
             'player.approved' => EnsurePlayerApproved::class,
             'user.approved' => EnsureUserApproved::class,
+            'activity.not_locked' => EnsureActivityNotLocked::class,
+            'module.maintenance' => EnsureModuleMaintenance::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

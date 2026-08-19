@@ -152,7 +152,7 @@ export function BracketView({ rounds }) {
   )
 }
 
-function RankList({ title, icon: Icon, items }) {
+export function RankList({ title, icon: Icon, items }) {
   return (
     <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
       <div className="mb-3 flex items-center gap-2">
@@ -165,10 +165,11 @@ function RankList({ title, icon: Icon, items }) {
         <div className="space-y-1.5">
           {(items || []).map((row, i) => (
             <div key={row.player_id ?? i} className="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2">
-              <span className="w-4 text-center text-[11px] font-black text-slate-400">{i + 1}</span>
-              <TeamAvatar team={row.team_id ? { id: row.team_id } : null} className="size-6" />
+              <span className="w-4 shrink-0 text-center text-[11px] font-black text-slate-400">{i + 1}</span>
+              <TeamAvatar team={{ id: row.team_id, name: row.team_name, logo_url: row.team_logo_url }} className="size-6" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-bold text-slate-700">{row.name || '—'}</p>
+                {row.team_name && <p className="truncate text-[10px] font-semibold text-slate-400">{row.team_name}</p>}
               </div>
               <Badge variant="info">{row.count}</Badge>
             </div>
@@ -179,7 +180,7 @@ function RankList({ title, icon: Icon, items }) {
   )
 }
 
-export function StatisticsView({ stats }) {
+export function StatisticsSummary({ stats }) {
   const { t } = useTranslation()
   const s = stats || {}
   const summary = s.summary || {}
@@ -222,12 +223,6 @@ export function StatisticsView({ stats }) {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <RankList title={t('committee.detail.scorers')} icon={Target} items={s.top_scorers} />
-        <RankList title={t('committee.detail.assists')} icon={Medal} items={s.top_assists} />
-        <RankList title={t('committee.detail.cards')} icon={Flame} items={s.yellow_cards} />
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-3">
         {s.best_attack && (
           <div className="rounded-3xl border border-slate-200/70 bg-white p-5">
@@ -253,6 +248,20 @@ export function StatisticsView({ stats }) {
             <p className="mt-2 text-[11px] font-semibold text-slate-400">{t('committee.detail.biggestWinDesc', { home: s.biggest_win.home_score, away: s.biggest_win.away_score })}</p>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+export function StatisticsView({ stats }) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-5">
+      <StatisticsSummary stats={stats} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <RankList title={t('committee.detail.scorers')} icon={Target} items={stats?.top_scorers} />
+        <RankList title={t('committee.detail.assists')} icon={Medal} items={stats?.top_assists} />
+        <RankList title={t('committee.detail.cards')} icon={Flame} items={stats?.yellow_cards} />
       </div>
     </div>
   )

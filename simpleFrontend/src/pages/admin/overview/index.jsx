@@ -4,11 +4,17 @@ import { ArrowUpRight, ClipboardList, EyeOff, Hotel, Users, UserRound, Flag, Tro
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Card, PageHeader, StatWidget, Skeleton, Badge } from '../../../components/admin/ui'
+import { activityTypeMeta, typeToneMap } from '../../../components/admin/activityMeta'
 
 export default function Overview() {
   const { t } = useTranslation()
   const { data, loading } = useApi(() => api.get('/admin/stats').then((r) => r.data))
   const stats = data?.stats || {}
+
+  const { data: activityData, loading: activityLoading } = useApi(
+    () => api.get('/admin/activities', { params: { per_page: 5 } }).then((r) => r.data),
+  )
+  const activities = activityData?.activities || []
 
   const statConfig = [
     { key: 'total', label: t('admin.overview.stat.totalManagers'), icon: Users, tone: 'slate', to: '/admin/managers' },
@@ -106,6 +112,51 @@ export default function Overview() {
           </div>
         </Card>
       </div>
+
+      <Card
+        title={t('admin.overview.activity.title')}
+        className="mt-6"
+        action={
+          <Link to="/admin/activities" className="flex items-center gap-1 text-[11px] font-bold text-green-600 transition-colors hover:text-green-700">
+            {t('admin.overview.activity.viewAll')}
+            <ArrowUpRight className="size-3.5" />
+          </Link>
+        }
+      >
+        {activityLoading ? (
+          <div className="space-y-2.5">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-2xl" />)}
+          </div>
+        ) : activities.length === 0 ? (
+          <p className="py-8 text-center text-xs font-semibold text-slate-400">{t('admin.overview.activity.empty')}</p>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {activities.map((a) => {
+              const meta = activityTypeMeta(a.type)
+              const Icon = meta.icon
+              return (
+                <Link key={a.id} to="/admin/activities" className="flex items-center gap-3 py-2.5 transition-colors hover:bg-slate-50/70">
+                  <span className={`grid size-9 shrink-0 place-items-center rounded-xl ring-1 ${typeToneMap[meta.tone] || 'bg-slate-50 text-slate-500 ring-slate-100'}`}>
+                    <Icon className="size-4" strokeWidth={2.1} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-bold text-slate-800">{meta.label}</span>
+                    {a.subject?.summary && <span className="block truncate text-[11px] font-semibold text-slate-400">{a.subject.summary}</span>}
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-0.5">
+                    {a.actor && <span className="max-w-[120px] truncate text-[11px] font-bold text-slate-500">{a.actor.name}</span>}
+                    <span className="text-[10px] font-semibold text-slate-400">
+                      {a.created_at
+                        ? new Date(a.created_at).toLocaleString('ar-MA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                        : '—'}
+                    </span>
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

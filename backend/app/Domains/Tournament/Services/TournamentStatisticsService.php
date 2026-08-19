@@ -87,7 +87,7 @@ class TournamentStatisticsService
                 $yellowCards[$event->player_id] = ($yellowCards[$event->player_id] ?? 0) + 1;
             }
 
-            if ($event->type === MatchEventType::RedCard && $event->player_id) {
+            if (in_array($event->type, [MatchEventType::RedCard, MatchEventType::SecondYellow], true) && $event->player_id) {
                 $redCards[$event->player_id] = ($redCards[$event->player_id] ?? 0) + 1;
             }
         }
@@ -109,13 +109,33 @@ class TournamentStatisticsService
             ];
         }
 
-        $teamIds = collect([array_keys($teamGoalsFor), $finishedMatches->pluck('winner_team_id')->all()])
+        $countTeamIds = [];
+        foreach ($playerMap as $info) {
+            if (! empty($info['team_id'])) {
+                $countTeamIds[] = $info['team_id'];
+            }
+        }
+        foreach ($scorers as $info) {
+            if (! empty($info['team_id'])) {
+                $countTeamIds[] = $info['team_id'];
+            }
+        }
+
+        $teamIds = collect([$countTeamIds, array_keys($teamGoalsFor), $finishedMatches->pluck('winner_team_id')->all()])
             ->flatten()
             ->unique()
             ->map('intval')
             ->all();
 
         $teams = $teamIds ? Team::query()->whereKey($teamIds)->get(['id', 'name', 'logo_path']) : collect();
+
+        $teamMap = [];
+        foreach ($teams as $team) {
+            $teamMap[$team->id] = [
+                'name' => $team->name,
+                'logo_url' => $team->logo_url,
+            ];
+        }
 
         $bestAttack = null;
         $bestDefense = null;
@@ -146,11 +166,11 @@ class TournamentStatisticsService
                     ->where('status', MatchStatus::Scheduled)
                     ->count(),
             ],
-            'top_scorers' => $this->ranked($scorers, $playerMap),
-            'own_goals' => $this->ranked($ownGoals, $playerMap),
-            'top_assists' => $this->ranked($assists, $playerMap),
-            'yellow_cards' => $this->ranked($yellowCards, $playerMap),
-            'red_cards' => $this->ranked($redCards, $playerMap),
+            'top_scorers' => $this->ranked($scorers, $playerMap, $teamMap),
+            'own_goals' => $this->ranked($ownGoals, $playerMap, $teamMap),
+            'top_assists' => $this->ranked($assists, $playerMap, $teamMap),
+            'yellow_cards' => $this->ranked($yellowCards, $playerMap, $teamMap),
+            'red_cards' => $this->ranked($redCards, $playerMap, $teamMap),
             'best_attack' => $bestAttack ? $this->teamInfo($bestAttack['team_id'], $teams) + ['goals' => $bestAttack['goals']] : null,
             'best_defense' => $bestDefense ? $this->teamInfo($bestDefense['team_id'], $teams) + ['goals_against' => $bestDefense['goals_against']] : null,
             'biggest_win' => $biggestWin['margin'] > 0 ? [
@@ -167,20 +187,24 @@ class TournamentStatisticsService
     /**
      * @param  array<int, array<string, mixed>>  $counts
      * @param  array<int, array<string, mixed>>  $playerMap
+     * @param  array<int, array<string, mixed>>  $teamMap
      * @return array<int, array<string, mixed>>
      */
-    private function ranked(array $counts, array $playerMap, int $limit = 10): array
+    private function ranked(array $counts, array $playerMap, array $teamMap = [], int $limit = 10): array
     {
         $rows = [];
 
         foreach ($counts as $playerId => $value) {
             $count = is_array($value) ? $value['count'] : $value;
             $teamId = is_array($value) ? ($value['team_id'] ?? null) : ($playerMap[$playerId]['team_id'] ?? null);
+            $team = $teamMap[$teamId] ?? null;
 
             $rows[] = [
                 'player_id' => (int) $playerId,
                 'name' => $playerMap[$playerId]['name'] ?? null,
                 'team_id' => $teamId,
+                'team_name' => $team['name'] ?? null,
+                'team_logo_url' => $team['logo_url'] ?? null,
                 'count' => $count,
             ];
         }

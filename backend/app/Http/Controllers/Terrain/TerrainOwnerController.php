@@ -5,18 +5,26 @@ namespace App\Http\Controllers\Terrain;
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Booking\Models\TerrainImage;
 use App\Domains\Booking\Models\TerrainSchedule;
+use App\Domains\Notification\Services\WhatsAppNotificationService;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Services\ImageThumbnailService;
 use App\Domains\Shared\Support\PublicCache;
 use App\Domains\Stadium\Models\Stadium;
+use App\Domains\Subscription\Services\SubscriptionService;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class TerrainOwnerController extends Controller
 {
+    public function __construct(
+        private WhatsAppNotificationService $whatsapp,
+        private SubscriptionService $subscription,
+    ) {}
     public function index(Request $request): JsonResponse
     {
         $terrains = Stadium::with(['images', 'schedules', 'facilities'])
@@ -39,6 +47,12 @@ class TerrainOwnerController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->subscription->authorizeResource(
+            $request->user(),
+            'terrain_limit',
+            $this->subscription->currentUsage($request->user(), 'terrain_limit'),
+        );
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'city' => 'required|string|max:255',
@@ -275,6 +289,130 @@ class TerrainOwnerController extends Controller
         ]);
     }
 
+    public function overview(Request $request): JsonResponse
+    {
+        $ownerId = $request->user()->id;
+        $today = Carbon::today();
+
+        $terrains = Stadium::where('owner_id', $ownerId)
+            ->select([
+                'id', 'name', 'city', 'type', 'player_format', 'price_per_team',
+                'rating', 'is_open', 'closure_reason', 'is_available', 'cover_image',
+            ])
+            ->latest()
+            ->get();
+
+        $terrainAgg = Stadium::where('owner_id', $ownerId)
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN is_available THEN 1 ELSE 0 END) as available')
+            ->first();
+
+        $matchAgg = DB::table('match_requests')
+            ->whereIn('stadium_id', function ($q) use ($ownerId) {
+                $q->select('id')->from('stadiums')->where('owner_id', $ownerId);
+            })
+            ->whereIn('status', ['accepted', 'open'])
+            ->selectRaw("SUM(CASE WHEN status = 'accepted' THEN 1 ELSE 0 END) as booked, SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as pending")
+            ->first();
+
+        $totalRevenue = DB::table('terrain_bookings')
+            ->where('status', 'approved')
+            ->whereIn('terrain_id', function ($q) use ($ownerId) {
+                $q->select('id')->from('stadiums')->where('owner_id', $ownerId);
+            })
+            ->sum('price');
+
+        $baseQuery = TerrainBooking::query()
+            ->whereHas('terrain', function ($q) use ($ownerId) {
+                $q->where('owner_id', $ownerId);
+            })
+            ->with(['manager.playerProfile', 'team', 'terrain:id,name,owner_id', 'terrain.owner:id,phone']);
+
+        $pendingBookings = (clone $baseQuery)
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc')
+            ->limit(20)
+            ->get()
+            ->map(fn (TerrainBooking $booking) => $this->overviewBookingShape($booking));
+
+        $todayBookings = (clone $baseQuery)
+            ->whereIn('status', ['pending', 'approved'])
+            ->where(function ($q) use ($today) {
+                $q->where(function ($single) use ($today) {
+                    $single->where('reservation_type', 'single')
+                        ->where('booking_date', $today->toDateString());
+                })->orWhere(function ($weekly) use ($today) {
+                    $weekly->where('reservation_type', 'weekly_subscription')
+                        ->where('day_of_week', $today->dayOfWeek)
+                        ->where(function ($start) use ($today) {
+                            $start->whereNull('start_date')->orWhere('start_date', '<=', $today->toDateString());
+                        })
+                        ->where(function ($end) use ($today) {
+                            $end->whereNull('end_date')->orWhere('end_date', '>=', $today->toDateString());
+                        });
+                });
+            })
+            ->orderBy('start_time', 'asc')
+            ->limit(30)
+            ->get()
+            ->map(fn (TerrainBooking $booking) => $this->overviewBookingShape($booking));
+
+        return response()->json([
+            'terrains' => $terrains,
+            'stats' => [
+                'total_terrains' => (int) ($terrainAgg->total ?? 0),
+                'available_terrains' => (int) ($terrainAgg->available ?? 0),
+                'booked_matches' => (int) ($matchAgg->booked ?? 0),
+                'pending_matches' => (int) ($matchAgg->pending ?? 0),
+                'total_revenue' => $totalRevenue ?? 0,
+            ],
+            'pending_bookings' => $pendingBookings,
+            'today_bookings' => $todayBookings,
+        ]);
+    }
+
+    private function overviewBookingShape(TerrainBooking $booking): array
+    {
+        return [
+            'id' => $booking->id,
+            'booking_date' => $booking->booking_date?->toDateString(),
+            'start_date' => $booking->start_date?->toDateString(),
+            'end_date' => $booking->end_date?->toDateString(),
+            'day_of_week' => $booking->day_of_week,
+            'start_time' => $booking->start_time,
+            'end_time' => $booking->end_time,
+            'price' => (float) $booking->price,
+            'status' => $booking->status,
+            'booking_type' => $booking->booking_type,
+            'flow_type' => $booking->flow_type ?? 'direct',
+            'reservation_type' => $booking->reservation_type ?? 'single',
+            'notes' => $booking->notes,
+            'created_at' => $booking->created_at,
+            'manager' => $this->managerSummary($booking->manager),
+            'team' => $booking->team?->only(['id', 'name']),
+            'guest_name' => $booking->guest_name,
+            'guest_phone' => $booking->guest_phone,
+            'guest_email' => $booking->guest_email,
+            'is_guest' => $booking->isGuest(),
+            'terrain' => $booking->terrain?->only(['id', 'name']),
+            'whatsapp_notification_url' => $this->whatsapp->buildBookingRequestMessage($booking),
+        ];
+    }
+
+    private function managerSummary(?User $manager): ?array
+    {
+        if (! $manager) {
+            return null;
+        }
+
+        return [
+            'id' => $manager->id,
+            'name' => $manager->name,
+            'phone' => $manager->phone,
+            'email' => $manager->email,
+            'profile_image' => $manager->playerProfile?->photo_url,
+        ];
+    }
+
     public function upcomingBookings(Request $request): JsonResponse
     {
         $terrainIds = Stadium::where('owner_id', $request->user()->id)->pluck('id');
@@ -433,7 +571,7 @@ class TerrainOwnerController extends Controller
 
             if ($mode === 'weekly') {
                 // Only the current week's day matching the subscription's day_of_week
-                $targetDate = Carbon::parse($currentWeekStart)->addDays(($dow - 1) - Carbon::parse($currentWeekStart)->dayOfWeek + 7) % 7;
+                $targetDate = Carbon::parse($currentWeekStart)->addDays((($dow - 1) - Carbon::parse($currentWeekStart)->dayOfWeek + 7) % 7);
                 $key = $targetDate->toDateString();
                 if (isset($agg[$key])) {
                     $agg[$key]['revenue'] += $occurrenceRevenue;
@@ -578,5 +716,260 @@ class TerrainOwnerController extends Controller
             'occupancy' => $occupancy,
             'counts' => (object) $counts,
         ]);
+    }
+
+    public function analyticsDetails(Request $request): JsonResponse
+    {
+        $terrainIds = Stadium::where('owner_id', $request->user()->id)->pluck('id');
+
+        if ($terrainIds->isEmpty()) {
+            return response()->json([
+                'range' => null,
+                'summary' => (object) [],
+                'by_status' => (object) [],
+                'peak_hours' => array_fill(0, 24, 0),
+                'popular_days' => array_fill(0, 7, 0),
+                'series' => [],
+            ]);
+        }
+
+        $toDate = $request->query('to') ? Carbon::parse($request->query('to'))->startOfDay() : Carbon::today();
+        $fromDate = $request->query('from') ? Carbon::parse($request->query('from'))->startOfDay() : $toDate->copy()->subDays(29);
+
+        if ($fromDate->gt($toDate)) {
+            $fromDate = $toDate->copy()->subDays(29);
+        }
+        if ($fromDate->diffInDays($toDate) > 366) {
+            $fromDate = $toDate->copy()->subDays(366);
+        }
+
+        $from = $fromDate->toDateString();
+        $to = $toDate->toDateString();
+        $toEnd = $toDate->copy()->endOfDay();
+
+        $payload = Cache::remember(
+            "owner:analytics:details:{$request->user()->id}:{$from}:{$to}",
+            60,
+            function () use ($terrainIds, $fromDate, $toDate, $from, $to, $toEnd) {
+                return $this->buildTerrainAnalyticsPayload($terrainIds, $fromDate, $toDate, $from, $to, $toEnd);
+            }
+        );
+
+        return response()->json($payload);
+    }
+
+    private function buildTerrainAnalyticsPayload($terrainIds, Carbon $fromDate, Carbon $toDate, string $from, string $to, Carbon $toEnd): array
+    {
+        $schedules = TerrainSchedule::whereIn('terrain_id', $terrainIds)
+            ->where('is_active', true)
+            ->get()
+            ->keyBy(fn ($s) => $s->terrain_id.'-'.$s->day_of_week);
+
+        $slotCount = function (string $startTime, string $endTime, int $terrainId, int $dayOfWeek) use ($schedules) {
+            $start = Carbon::parse($startTime);
+            $end = Carbon::parse($endTime);
+            $minutes = max(60, $start->diffInMinutes($end));
+            $duration = (int) ($schedules->get($terrainId.'-'.$dayOfWeek)?->slot_duration_minutes ?? 60);
+
+            return max(1, (int) ceil($minutes / max(60, $duration)));
+        };
+
+        $singles = TerrainBooking::whereIn('terrain_id', $terrainIds)
+            ->where('reservation_type', 'single')
+            ->whereBetween('booking_date', [$fromDate, $toEnd])
+            ->get(['terrain_id', 'booking_date', 'start_time', 'end_time', 'status', 'price']);
+
+        $subscriptions = TerrainBooking::whereIn('terrain_id', $terrainIds)
+            ->where('reservation_type', 'weekly_subscription')
+            ->where(function ($q) use ($to) {
+                $q->whereNull('start_date')->orWhere('start_date', '<=', $to);
+            })
+            ->where(function ($q) use ($from) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', $from);
+            })
+            ->get(['terrain_id', 'day_of_week', 'start_date', 'end_date', 'start_time', 'end_time', 'status', 'price']);
+
+        $occurrencesOf = function ($subscription) use ($fromDate, $to) {
+            $dow = (int) $subscription->day_of_week;
+            $occurrences = [];
+            if ($dow < 1 || $dow > 7) {
+                return $occurrences;
+            }
+            $cursor = $fromDate->copy();
+            if ($subscription->start_date && $subscription->start_date->gt($cursor)) {
+                $cursor = $subscription->start_date->copy();
+            }
+            $cursor->addDays(($dow - $cursor->dayOfWeek + 7) % 7);
+            while ($cursor->toDateString() <= $to) {
+                if ($subscription->end_date && $cursor->gt($subscription->end_date)) {
+                    break;
+                }
+                $occurrences[] = $cursor->copy();
+                $cursor->addWeek();
+            }
+
+            return $occurrences;
+        };
+
+        $byStatus = array_fill_keys(['pending', 'approved', 'completed', 'cancelled', 'rejected', 'expired'], 0);
+        foreach ($singles as $booking) {
+            if (isset($byStatus[$booking->status])) {
+                $byStatus[$booking->status]++;
+            }
+        }
+        foreach ($subscriptions as $subscription) {
+            if (isset($byStatus[$subscription->status])) {
+                $byStatus[$subscription->status]++;
+            }
+        }
+
+        $isWeekly = $fromDate->copy()->diffInDays($toDate) > 62;
+        $buckets = [];
+        if ($isWeekly) {
+            for ($date = $fromDate->copy()->startOfWeek(); $date->lte($toDate); $date->addWeek()) {
+                $buckets[$date->toDateString()] = ['revenue' => 0.0, 'bookings' => 0];
+            }
+        } else {
+            for ($date = $fromDate->copy(); $date->lte($toDate); $date->addDay()) {
+                $buckets[$date->toDateString()] = ['revenue' => 0.0, 'bookings' => 0];
+            }
+        }
+        $bucketKey = function (Carbon $date) use ($isWeekly) {
+            return $isWeekly ? $date->copy()->startOfWeek()->toDateString() : $date->toDateString();
+        };
+
+        foreach ($singles as $booking) {
+            $date = $booking->booking_date?->toDateString();
+            if (! $date || $date < $from || $date > $to) {
+                continue;
+            }
+            $key = $bucketKey($booking->booking_date);
+            if (! isset($buckets[$key])) {
+                continue;
+            }
+            $slots = $slotCount($booking->start_time, $booking->end_time, $booking->terrain_id, $booking->booking_date->dayOfWeek % 7);
+            if (in_array($booking->status, ['approved', 'completed'], true)) {
+                $buckets[$key]['bookings'] += $slots;
+                if ($booking->status === 'approved') {
+                    $buckets[$key]['revenue'] += (float) $booking->price * $slots;
+                }
+            }
+        }
+
+        foreach ($subscriptions as $subscription) {
+            $dow = (int) $subscription->day_of_week;
+            if ($dow < 1 || $dow > 7) {
+                continue;
+            }
+            $slots = $slotCount($subscription->start_time, $subscription->end_time, $subscription->terrain_id, $dow);
+            $active = in_array($subscription->status, ['approved', 'completed'], true);
+            $isApproved = $subscription->status === 'approved';
+            foreach ($occurrencesOf($subscription) as $occurrence) {
+                $key = $bucketKey($occurrence);
+                if (! isset($buckets[$key])) {
+                    continue;
+                }
+                if ($active) {
+                    $buckets[$key]['bookings'] += $slots;
+                    if ($isApproved) {
+                        $buckets[$key]['revenue'] += (float) $subscription->price * $slots;
+                    }
+                }
+            }
+        }
+
+        $series = [];
+        foreach ($buckets as $key => $values) {
+            $series[] = [
+                'key' => $key,
+                'revenue' => (int) round($values['revenue']),
+                'bookings' => $values['bookings'],
+            ];
+        }
+
+        $peakHours = array_fill(0, 24, 0);
+        $popularDays = array_fill(0, 7, 0);
+        foreach ($singles as $booking) {
+            if (! in_array($booking->status, ['pending', 'approved', 'completed'], true)) {
+                continue;
+            }
+            $date = $booking->booking_date?->toDateString();
+            if (! $date || $date < $from || $date > $to) {
+                continue;
+            }
+            $peakHours[(int) Carbon::parse($booking->start_time)->format('G')]++;
+            $popularDays[$booking->booking_date->dayOfWeek % 7]++;
+        }
+        foreach ($subscriptions as $subscription) {
+            if (! in_array($subscription->status, ['pending', 'approved', 'completed'], true)) {
+                continue;
+            }
+            $hour = (int) Carbon::parse($subscription->start_time)->format('G');
+            $day = ((int) $subscription->day_of_week) % 7;
+            $count = max(1, count($occurrencesOf($subscription)));
+            $peakHours[$hour] += $count;
+            $popularDays[$day] += $count;
+        }
+
+        $availableSlots = 0;
+        foreach ($terrainIds as $terrainId) {
+            for ($date = $fromDate->copy(); $date->lte($toDate); $date->addDay()) {
+                $schedule = $schedules->get($terrainId.'-'.($date->dayOfWeek % 7));
+                if (! $schedule) {
+                    continue;
+                }
+                $duration = (int) ($schedule->slot_duration_minutes ?: 60);
+                $availableSlots += (int) max(0, ceil(
+                    Carbon::parse($schedule->open_time)->diffInMinutes(Carbon::parse($schedule->close_time)) / max(60, $duration)
+                ));
+            }
+        }
+
+        $bookedSlots = 0;
+        foreach ($singles as $booking) {
+            $date = $booking->booking_date?->toDateString();
+            if (! $date || $date < $from || $date > $to) {
+                continue;
+            }
+            if (in_array($booking->status, ['approved', 'completed'], true)) {
+                $bookedSlots += $slotCount($booking->start_time, $booking->end_time, $booking->terrain_id, $booking->booking_date->dayOfWeek % 7);
+            }
+        }
+        foreach ($subscriptions as $subscription) {
+            if (! in_array($subscription->status, ['approved', 'completed'], true)) {
+                continue;
+            }
+            $slots = $slotCount($subscription->start_time, $subscription->end_time, $subscription->terrain_id, (int) $subscription->day_of_week);
+            $bookedSlots += $slots * count($occurrencesOf($subscription));
+        }
+
+        $occupancy = $availableSlots > 0 ? (int) round($bookedSlots / $availableSlots * 100) : 0;
+        $bookings = array_sum(array_column($series, 'bookings'));
+        $revenue = (int) round(array_sum(array_column($series, 'revenue')));
+
+        return [
+            'range' => [
+                'from' => $from,
+                'to' => $to,
+                'period' => $isWeekly ? 'week' : 'day',
+            ],
+            'summary' => [
+                'total_bookings' => (int) array_sum($byStatus),
+                'bookings' => $bookings,
+                'revenue' => $revenue,
+                'avg_booking_value' => $bookings > 0 ? (int) round($revenue / $bookings) : 0,
+                'cancellations' => $byStatus['cancelled'],
+                'completed' => $byStatus['completed'],
+                'pending' => $byStatus['pending'],
+                'approved' => $byStatus['approved'],
+                'subscriptions' => count($subscriptions),
+                'occupancy' => $occupancy,
+                'available_slots' => max(0, $availableSlots - $bookedSlots),
+            ],
+            'by_status' => $byStatus,
+            'peak_hours' => $peakHours,
+            'popular_days' => $popularDays,
+            'series' => $series,
+        ];
     }
 }

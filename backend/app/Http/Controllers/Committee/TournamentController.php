@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Committee;
 
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Competition\Models\Fixture;
+use App\Domains\Subscription\Services\SubscriptionService;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Resources\TournamentDetailResource;
 use App\Domains\Tournament\Resources\TournamentResource;
@@ -22,6 +24,7 @@ class TournamentController extends Controller
 
     public function __construct(
         private readonly TournamentSetupService $setup,
+        private readonly SubscriptionService $subscription,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -53,11 +56,17 @@ class TournamentController extends Controller
 
     public function store(StoreTournamentRequest $request): JsonResponse
     {
+        $this->subscription->authorizeResource(
+            $request->user(),
+            'tournament_limit',
+            $this->subscription->currentUsage($request->user(), 'tournament_limit'),
+        );
+
         $data = $request->validated();
 
-        if (in_array($data['tournament_format'], ['groups_knockout', 'groups_only'], true)
-            && ($data['group_mode'] ?? 'fixed') !== 'free') {
-            [$data['groups_count'], $data['teams_per_group']] = $this->deriveGroupSplit($data);
+        if (in_array($data['tournament_format'], ['groups_knockout', 'groups_only'], true)) {
+            $data['teams_per_group'] = (int) ($data['teams_per_group'] ?? 4);
+            $data['groups_count'] = $this->deriveGroupsCount($data);
         }
 
         $tournament = DB::transaction(function () use ($data, $request) {
@@ -71,6 +80,9 @@ class TournamentController extends Controller
                 'stadium_id' => $data['stadium_id'] ?? null,
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'] ?? null,
+                'registration_start_at' => $data['registration_start_at'] ?? null,
+                'registration_end_at' => $data['registration_end_at'] ?? null,
+                'registration_fee' => $data['registration_fee'] ?? 0,
                 'tournament_format' => $data['tournament_format'],
                 'teams_count' => $data['teams_count'],
                 'groups_count' => $data['groups_count'],
@@ -95,32 +107,22 @@ class TournamentController extends Controller
     }
 
     /**
-     * Derive a balanced group split when teams-per-group or groups-count are omitted.
+     * Derive the group count from teams and teams-per-group. An explicit
+     * groups_count always wins; otherwise groups = ceil(teams / per_group),
+     * clamped to at least 2 groups.
      *
      * @param  array<string, mixed>  $data
-     * @return array{0: int, 1: int}
      */
-    private function deriveGroupSplit(array $data): array
+    private function deriveGroupsCount(array $data): int
     {
-        if (isset($data['groups_count']) && isset($data['teams_per_group'])) {
-            return [(int) $data['groups_count'], (int) $data['teams_per_group']];
+        if (isset($data['groups_count']) && (int) $data['groups_count'] >= 1) {
+            return (int) $data['groups_count'];
         }
 
-        if (isset($data['groups_count'])) {
-            return [
-                (int) $data['groups_count'],
-                max(2, (int) ceil((int) $data['teams_count'] / (int) $data['groups_count'])),
-            ];
-        }
+        $teams = (int) $data['teams_count'];
+        $perGroup = max(2, (int) ($data['teams_per_group'] ?? 4));
 
-        if (isset($data['teams_per_group'])) {
-            return [
-                min(max((int) ceil((int) $data['teams_count'] / (int) $data['teams_per_group']), 2), 16),
-                (int) $data['teams_per_group'],
-            ];
-        }
-
-        return TournamentSetupService::deriveGroups((int) $data['teams_count']);
+        return min(max((int) ceil($teams / $perGroup), 2), 16);
     }
 
     public function show(Tournament $tournament): JsonResponse
@@ -136,20 +138,98 @@ class TournamentController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status !== 'draft') {
+        if ($tournament->isCompleted() || $tournament->isInProgress() || $tournament->isCancelled()) {
             throw new DomainException('لا يمكن تعديل البطولة بعد انطلاقها');
         }
 
-        $tournament->update($request->validated());
+        $data = $request->validated();
+
+        $structural = [
+            'teams_count',
+            'groups_count',
+            'teams_per_group',
+            'group_mode',
+            'tournament_format',
+            'knockout_teams',
+            'qualify_per_group',
+        ];
+
+        $changedStructural = array_intersect(array_keys($data), $structural);
+
+        if ($changedStructural) {
+            $hasFixtures = $tournament->competition_id
+                && Fixture::query()
+                    ->where('competition_id', $tournament->competition_id)
+                    ->where('season_id', $tournament->season_id)
+                    ->exists();
+
+            if ($hasFixtures) {
+                throw new DomainException('لا يمكن تعديل بنية البطولة بعد توليد المباريات');
+            }
+
+            if (isset($data['teams_count']) && $tournament->registeredTeamsCount() > (int) $data['teams_count']) {
+                throw new DomainException('لا يمكن تقليص عدد الفرق إلى أقل من الفرق المسجلة');
+            }
+
+            $format = $data['tournament_format'] ?? $tournament->tournament_format;
+
+            if (in_array($format, ['groups_knockout', 'groups_only'], true)) {
+                $data['teams_per_group'] = (int) ($data['teams_per_group'] ?? $tournament->teams_per_group ?? 4);
+                $data['groups_count'] = $this->deriveGroupsCount($data + ['teams_count' => $data['teams_count'] ?? $tournament->teams_count]);
+
+                $this->assertGroupLayoutFits($tournament, $data);
+            } else {
+                $data['groups_count'] = null;
+                $data['teams_per_group'] = null;
+            }
+        }
+
+        $tournament->update($data);
 
         return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
+    }
+
+    /**
+     * Before fixtures exist, structural changes must not break the current
+     * draw: no group may already hold more teams than the new teams-per-group
+     * and the tournament may not have more non-empty groups than the new count.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function assertGroupLayoutFits(Tournament $tournament, array $data): void
+    {
+        $groupMode = $data['group_mode'] ?? $tournament->group_mode;
+
+        if ($groupMode === 'free') {
+            return;
+        }
+
+        $newPerGroup = (int) $data['teams_per_group'];
+        $newGroupsCount = (int) $data['groups_count'];
+
+        $sizes = DB::table('tournament_teams')
+            ->where('tournament_id', $tournament->id)
+            ->whereNotNull('group_id')
+            ->selectRaw('group_id, COUNT(*) as cnt')
+            ->groupBy('group_id')
+            ->get();
+
+        foreach ($sizes as $row) {
+            if ((int) $row->cnt > $newPerGroup) {
+                throw new DomainException("لا يمكن تصغير حجم المجموعة إلى أقل من {$row->cnt} فرق (المجموعة الحالية)");
+            }
+        }
+
+        if ($sizes->count() > $newGroupsCount) {
+            throw new DomainException('لا يمكن تقليص عدد المجموعات إلى أقل من عدد المجموعات المستخدمة حالياً');
+        }
     }
 
     public function destroy(Tournament $tournament): Response
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status !== 'draft') {
+        if ($tournament->status !== Tournament::STATUS_DRAFT) {
             throw new DomainException('لا يمكن حذف بطولة بعد انطلاقها');
         }
 
@@ -158,18 +238,63 @@ class TournamentController extends Controller
         return response()->noContent();
     }
 
-    public function publish(Tournament $tournament): JsonResponse
+    public function openRegistration(Tournament $tournament): JsonResponse
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status !== 'draft') {
+        if ($tournament->status !== Tournament::STATUS_DRAFT) {
             throw new DomainException('البطولة منشورة بالفعل');
         }
 
         $tournament->forceFill([
-            'status' => 'published',
+            'status' => Tournament::STATUS_OPEN_FOR_REGISTRATION,
             'published_at' => now(),
         ])->save();
+
+        return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
+    }
+
+    public function closeRegistration(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if ($tournament->status !== Tournament::STATUS_OPEN_FOR_REGISTRATION) {
+            throw new DomainException('التسجيل غير مفتوح حالياً');
+        }
+
+        $tournament->forceFill(['status' => Tournament::STATUS_REGISTRATION_CLOSED])->save();
+
+        return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
+    }
+
+    public function startTournament(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if ($tournament->status !== Tournament::STATUS_REGISTRATION_CLOSED) {
+            throw new DomainException('لا يمكن انطلاق البطولة قبل إغلاق التسجيل');
+        }
+
+        $registered = $tournament->registeredTeamsCount();
+
+        if ($registered < $tournament->teams_count) {
+            throw new DomainException("لا يمكن انطلاق البطولة إلا باكتمال الفرق (متاح {$registered} من {$tournament->teams_count})");
+        }
+
+        $tournament->forceFill(['status' => Tournament::STATUS_IN_PROGRESS])->save();
+
+        return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
+    }
+
+    public function cancel(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if ($tournament->isCompleted() || $tournament->isCancelled()) {
+            throw new DomainException('لا يمكن إلغاء بطولة منتهية');
+        }
+
+        $tournament->forceFill(['status' => Tournament::STATUS_CANCELLED])->save();
 
         return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
     }

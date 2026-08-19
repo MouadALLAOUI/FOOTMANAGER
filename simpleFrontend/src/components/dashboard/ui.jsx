@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import ItemIcon from './ItemIcon'
 import { useTranslation } from 'react-i18next'
-import { X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react'
 
 export function useDialogA11y(open, panelRef) {
   const restoreRef = useRef(null)
@@ -41,11 +41,12 @@ export function useDialogA11y(open, panelRef) {
   }, [open, panelRef])
 }
 
-export function Card({ title, subtitle, action, children, className = '', bodyClassName = '', noPadding = false }) {
+export function Card({ title, subtitle, action, children, className = '', bodyClassName = '', noPadding = false, pad = true }) {
+  const noPad = noPadding || pad === false
   return (
     <div className={`rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
       {(title || action) && (
-        <div className="flex items-start justify-between gap-3 px-6 pb-4 pt-5">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
           <div className="min-w-0">
             {title && <h3 className="text-sm font-extrabold text-slate-900">{title}</h3>}
             {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
@@ -53,7 +54,7 @@ export function Card({ title, subtitle, action, children, className = '', bodyCl
           {action}
         </div>
       )}
-      <div className={noPadding ? '' : `px-6 pb-6 ${bodyClassName}`}>{children}</div>
+      <div className={noPad ? bodyClassName : `p-6 ${bodyClassName}`}>{children}</div>
     </div>
   )
 }
@@ -78,12 +79,12 @@ export function useCountUp(target, duration = 700) {
 }
 
 const accentChips = {
-  green: 'bg-emerald-500',
-  amber: 'bg-amber-500',
-  sky: 'bg-sky-500',
-  violet: 'bg-violet-500',
-  rose: 'bg-rose-500',
-  orange: 'bg-orange-500',
+  green: 'bg-emerald-500/15 text-emerald-600',
+  amber: 'bg-amber-500/15 text-amber-600',
+  sky: 'bg-sky-500/15 text-sky-600',
+  violet: 'bg-violet-500/15 text-violet-600',
+  rose: 'bg-rose-500/15 text-rose-600',
+  orange: 'bg-orange-500/15 text-orange-600',
 }
 
 export function Stat({ icon: Icon, label, value, delta, accent = 'green', suffix }) {
@@ -93,8 +94,8 @@ export function Stat({ icon: Icon, label, value, delta, accent = 'green', suffix
     <div className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
       <div className={`pointer-events-none absolute -end-8 -top-8 size-28 rounded-full ${chip} opacity-[0.06] blur-2xl`} />
       <div className="flex items-center justify-between">
-        <div className={`grid size-11 shrink-0 place-items-center rounded-2xl ${chip} bg-opacity-10 text-white`}>
-          <ItemIcon icon={Icon} className="size-5 text-slate-700" strokeWidth={2.2} />
+        <div className={`grid size-11 shrink-0 place-items-center rounded-2xl ${chip}`}>
+          <ItemIcon icon={Icon} className="size-5" strokeWidth={2.2} />
         </div>
         {typeof delta === 'number' && (
           <span
@@ -133,17 +134,16 @@ const buttonSizes = {
   lg: 'h-12 gap-2 rounded-2xl px-6 text-sm',
 }
 
-export function Button({ children, variant = 'primary', size = 'md', className = '', type = 'button', loading = false, ...props }) {
+export function Button({ children, variant = 'primary', size = 'md', className = '', type = 'button', loading = false, disabled = false, ...props }) {
   return (
     <button
       type={type}
       aria-busy={loading || undefined}
+      disabled={loading || disabled}
       className={`inline-flex items-center justify-center gap-2 font-bold transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${buttonVariants[variant]} ${buttonSizes[size]} ${className}`}
       {...props}
     >
-      {loading && (
-        <span className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" aria-hidden="true" />
-      )}
+      {loading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
       {children}
     </button>
   )
@@ -207,22 +207,35 @@ export function Toggle({ checked, onChange, disabled, label, title }) {
   )
 }
 
-export function Modal({ open, onClose, title, subtitle, children, size = 'md' }) {
+export function Modal({ open, onClose, title, subtitle, children, footer, size = 'md' }) {
   const { t } = useTranslation()
   const panelRef = useRef(null)
   const titleIdRef = useRef(`modal-title-${Math.random().toString(36).slice(2)}`)
+  const closingRef = useRef(false)
+  const [closing, setClosing] = useState(false)
   useDialogA11y(open, panelRef)
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return
+    closingRef.current = true
+    setClosing(true)
+    window.setTimeout(() => {
+      closingRef.current = false
+      setClosing(false)
+      onClose()
+    }, 180)
+  }, [onClose])
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const onKey = (e) => e.key === 'Escape' && requestClose()
     window.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  }, [open, onClose])
+  }, [open, requestClose])
 
   if (!open) return null
 
@@ -230,15 +243,15 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md' })
   const titleId = titleIdRef.current
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-4 sm:items-center">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+    <div className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center">
+      <div className={`${closing ? 'overlay-out' : 'overlay-in'} absolute inset-0 bg-slate-900/50 backdrop-blur-sm`} onClick={requestClose} aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`relative w-full ${widths[size]} max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl outline-none sm:rounded-3xl`}
+        className={`${closing ? 'pop-out' : 'pop-in'} relative w-full ${widths[size]} max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl outline-none sm:rounded-3xl`}
       >
         <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-white px-6 py-4">
           <div className="min-w-0">
@@ -247,7 +260,7 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md' })
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label={t('common.close')}
             className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
@@ -255,6 +268,7 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md' })
           </button>
         </div>
         <div className="px-6 py-5">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">{footer}</div>}
       </div>
     </div>
   )
@@ -263,7 +277,7 @@ export function Modal({ open, onClose, title, subtitle, children, size = 'md' })
 export function Spinner({ className = '' }) {
   return (
     <div className={`flex items-center justify-center py-16 ${className}`}>
-      <div className="size-9 animate-spin rounded-full border-4 border-green-500/20 border-t-green-500" />
+      <Loader2 className="size-9 animate-spin text-green-500" aria-hidden="true" />
     </div>
   )
 }
@@ -333,6 +347,14 @@ const statusStyles = {
   draft: 'bg-slate-100 text-slate-600 ring-slate-200',
   published: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   finished: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+  open_for_registration: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  registration_closed: 'bg-amber-50 text-amber-700 ring-amber-200',
+  in_progress: 'bg-sky-50 text-sky-700 ring-sky-200',
+  active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  reviewed: 'bg-sky-50 text-sky-700 ring-sky-200',
+  resolved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  dismissed: 'bg-slate-100 text-slate-600 ring-slate-200',
+  hidden: 'bg-violet-50 text-violet-700 ring-violet-200',
 }
 
 export const statusLabels = {
@@ -360,6 +382,14 @@ export const statusLabels = {
   draft: 'status.draft',
   published: 'status.published',
   finished: 'status.finished',
+  open_for_registration: 'status.open_for_registration',
+  registration_closed: 'status.registration_closed',
+  in_progress: 'status.in_progress',
+  active: 'status.active',
+  reviewed: 'status.reviewed',
+  resolved: 'status.resolved',
+  dismissed: 'status.dismissed',
+  hidden: 'status.hidden',
 }
 
 export function StatusBadge({ status }) {
@@ -422,4 +452,106 @@ export function Timeline({ items }) {
 
 export function FieldRow({ children, cols = 2 }) {
   return <div className={`grid gap-4 ${cols === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>{children}</div>
+}
+
+export function EmptyState(props) {
+  return <Empty {...props} />
+}
+
+export function TableSkeleton({ rows = 5, columns = 4 }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 rounded-2xl bg-slate-50 px-5 py-4">
+          <Skeleton className="size-10 rounded-full" />
+          {Array.from({ length: columns }).map((__, j) => (
+            <Skeleton key={j} className="h-4 flex-1" />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function Avatar({ name, src, className = 'size-10' }) {
+  if (src) {
+    return <img loading="lazy" decoding="async" src={src} alt={name} className={`shrink-0 rounded-full object-cover ${className}`} />
+  }
+  return (
+    <span
+      className={`grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-green-500 to-emerald-600 text-sm font-black text-white ${className}`}
+    >
+      {name?.charAt(0) || '?'}
+    </span>
+  )
+}
+
+export function Tabs({ items, value, onChange }) {
+  return (
+    <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
+      {items.map((item) => (
+        <button
+          key={item.value}
+          type="button"
+          onClick={() => onChange(item.value)}
+          aria-pressed={value === item.value}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-bold transition-all duration-200 ${
+            value === item.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          {item.icon && <ItemIcon icon={item.icon} className={`size-4 ${value === item.value ? 'text-green-600' : 'text-slate-400'}`} />}
+          {item.label}
+          {typeof item.count === 'number' && (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                value === item.value ? 'bg-green-500/15 text-green-700' : 'bg-slate-200/70 text-slate-500'
+              }`}
+            >
+              {item.count}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function Pagination({ page, lastPage, total, perPage, onChange, bare = false }) {
+  const { t } = useTranslation()
+  if (!total) return null
+  const from = (page - 1) * perPage + 1
+  const to = Math.min(page * perPage, total)
+  const wrap = bare
+    ? 'mt-8 flex flex-wrap items-center justify-between gap-3'
+    : 'flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-4'
+  return (
+    <div className={wrap}>
+      <p className="text-xs font-medium text-slate-400">
+        {t('pagination.showing', { from, to, total })}
+      </p>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+          aria-label={t('pagination.prev')}
+          className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronRight className="size-4 rtl:rotate-180" />
+        </button>
+        <span className="min-w-16 text-center text-xs font-bold text-slate-500">
+          {page} / {lastPage}
+        </span>
+        <button
+          type="button"
+          disabled={page >= lastPage}
+          onClick={() => onChange(page + 1)}
+          aria-label={t('pagination.next')}
+          className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ChevronLeft className="size-4 rtl:rotate-180" />
+        </button>
+      </div>
+    </div>
+  )
 }

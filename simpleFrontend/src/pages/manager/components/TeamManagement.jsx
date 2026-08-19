@@ -71,10 +71,10 @@ function NumberBadge({ player }) {
           onKeyDown={(e) => e.key === 'Enter' && save()}
           className="w-14 rounded-lg border border-green-300 bg-white px-1.5 py-1 text-center text-xs font-black text-slate-800 outline-none focus:ring-2 focus:ring-green-200"
         />
-        <button onClick={save} className="text-green-600">
+        <button onClick={save} type="button" aria-label="حفظ" className="text-green-600">
           <Check className="size-3.5" />
         </button>
-        <button onClick={() => setEditing(false)} className="text-slate-300">
+        <button onClick={() => setEditing(false)} type="button" aria-label="إلغاء" className="text-slate-300">
           <X className="size-3.5" />
         </button>
       </span>

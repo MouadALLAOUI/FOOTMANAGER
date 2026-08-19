@@ -6,14 +6,16 @@ import {
   Search,
   Trash2,
   UserRound,
-  Users,
   X,
 } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import api from '../../../api/client'
 import { useManagerPlayers, invalidateKeys } from '../../../api/queries'
+import { mapHttpError } from '../../../lib/errorState'
+import { SectionError } from '../../../components/errors'
 import {
   Button,
+  Empty,
   Field,
   FieldRow,
   Modal,
@@ -179,7 +181,8 @@ function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
 
 export default function Players() {
   const { toast } = useToast()
-  const { data, isLoading: loading } = useManagerPlayers()
+  const { data, isLoading: loading, error, refetch } = useManagerPlayers()
+  const errorState = error ? mapHttpError(error) : null
   const [search, setSearch] = useState('')
   const [position, setPosition] = useState('')
   const [modal, setModal] = useState({ open: false, editing: null, initial: null })
@@ -260,7 +263,9 @@ export default function Players() {
         }
       />
 
-      {loading ? (
+      {errorState ? (
+        <SectionError state={errorState} onRetry={refetch} />
+      ) : loading ? (
         <div className="space-y-4">
           <Skeleton className="h-40 rounded-3xl" />
           {[0, 1, 2, 3].map((i) => (
@@ -268,17 +273,17 @@ export default function Players() {
           ))}
         </div>
       ) : players.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
-          <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300">
-            <Users className="size-7" strokeWidth={1.6} />
-          </span>
-          <p className="mt-4 text-sm font-bold text-slate-700">لا يوجد لاعبون بعد</p>
-          <p className="mt-1 text-xs text-slate-400">أضف لاعبي فريقك لإدارتهم هنا</p>
-          <Button className="mt-5" size="sm" onClick={openAdd}>
-            <Plus className="size-3.5" />
-            إضافة أول لاعب
-          </Button>
-        </div>
+        <Empty
+          icon={UserRound}
+          title="لا يوجد لاعبون بعد"
+          description="أضف لاعبي فريقك لإدارتهم هنا"
+          action={
+            <Button size="sm" onClick={openAdd}>
+              <Plus className="size-3.5" />
+              إضافة أول لاعب
+            </Button>
+          }
+        />
       ) : (
         <>
           <div className="grid gap-5 lg:grid-cols-3">
@@ -298,12 +303,14 @@ export default function Players() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="ابحث بالاسم أو الرقم أو الهاتف…"
+                    aria-label="ابحث بالاسم أو الرقم أو الهاتف"
                     className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pe-9 ps-10 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
                   />
                   {search && (
                     <button
                       type="button"
                       onClick={() => setSearch('')}
+                      aria-label="مسح البحث"
                       className="absolute end-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-slate-200 text-slate-500"
                     >
                       <X className="size-3" />
@@ -330,9 +337,24 @@ export default function Players() {
 
               <div className="mt-5 space-y-3">
                 {filtered.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-10 text-center text-xs text-slate-400">
-                    لا لاعبين يطابقون البحث
-                  </div>
+                  <Empty
+                    icon={Search}
+                    title="لا لاعبين يطابقون البحث"
+                    description="جرّب كلمة بحث أخرى أو غيّر مركز اللاعب"
+                    action={
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSearch('')
+                          setPosition('')
+                        }}
+                      >
+                        <X className="size-3.5" />
+                        مسح البحث والفلاتر
+                      </Button>
+                    }
+                  />
                 ) : filtered.length > 60 ? (
                   <div ref={parentRef} className="h-[calc(100vh-360px)] min-h-[320px] overflow-y-auto" dir="ltr">
                     <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() }}>

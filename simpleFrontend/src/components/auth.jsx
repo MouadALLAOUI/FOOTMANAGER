@@ -17,7 +17,11 @@ export function ProtectedRoute({ role, children }) {
 
   if (loading) return <LoadingScreen />
   if (!user) return <Navigate to="/login" replace />
-  if (role && user.role !== role) return <Navigate to={homeForRole(user.role)} replace />
+  if (role && user.role !== role) {
+    if (!(role === 'admin' && user.role === 'sub_admin')) {
+      return <Navigate to={homeForRole(user.role)} replace />
+    }
+  }
   if (user.status !== 'approved') return <Navigate to="/pending" replace />
 
   return children

@@ -80,10 +80,35 @@ export function useAuth() {
   return useContext(AuthContext)
 }
 
+export function usePermission() {
+  const { user } = useContext(AuthContext)
+  return useCallback(
+    (slug) => {
+      if (!user) return false
+      if (user.role === 'admin') return true
+      if (user.role !== 'sub_admin') return false
+      return user.permissions?.includes(slug) ?? false
+    },
+    [user],
+  )
+}
+
 export function homeForRole(role) {
-  if (role === 'admin') return '/admin'
+  if (role === 'admin' || role === 'sub_admin') return '/admin'
   if (role === 'terrain_owner') return '/terrain'
   if (role === 'player') return '/player'
   if (role === 'committee') return '/committee'
   return '/dashboard'
+}
+
+export function useActivityLock() {
+  const { user } = useContext(AuthContext)
+  return useMemo(() => {
+    if (!user) return { locked: false, reason: null, lockedAt: null }
+    return {
+      locked: Boolean(user.activity_locked),
+      reason: user.activity_lock_reason || null,
+      lockedAt: user.activity_locked_at || null,
+    }
+  }, [user])
 }

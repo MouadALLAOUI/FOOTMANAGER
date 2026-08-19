@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ListChecks, Plus, Trash2, UserPlus, X } from 'lucide-react'
+import { Check, ListChecks, Plus, Trash2, UserPlus, Wallet, X } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Empty, Field, Modal, Skeleton } from '../../../components/dashboard/ui'
@@ -28,6 +28,39 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
     () => api.get(`/committee/tournaments/${tournament.id}/teams`).then((r) => r.data.data),
     [tournament.id, refreshKey],
   )
+
+  const { data: registrations, loading: regLoading } = useApi(
+    () => api.get(`/committee/tournaments/${tournament.id}/registrations`).then((r) => r.data.data),
+    [tournament.id, refreshKey],
+  )
+
+  const pending = (registrations || []).filter((r) => r.status === 'pending')
+
+  const respond = async (teamId, action) => {
+    setBusy(`respond-${teamId}`)
+    try {
+      await api.post(`/committee/tournaments/${tournament.id}/teams/${teamId}/${action}`)
+      toast.success(t(action === 'approve' ? 'committee.detail.approveRequestToast' : 'committee.detail.rejectRequestToast'))
+      refresh()
+    } catch (e) {
+      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const markPaid = async (teamId) => {
+    setBusy(`pay-${teamId}`)
+    try {
+      await api.post(`/committee/tournaments/${tournament.id}/teams/${teamId}/payment`)
+      toast.success(t('committee.detail.markPaidToast'))
+      refresh()
+    } catch (e) {
+      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+    } finally {
+      setBusy(null)
+    }
+  }
 
   const { data: allTeams } = useApi(
     () => api.get('/committee/teams').then((r) => r.data.data),
@@ -181,6 +214,52 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
         </p>
       )}
 
+      {(pending.length > 0 || regLoading) && (
+        <div className="rounded-3xl border border-amber-200/70 bg-amber-50/60 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-sm font-extrabold text-slate-900">{t('committee.detail.pendingRequests')}</p>
+            <Badge variant="warning">{pending.length}</Badge>
+          </div>
+          {regLoading ? (
+            <Skeleton className="h-12" />
+          ) : (
+            <div className="space-y-2.5">
+              {pending.map((r) => (
+                <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-amber-200/60 bg-white px-3.5 py-3">
+                  <TeamAvatar team={r.team} className="size-10" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-800">{r.team?.name || '—'}</p>
+                    {r.team?.city && <p className="text-[11px] text-slate-400">{r.team.city}</p>}
+                  </div>
+                  <Button
+                    size="sm"
+                    className="shrink-0"
+                    loading={busy === `respond-${r.team_id}`}
+                    onClick={() => respond(r.team_id, 'approve')}
+                  >
+                    <Check className="size-3.5" />
+                    {t('committee.detail.approveRequest')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="dangerSoft"
+                    className="shrink-0"
+                    loading={busy === `respond-${r.team_id}`}
+                    onClick={() => {
+                      if (!window.confirm(t('committee.detail.rejectRequestConfirm'))) return
+                      respond(r.team_id, 'reject')
+                    }}
+                  >
+                    <X className="size-3.5" />
+                    {t('committee.detail.rejectRequest')}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {selectMode && bulkSelected.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-green-200 bg-green-50/70 p-3">
           <Badge variant="success">{t('committee.detail.bulkSelected', { count: bulkSelected.length })}</Badge>
@@ -241,14 +320,38 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                   </p>
                 </div>
                 {!selectMode && (
-                  <button
-                    type="button"
-                    onClick={() => removeTeam(p.team?.id)}
-                    className="grid size-9 place-items-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50"
-                    aria-label={t('committee.detail.removeTeam')}
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {p.payment_status === 'pending' && (
+                      <button
+                        type="button"
+                        onClick={() => markPaid(p.team?.id)}
+                        disabled={busy === `pay-${p.team?.id}`}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200 transition-colors hover:bg-amber-100 disabled:opacity-50"
+                        title={t('committee.detail.markPaid')}
+                      >
+                        {busy === `pay-${p.team?.id}` ? (
+                          <Check className="size-3.5 animate-pulse" />
+                        ) : (
+                          <Wallet className="size-3.5" />
+                        )}
+                        {t('committee.detail.paymentPending')}
+                      </button>
+                    )}
+                    {p.payment_status === 'completed' && (
+                      <span className="inline-flex items-center gap-1 rounded-lg bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700 ring-1 ring-green-200">
+                        <Check className="size-3" />
+                        {t('committee.detail.paymentPaid')}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeTeam(p.team?.id)}
+                      className="grid size-9 place-items-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50"
+                      aria-label={t('committee.detail.removeTeam')}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
                 )}
               </div>
             )

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../../../api/client'
 import { useOwnerTerrains } from '../../../api/queries'
+import { useApi } from '../../../hooks/useApi'
 import { adaptTerrainCalendar } from './terrainCalendarAdapter'
 
 function toISODate(date) {
@@ -10,16 +11,18 @@ function toISODate(date) {
   return `${y}-${m}-${d}`
 }
 
+// Safely calculate start of week at noon to prevent DST/timezone midnight rollbacks
 function startOfWeekISO(date = new Date()) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  const day = d.getDay()
-  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day))
+  const d = typeof date === 'string' ? new Date(date + 'T12:00:00') : new Date(date)
+  d.setHours(12, 0, 0, 0)
+  const day = d.getDay() // 0 = Sunday
+  const diff = day === 6 ? 0 : -(day + 1)
+  d.setDate(d.getDate() + diff)
   return toISODate(d)
 }
 
 function shiftDaysISO(iso, delta) {
-  const d = new Date(iso + 'T00:00:00')
+  const d = new Date(iso + 'T12:00:00')
   d.setDate(d.getDate() + delta)
   return toISODate(d)
 }
@@ -34,14 +37,16 @@ export function useTerrainCalendar() {
 
   const [terrainId, setTerrainId] = useState(null)
   const [weekStart, setWeekStart] = useState(() => startOfWeekISO())
-  const [selectedDate, setSelectedDateValue] = useState(() => startOfWeekISO())
+
+  // FIX 1: Default selectedDate to todayISO(), NOT Monday (startOfWeekISO)
+  const [selectedDate, setSelectedDateValue] = useState(() => todayISO())
   const today = useMemo(todayISO, [])
 
   const setSelectedDate = useCallback((date) => {
     if (!date) return
     setSelectedDateValue(date)
     setWeekStart((ws) => {
-      const weekOfDate = startOfWeekISO(new Date(date + 'T00:00:00'))
+      const weekOfDate = startOfWeekISO(date)
       return weekOfDate === ws ? ws : weekOfDate
     })
   }, [])
@@ -75,15 +80,16 @@ export function useTerrainCalendar() {
     setTerrainId(id)
     const ws = startOfWeekISO()
     setWeekStart(ws)
-    setSelectedDateValue(ws)
+    setSelectedDateValue(todayISO())
   }, [])
 
   const nextWeek = useCallback(() => setWeekStart((ws) => shiftDaysISO(ws, 7)), [])
   const previousWeek = useCallback(() => setWeekStart((ws) => shiftDaysISO(ws, -7)), [])
+
+  // FIX 2: Simplify goToToday to leverage setSelectedDate (handles week start + selected date sync)
   const goToToday = useCallback(() => {
-    setWeekStart(startOfWeekISO())
-    setSelectedDateValue(todayISO())
-  }, [])
+    setSelectedDate(todayISO())
+  }, [setSelectedDate])
 
   const { refetch: refetchCalendar } = calendarQuery
 

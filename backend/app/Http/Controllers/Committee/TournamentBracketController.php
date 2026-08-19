@@ -43,6 +43,17 @@ class TournamentBracketController extends Controller
     }
 
     /**
+     * Idempotent recovery pass: recompute every knockout slot from its source
+     * winners and refresh round states. Safe to run at any time.
+     */
+    public function sync(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        return response()->json(['data' => $this->bracket->progressAll($tournament)]);
+    }
+
+    /**
      * @return array<int, int>
      */
     private function qualifiedTeams(Tournament $tournament): array

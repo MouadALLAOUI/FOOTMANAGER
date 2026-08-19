@@ -90,6 +90,7 @@ export default function FilterBar({ filters, setFilters, queryInput, setQueryInp
                 type="search"
                 className={`${inputClass} pe-3 ps-9 text-xs`}
                 placeholder={t('committee.detail.filterSearch')}
+                aria-label={t('committee.detail.filterSearch')}
                 value={queryInput}
                 onChange={(e) => setQueryInput(e.target.value)}
               />

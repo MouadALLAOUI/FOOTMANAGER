@@ -38,7 +38,7 @@ class StoreFixtureResultRequest extends FormRequest
             'cards.*.player_id' => 'nullable|integer|exists:players,id',
             'cards.*.minute' => 'required|integer|min:0|max:130',
             'cards.*.period' => 'nullable|string|max:20',
-            'cards.*.type' => 'required|in:yellow_card,red_card',
+            'cards.*.type' => 'required|in:yellow_card,second_yellow,red_card',
             'referees' => 'nullable|array|max:4',
             'referees.*.role' => 'required|in:main,assistant1,assistant2,fourth',
             'referees.*.referee_id' => 'required|integer|exists:referees,id',

@@ -2,9 +2,14 @@ const dayNameFormatter = new Intl.DateTimeFormat('ar-MA', { weekday: 'long' })
 const dayFormatter = new Intl.DateTimeFormat('ar-MA', { day: 'numeric', month: 'long' })
 const yearFormatter = new Intl.DateTimeFormat('ar-MA', { day: 'numeric', month: 'long', year: 'numeric' })
 
+// Helper to construct a safe Date object at noon (T12:00:00) to prevent DST/Timezone midnight rollbacks
+function parseISODate(dateStr) {
+  return new Date(`${dateStr}T12:00:00`)
+}
+
 function dayNameFor(dateStr) {
   try {
-    return dayNameFormatter.format(new Date(dateStr + 'T00:00:00'))
+    return dayNameFormatter.format(parseISODate(dateStr))
   } catch {
     return ''
   }
@@ -13,8 +18,8 @@ function dayNameFor(dateStr) {
 function formatPeriodLabel(week) {
   if (!week?.start || !week?.end) return ''
   try {
-    const start = dayFormatter.format(new Date(week.start + 'T00:00:00'))
-    const end = yearFormatter.format(new Date(week.end + 'T00:00:00'))
+    const start = dayFormatter.format(parseISODate(week.start))
+    const end = yearFormatter.format(parseISODate(week.end))
     return `${start} — ${end}`
   } catch {
     return `${week.start} — ${week.end}`
@@ -22,13 +27,13 @@ function formatPeriodLabel(week) {
 }
 
 function buildDay(rawDay, today, selectedDate) {
-  const date = new Date(rawDay.date + 'T00:00:00')
+  const date = parseISODate(rawDay.date)
   return {
     id: rawDay.date,
     date: rawDay.date,
     dayName: dayNameFor(rawDay.date),
     dayNumber: date.getDate(),
-    isClosed: rawDay.is_open === false,
+    isClosed: rawDay.is_open === false || rawDay.is_closed === true,
     isToday: rawDay.date === today,
     isSelected: rawDay.date === selectedDate,
   }
@@ -47,7 +52,7 @@ function enrichBooking(booking, rawDay, terrain) {
 function adaptSlot(rawDay, raw, terrain, today) {
   const booking = raw.booking
   const isPending = booking?.status === 'pending'
-  const status = raw.status === 'booked' ? (isPending ? 'pending' : 'booked') : raw.status
+  const status = raw.status === 'booked' ? (isPending ? 'pending' : 'booked') : (raw.status || 'available')
 
   return {
     id: `${rawDay.date}:${raw.start}`,
@@ -56,11 +61,11 @@ function adaptSlot(rawDay, raw, terrain, today) {
     endTime: raw.end,
     status,
     title: booking
-      ? booking.team?.name || booking.manager?.name || 'حجز'
+      ? booking.guest_name || booking.team?.name || booking.manager?.name || 'حجز'
       : raw.status === 'closed'
         ? raw.closure?.reason || 'مغلق'
         : '',
-    subtitle: booking ? 'حجز' : '',
+    subtitle: booking ? (booking.guest_name ? 'ضيف' : 'حجز') : '',
     price: booking ? Number(booking.price || 0) : null,
     metadata: {
       bookingId: booking?.id ?? null,
@@ -69,6 +74,10 @@ function adaptSlot(rawDay, raw, terrain, today) {
       managerId: booking?.manager?.id ?? null,
       managerName: booking?.manager?.name ?? null,
       manager: booking?.manager ?? null,
+      guestName: booking?.guest_name ?? null,
+      guestPhone: booking?.guest_phone ?? null,
+      guestEmail: booking?.guest_email ?? null,
+      isGuest: booking?.is_guest === true || (Boolean(booking?.guest_name) && !booking?.manager),
       bookingStatus: booking?.status ?? null,
       bookingType: booking?.booking_type ?? null,
       reservationType: booking?.reservation_type ?? null,
@@ -105,8 +114,8 @@ function adaptPendingBooking(raw) {
     date: raw.booking_date || raw.date || '',
     startTime: raw.start_time || '',
     endTime: raw.end_time || '',
-    title: team.name || manager.name || 'فريق',
-    subtitle: manager.name || '',
+    title: raw.guest_name || team.name || manager.name || 'فريق',
+    subtitle: raw.guest_name ? 'ضيف' : manager.name || '',
     price: Number(raw.price || 0),
     status: 'pending',
     metadata: {
@@ -114,6 +123,8 @@ function adaptPendingBooking(raw) {
       teamId: team.id ?? null,
       managerId: manager.id ?? null,
       manager: manager || null,
+      guestName: raw.guest_name || null,
+      isGuest: raw.is_guest === true || Boolean(raw.guest_name),
       whatsappUrl: raw.whatsapp_notification_url || null,
       rawBooking: raw,
     },
@@ -131,9 +142,16 @@ export function adaptTerrainCalendar(payload, { today = '', selectedDate = '' } 
     for (const rawSlot of rawDay.slots || []) {
       const slot = adaptSlot(rawDay, rawSlot, payload?.terrain, today)
       slots.push(slot)
+
       if (slot.status !== 'booked' && slot.status !== 'pending') continue
-      const key = slot.metadata.bookingId ? `${rawDay.date}:${slot.metadata.bookingId}` : `${rawDay.date}:${slot.id}`
-      if (!eventsByDay.has(key)) eventsByDay.set(key, buildEvent(rawDay, slot))
+
+      const key = slot.metadata.bookingId
+        ? `${rawDay.date}:${slot.metadata.bookingId}`
+        : `${rawDay.date}:${slot.id}`
+
+      if (!eventsByDay.has(key)) {
+        eventsByDay.set(key, buildEvent(rawDay, slot))
+      }
     }
   }
 

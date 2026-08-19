@@ -14,8 +14,11 @@ import {
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useManagerBookings, useStadiums } from '../../../api/queries'
+import { mapHttpError } from '../../../lib/errorState'
+import { SectionError } from '../../../components/errors'
 import {
   Button,
+  Empty,
   Field,
   FieldRow,
   Modal,
@@ -350,7 +353,8 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
 export default function Bookings() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToast()
-  const { data, loading, refetch } = useManagerBookings()
+  const { data, isLoading: loading, error, refetch } = useManagerBookings()
+  const errorState = error ? mapHttpError(error) : null
   const [status, setStatus] = useState('all')
   const [type, setType] = useState('all')
   const [newOpen, setNewOpen] = useState(false)
@@ -498,23 +502,29 @@ export default function Bookings() {
         ))}
       </div>
 
-      {loading ? (
+      {errorState ? (
+        <div className="mt-6">
+          <SectionError state={errorState} onRetry={refetch} />
+        </div>
+      ) : loading ? (
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           <SkeletonCards count={4} />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="mt-6 rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center">
-          <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300">
-            <CalendarPlus className="size-7" strokeWidth={1.6} />
-          </span>
-          <p className="mt-4 text-sm font-bold text-slate-700">لا حجوزات في هذا التصنيف</p>
-          <p className="mt-1 text-xs text-slate-400">احجز ملعبًا لتدريبات ومباريات فريقك</p>
-          {type === 'all' && (
-            <Button className="mt-5" size="sm" onClick={() => setNewOpen(true)}>
-              <Plus className="size-3.5" />
-              حجز جديد
-            </Button>
-          )}
+        <div className="mt-6">
+          <Empty
+            icon={CalendarPlus}
+            title="لا حجوزات في هذا التصنيف"
+            description="احجز ملعبًا لتدريبات ومباريات فريقك"
+            action={
+              type === 'all' && (
+                <Button size="sm" onClick={() => setNewOpen(true)}>
+                  <Plus className="size-3.5" />
+                  حجز جديد
+                </Button>
+              )
+            }
+          />
         </div>
       ) : (
         <div className="mt-6 grid gap-4 lg:grid-cols-2">

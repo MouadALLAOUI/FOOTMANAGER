@@ -276,6 +276,37 @@ class TournamentFixtureController extends Controller
         return response()->json(['message' => 'تم إلغاء المباراة']);
     }
 
+    public function restore(Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+        $this->assertBelongsToTournament($tournament, $fixture);
+
+        if ($fixture->match?->status === MatchStatus::Finished) {
+            throw new DomainException('لا يمكن استعادة مباراة انتهت');
+        }
+
+        $fixtureStatus = $fixture->status?->value;
+        $matchStatus = $fixture->match?->status?->value;
+
+        $isCancelledOrPostponed = in_array($fixtureStatus, [FixtureStatus::Cancelled->value, FixtureStatus::Postponed->value], true)
+            || in_array($matchStatus, [MatchStatus::Cancelled->value, MatchStatus::Postponed->value], true);
+
+        if (! $isCancelledOrPostponed) {
+            throw new DomainException('المباراة ليست ملغاة أو مؤجلة');
+        }
+
+        $fixture->forceFill(['status' => FixtureStatus::Scheduled])->save();
+
+        if ($fixture->match) {
+            $fixture->match->forceFill(['status' => MatchStatus::Scheduled])->save();
+        }
+
+        return response()->json([
+            'data' => new TournamentFixtureResource($fixture->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),
+            'message' => 'تمت استعادة المباراة',
+        ]);
+    }
+
     private function assertDrawReadyForFixtures(Tournament $tournament): void
     {
         if (! in_array($tournament->tournament_format, ['groups_knockout', 'groups_only'], true)) {

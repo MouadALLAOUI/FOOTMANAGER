@@ -5,6 +5,7 @@ import api from '../../../../api/client'
 import { useApi } from '../../../../hooks/useApi'
 import { Badge, Button, Empty, Field, Modal, Skeleton, inputClass, selectClass } from '../../../../components/dashboard/ui'
 import { useToast } from '../../../../components/ui/Toast'
+import { toastApiError } from '../../../../lib/errors'
 import { coverThumb } from '../../../../lib/thumb'
 import { ContentFilePicker } from './common'
 
@@ -56,12 +57,6 @@ export default function CommitteeNews({ tournament, refresh }) {
     return fd
   }
 
-  const errMessage = (e) => {
-    const err = e.response?.data?.errors
-    const first = err ? Object.values(err)[0]?.[0] : null
-    return first || e.response?.data?.message || t('committee.detail.actionFailed')
-  }
-
   const save = async () => {
     if (!form.title.trim()) {
       toast.error(t('committee.content.news.required'))
@@ -83,7 +78,7 @@ export default function CommitteeNews({ tournament, refresh }) {
       setOpen(false)
       refetch()
     } catch (e) {
-      toast.error(errMessage(e))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -96,7 +91,7 @@ export default function CommitteeNews({ tournament, refresh }) {
       toast.success(t('committee.content.deleted'))
       refetch()
     } catch (e) {
-      toast.error(errMessage(e))
+      toastApiError(e, t)
     }
   }
 

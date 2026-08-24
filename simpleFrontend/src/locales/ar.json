@@ -10,7 +10,11 @@
     "hoursAgo": "منذ {{count}} ساعة",
     "daysAgo": "منذ {{count}} يوم",
     "cancel": "إلغاء",
-    "save": "حفظ"
+    "save": "حفظ",
+    "imagePreview": "معاينة الصورة",
+    "imageLoadFailed": "فشل تحميل الصورة",
+    "retry": "إعادة المحاولة",
+    "noData": "لا توجد بيانات بعد"
   },
   "stages": {
     "group": "دور المجموعات",
@@ -37,6 +41,10 @@
     "declined": "مرفوض",
     "dismissed": "مهمل",
     "blocked": "محظور",
+    "suspended": "موقوف",
+    "inactive": "غير نشط",
+    "expired": "منتهي الصلاحية",
+    "subscribed": "مشترك",
     "cancelled": "ملغاة",
     "hidden": "مخفي",
     "none": "بدون نتيجة",
@@ -144,6 +152,7 @@
       "applications": "طلباتي ودعواتي",
       "requests": "طلبات الفريق",
       "matches": "مبارياتي",
+      "team": "فريقي",
       "profile": "ملفي الشخصي",
       "notifications": "الإشعارات",
       "settings": "الإعدادات"
@@ -342,7 +351,24 @@
         "mvp": "الأفضل",
         "goals": "هدف"
       },
-      "empty": "لا توجد بيانات بعد"
+      "empty": "لا توجد بيانات بعد",
+      "noMatches": "لا توجد مباريات في هذه الفترة",
+      "noActivityToday": "لا يوجد نشاط اليوم",
+      "goalsTrendHourly": "الأهداف بالساعة (اليوم)",
+      "breakdown": {
+        "title": "المباريات حسب الحالة",
+        "total": "الإجمالي",
+        "completed": "مكتملة",
+        "upcoming": "قادمة",
+        "cancelled": "ملغاة"
+      },
+      "booking": {
+        "title": "الحجوزات",
+        "count": "الحجوزات",
+        "completed": "مكتملة",
+        "upcoming": "قادمة",
+        "cancelled": "ملغاة"
+      }
     },
     "tournaments": {
       "title": "البطولات",
@@ -474,6 +500,10 @@
       },
       "trendsUsers": "المستخدمون والفرق الجديدة",
       "trendsActivity": "الحجوزات والمباريات المنتهية",
+      "trendsUsersHourly": "المستخدمون والفرق — بالساعة",
+      "trendsActivityHourly": "الحجوزات والمباريات — بالساعة",
+      "noActivityToday": "لا توجد نشاطات اليوم",
+      "hourlyHint": "البيانات مقسمة حسب الساعة (00:00–23:00)",
       "series": {
         "users": "المستخدمون",
         "teams": "الفرق",
@@ -658,6 +688,20 @@
       "sent": "تم إرسال طلب تشكيل الفريق بنجاح",
       "failed": "تعذر إرسال الطلب"
     },
+    "team": {
+      "noTeam": "ليس لديك فريق",
+      "noTeamDesc": "يمكنك طلب تشكيل فريق، أو انضم لمباراة كلاعب حر",
+      "myInfo": "معلوماتي في الفريق",
+      "position": "المركز",
+      "number": "الرقم",
+      "status": "الحالة",
+      "essential": "أساسي",
+      "member": "عضو",
+      "joined": "تاريخ الانضمام",
+      "essentialNotice": "أنت لاعب أساسي في هذا الفريق",
+      "teammates": "زملاء الفريق",
+      "members": "عضو"
+    },
     "playerTeamRequest": {
       "title": "طلبات الفريق",
       "subtitle": "إدارة طلبك للانضمام إلى فريق",
@@ -680,7 +724,18 @@
       "submittedAt": "تاريخ التقديم",
       "handledBy": "تمت المراجعة بواسطة",
       "rejectionReason": "سبب الرفض",
-      "requestSubmitted": "تم تقديم الطلب بنجاح"
+      "requestSubmitted": "تم تقديم الطلب بنجاح",
+      "responseDate": "تاريخ الرد",
+      "approvedMessage": "تم قبول طلبك وإنشاء الفريق بنجاح",
+      "noTeamName": "بدون اسم محدد",
+      "emptyTab": "لا توجد طلبات في هذا القسم",
+      "tab": {
+        "all": "الكل",
+        "pending": "قيد المراجعة",
+        "approved": "مقبول",
+        "rejected": "مرفوض",
+        "cancelled": "ملغي"
+      }
     },
     "feed": {
       "title": "المباريات المتاحة",
@@ -953,6 +1008,33 @@
       "progress": "خطوات الإعداد",
       "progressDesc": "تابع جاهزية البطولة قبل الانطلاق",
       "progressLabel": "الإنجاز",
+      "stages": {
+        "competition_created": "إنشاء البطولة",
+        "season_created": "إنشاء الموسم",
+        "groups_created": "إنشاء المجموعات",
+        "teams_added": "إضافة الفرق",
+        "draw_completed": "إتمام القرعة",
+        "fixtures_generated": "إنشاء برنامج المباريات",
+        "knockout_ready": "الدور الإقصائي"
+      },
+      "stageDescs": {
+        "competition_created": "إنشاء حاوية البطولة في النظام",
+        "season_created": "إنشاء الموسم المرتبط بالبطولة",
+        "groups_created": "تحديد هيكل المجموعات للبطولة",
+        "teams_added": "تسجيل أو إضافة الفرق المشاركة",
+        "draw_completed": "توزيع جميع الفرق المسجلة على المجموعات",
+        "fixtures_generated": "إنشاء جدول المباريات مع التواريخ والأوقات والملاعب",
+        "knockout_ready": "إعداد أدوار الإقصاء بعد دور المجموعات"
+      },
+      "stageAction": {
+        "competition_created": "الذهاب للإعدادات",
+        "season_created": "الذهاب للإعدادات",
+        "groups_created": "الذهاب للإعدادات",
+        "teams_added": "إضافة الفرق",
+        "draw_completed": "سحب القرعة",
+        "fixtures_generated": "إنشاء البرنامج",
+        "knockout_ready": "عرضBracket"
+      },
       "openRegistration": "فتح التسجيل",
       "openRegistrationToast": "تم فتح باب التسجيل في البطولة",
       "openRegistrationConfirm": "سيصبح التسجيل متاحاً للفرق بعد فتحه. هل تريد المتابعة؟",
@@ -1121,7 +1203,11 @@
       "addFreeTeam": "فريق حر",
       "addFreeTeamDesc": "فريق مؤقت بدون حساب سيُحذف بعد انتهاء البطولة",
       "freeTeamName": "اسم الفريق",
+      "freeTeamNames": "أسماء الفرق",
+      "freeTeamPlaceholder": "فريق أ\nفريق ب\nفريق ج\n...",
+      "freeTeamCount": "فريق جاهز",
       "freeTeamAdded": "تمت إضافة الفريق الحر",
+      "freeTeamsAdded": "تمت إضافة {{count}} فريق حر",
       "freeBadge": "حر",
       "drawPendingDesc": "اضغط على زر السحب لتوزيع الفرق على المجموعات",
       "noFixtures": "لا توجد مباريات بعد",
@@ -1166,6 +1252,7 @@
       "generate": "إنشاء",
       "fixturesGenerated": "تم إنشاء برنامج المباريات",
       "regenerate": "إعادة الإنشاء",
+      "regenerateBlocked": "لا يمكن إعادة الإنشاء بعد تسجيل نتيجة لمباراة",
       "deleteFixtures": "حذف البرنامج",
       "deleteFixturesConfirm": "سيتم حذف جميع المباريات. متابعة؟",
       "fixturesDeleted": "تم حذف برنامج المباريات",
@@ -1205,6 +1292,8 @@
       "cancelMatch": "إلغاء المباراة",
       "cancelMatchConfirm": "هل تريد إلغاء هذه المباراة؟ لا يمكن التراجع عن هذا الإجراء",
       "matchCancelled": "تم إلغاء المباراة",
+      "restoreMatch": "إلغاء الإلغاء",
+      "matchRestored": "تمت استعادة المباراة",
       "reschedule": "إعادة الجدولة",
       "rescheduleTitle": "إعادة جدولة المباراة",
       "rescheduleDesc": "غيّر تاريخ أو وقت أو ملعب هذه المباراة",
@@ -1413,6 +1502,7 @@
       "needTeam": "اختر الفريق",
       "needPlayer": "أدخل اسم اللاعب",
       "needMinute": "أدخل الدقيقة",
+      "minuteTooLow": "الدقيقة يجب أن تكون {{min}} على الأقل",
       "needNote": "اكتب الملاحظة",
       "penaltyRequired": "المباراة انتهت بالتعادل، حدد نتيجة ركلات الترجيح للفريقين",
       "penaltiesMustDiffer": "نتيجة ركلات الترجيح لا يمكن أن تنتهي بالتعادل",
@@ -1795,11 +1885,16 @@
     }
   },
   "terrain": {
+    "photos": {
+      "maxImages": "الحد الأقصى هو 6 صور"
+    },
     "analytics": {
       "title": "تحليلات الملعب",
       "subtitle": "إيرادات الحجوزات المؤكدة والأوقات المفضلة",
       "stat": {
-        "revenue": "إيرادات مؤكدة",
+        "revenue": "الإيرادات",
+        "confirmedRevenue": "إيرادات مدفوعة",
+        "refunded": "المبالغ المسترجعة",
         "bookings": "الحجوزات",
         "avgBooking": "متوسط قيمة الحجز",
         "occupancy": "نسبة الإشغال",
@@ -1812,6 +1907,7 @@
       },
       "trend": {
         "title": "الإيرادات والحجوزات",
+        "titleHourly": "الإيرادات والحجوزات — بالساعة",
         "subtitle": "قيمة الحجوزات المؤكدة فقط",
         "revenue": "الإيرادات",
         "bookings": "الحجوزات"
@@ -1819,6 +1915,19 @@
       "peakHours": "أوقات الذروة",
       "popularDays": "الأيام الأكثر طلبًا",
       "byStatus": "الحجوزات حسب الحالة",
+      "byPaymentStatus": "الإيرادات حسب حالة الدفع",
+      "byType": "الإيرادات حسب نوع الحجز",
+      "type": {
+        "single": "حجز فردي",
+        "weekly_subscription": "اشتراك أسبوعي"
+      },
+      "payment": {
+        "unpaid": "غير مدفوع",
+        "pending": "قيد الانتظار",
+        "paid": "مدفوع",
+        "refunded": "مسترجع",
+        "failed": "فشل"
+      },
       "empty": "لا توجد بيانات في هذه الفترة"
     },
     "overview": {
@@ -1968,6 +2077,18 @@
       "noImages": "لا توجد صور بعد",
       "prevPhoto": "الصورة السابقة",
       "nextPhoto": "الصورة التالية"
+    },
+    "empty": {
+      "noTerrains": "لا توجد ملاعب",
+      "noTerrainsDesc": "أضف ملعبك الأول لبدء استقبال الحجوزات",
+      "addTerrain": "إضافة ملعب",
+      "noPendingBookings": "لا توجد حجوزات معلقة",
+      "noFacilities": "لا توجد مرافق متاحة",
+      "noMatchingFacilities": "لا توجد مرافق مطابقة",
+      "noClosures": "لا توجد إغلاقات",
+      "noCancellationRequests": "لا توجد طلبات إلغاء",
+      "noCalendarTerrains": "لا توجد ملاعب",
+      "noCalendarTerrainsDesc": "أضف ملعبًا أولًا لعرض تقويم حجوزاته"
     },
     "calendar": {
       "bookerSectionTitle": "بيانات صاحب الحجز",
@@ -2164,7 +2285,11 @@
       "invalidNumber": "رقم غير صالح (1-99)",
       "numberUpdated": "تم تحديث رقم اللاعب",
       "numberUpdateFailed": "تعذر تحديث الرقم",
-      "changeNumber": "تغيير الرقم"
+      "changeNumber": "تغيير الرقم",
+      "essentialPlayer": "لاعب أساسي",
+      "essentialDesc": "تحديد的重要性 في الفريق",
+      "essentialOn": "تم تحديد اللاعب كأساسي",
+      "essentialOff": "تم إزالة اللاعب من الأساسيين"
     },
     "performance": {
       "title": "أداء الفريق",
@@ -2314,7 +2439,25 @@
       "noTime": "بدون وقت",
       "inviteMessage": "رسالة الدعوة (اختياري)",
       "inviteMessagePlaceholder": "مرحبًا، نود انضمامك لمباراتنا القادمة…",
-      "sendInvite": "إرسال الدعوة"
+      "sendInvite": "إرسال الدعوة",
+      "lineupTitle": "تشكيلة المباراة",
+      "lineupSubtitle": "تحديد اللاعبين الأساسيين والاحتياطيين",
+      "starters": "الأساسيون",
+      "bench": "الاحتياطيون",
+      "addToLineup": "إضافة للتشكيلة",
+      "removeFromLineup": "إزالة من التشكيلة",
+      "captain": "القائد",
+      "viceCaptain": "نائب القائد",
+      "freeKickTaker": "ركلات حرة",
+      "setCaptain": "تعيين كقائد",
+      "setViceCaptain": "تعيين كنائب قائد",
+      "setFreeKickTaker": "تعيين كمنفذ الركلات الحرة",
+      "playerFormat": "صيغة اللاعبين",
+      "requiredStarters": "اللاعبون الأساسيون المطلوبون",
+      "startersCount": "{{count}} / {{required}} أساسي",
+      "lineupSaved": "تم حفظ التشكيلة بنجاح",
+      "lineupSaveFailed": "تعذر حفظ التشكيلة",
+      "formatBadge": "صيغة {{format}}"
     }
   },
   "auth": {
@@ -3035,6 +3178,14 @@
     "challengeError": "تعذر إرسال طلب المباراة",
     "matchDateRequired": "حدد تاريخ ووقت المباراة"
   },
+  "validation": {
+    "nameAndCityRequired": "الاسم والمدينة مطلوبان",
+    "guestNameAndTimeRequired": "الرجاء إكمال الاسم والتوقيت",
+    "phoneOrEmailRequired": "يجب إدخال هاتف أو بريد إلكتروني للزبون",
+    "invalidPhone": "رقم الهاتف غير صالح",
+    "invalidEmail": "البريد الإلكتروني غير صالح",
+    "subscriptionStartDateRequired": "الرجاء تحديد تاريخ بداية الأبونمان"
+  },
   "errors": {
     "loginRequired": "يجب تسجيل الدخول لإتمام هذا الإجراء",
     "forbidden": "غير مصرح لك بالدخول",
@@ -3047,7 +3198,10 @@
     "rateLimited": "طلبات كثيرة جداً، انتظر قليلاً ثم حاول مرة أخرى",
     "serverError": "حدث خطأ في الخادم",
     "serviceUnavailable": "الخدمة غير متاحة حالياً",
-    "network": "تعذر الاتصال بالخادم"
+    "network": "تعذر الاتصال بالخادم",
+    "actionFailed": "فشل الإجراء، حاول مرة أخرى",
+    "loadFailed": "فشل تحميل البيانات",
+    "saveFailed": "فشل الحفظ"
   },
   "errorPage": {
     "back": "العودة",
@@ -3169,5 +3323,29 @@
       "/player": "لوحة اللاعب",
       "/committee": "لوحة اللجنة"
     }
+  },
+  "emptyStates": {
+    "noNotifications": "لا توجد إشعارات",
+    "noNotificationsDesc": "أنت على اطلاع بكل شيء",
+    "noActivity": "لا توجد نشاطات حديثة",
+    "noActivityDesc": "ستظهر النشاطات هنا بمجرد البدء",
+    "noTeamMembers": "لا يوجد أعضاء في الفريق",
+    "noTeamMembersDesc": "ادعُ لاعبين لبناء تشكيلتك",
+    "noResults": "لا توجد نتائج",
+    "noResultsDesc": "حاول تعديل البحث أو الفلاتر",
+    "noSubAdmins": "لا يوجد مسؤولون فرعيون",
+    "noSubAdminsDesc": "أضف مسؤولًا فرعيًا للمساعدة في إدارة المنصة",
+    "noAccountsInThisState": "لا توجد حسابات في هذه الحالة",
+    "noOpenMatches": "لا توجد مباريات مفتوحة",
+    "noOpenMatchesDesc": "أنشئ طلب مباراة أولاً لتتمكن من دعوة اللاعبين",
+    "noPendingBookings": "لا توجد حجوزات معلقة",
+    "noBookings": "لا توجد حجوزات",
+    "noMatches": "لا توجد مباريات",
+    "noClosures": "لا توجد إغلاقات",
+    "noClosureDesc": "أضف إغلاقًا لموعد معين أو ليوم كامل",
+    "noCancellationRequests": "لا توجد طلبات إلغاء",
+    "noTerrains": "لا توجد ملاعب",
+    "noTerrainsDesc": "أضف ملعبك الأول لبدء استقبال الحجوزات",
+    "addField": "إضافة ملعب"
   }
 }

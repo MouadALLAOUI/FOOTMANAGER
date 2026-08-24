@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Ban, Check, Inbox, Search, X } from 'lucide-react'
 import api from '../../../api/client'
+import { toastApiError } from '../../../lib/errors'
 import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
 import { Button, Empty, SectionTitle, SkeletonCards, StatusBadge } from '../../../components/dashboard/ui'
@@ -10,6 +12,7 @@ import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import BookingTimeline from '../components/BookingTimeline'
 
 export default function Cancellations() {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const { data, loading, errorState, refetch } = useApi(() => api.get('/owner/cancellation-requests').then((r) => r.data))
   const { data: terrainsData } = useApi(() => api.get('/owner/terrains').then((r) => r.data))
@@ -54,7 +57,7 @@ export default function Cancellations() {
       refetch()
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذرت العملية')
+      toastApiError(e, t)
       return false
     } finally {
       setBusy(false)
@@ -145,7 +148,7 @@ export default function Cancellations() {
       ) : loading ? (
         <SkeletonCards count={3} />
       ) : filtered.length === 0 ? (
-        <Empty title="لا توجد طلبات إلغاء" description="ستظهر هنا طلبات إلغاء الحجوزات المقدمة" />
+        <Empty title={t('terrain.empty.noCancellationRequests')} description={t('terrain.cancellations.emptyDesc', 'Cancellation requests will appear here')} />
       ) : (
         <div className="space-y-2.5">
           {filtered.map((r) => (
@@ -160,7 +163,7 @@ export default function Cancellations() {
                     <span className="ms-1.5 text-slate-400">#{r.booking_id || r.id}</span>
                   </p>
                   <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                    {r.booking?.terrain?.name || 'ملعب'} • {r.reason || 'طلب إلغاء'} {r.created_at ? `• ${r.created_at.slice(0, 10)}` : ''}
+                    {typeof r.booking?.terrain?.name === 'string' ? r.booking.terrain.name : 'ملعب'} • {r.reason || 'طلب إلغاء'} {r.created_at ? `• ${r.created_at.slice(0, 10)}` : ''}
                   </p>
                 </div>
               </div>

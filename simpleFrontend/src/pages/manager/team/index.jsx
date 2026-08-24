@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowUpDown,
   CalendarDays,
@@ -25,6 +26,7 @@ import {
   selectClass,
 } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 
 const categoryLabels = { adult: 'كبار', teenager: 'شباب', children: 'أطفال' }
 
@@ -54,6 +56,7 @@ function JerseyPreview({ primary, secondary, name }) {
 
 export default function Team() {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const { data, loading, refetch } = useTeamProfile()
   const { data: stadiumsData } = useStadiums({ per_page: 50 })
   const [form, setForm] = useState({})
@@ -90,10 +93,7 @@ export default function Team() {
       toast.success(res.data.message || 'تم تحديث بيانات الفريق')
       refetch()
     } catch (e) {
-      const msg = e.response?.data?.errors
-        ? Object.values(e.response.data.errors).flat()[0]
-        : e.response?.data?.message || 'تعذر الحفظ'
-      toast.error(msg)
+      toastApiError(e, t)
     } finally {
       setSaving(false)
     }
@@ -111,7 +111,7 @@ export default function Team() {
       toast.success(res.data.message || 'تم رفع الشعار')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر رفع الشعار')
+      toastApiError(e, t)
     } finally {
       setUploading(false)
     }

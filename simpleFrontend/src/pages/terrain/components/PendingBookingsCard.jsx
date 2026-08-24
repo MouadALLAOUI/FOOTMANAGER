@@ -1,7 +1,10 @@
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Check, MessageCircle, X } from 'lucide-react'
 import { Badge, Button } from '../../../components/dashboard/ui'
 
 export default function PendingBookingsCard({ bookings = [], busy = false, onView, onApprove, onReject }) {
+  const { t } = useTranslation()
+
   return (
     <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
       <div className="mb-3 flex items-center justify-between">
@@ -9,13 +12,13 @@ export default function PendingBookingsCard({ bookings = [], busy = false, onVie
           <span className="grid size-8 place-items-center rounded-xl bg-amber-50 text-amber-600">
             <AlertTriangle className="size-4" />
           </span>
-          طلبات الحجز المعلقة
+          {t('terrain.overview.pending.title', 'Pending bookings')}
         </h3>
         <Badge variant="warning">{bookings.length}</Badge>
       </div>
 
       {bookings.length === 0 ? (
-        <p className="py-8 text-center text-xs font-semibold text-slate-400">لا توجد حجوزات معلقة</p>
+        <p className="py-8 text-center text-xs font-semibold text-slate-400">{t('emptyStates.noPendingBookings')}</p>
       ) : (
         <div className="space-y-2.5">
           {bookings.map((b) => (

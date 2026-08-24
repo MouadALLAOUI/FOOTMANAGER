@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CalendarDays } from 'lucide-react'
 import Drawer from '../../../components/dashboard/Drawer'
 import { Field, FieldRow, Button, inputClass, selectClass } from '../../../components/dashboard/ui'
 import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 
 export default function RescheduleDrawer({ fixture, tournament, stadiums, onClose, onSaved }) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const [busy, setBusy] = useState(false)
   const initialDate = fixture.scheduled_at ? fixture.scheduled_at.slice(0, 10) : new Date().toISOString().slice(0, 10)
@@ -24,7 +27,7 @@ export default function RescheduleDrawer({ fixture, tournament, stadiums, onClos
       toast.success('تم إعادة جدول المباراة')
       onSaved()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر إعادة الجدولة')
+      toastApiError(e, t, 'تعذر إعادة الجدولة')
     } finally {
       setBusy(false)
     }

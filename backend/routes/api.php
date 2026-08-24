@@ -80,11 +80,13 @@ use App\Http\Controllers\Committee\TournamentStatisticsController;
 use App\Http\Controllers\Committee\TournamentTeamController;
 use App\Http\Controllers\Committee\TournamentContactController;
 use App\Http\Controllers\Manager\MatchFeedController;
+use App\Http\Controllers\Manager\ManagerLineupController;
 use App\Http\Controllers\Manager\MatchRequestController;
 use App\Http\Controllers\Manager\MatchResultController;
 use App\Http\Controllers\Manager\PlayerController;
 use App\Http\Controllers\Manager\PlayerRecruitController;
 use App\Http\Controllers\Manager\PublicTeamController;
+use App\Http\Controllers\Manager\TeamMembershipController;
 use App\Http\Controllers\Manager\TeamProfileController;
 use App\Http\Controllers\Manager\TournamentController as ManagerTournamentController;
 use App\Http\Controllers\Player\PlayerController as PlayerProfileController;
@@ -93,6 +95,7 @@ use App\Http\Controllers\Public\PlayerLeaderboardController;
 use App\Http\Controllers\Public\PublicTournamentController;
 use App\Http\Controllers\Public\TournamentRegistrationController;
 use App\Http\Controllers\Public\PublicContactController;
+use App\Http\Controllers\Public\PublicManagerController;
 use App\Http\Controllers\Public\PublicTournamentContactController;
 use App\Http\Controllers\StadiumController;
 use App\Http\Controllers\Terrain\BookingController;
@@ -157,6 +160,8 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/contact', [PublicContactController::class, 'contact']);
     Route::post('/contact/messages', [PublicContactController::class, 'storeMessage'])->middleware('throttle:contact');
+
+    Route::get('/managers/{managerId}', [PublicManagerController::class, 'show']);
 
     Route::middleware(['auth:sanctum', 'module.maintenance:tournaments'])->group(function () {
         Route::get('/tournaments/{tournament}/registration/me', [TournamentRegistrationController::class, 'me']);
@@ -242,6 +247,11 @@ Route::prefix('v1')->group(function () {
             Route::put('/players/{player}', [V1PlayerController::class, 'update']);
             Route::delete('/players/{player}', [V1PlayerController::class, 'destroy']);
         });
+    });
+
+    // Spec alias: /api/v1/team/statistics -> same as /api/v1/manager/team/statistics
+    Route::middleware(['auth:sanctum', 'manager.approved', 'module.maintenance:teams'])->group(function () {
+        Route::get('/team/statistics', [TeamStatisticsController::class, 'index']);
     });
 
     Route::middleware(['auth:sanctum', 'manager.approved', 'activity.not_locked', 'module.maintenance:matches'])->prefix('live')->group(function () {
@@ -654,6 +664,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/teams', [TournamentTeamController::class, 'store']);
                 Route::post('/teams/free', [TournamentTeamController::class, 'storeFree']);
+                Route::post('/teams/free/bulk', [TournamentTeamController::class, 'storeBulkFree']);
                 Route::put('/teams/group', [TournamentTeamController::class, 'assignGroup']);
                 Route::delete('/teams/{teamId}', [TournamentTeamController::class, 'destroy']);
             });
@@ -684,6 +695,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
                 Route::put('/fixtures/{fixture}', [TournamentFixtureController::class, 'reschedule']);
                 Route::post('/fixtures/{fixture}/postpone', [TournamentFixtureController::class, 'postpone']);
                 Route::post('/fixtures/{fixture}/cancel', [TournamentFixtureController::class, 'cancel']);
+                Route::post('/fixtures/{fixture}/restore', [TournamentFixtureController::class, 'restore']);
             });
 
             Route::get('/fixtures/terrains', [TournamentFixtureController::class, 'terrains']);
@@ -795,6 +807,16 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             });
 
             Route::get('/manager/matches/{matchId}/applicants', [PlayerRecruitController::class, 'applicants']);
+
+            Route::get('/manager/match-requests/{matchRequestId}/lineup', [ManagerLineupController::class, 'index']);
+            Route::get('/manager/match-requests/{matchRequestId}/lineup/roster', [ManagerLineupController::class, 'roster']);
+
+            Route::middleware('activity.not_locked')->group(function () {
+                Route::put('/manager/match-requests/{matchRequestId}/lineup', [ManagerLineupController::class, 'update']);
+                Route::put('/manager/match-requests/{matchRequestId}/lineup/captain', [ManagerLineupController::class, 'setCaptain']);
+                Route::put('/manager/match-requests/{matchRequestId}/lineup/vice-captain', [ManagerLineupController::class, 'setViceCaptain']);
+                Route::put('/manager/match-requests/{matchRequestId}/lineup/free-kick', [ManagerLineupController::class, 'setFreeKickTaker']);
+            });
         });
 
         Route::middleware('module.maintenance:teams')->group(function () {
@@ -815,6 +837,17 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
                 Route::post('/manager/players', [PlayerController::class, 'store']);
                 Route::put('/manager/players/{id}', [PlayerController::class, 'update']);
                 Route::delete('/manager/players/{id}', [PlayerController::class, 'destroy']);
+            });
+
+            // Team membership management
+            Route::get('/manager/team-members', [TeamMembershipController::class, 'index']);
+            Route::get('/manager/team-members/essential', [TeamMembershipController::class, 'essential']);
+
+            Route::middleware('activity.not_locked')->group(function () {
+                Route::post('/manager/team-members', [TeamMembershipController::class, 'addMember']);
+                Route::delete('/manager/team-members/{id}', [TeamMembershipController::class, 'removeMember']);
+                Route::put('/manager/team-members/{id}/essential', [TeamMembershipController::class, 'toggleEssential']);
+                Route::put('/manager/team-members/{id}/position', [TeamMembershipController::class, 'changePosition']);
             });
         });
 
@@ -852,10 +885,12 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
     Route::middleware(['player.approved', 'module.maintenance:players'])->prefix('player')->group(function () {
         Route::get('/profile', [PlayerProfileController::class, 'profile']);
         Route::get('/match-feed', [PlayerProfileController::class, 'matchFeed']);
+        Route::get('/matches/{matchId}', [PlayerProfileController::class, 'matchDetail']);
         Route::get('/applications', [PlayerProfileController::class, 'applications']);
         Route::get('/matches', [PlayerProfileController::class, 'matches']);
         Route::get('/stats', [PlayerProfileController::class, 'stats']);
         Route::get('/overview', [PlayerProfileController::class, 'overview']);
+        Route::get('/my-team', [TeamMembershipController::class, 'myTeam']);
 
         Route::middleware('activity.not_locked')->group(function () {
             Route::put('/profile', [PlayerProfileController::class, 'updateProfile']);
@@ -864,6 +899,8 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             Route::put('/applications/{applicationId}/respond', [PlayerProfileController::class, 'respond']);
             Route::put('/applications/{applicationId}/cancel', [PlayerProfileController::class, 'cancel']);
             Route::post('/team-requests', [PlayerProfileController::class, 'storeTeamRequest']);
+            Route::get('/team-requests', [PlayerProfileController::class, 'teamRequests']);
+            Route::put('/team-requests/{id}/cancel', [PlayerProfileController::class, 'cancelTeamRequest']);
         });
     });
 

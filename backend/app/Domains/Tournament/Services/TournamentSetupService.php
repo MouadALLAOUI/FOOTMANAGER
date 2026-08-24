@@ -411,32 +411,39 @@ class TournamentSetupService
             [
                 'key' => 'competition_created',
                 'done' => $tournament->competition_id !== null,
+                'action' => 'settings',
             ],
             [
                 'key' => 'season_created',
                 'done' => $tournament->season_id !== null,
+                'action' => 'settings',
             ],
             [
                 'key' => 'groups_created',
                 'done' => $tournament->groups_count > 0,
+                'action' => 'settings',
             ],
             [
                 'key' => 'teams_added',
                 'done' => $teamsAdded > 0,
+                'action' => 'teams',
                 'meta' => ['registered' => $teamsAdded, 'expected' => $tournament->teams_count],
             ],
             [
                 'key' => 'draw_completed',
                 'done' => $teamsAdded > 0 && $teamsDrawn === $teamsAdded,
+                'action' => 'draw',
             ],
             [
                 'key' => 'fixtures_generated',
                 'done' => $fixturesCount > 0,
+                'action' => 'fixtures',
                 'meta' => ['fixtures' => $fixturesCount],
             ],
             [
                 'key' => 'knockout_ready',
                 'done' => $knockoutReady,
+                'action' => 'bracket',
             ],
         ];
     }

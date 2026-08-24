@@ -20,6 +20,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Button, Card, Empty, Skeleton } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 
 const fmtDate = (value) => {
   if (!value) return null
@@ -28,7 +29,7 @@ const fmtDate = (value) => {
   return d.toLocaleString()
 }
 
-export default function OverviewTab({ tournament, refresh, refreshKey, editable }) {
+export default function OverviewTab({ tournament, refresh, refreshKey, editable, setActive }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [busy, setBusy] = useState(null)
@@ -69,7 +70,7 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable 
       toast.success(t(toastKey))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -82,7 +83,7 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable 
       toast.success(t(action === 'approve' ? 'committee.detail.approveRequestToast' : 'committee.detail.rejectRequestToast'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -96,7 +97,7 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable 
       toast.success(t('committee.detail.deletedToast'))
       window.location.href = '/committee/tournaments'
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
       setBusy(null)
     }
   }
@@ -219,7 +220,16 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable 
             </div>
             <div className="grid gap-2.5 sm:grid-cols-2">
               {(progress?.stages || []).map((stage) => (
-                <div key={stage.key} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+                <button
+                  key={stage.key}
+                  type="button"
+                  onClick={() => stage.action && setActive?.(stage.action)}
+                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-start transition-colors ${
+                    stage.done
+                      ? 'border-green-200/70 bg-green-50/60 hover:bg-green-50'
+                      : 'border-slate-100 bg-slate-50/60 hover:border-green-200 hover:bg-green-50/40'
+                  }`}
+                >
                   <span
                     className={`grid size-7 shrink-0 place-items-center rounded-full ${
                       stage.done ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-400'
@@ -228,15 +238,19 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable 
                     {stage.done ? <Check className="size-4" /> : <Loader2 className="size-4" />}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-700">{stage.label}</p>
+                    <p className="text-xs font-bold text-slate-700">{t(`committee.detail.stages.${stage.key}`)}</p>
+                    <p className="text-[11px] text-slate-400">{t(`committee.detail.stageDescs.${stage.key}`)}</p>
                     {stage.meta?.registered != null && (
-                      <p className="text-[11px] text-slate-400">{stage.meta.registered}/{stage.meta.expected}</p>
+                      <p className="text-[11px] font-semibold text-slate-500">{stage.meta.registered}/{stage.meta.expected}</p>
                     )}
                     {stage.meta?.fixtures != null && (
-                      <p className="text-[11px] text-slate-400">{stage.meta.fixtures}</p>
+                      <p className="text-[11px] font-semibold text-slate-500">{stage.meta.fixtures}</p>
+                    )}
+                    {!stage.done && stage.action && (
+                      <p className="mt-0.5 text-[11px] font-bold text-green-600">{t(`committee.detail.stageAction.${stage.key}`)}</p>
                     )}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </>

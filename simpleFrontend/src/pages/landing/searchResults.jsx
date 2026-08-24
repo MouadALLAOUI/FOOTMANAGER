@@ -22,13 +22,10 @@ import {
   formatCount,
   matchDay,
 } from '../../lib/adapters'
+import { hideBrokenImage } from '../../lib/imageErrors'
 import BookingModal from '../../components/public/BookingModal'
 import MatchRequestModal from '../../components/public/MatchRequestModal'
 import { usePublicActions } from '../../components/public/usePublicActions'
-
-function hideBrokenImage(e) {
-  e.currentTarget.style.opacity = '0'
-}
 
 function SkeletonCard() {
   return (

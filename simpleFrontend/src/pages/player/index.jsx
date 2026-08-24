@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Shell from '../../components/dashboard/Shell'
-import { FileCheck, Search, Swords, UserRound, Users } from 'lucide-react'
+import { FileCheck, Search, ShieldCheck, Swords, UserRound, Users } from 'lucide-react'
 import {
   faGaugeHigh,
   faMagnifyingGlass,
@@ -12,12 +12,14 @@ import {
 
 const Overview = lazy(() => import('./overview'))
 const Feed = lazy(() => import('./feed'))
+const MatchDetail = lazy(() => import('./match-detail'))
 const Applications = lazy(() => import('./applications'))
 const Matches = lazy(() => import('./matches'))
 const Profile = lazy(() => import('./profile'))
 const Notifications = lazy(() => import('./notifications'))
 const Settings = lazy(() => import('./settings'))
 const Requests = lazy(() => import('./requests'))
+const Team = lazy(() => import('./team'))
 
 const items = [
   { to: '/player', label: 'nav.player.overview', icon: faGaugeHigh, prefetch: () => import('./overview') },
@@ -25,6 +27,7 @@ const items = [
   { to: '/player/applications', label: 'nav.player.applications', icon: faFileCircleCheck, prefetch: () => import('./applications') },
   { to: '/player/requests', label: 'nav.player.requests', icon: Users, prefetch: () => import('./requests') },
   { to: '/player/matches', label: 'nav.player.matches', icon: faFutbol, prefetch: () => import('./matches') },
+  { to: '/player/team', label: 'nav.player.team', icon: ShieldCheck, prefetch: () => import('./team') },
   { to: '/player/profile', label: 'nav.player.profile', icon: faUser, prefetch: () => import('./profile') },
 ]
 
@@ -53,9 +56,11 @@ export default function PlayerDashboard() {
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/feed" element={<Feed />} />
+          <Route path="/matches/:matchId" element={<MatchDetail />} />
           <Route path="/applications" element={<Applications />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/matches" element={<Matches />} />
+          <Route path="/team" element={<Team />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/settings" element={<Settings />} />

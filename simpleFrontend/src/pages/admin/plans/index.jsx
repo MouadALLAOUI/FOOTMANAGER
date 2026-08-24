@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Plus, CreditCard } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
-import { PageHeader, Button, Modal, EmptyState, Skeleton } from '../../../components/admin/ui'
+import { PageHeader, Button, EmptyState, Skeleton } from '../../../components/admin/ui'
+import { Modal } from '../../../components/dashboard/ui'
 import { toast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 import PlanCard from './planCard'
 import PlanForm from './planForm'
 
@@ -146,7 +148,7 @@ export default function Plans() {
       setOpen(false)
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -159,7 +161,7 @@ export default function Plans() {
       toast.success(res.data.message || '')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
     }
   }
 
@@ -171,7 +173,7 @@ export default function Plans() {
       toast.success(res.data.message || '')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
     } finally {
       setDeleting(null)
     }

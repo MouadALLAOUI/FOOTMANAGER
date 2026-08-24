@@ -6,6 +6,7 @@ import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Card, EmptyState, PageHeader, Skeleton } from '../../../components/admin/ui'
 import { useToast } from '../../../components/ui/Toast'
 import { relativeTime } from '../../../lib/adapters'
+import { toastApiError } from '../../../lib/errors'
 
 const filters = [
   { key: 'all', value: null },
@@ -40,19 +41,13 @@ export default function Messages() {
 
   const list = data || []
 
-  const errMessage = (e) => {
-    const err = e.response?.data?.errors
-    const first = err ? Object.values(err)[0]?.[0] : null
-    return first || e.response?.data?.message || t('admin.messages.actionFailed')
-  }
-
   const setStatus = async (msg, status) => {
     try {
       await api.put(`/admin/contact-messages/${msg.id}/status`, { status })
       toast.success(t('admin.messages.statusUpdated'))
       refetch()
     } catch (e) {
-      toast.error(errMessage(e))
+      toastApiError(e, t)
     }
   }
 
@@ -63,7 +58,7 @@ export default function Messages() {
       toast.success(t('admin.messages.deleted'))
       refetch()
     } catch (e) {
-      toast.error(errMessage(e))
+      toastApiError(e, t)
     }
   }
 

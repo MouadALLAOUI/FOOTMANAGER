@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bell, CalendarCheck, Check, Hourglass, MapPin, Swords, UserPlus, X, Zap } from 'lucide-react'
 import api from '../../../api/client'
+import { toastApiError } from '../../../lib/errors'
 import { Button } from '../../../components/dashboard/ui'
 import { useCommandCenter } from '../components/CommandCenterContext'
 import { Section, formatTime, initials, opponentOf, positionLabels, timeAgo } from '../components/shared'
@@ -36,7 +37,7 @@ function ChallengeRow({ c }) {
       if (action === 'accept' && wa?.is_whatsapp && wa?.phone) window.open(`https://wa.me/${wa.phone}`, '_blank')
       reload()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('ov.common.operationFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -90,7 +91,7 @@ function AppRow({ app }) {
       toast.success(res.data.message || (action === 'accept' ? t('ov.today.playerAccepted') : t('ov.today.appDeclined')))
       reload()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('ov.common.operationFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -233,7 +234,7 @@ export default function TodayPanel() {
                   <CalendarCheck className="size-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-extrabold text-slate-800">{bookingToday.terrain?.name || t('ov.common.terrain')}</p>
+                  <p className="truncate text-xs font-extrabold text-slate-800">{typeof bookingToday.terrain?.name === 'string' ? bookingToday.terrain.name : t('ov.common.terrain')}</p>
                   <p className="text-[11px] font-semibold text-slate-400">
                     {bookingToday.start_time} - {bookingToday.end_time}
                   </p>

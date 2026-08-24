@@ -5,6 +5,7 @@ import api from '../../../../api/client'
 import { useApi } from '../../../../hooks/useApi'
 import { Badge, Button, Card, Empty, Modal, Skeleton } from '../../../../components/dashboard/ui'
 import { useToast } from '../../../../components/ui/Toast'
+import { toastApiError } from '../../../../lib/errors'
 import { commitMove, membersOf } from './drawLogic'
 import TeamPool from './TeamPool'
 import GroupColumn from './GroupColumn'
@@ -102,7 +103,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.drawSaved'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -121,7 +122,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.drawDone'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -135,7 +136,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.drawConfirmed'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -149,7 +150,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.drawUnlocked'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }

@@ -31,6 +31,10 @@ class TeamStatisticsResource extends JsonResource
             'top_scorer' => $this->resource['top_scorer'],
             'top_assist_provider' => $this->resource['top_assist_provider'],
             'most_valuable_player' => $this->resource['most_valuable_player'],
+            'match_breakdown' => $this->resource['match_breakdown'] ?? null,
+            'booking_summary' => $this->resource['booking_summary'] ?? null,
+            'range' => $this->resource['range'] ?? null,
+            'series' => $this->resource['series'] ?? null,
         ];
     }
 }

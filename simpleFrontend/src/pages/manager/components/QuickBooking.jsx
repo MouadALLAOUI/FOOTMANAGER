@@ -88,32 +88,32 @@ export default function QuickBooking() {
           </p>
         ) : results?.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {results.map((t) => (
+            {results.map((s) => (
               <div
-                key={t.id}
+                key={s.id}
                 className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5 transition-colors hover:border-green-200 hover:bg-white"
               >
-                {t.cover_image_url ? (
-                  <img loading="lazy" decoding="async" src={coverThumb(t)} alt="" className="size-12 shrink-0 rounded-2xl object-cover" />
+                {s.cover_image_url ? (
+                  <img loading="lazy" decoding="async" src={coverThumb(s)} alt="" className="size-12 shrink-0 rounded-2xl object-cover" />
                 ) : (
                   <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-green-600 shadow-sm">
                     <ShieldCheck className="size-5" />
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-extrabold text-slate-900">{t.name}</p>
+                  <p className="truncate text-sm font-extrabold text-slate-900">{s.name}</p>
                   <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
                     <MapPin className="size-3 text-green-500" />
-                    {t.city} {t.type ? `• ${t.type}` : ''}
+                    {s.city} {s.type ? `• ${s.type}` : ''}
                   </p>
-                  {typeof t.price_per_team === 'number' && t.price_per_team > 0 && (
+                  {typeof s.price_per_team === 'number' && s.price_per_team > 0 && (
                     <p className="mt-0.5 text-xs font-black text-slate-700">
-                      {t.price_per_team}
+                      {s.price_per_team}
                       <span className="ms-1 text-[10px] font-bold text-slate-400">{t('ov.common.perTeam')}</span>
                     </p>
                   )}
                 </div>
-                <Button size="sm" variant="soft" onClick={() => openBook({ terrain: t, date })}>
+                <Button size="sm" variant="soft" onClick={() => openBook({ terrain: s, date })}>
                   {t('ov.quick.book')}
                 </Button>
               </div>

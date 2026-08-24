@@ -14,13 +14,10 @@ import { faHeart as faHeartRegular } from '@fortawesome/free-regular-svg-icons'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import { toStadiumCard, formatCount } from '../../lib/adapters'
+import { hideBrokenImage } from '../../lib/imageErrors'
 import Carousel from '../../components/Carousel'
 import BookingModal from '../../components/public/BookingModal'
 import { usePublicActions } from '../../components/public/usePublicActions'
-
-function hideBrokenImage(e) {
-  e.currentTarget.style.opacity = '0'
-}
 
 function FieldCard({ card, liked, onToggleLike, onBook }) {
   const { t, i18n } = useTranslation()
@@ -121,7 +118,7 @@ export default function AvailableFields() {
   }
 
   return (
-    <section id="fields" className="scroll-mt-[110px] bg-white py-[100px] lg:py-[120px]">
+    <section id="fields" className="bg-white py-[100px] lg:py-[120px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="text-start">

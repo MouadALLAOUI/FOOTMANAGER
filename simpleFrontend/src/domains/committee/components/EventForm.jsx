@@ -11,11 +11,12 @@ const GOAL_TYPES = [
   { value: 'ownGoal', labelKey: 'committee.result.goalTypes.ownGoal' },
 ]
 
-export default function EventForm({ type, form, setField, setForm, homeId, awayId, homeName, awayName, onSelectPlayer, onSelectAssist, t, onSubmit, validation, suspendedIds = [] }) {
+export default function EventForm({ type, form, setField, setForm, homeId, awayId, homeName, awayName, onSelectPlayer, onSelectAssist, t, onSubmit, validation, suspendedIds = [], minMinute = 0 }) {
   const [fieldMinute, fieldAdded] = [setField('minute'), setField('added_time')]
 
   const changeTeam = (e) => {
-    const teamId = e.target.value
+    const raw = e.target.value
+    const teamId = raw === '' ? '' : Number(raw)
     setForm((f) => ({ ...f, team_id: teamId, player_id: null, player: '', assist_player_id: null, assist: '' }))
   }
 
@@ -176,7 +177,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.minute')}</span>
-            <input type="number" min="0" max="130" inputMode="numeric" className={inputClass} value={form.minute} onChange={fieldMinute} />
+            <input type="number" min={minMinute || 0} max="180" inputMode="numeric" className={inputClass} value={form.minute} onChange={fieldMinute} />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.addedTime')}</span>
@@ -194,7 +195,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
 
       {validation && (
         <p className="rounded-xl bg-rose-50 px-3 py-2 text-center text-xs font-bold text-rose-600">
-          {t(`committee.result.${validation}`)}
+          {t(`committee.result.${validation}`, { min: minMinute })}
         </p>
       )}
 

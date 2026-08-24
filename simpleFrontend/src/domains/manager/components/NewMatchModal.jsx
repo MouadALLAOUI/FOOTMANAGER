@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import api from '../../../api/client';
 import { useToast } from '../../../components/ui/Toast';
+import { toastApiError } from '../../../lib/errors';
 import { useStadiums } from '../../../api/queries';
 import { Button, Field, Modal, inputClass, selectClass } from '../../../components/dashboard/ui';
 import TimePicker from '../../../components/TimePicker';
@@ -16,7 +17,6 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
   const [needsPlayers, setNeedsPlayers] = useState(false)
   const [playersNeeded, setPlayersNeeded] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
 
   const stadiums = stadiumsData?.data || []
 
@@ -24,7 +24,6 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
 
   const submit = async () => {
     setBusy(true)
-    setError('')
     try {
       const payload = {
         stadium_id: mode === 'stadium' && form.stadium_id ? form.stadium_id : undefined,
@@ -40,7 +39,7 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
       onSaved()
       onClose()
     } catch (e) {
-      setError(e.response?.data?.message || t('ov.newMatch.failToast'))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -101,8 +100,6 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
         </Field>
 
         <NeedPlayersField enabled={needsPlayers} count={playersNeeded} onEnabled={setNeedsPlayers} onCount={setPlayersNeeded} />
-
-        {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
 
         <Button className="w-full" disabled={busy} onClick={submit}>
           {busy ? t('ov.newMatch.posting') : t('ov.newMatch.submit')}

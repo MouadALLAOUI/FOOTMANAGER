@@ -32,4 +32,9 @@ enum MatchStatus: string
     {
         return in_array($this->value, self::live(), true);
     }
+
+    public function isEditable(): bool
+    {
+        return ! in_array($this, [self::Finished, self::Cancelled, self::Postponed], true);
+    }
 }

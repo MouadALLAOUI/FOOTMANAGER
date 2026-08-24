@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { LayoutGrid, List, Plus, Search, Store } from 'lucide-react'
 import api from '../../../api/client'
+import { toastApiError } from '../../../lib/errors'
 import { useApi } from '../../../hooks/useApi'
 import { useCitiesSelect } from '../../../api/queries'
 import { Button, Field, FieldRow, Modal, SectionTitle, SkeletonCards, Spinner, Toggle, inputClass } from '../../../components/dashboard/ui'
@@ -121,7 +122,7 @@ export default function Terrains() {
       const r = await api.get(`/owner/terrains/${id}`)
       return r.data.terrain
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر تحميل التفاصيل')
+      toastApiError(e, t)
       return null
     }
   }
@@ -140,7 +141,7 @@ export default function Terrains() {
 
   const save = async () => {
     if (!form.name || !form.city_id) {
-      toast.error('الاسم والمدينة مطلوبان')
+      toast.error(t('validation.nameAndCityRequired'))
       return
     }
     setBusy(true)
@@ -179,7 +180,7 @@ export default function Terrains() {
       setDrawerOpen(false)
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر الحفظ')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -200,7 +201,7 @@ export default function Terrains() {
       toast.success('تم فتح الملعب بنجاح')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذرت العملية')
+      toastApiError(e, t)
     } finally {
       setStatusBusy(false)
     }
@@ -218,7 +219,7 @@ export default function Terrains() {
       refetch()
       if (drawerOpen) await refreshDetail(editing.id)
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر إغلاق الملعب')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -235,7 +236,7 @@ export default function Terrains() {
       setDeleteTarget(null)
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر الحذف')
+      toastApiError(e, t)
     } finally {
       setDeleting(false)
     }
@@ -320,11 +321,11 @@ export default function Terrains() {
           <span className="mx-auto grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300">
             <Store className="size-7" strokeWidth={1.6} />
           </span>
-          <p className="mt-4 text-sm font-bold text-slate-700">لا توجد ملاعب</p>
-          <p className="mt-1 text-xs text-slate-400">أضف ملعبك الأول لبدء استقبال الحجوزات</p>
+          <p className="mt-4 text-sm font-bold text-slate-700">{t('terrain.empty.noTerrains')}</p>
+          <p className="mt-1 text-xs text-slate-400">{t('terrain.empty.noTerrainsDesc')}</p>
           <Button size="sm" variant="soft" className="mt-4" onClick={() => { setEditing(null); setForm(emptyForm); setFacilityIds([]); setSchedule([]); setDrawerOpen(true) }}>
             <Plus className="size-3.5" />
-            إضافة ملعب
+            {t('terrain.empty.addTerrain')}
           </Button>
         </div>
       ) : view === 'grid' ? (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   CalendarCheck,
   CalendarPlus,
@@ -15,6 +16,7 @@ import {
 import api from '../../../api/client'
 import { useManagerBookings, useStadiums } from '../../../api/queries'
 import { mapHttpError } from '../../../lib/errorState'
+import { toastApiError } from '../../../lib/errors'
 import { SectionError } from '../../../components/errors'
 import {
   Button,
@@ -34,10 +36,11 @@ import { useToast } from '../../../components/ui/Toast'
 
 const typeLabels = { training: 'تدريب', private: 'حجز خاص', match: 'مباراة' }
 const dayLabels = { 0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت' }
-const statusTabs = [
+const categoryTabs = [
+  { key: 'upcoming', label: 'القادمة' },
+  { key: 'past', label: 'السابقة' },
+  { key: 'cancelled', label: 'الملغاة' },
   { key: 'all', label: 'الكل' },
-  { key: 'pending', label: 'بانتظار التأكيد' },
-  { key: 'approved', label: 'مؤكدة' },
 ]
 const typeTabs = [
   { key: 'all', label: 'الكل' },
@@ -45,6 +48,12 @@ const typeTabs = [
   { key: 'private', label: 'حجز خاص' },
   { key: 'weekly', label: 'أبونمان أسبوعي' },
 ]
+const subscriptionStatusLabels = {
+  active: 'نشط',
+  expired: 'منتهي',
+  inactive: 'غير نشط',
+  not_subscription: '',
+}
 
 function NewBookingModal({ open, onClose, onSaved }) {
   const { toast } = useToast()
@@ -207,6 +216,7 @@ function NewBookingModal({ open, onClose, onSaved }) {
 
 function CancelModal({ booking, onClose, onSaved }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -218,14 +228,14 @@ function CancelModal({ booking, onClose, onSaved }) {
       onSaved()
       onClose()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر إرسال طلب الإلغاء')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Modal open onClose={onClose} title="طلب إلغاء الحجز" subtitle={`إلغاء حجز ${booking.terrain?.name}`}>
+    <Modal open onClose={onClose} title="طلب إلغاء الحجز" subtitle={`إلغاء حجز ${typeof booking.terrain?.name === 'string' ? booking.terrain.name : 'ملعب'}`}>
       <div className="space-y-4">
         <div className="flex items-center gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-4 py-3">
           <Hourglass className="size-5 shrink-0 text-amber-500" />
@@ -256,7 +266,7 @@ function CancelModal({ booking, onClose, onSaved }) {
 }
 
 function BookingDetail({ booking, onClose, onCancel, onConvert }) {
-  const terrain = booking?.terrain || {}
+  const terrain = booking?.terrain && typeof booking.terrain === 'object' && !Array.isArray(booking.terrain) ? booking.terrain : {}
   const isWeekly = booking?.reservation_type === 'weekly_subscription'
   return (
     <Drawer open={Boolean(booking)} onClose={onClose} title="تفاصيل الحجز" subtitle={`حجز ${terrain.name || 'ملعب'}`} size="460">
@@ -270,10 +280,10 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
                 <CalendarCheck className="size-8 text-green-400" />
               </span>
             )}
-            <p className="mt-3 text-lg font-black">{terrain.name}</p>
+            <p className="mt-3 text-lg font-black">{typeof terrain.name === 'string' ? terrain.name : 'ملعب'}</p>
             <p className="mt-0.5 flex items-center justify-center gap-1 text-xs font-semibold text-white/60">
               <MapPin className="size-3.5" />
-              {terrain.city || '—'} {terrain.type ? `• ${terrain.type}` : ''}
+              {typeof terrain.city === 'string' ? terrain.city : '—'} {typeof terrain.type === 'string' ? `• ${terrain.type}` : ''}
             </p>
           </div>
 
@@ -353,16 +363,19 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
 export default function Bookings() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { toast } = useToast()
-  const { data, isLoading: loading, error, refetch } = useManagerBookings()
-  const errorState = error ? mapHttpError(error) : null
-  const [status, setStatus] = useState('all')
+  const { t } = useTranslation()
+  const [category, setCategory] = useState('upcoming')
   const [type, setType] = useState('all')
   const [newOpen, setNewOpen] = useState(false)
   const [cancelBooking, setCancelBooking] = useState(null)
   const [detail, setDetail] = useState(null)
   const [busyId, setBusyId] = useState(null)
 
+  const { data, isLoading: loading, error, refetch } = useManagerBookings({ filter: category })
+  const errorState = error ? mapHttpError(error) : null
+
   const bookings = data?.bookings || []
+  const counts = data?.counts && typeof data.counts === 'object' && !Array.isArray(data.counts) ? data.counts : {}
 
   useEffect(() => {
     if (searchParams.get('new') === '1') {
@@ -371,25 +384,14 @@ export default function Bookings() {
     }
   }, [searchParams, setSearchParams])
 
-  const counts = useMemo(() => {
-    const c = { all: bookings.length, pending: 0, approved: 0, weekly: 0 }
-    bookings.forEach((b) => {
-      if (b.status === 'pending') c.pending += 1
-      if (b.status === 'approved') c.approved += 1
-      if (b.reservation_type === 'weekly_subscription') c.weekly += 1
-    })
-    return c
-  }, [bookings])
-
   const filtered = useMemo(
     () =>
       bookings.filter((b) => {
-        const matchStatus = status === 'all' || b.status === status
         const matchType =
           type === 'all' || (type === 'weekly' ? b.reservation_type === 'weekly_subscription' : b.booking_type === type)
-        return matchStatus && matchType
+        return matchType
       }),
-    [bookings, status, type],
+    [bookings, type],
   )
 
   const convert = async (b) => {
@@ -400,34 +402,44 @@ export default function Bookings() {
       toast.success(res.data.message || 'تم إنشاء طلب المباراة')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر التحويل')
+      toastApiError(e, t)
     } finally {
       setBusyId(null)
     }
   }
 
-  const actionsFor = (b) => (
-    <>
-      {b.status === 'approved' && (
-        <>
-          <Button size="sm" variant="dangerSoft" onClick={() => setCancelBooking(b)}>
-            <XCircle className="size-3.5" />
-            طلب إلغاء
-          </Button>
-          <Button size="sm" disabled={busyId === b.id} onClick={() => convert(b)}>
-            <Swords className="size-3.5" />
-            تحويل لمباراة
-          </Button>
-        </>
-      )}
-      {b.status === 'pending' && (
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-500">
-          <Hourglass className="size-3.5" />
-          بانتظار تأكيد صاحب الملعب
+  const actionsFor = (b) => {
+    if (category === 'past' || category === 'cancelled') {
+      return (
+        <span className="text-[11px] font-bold text-slate-400">
+          {category === 'past' ? 'تمت هذه الحجز' : 'تم إلغاء هذا الحجز'}
         </span>
-      )}
-    </>
-  )
+      )
+    }
+
+    return (
+      <>
+        {b.status === 'approved' && (
+          <>
+            <Button size="sm" variant="dangerSoft" onClick={() => setCancelBooking(b)}>
+              <XCircle className="size-3.5" />
+              طلب إلغاء
+            </Button>
+            <Button size="sm" disabled={busyId === b.id} onClick={() => convert(b)}>
+              <Swords className="size-3.5" />
+              تحويل لمباراة
+            </Button>
+          </>
+        )}
+        {b.status === 'pending' && (
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-500">
+            <Hourglass className="size-3.5" />
+            بانتظار تأكيد صاحب الملعب
+          </span>
+        )}
+      </>
+    )
+  }
 
   return (
     <div>
@@ -444,10 +456,10 @@ export default function Bookings() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: 'إجمالي الحجوزات', value: counts.all, icon: CalendarCheck, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'بانتظار التأكيد', value: counts.pending, icon: Hourglass, color: 'text-amber-600', bg: 'bg-amber-50' },
-          { label: 'مؤكدة', value: counts.approved, icon: CheckCircle2, color: 'text-sky-600', bg: 'bg-sky-50' },
-          { label: 'أبونمان أسبوعي', value: counts.weekly, icon: Repeat, color: 'text-violet-600', bg: 'bg-violet-50' },
+          { label: 'القادمة', value: Number(counts.upcoming) || 0, icon: CalendarCheck, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: 'السابقة', value: Number(counts.past) || 0, icon: Clock, color: 'text-sky-600', bg: 'bg-sky-50' },
+          { label: 'الملغاة', value: Number(counts.cancelled) || 0, icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
+          { label: 'الكل', value: Number(counts.all) || 0, icon: CalendarPlus, color: 'text-violet-600', bg: 'bg-violet-50' },
         ].map((s) => (
           <div key={s.label} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
             <div className="flex items-center gap-3">
@@ -464,13 +476,13 @@ export default function Bookings() {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {statusTabs.map((t) => (
+        {categoryTabs.map((t) => (
           <button
             key={t.key}
             type="button"
-            onClick={() => setStatus(t.key)}
+            onClick={() => setCategory(t.key)}
             className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold transition-all ${
-              status === t.key
+              category === t.key
                 ? 'bg-slate-900 text-white shadow'
                 : 'border border-slate-200 bg-white text-slate-500 hover:border-slate-300'
             }`}
@@ -478,10 +490,10 @@ export default function Bookings() {
             {t.label}
             <span
               className={`grid min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-black ${
-                status === t.key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
+                category === t.key ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
               }`}
             >
-              {counts[t.key] || 0}
+              {Number(counts[t.key]) || 0}
             </span>
           </button>
         ))}

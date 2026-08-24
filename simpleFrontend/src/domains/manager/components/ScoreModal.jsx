@@ -1,19 +1,20 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CheckCircle2, XCircle, Swords } from 'lucide-react'
 import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 import { Button, Modal, inputClass } from '../../../components/dashboard/ui'
 
 export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' }) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const [host, setHost] = useState('')
   const [opp, setOpp] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
 
   const submit = async () => {
     setBusy(true)
-    setError('')
     try {
       await api.post(`/manager/matches/${match.id}/submit-score`, {
         host_score: Number(host),
@@ -23,7 +24,7 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
       onSaved()
       onClose()
     } catch (e) {
-      setError(e.response?.data?.message || 'تعذر تسجيل النتيجة')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -31,14 +32,13 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
 
   const confirm = async (action) => {
     setBusy(true)
-    setError('')
     try {
       await api.post(`/manager/matches/${match.id}/${action}-score`)
       toast.success(action === 'confirm' ? 'تم تأكيد النتيجة وتحديث الترتيب' : 'تم الاعتراض على النتيجة')
       onSaved()
       onClose()
     } catch (e) {
-      setError(e.response?.data?.message || 'تعذر إتمام العملية')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -63,7 +63,6 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
               <input type="number" min="0" className={inputClass} value={opp} onChange={(e) => setOpp(e.target.value)} />
             </div>
           </div>
-          {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
           <Button className="w-full" disabled={busy} onClick={submit}>
             {busy ? 'جارٍ الإرسال…' : 'إرسال النتيجة'}
           </Button>
@@ -80,7 +79,6 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
           <p className="text-center text-xs font-semibold text-slate-400">
             سجلها الفريق المنافس — أؤكد النتيجة أم أعترض عليها؟
           </p>
-          {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
           <div className="grid grid-cols-2 gap-3">
             <Button variant="danger" disabled={busy} onClick={() => confirm('dispute')}>
               <XCircle className="size-4" />

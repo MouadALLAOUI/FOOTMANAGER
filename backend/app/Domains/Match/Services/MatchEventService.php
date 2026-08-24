@@ -25,6 +25,10 @@ class MatchEventService
             throw new MatchStateException('Cannot record events on a finished match.', 409);
         }
 
+        if (! $match->status->isLive()) {
+            throw new MatchStateException('Match has not started. Cannot record events.', 409);
+        }
+
         $type = MatchEventType::from($data['type']);
 
         return DB::transaction(function () use ($match, $data, $type, $byUserId) {
@@ -73,6 +77,10 @@ class MatchEventService
             throw new MatchStateException('Cannot update events on a finished match.', 409);
         }
 
+        if (! $match->status->isLive()) {
+            throw new MatchStateException('Match has not started. Cannot update events.', 409);
+        }
+
         return DB::transaction(function () use ($event, $data, $match) {
             $oldType = $event->type;
 
@@ -106,6 +114,10 @@ class MatchEventService
 
         if ($match->isFinished()) {
             throw new MatchStateException('Cannot delete events on a finished match.', 409);
+        }
+
+        if (! $match->status->isLive()) {
+            throw new MatchStateException('Match has not started. Cannot delete events.', 409);
         }
 
         DB::transaction(function () use ($event, $match) {

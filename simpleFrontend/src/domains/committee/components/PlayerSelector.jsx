@@ -98,7 +98,9 @@ export default function PlayerSelector({ teamId, value, valueName, onSelect, onC
           </div>
           <div className="max-h-52 overflow-y-auto p-1">
             {loading ? (
-              <p className="px-3 py-2 text-xs font-semibold text-slate-400">{t('common.loading')}</p>
+              <div className="flex items-center justify-center py-4">
+                <span className="size-5 animate-spin rounded-full border-2 border-slate-200 border-t-green-500" />
+              </div>
             ) : dupPanel ? (
               <div className="space-y-1">
                 <p className="px-3 pt-2 text-[11px] font-bold text-slate-500">{t('committee.result.duplicateFound')}</p>

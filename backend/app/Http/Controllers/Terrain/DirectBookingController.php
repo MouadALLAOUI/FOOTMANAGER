@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Terrain;
 
+use App\Domains\Booking\Events\BookingCreated;
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Notification\Services\WhatsAppNotificationService;
 use App\Domains\Shared\Base\Controller;
@@ -121,6 +122,8 @@ class DirectBookingController extends Controller
         }
 
         $booking->load(['terrain.owner', 'team', 'manager']);
+
+        event(new BookingCreated($booking));
 
         return response()->json([
             'message' => $isWeekly

@@ -3,6 +3,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import UserApproval from '../../../components/admin/UserApproval'
 import { EmptyState, Badge } from '../../../components/admin/ui'
+import { StatusBadge } from '../../../components/dashboard/ui'
 
 export default function Owners() {
   const { data } = useApi(() => api.get('/admin/stats').then((r) => r.data))
@@ -69,7 +70,7 @@ export default function Owners() {
                       </p>
                     </div>
                   </div>
-                  <StatusPill status={t.status} />
+                    <StatusBadge status={t.status || 'pending'} />
                 </div>
                 {t.description && <p className="mt-3 text-xs leading-relaxed text-slate-500">{t.description}</p>}
               </div>
@@ -79,13 +80,4 @@ export default function Owners() {
       }}
     />
   )
-}
-
-function StatusPill({ status }) {
-  const meta = {
-    active: { label: 'مفعل', tone: 'bg-emerald-50 text-emerald-700' },
-    inactive: { label: 'معطل', tone: 'bg-slate-100 text-slate-500' },
-    pending: { label: 'قيد المراجعة', tone: 'bg-amber-50 text-amber-700' },
-  }[status] || { label: status, tone: 'bg-slate-100 text-slate-500' }
-  return <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${meta.tone}`}>{meta.label}</span>
 }

@@ -10,6 +10,7 @@ import {
   Pencil,
   Repeat,
   Send,
+  Star,
   Swords,
   Trophy,
   XCircle,
@@ -17,13 +18,14 @@ import {
 import api from '../../../api/client'
 import { useStadiums } from '../../../api/queries'
 import Drawer from '../../../components/dashboard/Drawer'
-import { Button, Field, FieldRow, inputClass, selectClass, StatusBadge } from '../../../components/dashboard/ui'
-import { ManagerContact } from '../../../components/dashboard/cards'
+import { Button, Field, FieldRow, Toggle, inputClass, selectClass, StatusBadge } from '../../../components/dashboard/ui'
 import TimePicker from '../../../components/TimePicker'
+import { ManagerContact } from '../../../components/dashboard/cards'
 import NeedPlayersField from '../../../components/NeedPlayersField'
 import { useCommandCenter } from './CommandCenterContext'
 import { bookingTypeLabels, formatDate, formatTime, initials, isHost, opponentOf } from './shared'
 import { logoThumb, photoThumb, coverThumb } from '../../../lib/thumb'
+import { toastApiError } from '../../../lib/errors'
 
 function DetailRow({ icon: Icon, label, value }) {
   return (
@@ -56,7 +58,7 @@ export function MatchDrawer() {
       reload()
       setMatch(null)
     } catch (e) {
-      toast.error(e.response?.data?.message || t('ov.drawers.cancelFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -152,7 +154,7 @@ export function BookingDrawer() {
   const [cancelOpen, setCancelOpen] = useState(false)
   const [reason, setReason] = useState('')
   const b = booking
-  const terrain = b?.terrain || {}
+  const terrain = b?.terrain && typeof b.terrain === 'object' && !Array.isArray(b.terrain) ? b.terrain : {}
   const isWeekly = b?.reservation_type === 'weekly_subscription'
 
   const convert = async () => {
@@ -164,7 +166,7 @@ export function BookingDrawer() {
       setCreateOpen({ fromBooking: b })
       reload()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('ov.drawers.convertFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -178,7 +180,7 @@ export function BookingDrawer() {
       setBooking(null)
       reload()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('ov.drawers.cancelSendFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -196,10 +198,10 @@ export function BookingDrawer() {
                 <CalendarCheck className="size-8 text-green-400" />
               </span>
             )}
-            <p className="mt-3 text-lg font-black">{terrain.name}</p>
+            <p className="mt-3 text-lg font-black">{typeof terrain.name === 'string' ? terrain.name : 'ملعب'}</p>
             <p className="mt-0.5 flex items-center justify-center gap-1 text-xs font-semibold text-white/60">
               <MapPin className="size-3.5" />
-              {terrain.city || '—'} {terrain.type ? `• ${terrain.type}` : ''}
+              {typeof terrain.city === 'string' ? terrain.city : '—'} {typeof terrain.type === 'string' ? `• ${terrain.type}` : ''}
             </p>
           </div>
 
@@ -309,7 +311,15 @@ export function PlayerDrawer() {
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-black text-slate-900">{name}</p>
+            <div className="flex items-center gap-2">
+              <p className="truncate text-lg font-black text-slate-900">{name}</p>
+              {p.is_essential && (
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600 ring-1 ring-amber-200">
+                  <Star className="size-3 fill-amber-400" />
+                  أساسي
+                </span>
+              )}
+            </div>
             <p className="text-xs font-semibold text-slate-400">{p.position || '—'}</p>
           </div>
           <span className="grid size-12 place-items-center rounded-2xl bg-slate-900 text-base font-black text-white">
@@ -355,6 +365,29 @@ export function PlayerDrawer() {
               {t('ov.common.save')}
             </Button>
           </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Star className={`size-4 ${p.is_essential ? 'fill-amber-400 text-amber-500' : 'text-slate-400'}`} />
+            <div>
+              <p className="text-sm font-bold text-slate-700">{t('ov.team.essentialPlayer')}</p>
+              <p className="text-[11px] font-semibold text-slate-400">{t('ov.team.essentialDesc')}</p>
+            </div>
+          </div>
+          <Toggle
+            checked={p.is_essential || false}
+            onChange={async () => {
+              try {
+                const res = await api.put(`/manager/team-members/${p.id}/essential`)
+                setPlayer((prev) => prev ? { ...prev, is_essential: !prev.is_essential } : prev)
+                toast.success(res.data.message)
+                reload()
+              } catch (e) {
+                toastApiError(e, t)
+              }
+            }}
+          />
         </div>
       </div>
     </Drawer>
@@ -545,7 +578,7 @@ export function BookTerrainDrawer() {
   }
 
   return (
-    <Drawer open onClose={() => setBookTerrain(null)} title={t('ov.drawers.bookTerrainTitle')} subtitle={terrain.name} size="440">
+    <Drawer open onClose={() => setBookTerrain(null)} title={t('ov.drawers.bookTerrainTitle')} subtitle={typeof terrain.name === 'string' ? terrain.name : undefined} size="440">
       <div className="space-y-5">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
           {terrain.image_url ? (
@@ -556,10 +589,10 @@ export function BookTerrainDrawer() {
             </span>
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-extrabold text-slate-900">{terrain.name}</p>
+            <p className="truncate text-sm font-extrabold text-slate-900">{typeof terrain.name === 'string' ? terrain.name : 'ملعب'}</p>
             <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-400">
               <MapPin className="size-3 text-green-500" />
-              {terrain.city} {terrain.type ? `• ${terrain.type}` : ''}
+              {typeof terrain.city === 'string' ? terrain.city : '—'} {typeof terrain.type === 'string' ? `• ${terrain.type}` : ''}
             </p>
             {typeof terrain.price_per_team === 'number' && terrain.price_per_team > 0 && (
               <p className="text-[11px] font-black text-slate-700">{terrain.price_per_team} {t('ov.common.perTeam')}</p>
@@ -595,10 +628,10 @@ export function BookTerrainDrawer() {
         </Field>
         <FieldRow>
           <Field label={t('ov.drawers.startTime')} required>
-            <input type="time" className={inputClass} value={start} onChange={(e) => setStart(e.target.value)} />
+            <TimePicker value={start} onChange={setStart} size="sm" theme="light" />
           </Field>
           <Field label={t('ov.drawers.endTime')} required>
-            <input type="time" className={inputClass} value={end} onChange={(e) => setEnd(e.target.value)} />
+            <TimePicker value={end} onChange={setEnd} min={start || '00:00'} size="sm" theme="light" />
           </Field>
         </FieldRow>
         <Field label={t('ov.common.notes')}>
@@ -654,7 +687,7 @@ export function CreateMatchDrawer() {
   }
 
   return (
-    <Drawer open={Boolean(createOpen)} onClose={() => setCreateOpen(false)} title={t('ov.hero.newMatch')} subtitle={t('ov.drawers.createSubtitle')} size="480">
+    <Drawer open={Boolean(createOpen)} onClose={() => setCreateOpen(false)} title={t('ov.hero.newMatch')} subtitle={t('ov.drawers.createSubtitle')} size="xl">
       <div className="space-y-4">
         <div className="flex gap-2 rounded-2xl bg-slate-100 p-1">
           {[

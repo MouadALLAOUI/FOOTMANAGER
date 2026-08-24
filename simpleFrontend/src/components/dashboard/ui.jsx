@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import ItemIcon from './ItemIcon'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react'
+import useScrollLock from '../useScrollLock'
 
 export function useDialogA11y(open, panelRef) {
   const restoreRef = useRef(null)
@@ -109,7 +110,7 @@ export function Stat({ icon: Icon, label, value, delta, accent = 'green', suffix
         )}
       </div>
       <p className="mt-4 text-2xl font-black tracking-tight text-slate-900">
-        {typeof value === 'number' ? count : value}
+        {typeof value === 'number' ? count : typeof value === 'string' || typeof value === 'number' ? value : '—'}
         {suffix && <span className="ms-1 text-sm font-bold text-slate-500">{suffix}</span>}
       </p>
       <p className="mt-0.5 text-xs font-semibold text-slate-500">{label}</p>
@@ -214,6 +215,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
   const closingRef = useRef(false)
   const [closing, setClosing] = useState(false)
   useDialogA11y(open, panelRef)
+  useScrollLock(open)
 
   const requestClose = useCallback(() => {
     if (closingRef.current) return
@@ -230,11 +232,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
     if (!open) return
     const onKey = (e) => e.key === 'Escape' && requestClose()
     window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
+    return () => window.removeEventListener('keydown', onKey)
   }, [open, requestClose])
 
   if (!open) return null
@@ -327,6 +325,10 @@ const statusStyles = {
   pending: 'bg-amber-50 text-amber-700 ring-amber-200',
   rejected: 'bg-rose-50 text-rose-600 ring-rose-200',
   blocked: 'bg-rose-50 text-rose-600 ring-rose-200',
+  suspended: 'bg-rose-50 text-rose-600 ring-rose-200',
+  inactive: 'bg-slate-100 text-slate-500 ring-slate-200',
+  expired: 'bg-slate-100 text-slate-500 ring-slate-200',
+  subscribed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   open: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   accepted: 'bg-sky-50 text-sky-700 ring-sky-200',
   live: 'bg-rose-50 text-rose-600 ring-rose-200',
@@ -362,6 +364,10 @@ export const statusLabels = {
   pending: 'status.pending',
   rejected: 'status.rejected',
   blocked: 'status.blocked',
+  suspended: 'status.suspended',
+  inactive: 'status.inactive',
+  expired: 'status.expired',
+  subscribed: 'status.subscribed',
   open: 'status.open',
   accepted: 'status.accepted',
   live: 'status.live',

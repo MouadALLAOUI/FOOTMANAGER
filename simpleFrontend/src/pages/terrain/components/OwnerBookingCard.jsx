@@ -58,7 +58,7 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
             <StatusBadge status={booking.status} />
           </div>
           <p className="mt-1.5 text-[11px] font-semibold text-slate-400">
-            {terrainName || booking.terrain?.name || 'ملعب'} • {reservationTypeLabels[booking.reservation_type] || '—'}
+            {typeof terrainName === 'string' ? terrainName : typeof booking.terrain?.name === 'string' ? booking.terrain.name : 'ملعب'} • {reservationTypeLabels[booking.reservation_type] || '—'}
           </p>
         </div>
         <div className="shrink-0 rounded-2xl bg-green-50 px-3 py-2 text-center">

@@ -109,7 +109,7 @@ export default function WhyUs() {
   const { t } = useTranslation()
 
   return (
-    <section className="bg-white pt-[100px] pb-[280px] lg:pt-[120px] lg:pb-[230px]">
+    <section className="bg-white pt-[100px] pb-[160px] lg:pt-[120px] lg:pb-[140px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-black text-slate-900 lg:text-4xl">

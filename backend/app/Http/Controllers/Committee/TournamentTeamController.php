@@ -11,6 +11,7 @@ use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Resources\TournamentTeamResource;
 use App\Http\Requests\Committee\AddTournamentTeamsRequest;
+use App\Http\Requests\Committee\BulkCreateFreeTeamsRequest;
 use App\Http\Requests\Committee\CreateFreeTeamRequest;
 use App\Http\Requests\Committee\MoveTournamentTeamsRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -97,6 +98,36 @@ class TournamentTeamController extends Controller
                 'team_id' => $team->id,
                 'status' => TournamentTeam::STATUS_REGISTERED,
             ]);
+        });
+
+        return $this->teamCollection($tournament);
+    }
+
+    public function storeBulkFree(BulkCreateFreeTeamsRequest $request, Tournament $tournament): AnonymousResourceCollection
+    {
+        $this->authorize('manage', $tournament);
+
+        $this->assertEditable($tournament);
+
+        $names = $request->input('names');
+
+        DB::transaction(function () use ($tournament, $names) {
+            $tournament = Tournament::query()->lockForUpdate()->findOrFail($tournament->id);
+
+            $this->assertCapacity($tournament, count($names));
+
+            foreach ($names as $name) {
+                $team = Team::query()->create([
+                    'name' => trim($name),
+                    'is_free' => true,
+                ]);
+
+                TournamentTeam::query()->create([
+                    'tournament_id' => $tournament->id,
+                    'team_id' => $team->id,
+                    'status' => TournamentTeam::STATUS_REGISTERED,
+                ]);
+            }
         });
 
         return $this->teamCollection($tournament);

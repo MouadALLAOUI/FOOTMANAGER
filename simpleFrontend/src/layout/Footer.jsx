@@ -104,7 +104,7 @@ export default function Footer() {
       </div>
 
       <div className="relative mx-auto max-w-[1400px] px-6">
-        <div className="pt-[260px] pb-[70px] lg:pt-[210px]">
+        <div className="pt-[200px] pb-[70px] lg:pt-[170px]">
           <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
             <div className="text-center sm:text-start">
               <div className="flex items-center justify-center gap-3 sm:justify-start">

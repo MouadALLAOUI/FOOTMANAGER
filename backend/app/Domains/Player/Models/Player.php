@@ -2,6 +2,7 @@
 
 namespace App\Domains\Player\Models;
 
+use App\Domains\Player\Models\PlayerProfile;
 use App\Domains\Team\Models\Attendance;
 use App\Domains\Team\Models\Team;
 use App\Domains\Team\Models\TeamMatchPlayer;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Player extends Model
 {
@@ -44,6 +46,7 @@ class Player extends Model
         'height_cm',
         'weight_kg',
         'status',
+        'is_essential',
         'emergency_contact',
         'medical_notes',
         'joined_at',
@@ -55,6 +58,7 @@ class Player extends Model
         return [
             'number' => 'integer',
             'is_whatsapp' => 'boolean',
+            'is_essential' => 'boolean',
             'height_cm' => 'integer',
             'weight_kg' => 'integer',
             'joined_at' => 'date',
@@ -86,8 +90,18 @@ class Player extends Model
         return $this->status === self::STATUS_ACTIVE;
     }
 
+    public function playerProfile(): HasOne
+    {
+        return $this->hasOne(PlayerProfile::class, 'user_id', 'user_id');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    public function scopeEssential(Builder $query): Builder
+    {
+        return $query->where('is_essential', true);
     }
 }

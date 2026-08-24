@@ -29,7 +29,7 @@ export default function Tournaments() {
   const tournaments = data?.data || []
 
   return (
-    <section id="tournaments" className="scroll-mt-[110px] bg-[#f6f7fb] py-[100px] lg:py-[120px]">
+    <section id="tournaments" className="bg-[#f6f7fb] py-[100px] lg:py-[120px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="text-start">

@@ -75,7 +75,7 @@ export function toStadiumCard(s) {
     city: s.city || '',
     address: s.address || '',
     isOpen: Boolean(s.is_open),
-    price: s.price_per_hour ?? s.total_price ?? 0,
+    price: s.price_per_hour ?? s.price_per_team ?? s.total_price ?? 0,
     type: s.player_format || FORMAT_FALLBACK,
     format: s.player_format || FORMAT_FALLBACK,
     cover: s.is_covered ? 'covered' : 'open',

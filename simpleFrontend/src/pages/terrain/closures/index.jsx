@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Ban, CalendarOff, Clock, Plus, X } from 'lucide-react'
 import api from '../../../api/client'
 import { queryClient } from '../../../api/queryClient'
 import { useApi } from '../../../hooks/useApi'
 import { mapHttpError } from '../../../lib/errorState'
+import { toastApiError } from '../../../lib/errors'
 import { SectionError } from '../../../components/errors'
 import { Badge, Button, Empty, SectionTitle, SkeletonCards, Spinner } from '../../../components/dashboard/ui'
 import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
@@ -14,6 +16,7 @@ import ClosureDrawer from '../components/ClosureDrawer'
 const weekdayNames = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
 
 export default function Closures() {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const [params, setParams] = useSearchParams()
   const { data: terrainsData, loading: loadingTerrains } = useApi(() => api.get('/owner/terrains').then((r) => r.data))
@@ -47,12 +50,12 @@ export default function Closures() {
         setClosures(r.data?.closures || r.data?.data || [])
       } catch (e) {
         setFailed(mapHttpError(e))
-        toast.error(e.response?.data?.message || 'تعذر تحميل الإغلاقات')
+        toastApiError(e, t)
       } finally {
         setLoading(false)
       }
     },
-    [toast],
+    [t],
   )
 
   useEffect(() => {
@@ -83,7 +86,7 @@ export default function Closures() {
           queryClient.invalidateQueries({ queryKey: ['owner', 'terrain-calendar'] })
           return true
         } catch (e) {
-          toast.error(e.response?.data?.message || 'تعذر الحذف')
+          toastApiError(e, t)
           return false
         }
       }, {
@@ -92,7 +95,7 @@ export default function Closures() {
         confirmLabel: 'حذف',
       })
     },
-    [terrainId, fetchClosures, toast, removeConfirm],
+    [terrainId, fetchClosures, toast, removeConfirm, t],
   )
 
   return (
@@ -132,7 +135,7 @@ export default function Closures() {
       ) : loading ? (
         <SkeletonCards count={3} />
       ) : grouped.length === 0 ? (
-        <Empty title="لا توجد إغلاقات" description="أضف إغلاقًا لموعد معين أو ليوم كامل" icon={Ban} />
+        <Empty title={t('terrain.empty.noClosures')} description={t('terrain.empty.noClosureDesc')} icon={Ban} />
       ) : (
         <div className="space-y-3">
           {grouped.map(([date, items]) => {

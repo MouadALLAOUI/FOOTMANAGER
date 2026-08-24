@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CalendarRange, Mail, Phone, User } from 'lucide-react'
 import { Button, Field, FieldRow, inputClass, Modal, selectClass } from '../../../components/dashboard/ui'
 import api from '../../../api/client'
+import { toastApiError } from '../../../lib/errors'
 import { useToast } from '../../../components/ui/Toast'
 import TimesSelect, { addTimeMinutes } from '../../../components/TimesSelect'
 
@@ -46,6 +48,7 @@ function FieldInput({ icon: Icon, className = '', ...props }) {
 
 export default function GuestBookingModal({ open, onClose, terrainId, terrainName, date, refresh }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const todayStr = useMemo(() => toISODate(new Date()), [])
   const [reservationType, setReservationType] = useState('single')
   const [form, setForm] = useState({
@@ -98,25 +101,25 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
 
   const submit = async () => {
     if (!form.start_time || !form.end_time || !form.guest_name.trim()) {
-      toast.error('الرجاء إكمال الاسم والتوقيت')
+      toast.error(t('validation.guestNameAndTimeRequired'))
       return
     }
     const phone = (form.guest_phone || '').trim()
     const email = (form.guest_email || '').trim()
     if (!phone && !email) {
-      toast.error('يجب إدخال هاتف أو بريد إلكتروني للزبون')
+      toast.error(t('validation.phoneOrEmailRequired'))
       return
     }
     if (phone && !isValidPhone(phone)) {
-      toast.error('رقم الهاتف غير صالح')
+      toast.error(t('validation.invalidPhone'))
       return
     }
     if (email && !isValidEmail(email)) {
-      toast.error('البريد الإلكتروني غير صالح')
+      toast.error(t('validation.invalidEmail'))
       return
     }
     if (reservationType === 'weekly_subscription' && !form.start_date) {
-      toast.error('الرجاء تحديد تاريخ بداية الأبونمان')
+      toast.error(t('validation.subscriptionStartDateRequired'))
       return
     }
     setSubmitting(true)
@@ -142,7 +145,7 @@ export default function GuestBookingModal({ open, onClose, terrainId, terrainNam
       onClose()
       if (refresh) refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'فشل إنشاء الحجز')
+      toastApiError(e, t)
     } finally {
       setSubmitting(false)
     }

@@ -21,6 +21,7 @@ import { SectionError } from '../../../components/errors'
 import { Card, Stat, SectionTitle, Empty, StatusBadge, Toggle, Button, Modal, SkeletonCards } from '../../../components/dashboard/ui'
 import { faStar, faFutbol, faMedal, faPercent } from '@fortawesome/free-solid-svg-icons'
 import { toast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 import { photoThumb, logoThumb } from '../../../lib/thumb'
 
 const quickLinks = [
@@ -92,7 +93,7 @@ export default function Overview() {
       refetch()
       toast.success(v ? t('player.overview.available') : t('player.overview.unavailable'))
     } catch (e) {
-      toast.error(e.response?.data?.message || t('player.profile.failed'))
+      toastApiError(e, t)
     } finally {
       setBusyAvailability(false)
     }
@@ -107,7 +108,7 @@ export default function Overview() {
       setApplyMessage('')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('player.overview.discovery.applyFailed'))
+      toastApiError(e, t)
     } finally {
       setBusyApply(false)
     }
@@ -125,7 +126,7 @@ export default function Overview() {
       setTeamReq({ team_name: '', message: '' })
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('player.teamRequest.failed'))
+      toastApiError(e, t)
     } finally {
       setBusyTeamReq(false)
     }

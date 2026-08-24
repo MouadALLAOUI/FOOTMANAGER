@@ -11,6 +11,7 @@ class MatchLineup extends Model
 {
     protected $fillable = [
         'match_id',
+        'match_request_id',
         'team_id',
         'player_id',
         'position',
@@ -18,6 +19,7 @@ class MatchLineup extends Model
         'is_starter',
         'is_captain',
         'is_vice_captain',
+        'is_free_kick_taker',
         'order_index',
     ];
 
@@ -27,6 +29,7 @@ class MatchLineup extends Model
             'is_starter' => 'boolean',
             'is_captain' => 'boolean',
             'is_vice_captain' => 'boolean',
+            'is_free_kick_taker' => 'boolean',
             'order_index' => 'integer',
         ];
     }
@@ -34,6 +37,11 @@ class MatchLineup extends Model
     public function match(): BelongsTo
     {
         return $this->belongsTo(FootballMatch::class, 'match_id');
+    }
+
+    public function matchRequest(): BelongsTo
+    {
+        return $this->belongsTo(MatchRequest::class, 'match_request_id');
     }
 
     public function team(): BelongsTo

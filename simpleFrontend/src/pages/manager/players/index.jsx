@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Phone,
   Pencil,
   Plus,
   Search,
+  Star,
   Trash2,
   UserRound,
   X,
@@ -12,6 +14,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import api from '../../../api/client'
 import { useManagerPlayers, invalidateKeys } from '../../../api/queries'
 import { mapHttpError } from '../../../lib/errorState'
+import { toastApiError } from '../../../lib/errors'
 import { SectionError } from '../../../components/errors'
 import {
   Button,
@@ -150,6 +153,12 @@ function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
           واتساب
         </span>
       )}
+      {p.is_essential && (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-600 ring-1 ring-amber-200">
+          <Star className="size-3 fill-amber-400" />
+          أساسي
+        </span>
+      )}
       <div className="flex shrink-0 items-center gap-1 opacity-100 lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100">
         <button
           type="button"
@@ -181,6 +190,7 @@ function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
 
 export default function Players() {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const { data, isLoading: loading, error, refetch } = useManagerPlayers()
   const errorState = error ? mapHttpError(error) : null
   const [search, setSearch] = useState('')
@@ -244,7 +254,7 @@ export default function Players() {
       invalidateKeys(['manager', 'players'])
       if (detail?.id === p.id) setDetail(null)
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر الحذف')
+      toastApiError(e, t)
     } finally {
       setBusyId(null)
     }
@@ -416,6 +426,7 @@ export default function Players() {
                 { label: 'الرقم', value: detail.number ?? '—' },
                 { label: 'الهاتف', value: detail.phone || '—' },
                 { label: 'الحالة', value: detail.status || 'نشط' },
+                { label: 'العضوية', value: detail.is_essential ? 'أساسي' : 'عضو' },
               ].map((s) => (
                 <div key={s.label} className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-center">
                   <p className="text-sm font-black text-slate-800">{s.value}</p>
@@ -429,6 +440,28 @@ export default function Players() {
                 <p className="mt-1 text-sm leading-relaxed text-slate-700">{detail.notes}</p>
               </div>
             )}
+            <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Star className={`size-4 ${detail.is_essential ? 'fill-amber-400 text-amber-500' : 'text-slate-400'}`} />
+                <div>
+                  <p className="text-sm font-bold text-slate-700">لاعب أساسي</p>
+                  <p className="text-[11px] font-semibold text-slate-400">تحديد的重要性 في الفريق</p>
+                </div>
+              </div>
+              <Toggle
+                checked={detail.is_essential || false}
+                onChange={async () => {
+                  try {
+                    const res = await api.put(`/manager/team-members/${detail.id}/essential`)
+                    setDetail((d) => d ? { ...d, is_essential: !d.is_essential } : d)
+                    toast.success(res.data.message)
+                    invalidateKeys(['manager', 'players'])
+                  } catch (e) {
+                    toastApiError(e, t)
+                  }
+                }}
+              />
+            </div>
             <div className="flex gap-3">
               <Button
                 variant="dangerSoft"

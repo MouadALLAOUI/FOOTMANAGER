@@ -6,6 +6,7 @@ use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Match\Models\PlayerMatchRequest;
 use App\Domains\Match\Queries\MatchFeedQuery;
 use App\Domains\Match\Services\PlayerMatchGuard;
+use App\Domains\Match\Services\PositionService;
 use App\Domains\Notification\Models\AppNotification;
 use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Player\Models\PlayerTeamRequest;
@@ -126,12 +127,89 @@ class PlayerController extends Controller
 
         $matches = $query->paginate(20);
 
+        $items = $matches->items();
+        $enriched = array_map(function ($m) {
+            $arr = $m->toArray();
+            $arr['position_availability'] = PositionService::getPositionAvailability($m);
+            $arr['host_manager_name'] = $m->hostTeam?->manager?->name;
+            return $arr;
+        }, $items);
+
         return response()->json([
-            'matches' => $matches->items(),
+            'matches' => $enriched,
             'current_page' => $matches->currentPage(),
             'last_page' => $matches->lastPage(),
             'per_page' => $matches->perPage(),
             'total' => $matches->total(),
+        ]);
+    }
+
+    public function matchDetail(Request $request, int $matchId): JsonResponse
+    {
+        $user = $request->user();
+
+        $match = MatchRequest::with([
+            'hostTeam',
+            'hostTeam.manager:id,name',
+            'stadium:id,name,city,type,player_format,cover_image_url',
+        ])
+            ->where('status', 'open')
+            ->findOrFail($matchId);
+
+        $positionAvailability = PositionService::getPositionAvailability($match);
+
+        $myApplication = PlayerMatchRequest::where('player_id', $user->id)
+            ->where('match_request_id', $matchId)
+            ->first();
+
+        $managerData = null;
+        if ($match->hostTeam?->manager) {
+            $m = $match->hostTeam->manager;
+            $managerData = [
+                'id' => $m->id,
+                'name' => $m->name,
+                'avatar_url' => $m->avatar_url ?? null,
+                'team' => [
+                    'id' => $match->hostTeam->id,
+                    'name' => $match->hostTeam->name,
+                    'city' => $match->hostTeam->city,
+                    'logo_url' => $match->hostTeam->logo_url ?? null,
+                    'category' => $match->hostTeam->category ?? null,
+                ],
+            ];
+        }
+
+        return response()->json([
+            'match' => [
+                'id' => $match->id,
+                'status' => $match->status,
+                'match_datetime' => $match->match_datetime,
+                'notes' => $match->notes,
+                'price_per_player' => $match->price_per_player,
+                'player_format' => $match->player_format,
+                'needs_players' => $match->needs_players,
+                'players_needed' => $match->players_needed,
+                'players_joined' => $match->players_joined,
+                'players_remaining' => $match->players_remaining,
+                'players_full' => $match->players_full,
+                'custom_terrain_name' => $match->custom_terrain_name,
+            ],
+            'stadium' => $match->stadium ? [
+                'id' => $match->stadium->id,
+                'name' => $match->stadium->name,
+                'city' => $match->stadium->city,
+                'type' => $match->stadium->type,
+                'player_format' => $match->stadium->player_format,
+                'cover_image_url' => $match->stadium->cover_image_url,
+            ] : null,
+            'manager' => $managerData,
+            'positions_needed' => $match->positions_needed,
+            'position_availability' => $positionAvailability,
+            'my_application' => $myApplication ? [
+                'id' => $myApplication->id,
+                'status' => $myApplication->status,
+                'position' => $myApplication->position,
+            ] : null,
         ]);
     }
 
@@ -140,6 +218,7 @@ class PlayerController extends Controller
         $user = $request->user();
         $validated = $request->validate([
             'message' => 'nullable|string|max:1000',
+            'position' => ['nullable', 'string', 'in:'.implode(',', PositionService::VALID_POSITIONS)],
         ]);
 
         $match = MatchRequest::with('hostTeam.manager')
@@ -162,11 +241,28 @@ class PlayerController extends Controller
             return response()->json(['message' => 'لديك مباراة أخرى في نفس التوقيت'], 422);
         }
 
+        $position = $validated['position'] ?? null;
+
+        if (PositionService::hasPositionRequirements($match)) {
+            if (! $position) {
+                return response()->json(['message' => 'يجب اختيار مركز اللعب'], 422);
+            }
+
+            if (! array_key_exists($position, $match->positions_needed)) {
+                return response()->json(['message' => 'المركز المختار غير مطلوب في هذه المباراة'], 422);
+            }
+
+            if (PositionService::isPositionFull($match, $position)) {
+                return response()->json(['message' => 'هذا المركز مكتمل بالفعل'], 422);
+            }
+        }
+
         $application = PlayerMatchRequest::create([
             'player_id' => $user->id,
             'match_request_id' => $matchId,
             'type' => 'apply',
             'status' => 'pending',
+            'position' => $position,
             'message' => $validated['message'] ?? null,
         ]);
 
@@ -469,7 +565,7 @@ class PlayerController extends Controller
             'status' => PlayerTeamRequest::STATUS_PENDING,
         ]);
 
-        User::whereIn('role', ['admin', 'committee'])
+        User::whereIn('role', ['admin', 'sub_admin'])
             ->where('status', 'approved')
             ->pluck('id')
             ->each(function (int $adminId) use ($user, $teamRequest) {
@@ -487,5 +583,55 @@ class PlayerController extends Controller
             'message' => 'تم إرسال طلب تشكيل الفريق بنجاح، بانتظار مراجعة الإدارة',
             'team_request' => $teamRequest,
         ], 201);
+    }
+
+    public function teamRequests(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $requests = PlayerTeamRequest::with(['handler'])
+            ->where('player_id', $user->id)
+            ->latest()
+            ->get();
+
+        $enriched = $requests->map(function ($r) {
+            return [
+                'id' => $r->id,
+                'team_name' => $r->team_name,
+                'status' => $r->status,
+                'message' => $r->message,
+                'rejection_reason' => $r->rejection_reason,
+                'created_at' => $r->created_at,
+                'updated_at' => $r->updated_at,
+                'handled_by_name' => $r->handler?->name,
+                'handled_at' => $r->handled_by ? $r->updated_at : null,
+            ];
+        });
+
+        return response()->json([
+            'requests' => $enriched,
+        ]);
+    }
+
+    public function cancelTeamRequest(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+
+        $teamRequest = PlayerTeamRequest::where('id', $id)
+            ->where('player_id', $user->id)
+            ->firstOrFail();
+
+        if ($teamRequest->status !== PlayerTeamRequest::STATUS_PENDING) {
+            return response()->json(['message' => 'لا يمكن إلغاء هذا الطلب بعد معالجته'], 422);
+        }
+
+        $teamRequest->update([
+            'status' => PlayerTeamRequest::STATUS_CANCELLED,
+        ]);
+
+        return response()->json([
+            'message' => 'تم إلغاء الطلب بنجاح',
+            'request' => $teamRequest->fresh(),
+        ]);
     }
 }

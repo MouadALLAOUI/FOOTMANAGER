@@ -7,6 +7,7 @@ import { SectionError } from '../../../components/errors'
 import { Button, Field, FieldRow, SectionTitle, SkeletonCards, StatusBadge, inputClass, selectClass } from '../../../components/dashboard/ui'
 import Drawer from '../../../components/dashboard/Drawer'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 import { useTranslation } from 'react-i18next'
 
 const emptyForm = {
@@ -115,9 +116,7 @@ export default function Tournaments() {
       refetch()
       navigate(`/committee/tournaments/${r.data.data.id}`)
     } catch (e) {
-      const err = e.response?.data?.errors
-      const first = err ? Object.values(err)[0]?.[0] : null
-      toast.error(first || e.response?.data?.message || t('committee.tournaments.form.failed'))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }

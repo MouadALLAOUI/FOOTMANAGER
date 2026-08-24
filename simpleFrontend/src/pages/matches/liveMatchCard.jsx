@@ -6,12 +6,9 @@ import {
   faLandmark,
   faLocationDot,
 } from '@fortawesome/free-solid-svg-icons'
+import { hideBrokenImage } from '../../lib/imageErrors'
 
 const accents = ['#22c55e', '#f59e0b', '#38bdf8', '#a78bfa', '#fb7185', '#34d399']
-
-function hideBrokenImage(e) {
-  e.currentTarget.style.opacity = '0'
-}
 
 function TeamLogo({ color }) {
   return (

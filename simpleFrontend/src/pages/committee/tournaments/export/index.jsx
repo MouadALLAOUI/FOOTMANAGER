@@ -5,6 +5,7 @@ import { Printer, FileDown, Download, X, Loader2, AlertCircle, RefreshCw } from 
 import { useToast } from '../../../../components/ui/Toast'
 import { useTournamentExportData } from './useTournamentExportData'
 import TournamentExportSheet from './exportSheet'
+import useScrollLock from '../../../../components/useScrollLock'
 import './print.css'
 
 export default function TournamentExport({ tournament, onClose }) {
@@ -12,13 +13,7 @@ export default function TournamentExport({ tournament, onClose }) {
   const { toast } = useToast()
   const { data, loading, error, reload } = useTournamentExportData(tournament?.id)
 
-  useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [])
+  useScrollLock(true)
 
   useEffect(() => {
     const onKey = (e) => {

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Save, ShieldCheck, Phone, Mail, Lock, UserRound, CheckCircle2 } from 'lucide-react'
 import api from '../../../api/client'
 import { useAuth } from '../../../context/AuthContext'
 import { PageHeader, Button, Card, Field, Input, Toggle, Badge, Skeleton } from '../../../components/admin/ui'
 import ProfileImageUploader from '../../../components/profile/ProfileImageUploader'
 import { toast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 
 const roleLabels = {
   admin: 'مدير النظام',
@@ -15,6 +17,7 @@ const roleLabels = {
 }
 
 export default function Profile() {
+  const { t } = useTranslation()
   const { user, updateUser } = useAuth()
   const [form, setForm] = useState({ name: '', email: '', phone: '', is_whatsapp: false })
   const [password, setPassword] = useState({ password: '', password_confirmation: '' })
@@ -46,7 +49,7 @@ export default function Profile() {
       setPassword({ password: '', password_confirmation: '' })
       toast.success(res.data.message || 'تم تحديث الملف الشخصي')
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر الحفظ، تحقق من البيانات')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }

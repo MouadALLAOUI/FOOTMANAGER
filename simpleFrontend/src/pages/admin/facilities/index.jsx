@@ -1,11 +1,15 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Trash2, Hotel } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
-import { PageHeader, Button, Card, Modal, Field, Input, EmptyState, Skeleton } from '../../../components/admin/ui'
+import { PageHeader, Button, Card, Field, Input, EmptyState, Skeleton } from '../../../components/admin/ui'
+import { Modal } from '../../../components/dashboard/ui'
 import { toast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 
 export default function Facilities() {
+  const { t } = useTranslation()
   const { data, loading, refetch } = useApi(() => api.get('/admin/facilities').then((r) => r.data))
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ name: '', icon: '' })
@@ -29,7 +33,7 @@ export default function Facilities() {
       setOpen(false)
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -43,7 +47,7 @@ export default function Facilities() {
       toast.success(res.data.message || 'تم حذف المرفق')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
     } finally {
       setDeleting(null)
     }

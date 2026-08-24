@@ -59,7 +59,7 @@ export default function BookingsPanel() {
                   <span>
                     {b.start_time} - {b.end_time}
                   </span>
-                  {b.terrain?.city && (
+                  {typeof b.terrain?.city === 'string' && b.terrain.city && (
                     <>
                       <span className="text-slate-300">•</span>
                       <span className="inline-flex items-center gap-1">

@@ -33,8 +33,19 @@ class TeamStatisticsController extends Controller
 
         $this->authorize('viewStatistics', $team);
 
+        $from = $request->query('from');
+        $to = $request->query('to');
+        $groupBy = in_array($request->query('group_by'), ['hour', 'day'], true) ? $request->query('group_by') : null;
+
+        // If no range filter, keep legacy behaviour (cached all-time stats)
+        if (! $from && ! $to && ! $groupBy) {
+            return response()->json([
+                'data' => new TeamStatisticsResource($this->service->for($team)),
+            ]);
+        }
+
         return response()->json([
-            'data' => new TeamStatisticsResource($this->service->for($team)),
+            'data' => new TeamStatisticsResource($this->service->for($team, $from, $to, $groupBy)),
         ]);
     }
 }

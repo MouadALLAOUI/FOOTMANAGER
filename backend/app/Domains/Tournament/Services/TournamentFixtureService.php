@@ -142,10 +142,33 @@ class TournamentFixtureService
         string $strategy = self::STRATEGY_ABORT,
     ): array {
         return DB::transaction(function () use ($tournament, $startsOn, $stadiumIds, $defaultTime, $doubleRoundRobin, $strategy) {
+            $this->assertGroupFixturesRegeneratable($tournament);
+
             $this->deleteGroupFixtures($tournament);
 
             return $this->generateGroupFixtures($tournament, $startsOn, $stadiumIds, $defaultTime, $doubleRoundRobin, $strategy);
         });
+    }
+
+    private function assertGroupFixturesRegeneratable(Tournament $tournament): void
+    {
+        $competitionId = $tournament->competition_id;
+        $seasonId = $tournament->season_id;
+
+        if (! $competitionId || ! $seasonId) {
+            return;
+        }
+
+        $hasPlayed = Fixture::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
+            ->whereNotNull('group_id')
+            ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::Finished->value))
+            ->exists();
+
+        if ($hasPlayed) {
+            throw new DomainException('لا يمكن إعادة إنشاء البرنامج بعد بدء المباريات — أحد المباريات لها نتيجة مسجلة');
+        }
     }
 
     /**
@@ -1196,6 +1219,7 @@ class TournamentFixtureService
             }
 
             $matchStatus = $matchStatuses->get($fixture->match_id);
+            $matchStatus = $matchStatus instanceof MatchStatus ? $matchStatus->value : $matchStatus;
 
             if ($matchStatus === MatchStatus::Finished->value) {
                 $counts['completed']++;
@@ -1241,7 +1265,7 @@ class TournamentFixtureService
 
         $roundCount = $count - 1;
         $pairsPerRound = intdiv($count, 2);
-        $schedules = [];
+        $singleSchedules = [];
 
         for ($round = 0; $round < $roundCount; $round++) {
             $pairs = [];
@@ -1255,18 +1279,26 @@ class TournamentFixtureService
                 }
             }
 
-            if ($doubleRoundRobin) {
-                foreach ($pairs as $pair) {
-                    $pairs[] = [$pair[1], $pair[0]];
-                }
-            }
-
-            $schedules[] = $pairs;
+            $singleSchedules[] = $pairs;
 
             $last = array_pop($teams);
             array_splice($teams, 1, 0, [$last]);
         }
 
-        return $schedules;
+        if (! $doubleRoundRobin) {
+            return $singleSchedules;
+        }
+
+        // Double round-robin: second leg is separate rounds (round N+1 … 2N), swapped home/away
+        $doubleSchedules = [];
+        foreach ($singleSchedules as $pairs) {
+            $swapped = [];
+            foreach ($pairs as [$home, $away]) {
+                $swapped[] = [$away, $home];
+            }
+            $doubleSchedules[] = $swapped;
+        }
+
+        return array_merge($singleSchedules, $doubleSchedules);
     }
 }

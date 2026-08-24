@@ -18,9 +18,15 @@ class AttendanceRecordedListener implements ShouldQueue
     {
         TeamCache::flushTeam($event->team->id);
 
-        $playerIds = collect($event->records)->pluck('player_id');
+        $presentPlayerIds = collect($event->records)
+            ->filter(fn ($record) => ($record['status'] ?? 'present') === 'present')
+            ->pluck('player_id');
 
-        $userIds = Player::whereIn('id', $playerIds)
+        if ($presentPlayerIds->isEmpty()) {
+            return;
+        }
+
+        $userIds = Player::whereIn('id', $presentPlayerIds)
             ->whereNotNull('user_id')
             ->pluck('user_id');
 

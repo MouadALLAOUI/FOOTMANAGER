@@ -17,23 +17,29 @@ class GoalScoredListener implements ShouldQueue
     {
         $this->updatePerformances($event);
 
-        $teamId = $event->event->team_id;
+        $scoringTeamId = $event->event->team_id;
 
-        if (! $teamId) {
+        if (! $scoringTeamId) {
             return;
         }
 
-        $userIds = Player::query()
-            ->where('team_id', $teamId)
-            ->whereNotNull('user_id')
-            ->pluck('user_id');
+        $homeTeamId = $event->match->home_team_id;
+        $awayTeamId = $event->match->away_team_id;
+        $teamIds = array_filter([$homeTeamId, $awayTeamId]);
 
-        User::query()
-            ->whereIn('id', $userIds)
-            ->get()
-            ->each(function (User $user) use ($event) {
-                $user->notify(new GoalScoredNotification($event->match, $event->event, (int) $event->event->team_id));
-            });
+        foreach ($teamIds as $teamId) {
+            $userIds = Player::query()
+                ->where('team_id', $teamId)
+                ->whereNotNull('user_id')
+                ->pluck('user_id');
+
+            User::query()
+                ->whereIn('id', $userIds)
+                ->get()
+                ->each(function (User $user) use ($event, $teamId, $scoringTeamId) {
+                    $user->notify(new GoalScoredNotification($event->match, $event->event, (int) $teamId));
+                });
+        }
     }
 
     protected function updatePerformances(GoalScored $event): void

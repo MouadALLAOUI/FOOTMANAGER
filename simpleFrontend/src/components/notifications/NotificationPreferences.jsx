@@ -6,6 +6,7 @@ import { queryClient } from '../../api/queryClient'
 import { useNotificationPrefs } from '../../api/queries'
 import { Skeleton, Toggle } from '../dashboard/ui'
 import { useToast } from '../ui/Toast'
+import { toastApiError } from '../../lib/errors'
 import { categoryMeta } from './constants'
 
 const CATEGORY_ORDER = ['match', 'booking', 'tournament', 'recruitment', 'team', 'social', 'system']
@@ -50,7 +51,7 @@ export default function NotificationPreferences({ types, containerClassName = ''
       queryClient.invalidateQueries({ queryKey: ['notifications', 'prefs'] })
       toast.success(t('notifications.settings.saved'))
     } catch (e) {
-      toast.error(e.response?.data?.message || t('notifications.settings.failed'))
+      toastApiError(e, t)
     } finally {
       setSaving(false)
     }

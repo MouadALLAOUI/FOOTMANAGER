@@ -41,8 +41,12 @@ class BookingCancelledNotification extends Notification
             $message->line('مبلغ الاسترداد: '.$booking->refund_amount.' درهم');
         }
 
+        $actionUrl = $this->wasManager
+            ? url('/dashboard/my-reservations')
+            : url('/owner/bookings');
+
         return $message
-            ->action('عرض الحجوزات', url('/dashboard/my-reservations'))
+            ->action('عرض الحجوزات', $actionUrl)
             ->line('شكراً لاستخدامك منصة FootMANAGER.');
     }
 

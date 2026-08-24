@@ -1,10 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faMagnifyingGlass, faPlus } from '@fortawesome/free-solid-svg-icons'
-
-function hideBrokenImage(e) {
-  e.currentTarget.style.opacity = '0'
-}
+import { hideBrokenImage } from '../../lib/imageErrors'
 
 export default function MatchesHero() {
   const { t } = useTranslation()

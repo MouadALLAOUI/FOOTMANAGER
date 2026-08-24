@@ -17,6 +17,7 @@ import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
 import { Badge, Button, Empty, SectionTitle, SkeletonCards, StatusBadge } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 
 const fmtDate = (value) => {
   if (!value) return null
@@ -44,7 +45,7 @@ export default function ManagerTournaments() {
       toast.success(t('manager.tournaments.registerSuccess'))
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('manager.tournaments.registerError'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -58,7 +59,7 @@ export default function ManagerTournaments() {
       toast.success(t('manager.tournaments.cancelSuccess'))
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('manager.tournaments.registerError'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }

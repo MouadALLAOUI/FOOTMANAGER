@@ -26,6 +26,7 @@ import {
 import api from '../../../api/client'
 import { SectionError } from '../../../components/errors'
 import { mapHttpError } from '../../../lib/errorState'
+import { toastApiError } from '../../../lib/errors'
 import { Button, Card, Empty, Skeleton, Stat, StatusBadge } from '../../../components/dashboard/ui'
 import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import { AreaTrend } from '../../../components/dashboard/charts'
@@ -128,7 +129,7 @@ export default function Overview() {
       if (wa) window.open(wa, '_blank')
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذرت العملية')
+      toastApiError(e, t)
       return false
     } finally {
       setBusyKey(null)
@@ -156,7 +157,7 @@ export default function Overview() {
       toast.success(isOpen ? t('terrain.overview.toast.closed') : t('terrain.overview.toast.opened'))
       invalidateKeys(['owner'])
     } catch (e) {
-      toast.error(e.response?.data?.message || t('terrain.overview.toast.error'))
+      toastApiError(e, t)
     } finally {
       setTogglingId(null)
     }
@@ -351,7 +352,7 @@ export default function Overview() {
                         )}
                       </p>
                       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-semibold text-slate-500">
-                        <span className="truncate">{b.terrain?.name || t('ov.common.terrain')}</span>
+                        <span className="truncate">{typeof b.terrain?.name === 'string' ? b.terrain.name : t('ov.common.terrain')}</span>
                         <span className="text-slate-300">•</span>
                         <span className="whitespace-nowrap">{formatDate(b.booking_date || b.start_date)}</span>
                         {b.start_time && (
@@ -425,14 +426,14 @@ export default function Overview() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-extrabold text-slate-900">{terrain.name}</p>
+                          <p className="truncate text-sm font-extrabold text-slate-900">{typeof terrain.name === 'string' ? terrain.name : 'ملعب'}</p>
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${open ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
                             <span className={`size-1 rounded-full ${open ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                             {open ? t('terrain.overview.terrains.open') : t('terrain.overview.terrains.closed')}
                           </span>
                         </div>
                         <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">
-                          {terrain.city || '—'} • {typeLabels[terrain.type] || terrain.type}
+                          {typeof terrain.city === 'string' ? terrain.city : '—'} • {typeLabels[terrain.type] || terrain.type}
                         </p>
                         {!open && terrain.closure_reason && (
                           <p className="mt-0.5 truncate text-[10px] font-semibold text-slate-400">{terrain.closure_reason}</p>
@@ -564,7 +565,7 @@ export default function Overview() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-extrabold text-slate-900">{displayName}</p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-semibold text-slate-500">
-                        <span className="truncate">{b.terrain?.name || t('ov.common.terrain')}</span>
+                        <span className="truncate">{typeof b.terrain?.name === 'string' ? b.terrain.name : t('ov.common.terrain')}</span>
                         {b.start_time && (
                           <>
                             <span className="text-slate-300">•</span>

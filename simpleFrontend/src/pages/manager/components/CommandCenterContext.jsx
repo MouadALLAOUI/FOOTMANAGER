@@ -27,7 +27,7 @@ export function CommandCenterProvider({ children }) {
 
   const teamQ = useTeamProfile()
   const requestsQ = useMatchRequests({ status: 'all' })
-  const bookingsQ = useManagerBookings()
+  const bookingsQ = useManagerBookings({ filter: 'all' })
   const playersQ = useManagerPlayers()
   const notifQ = useNotifications({ filter: 'unread' })
   const chalQ = useChallenges()

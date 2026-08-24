@@ -243,9 +243,9 @@ export default function TimePicker({
       {open &&
         createPortal(
           <>
-            <div className="fixed inset-0 z-[110]" onMouseDown={close} />
+            <div className="fixed inset-0 z-[140]" onMouseDown={close} />
             <div
-              className={`fixed z-[111] rounded-2xl p-3 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.35)] ring-1 ${
+              className={`fixed z-[141] rounded-2xl p-3 shadow-[0_24px_60px_-12px_rgba(0,0,0,0.35)] ring-1 ${
                 theme === 'dark' ? 'bg-slate-800 text-white ring-white/10' : 'bg-white text-slate-900 ring-slate-200'
               }`}
               style={{ top: pos.top, left: pos.left, minWidth: pos.minWidth }}

@@ -1,12 +1,12 @@
 import React from 'react'
-import { Check } from 'lucide-react'
+import { Check, Clock } from 'lucide-react'
 import TeamScore from './TeamScore'
 
 function ScoreNumber({ value }) {
   return <span key={value} className="score-pop inline-block tabular-nums">{value}</span>
 }
 
-export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeName, awayName, alreadyFinished, liveMinute, openForm, quickActions, t }) {
+export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeName, awayName, alreadyFinished, liveMinute, matchNotStarted, openForm, quickActions, t }) {
   return (
     <div className="shrink-0 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -21,6 +21,11 @@ export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeNam
             <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-black text-emerald-700 ring-1 ring-emerald-200">
               <Check className="size-3.5" />
               {t('committee.result.statusFinished')}
+            </span>
+          ) : matchNotStarted ? (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-700 ring-1 ring-amber-200">
+              <Clock className="size-3.5" />
+              {t('committee.result.statusNotStarted', 'لم تبدأ بعد')}
             </span>
           ) : (
             <span className="live-badge mt-2 inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-600 ring-1 ring-rose-200">

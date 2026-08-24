@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers\Terrain;
 
+use App\Domains\Booking\Events\BookingApproved;
+use App\Domains\Booking\Events\BookingCancelled;
+use App\Domains\Booking\Events\BookingCompleted;
+use App\Domains\Booking\Events\BookingRejected;
 use App\Domains\Booking\Models\CancellationRequest;
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Booking\Models\TerrainSchedule;
@@ -289,6 +293,8 @@ class BookingController extends Controller
         }
 
         $booking->load(['terrain.owner', 'team', 'manager']);
+
+        event(new BookingCreated($booking));
 
         return response()->json([
             'message' => $isWeekly
@@ -580,8 +586,39 @@ class BookingController extends Controller
 
         $booking->load(['manager', 'team', 'terrain']);
 
+        $status = $validated['status'];
+
+        match ($status) {
+            'approved' => event(new BookingApproved($booking)),
+            'rejected' => event(new BookingRejected($booking)),
+            'completed' => event(new BookingCompleted($booking)),
+            'cancelled' => event(new BookingCancelled($booking, $user)),
+            default => null,
+        };
+
+        if ($booking->manager_id) {
+            $notificationMap = [
+                'approved' => ['reservation_approved', 'تم تأكيد حجز الملعب', "صاحب الملعب {$booking->terrain?->name} قام بتأكيد حجزك في تاريخ {$booking->booking_date?->format('Y-m-d')}"],
+                'rejected' => ['reservation_rejected', 'تم رفض حجز الملعب', "صاحب الملعب {$booking->terrain?->name} قام برفض حجزك في تاريخ {$booking->booking_date?->format('Y-m-d')}"],
+                'completed' => ['booking_completed', 'اكتمال الحجز', "تم تحديد حجزك في ملعب {$booking->terrain?->name} كمكتمل."],
+                'cancelled' => ['booking_cancellation', 'تم إلغاء الحجز', "صاحب الملعب {$booking->terrain?->name} قام بإلغاء حجزك في تاريخ {$booking->booking_date?->format('Y-m-d')}."],
+            ];
+
+            if (isset($notificationMap[$status])) {
+                [$type, $title, $body] = $notificationMap[$status];
+                NotificationService::push(
+                    (int) $booking->manager_id,
+                    $type,
+                    $title,
+                    $body,
+                    ['booking_id' => $booking->id, 'terrain_id' => $booking->terrain_id],
+                    '/dashboard/my-reservations',
+                );
+            }
+        }
+
         $response = [
-            'message' => match ($validated['status']) {
+            'message' => match ($status) {
                 'approved' => 'تم تأكيد الحجز بنجاح',
                 'rejected' => 'تم رفض الحجز',
                 'completed' => 'تم تحديد المباراة كمكتملة',
@@ -590,9 +627,9 @@ class BookingController extends Controller
             'booking' => $booking,
         ];
 
-        if (in_array($validated['status'], ['approved', 'rejected'])) {
+        if (in_array($status, ['approved', 'rejected'])) {
             $response['whatsapp_notification_url'] = $this->whatsapp
-                ->buildOwnerDecisionMessage($booking, $validated['status']);
+                ->buildOwnerDecisionMessage($booking, $status);
         }
 
         return response()->json($response);
@@ -767,13 +804,115 @@ class BookingController extends Controller
     {
         $user = $request->user();
         $today = Carbon::today()->toDateString();
-
+        $filter = $request->input('filter', 'upcoming');
         $perPage = (int) $request->input('per_page', 30);
 
-        $bookings = TerrainBooking::with(['terrain:id,name,city,type', 'team:id,name'])
+        $query = TerrainBooking::with(['terrain:id,name,city,type', 'team:id,name'])
             ->where('manager_id', $user->id)
-            ->whereIn('status', ['pending', 'approved'])
-            ->whereNull('match_request_id')
+            ->whereNull('match_request_id');
+
+        $query = match ($filter) {
+            'upcoming' => $query->whereIn('status', ['pending', 'approved'])
+                ->where(function ($q) use ($today) {
+                    $q->where('reservation_type', 'single')
+                        ->whereDate('booking_date', '>=', $today)
+                        ->orWhere(function ($sq) use ($today) {
+                            $sq->where('reservation_type', 'weekly_subscription')
+                                ->where(function ($ssq) use ($today) {
+                                    $ssq->whereNull('end_date')
+                                        ->orWhereDate('end_date', '>=', $today);
+                                });
+                        });
+                }),
+            'past' => $query->whereIn('status', ['approved', 'completed'])
+                ->where(function ($q) use ($today) {
+                    $q->where(function ($sq) use ($today) {
+                        $sq->where('reservation_type', 'single')
+                            ->whereDate('booking_date', '<', $today);
+                    })
+                        ->orWhere(function ($sq) use ($today) {
+                            $sq->where('reservation_type', 'weekly_subscription')
+                                ->whereNotNull('end_date')
+                                ->whereDate('end_date', '<', $today);
+                        });
+                }),
+            'cancelled' => $query->whereIn('status', ['cancelled', 'rejected']),
+            'all' => $query->whereIn('status', ['pending', 'approved', 'completed', 'cancelled', 'rejected']),
+            default => $query->whereIn('status', ['pending', 'approved']),
+        };
+
+        $bookings = $query->orderBy('booking_date', 'desc')
+            ->orderBy('start_time')
+            ->paginate($perPage);
+
+        $bookings->getCollection()->transform(function ($b) {
+            $b->next_date = $b->displayDate()?->toDateString();
+            $b->subscription_status = $this->getSubscriptionStatus($b);
+            $b->occurrences_remaining = $this->getOccurrencesRemaining($b);
+
+            return $b;
+        });
+
+        $counts = $this->getBookingCounts($user->id);
+
+        return response()->json([
+            'bookings' => $bookings->items(),
+            'counts' => $counts,
+            'pagination' => [
+                'current_page' => $bookings->currentPage(),
+                'last_page' => $bookings->lastPage(),
+                'per_page' => $bookings->perPage(),
+                'total' => $bookings->total(),
+            ],
+        ]);
+    }
+
+    private function getSubscriptionStatus(TerrainBooking $booking): string
+    {
+        if (! $booking->isWeeklySubscription()) {
+            return 'not_subscription';
+        }
+
+        if ($booking->status !== 'approved') {
+            return 'inactive';
+        }
+
+        return $booking->isActiveSubscription() ? 'active' : 'expired';
+    }
+
+    private function getOccurrencesRemaining(TerrainBooking $booking): ?int
+    {
+        if (! $booking->isWeeklySubscription() || ! $booking->isActiveSubscription()) {
+            return null;
+        }
+
+        $today = Carbon::today();
+        $end = $booking->end_date ? $booking->end_date->copy() : $today->copy()->addMonths(6);
+        $dow = $booking->day_of_week;
+
+        $count = 0;
+        $cursor = $today->copy();
+        $daysAhead = ($dow - $cursor->dayOfWeek + 7) % 7;
+        $cursor = $cursor->addDays($daysAhead);
+
+        while ($cursor->lte($end) && $count < 52) {
+            if ($booking->coversDate($cursor)) {
+                $count++;
+            }
+            $cursor = $cursor->addWeek();
+        }
+
+        return $count;
+    }
+
+    private function getBookingCounts(int $managerId): array
+    {
+        $today = Carbon::today()->toDateString();
+
+        $baseQuery = TerrainBooking::where('manager_id', $managerId)
+            ->whereNull('match_request_id');
+
+        $upcoming = (clone $baseQuery)->whereIn('status', ['pending', 'approved'])
             ->where(function ($q) use ($today) {
                 $q->where('reservation_type', 'single')
                     ->whereDate('booking_date', '>=', $today)
@@ -784,26 +923,31 @@ class BookingController extends Controller
                                     ->orWhereDate('end_date', '>=', $today);
                             });
                     });
-            })
-            ->orderBy('booking_date')
-            ->orderBy('start_time')
-            ->paginate($perPage);
+            })->count();
 
-        $bookings->getCollection()->transform(function ($b) {
-            $b->next_date = $b->displayDate()?->toDateString();
+        $past = (clone $baseQuery)->whereIn('status', ['approved', 'completed'])
+            ->where(function ($q) use ($today) {
+                $q->where(function ($sq) use ($today) {
+                    $sq->where('reservation_type', 'single')
+                        ->whereDate('booking_date', '<', $today);
+                })
+                    ->orWhere(function ($sq) use ($today) {
+                        $sq->where('reservation_type', 'weekly_subscription')
+                            ->whereNotNull('end_date')
+                            ->whereDate('end_date', '<', $today);
+                    });
+            })->count();
 
-            return $b;
-        });
+        $cancelled = (clone $baseQuery)->whereIn('status', ['cancelled', 'rejected'])->count();
 
-        return response()->json([
-            'bookings' => $bookings->items(),
-            'pagination' => [
-                'current_page' => $bookings->currentPage(),
-                'last_page' => $bookings->lastPage(),
-                'per_page' => $bookings->perPage(),
-                'total' => $bookings->total(),
-            ],
-        ]);
+        $all = (clone $baseQuery)->whereIn('status', ['pending', 'approved', 'completed', 'cancelled', 'rejected'])->count();
+
+        return [
+            'upcoming' => $upcoming,
+            'past' => $past,
+            'cancelled' => $cancelled,
+            'all' => $all,
+        ];
     }
 
     public function myReservations(Request $request, int $terrainId): JsonResponse
@@ -907,7 +1051,7 @@ class BookingController extends Controller
                 'طلب إلغاء حجز',
                 "المسير {$user->name} يطلب إلغاء حجز ملعب {$booking->terrain->name} في تاريخ {$booking->booking_date?->format('Y-m-d')}",
                 ['booking_id' => $booking->id, 'cancellation_id' => $cancellation->id],
-                '/terrain/calendar',
+                '/owner/bookings',
             );
         }
 

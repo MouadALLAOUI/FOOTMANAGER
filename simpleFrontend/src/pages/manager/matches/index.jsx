@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
   CheckCircle2,
@@ -8,6 +9,7 @@ import {
   MapPin,
   Play,
   Plus,
+  Shield,
   Trophy,
   XCircle,
 } from 'lucide-react'
@@ -16,9 +18,11 @@ import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
 import { useStadiums } from '../../../api/queries'
 import { useAuth } from '../../../context/AuthContext'
+import { toastApiError } from '../../../lib/errors'
 import NewMatchModal from '../../../domains/manager/components/NewMatchModal'
 import ScoreModal from '../../../domains/manager/components/ScoreModal'
 import MatchDetail from '../../../domains/manager/components/MatchDetail'
+import MatchLineupDrawer from '../components/MatchLineupDrawer'
 import {
   Button,
   Empty,
@@ -49,6 +53,7 @@ const tabs = [
 
 export default function Matches() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { t } = useTranslation()
   const { user } = useAuth()
   const myTeamId = user?.team?.id
   const [tab, setTab] = useState('all')
@@ -61,6 +66,7 @@ export default function Matches() {
   const [scoreMatch, setScoreMatch] = useState(null)
   const [confirmMatch, setConfirmMatch] = useState(null)
   const [detail, setDetail] = useState(null)
+  const [lineupMatch, setLineupMatch] = useState(null)
   const [busy, setBusy] = useState(false)
   const { toast } = useToast()
 
@@ -110,7 +116,7 @@ export default function Matches() {
       toast.success(res.data.message || 'تم بدء المباراة بنجاح')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر بدء المباراة')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -124,7 +130,7 @@ export default function Matches() {
       toast.success('تم إلغاء طلب المباراة')
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر الإلغاء')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -132,6 +138,12 @@ export default function Matches() {
 
   const actionsFor = (m) => (
     <>
+      {(m.status === 'open' || m.status === 'accepted') && (
+        <Button size="sm" variant="soft" onClick={() => { setDetail(null); setLineupMatch(m) }}>
+          <Shield className="size-3.5" />
+          التشكيلة
+        </Button>
+      )}
       {canStart(m) && (
         <Button size="sm" variant="soft" disabled={busy} onClick={() => startOpen(m)}>
           <Play className="size-3.5" />
@@ -237,7 +249,8 @@ export default function Matches() {
       {confirmMatch && (
         <ScoreModal match={confirmMatch} mode="confirm" onClose={() => setConfirmMatch(null)} onSaved={refetch} />
       )}
-      <MatchDetail match={detail} onClose={() => setDetail(null)} onActions={actionsFor} />
+      <MatchDetail match={detail} onClose={() => setDetail(null)} onActions={actionsFor} onLineup={(m) => { setDetail(null); setLineupMatch(m) }} />
+      <MatchLineupDrawer matchRequestId={lineupMatch?.id} open={Boolean(lineupMatch)} onClose={() => setLineupMatch(null)} />
     </div>
   )
 }

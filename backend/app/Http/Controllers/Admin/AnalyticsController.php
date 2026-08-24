@@ -20,16 +20,18 @@ class AnalyticsController extends Controller
 {
     private const MAX_RANGE_DAYS = 366;
 
+    private const VALID_GROUP_BY = ['hour', 'day', 'week', 'month'];
+
     public function platform(Request $request): JsonResponse
     {
-        $groupBy = in_array($request->query('group_by', 'day'), ['day', 'week', 'month'], true)
+        $groupBy = in_array($request->query('group_by', 'day'), self::VALID_GROUP_BY, true)
             ? $request->query('group_by')
             : 'day';
 
         [$from, $to] = $this->resolveRange($request);
 
         $payload = Cache::remember(
-            "admin:analytics:platform:{$from}:{$to}:{$groupBy}",
+            "admin:analytics:platform:{$from->toDateTimeString()}:{$to->toDateTimeString()}:{$groupBy}",
             60,
             fn () => $this->buildPlatformPayload($from, $to, $groupBy)
         );
@@ -39,8 +41,14 @@ class AnalyticsController extends Controller
 
     private function resolveRange(Request $request): array
     {
-        $toDate = $request->query('to') ? Carbon::parse($request->query('to'))->startOfDay() : Carbon::today();
-        $fromDate = $request->query('from') ? Carbon::parse($request->query('from'))->startOfDay() : $toDate->copy()->subDays(29);
+        $tz = config('app.timezone', 'UTC');
+
+        $toDate = $request->query('to')
+            ? Carbon::parse($request->query('to'), $tz)->startOfDay()
+            : Carbon::now($tz)->startOfDay();
+        $fromDate = $request->query('from')
+            ? Carbon::parse($request->query('from'), $tz)->startOfDay()
+            : $toDate->copy()->subDays(29);
 
         if ($fromDate->gt($toDate)) {
             $fromDate = $toDate->copy()->subDays(29);
@@ -106,7 +114,11 @@ class AnalyticsController extends Controller
 
         $trends = [];
         foreach ($trendSources as $name => [$query, $column]) {
-            $raw = $this->dailyCounts($query, $column, $from, $to);
+            if ($groupBy === 'hour') {
+                $raw = $this->hourlyCounts($query, $column, $from, $to);
+            } else {
+                $raw = $this->dailyCounts($query, $column, $from, $to);
+            }
             $trends[$name] = $this->bucketSeries($this->normalizeCounts($raw, $groupBy), $from, $to, $groupBy);
         }
 
@@ -140,11 +152,24 @@ class AnalyticsController extends Controller
             ->all();
     }
 
+    private function hourlyCounts(Builder $query, string $column, Carbon $from, Carbon $to): array
+    {
+        return $query
+            ->whereBetween($column, [$from, $to])
+            ->selectRaw("DATE({$column}) as day_key, HOUR({$column}) as hour_key, COUNT(*) as c")
+            ->groupBy('day_key', 'hour_key')
+            ->get()
+            ->mapWithKeys(fn ($row) => [(string) $row->hour_key => (int) $row->c])
+            ->all();
+    }
+
     private function normalizeCounts(array $counts, string $granularity): array
     {
         $normalized = [];
         foreach ($counts as $date => $count) {
-            if ($granularity === 'day') {
+            if ($granularity === 'hour') {
+                $key = (string) ((int) $date);
+            } elseif ($granularity === 'day') {
                 $key = (string) $date;
             } elseif ($granularity === 'week') {
                 $key = Carbon::parse($date)->startOfWeek()->toDateString();
@@ -160,7 +185,13 @@ class AnalyticsController extends Controller
     private function bucketSeries(array $counts, Carbon $from, Carbon $to, string $granularity): array
     {
         $series = [];
-        if ($granularity === 'day') {
+
+        if ($granularity === 'hour') {
+            for ($hour = 0; $hour < 24; $hour++) {
+                $key = (string) $hour;
+                $series[] = ['key' => $key, 'count' => $counts[$key] ?? 0];
+            }
+        } elseif ($granularity === 'day') {
             for ($date = $from->copy(); $date->lte($to); $date->addDay()) {
                 $key = $date->toDateString();
                 $series[] = ['key' => $key, 'count' => $counts[$key] ?? 0];

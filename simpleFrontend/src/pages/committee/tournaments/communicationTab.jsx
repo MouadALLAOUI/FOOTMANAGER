@@ -5,6 +5,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Card, Empty, Field, Skeleton, inputClass } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 import { relativeTime } from '../../../lib/adapters'
 
 const filters = [
@@ -68,12 +69,6 @@ export default function CommunicationTab({ tournament, refresh }) {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
-  const errMessage = (e) => {
-    const err = e.response?.data?.errors
-    const first = err ? Object.values(err)[0]?.[0] : null
-    return first || e.response?.data?.message || t('committee.detail.actionFailed')
-  }
-
   const saveContact = async () => {
     setBusy(true)
     try {
@@ -83,7 +78,7 @@ export default function CommunicationTab({ tournament, refresh }) {
       toast.success(t('committee.communication.contactSaved'))
       refetchContact()
     } catch (e) {
-      toast.error(errMessage(e))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -95,7 +90,7 @@ export default function CommunicationTab({ tournament, refresh }) {
       toast.success(t('committee.communication.statusUpdated'))
       refetchMessages()
     } catch (e) {
-      toast.error(errMessage(e))
+      toastApiError(e, t)
     }
   }
 
@@ -106,7 +101,7 @@ export default function CommunicationTab({ tournament, refresh }) {
       toast.success(t('committee.communication.deleted'))
       refetchMessages()
     } catch (e) {
-      toast.error(errMessage(e))
+      toastApiError(e, t)
     }
   }
 

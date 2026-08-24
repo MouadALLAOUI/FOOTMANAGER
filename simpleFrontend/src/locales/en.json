@@ -10,7 +10,11 @@
     "hoursAgo": "{{count}} hours ago",
     "daysAgo": "{{count}} days ago",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "imagePreview": "Image preview",
+    "imageLoadFailed": "Failed to load image",
+    "retry": "Retry",
+    "noData": "No data yet"
   },
   "stages": {
     "group": "Group stage",
@@ -37,6 +41,10 @@
     "declined": "Declined",
     "dismissed": "Dismissed",
     "blocked": "Blocked",
+    "suspended": "Suspended",
+    "inactive": "Inactive",
+    "expired": "Expired",
+    "subscribed": "Subscribed",
     "cancelled": "Cancelled",
     "hidden": "Hidden",
     "none": "No result",
@@ -144,6 +152,7 @@
       "applications": "My applications & invites",
       "requests": "Team Requests",
       "matches": "My matches",
+      "team": "My Team",
       "profile": "My profile",
       "notifications": "Notifications",
       "settings": "Settings"
@@ -342,7 +351,24 @@
         "mvp": "Best player",
         "goals": "goals"
       },
-      "empty": "No data yet"
+      "empty": "No data yet",
+      "noMatches": "No matches in this period",
+      "noActivityToday": "No activity today",
+      "goalsTrendHourly": "Goals per hour (today)",
+      "breakdown": {
+        "title": "Matches by status",
+        "total": "Total",
+        "completed": "Completed",
+        "upcoming": "Upcoming",
+        "cancelled": "Cancelled"
+      },
+      "booking": {
+        "title": "Bookings",
+        "count": "Bookings",
+        "completed": "Completed",
+        "upcoming": "Upcoming",
+        "cancelled": "Cancelled"
+      }
     },
     "tournaments": {
       "title": "Tournaments",
@@ -474,6 +500,10 @@
       },
       "trendsUsers": "New users & teams",
       "trendsActivity": "Bookings & finished matches",
+      "trendsUsersHourly": "Users & teams — hourly",
+      "trendsActivityHourly": "Bookings & matches — hourly",
+      "noActivityToday": "No activity today",
+      "hourlyHint": "Data grouped by hour (00:00–23:00)",
       "series": {
         "users": "Users",
         "teams": "Teams",
@@ -658,6 +688,20 @@
       "sent": "Team formation request sent successfully",
       "failed": "Failed to send request"
     },
+    "team": {
+      "noTeam": "You don't have a team",
+      "noTeamDesc": "You can request team formation, or join a match as a free agent",
+      "myInfo": "My Team Info",
+      "position": "Position",
+      "number": "Number",
+      "status": "Status",
+      "essential": "Essential",
+      "member": "Member",
+      "joined": "Joined",
+      "essentialNotice": "You are an essential player on this team",
+      "teammates": "Teammates",
+      "members": "members"
+    },
     "playerTeamRequest": {
       "title": "Team Requests",
       "subtitle": "Manage your team membership request",
@@ -680,7 +724,18 @@
       "submittedAt": "Submitted",
       "handledBy": "Handled by",
       "rejectionReason": "Rejection Reason",
-      "requestSubmitted": "Request submitted successfully"
+      "requestSubmitted": "Request submitted successfully",
+      "responseDate": "Response Date",
+      "approvedMessage": "Your request has been approved and your team has been created",
+      "noTeamName": "No team name specified",
+      "emptyTab": "No requests in this category",
+      "tab": {
+        "all": "All",
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      }
     },
     "feed": {
       "title": "Available matches",
@@ -953,6 +1008,33 @@
       "progress": "Setup steps",
       "progressDesc": "Track tournament readiness before kickoff",
       "progressLabel": "Progress",
+      "stages": {
+        "competition_created": "Create competition",
+        "season_created": "Create season",
+        "groups_created": "Create groups",
+        "teams_added": "Add teams",
+        "draw_completed": "Complete draw",
+        "fixtures_generated": "Generate fixtures",
+        "knockout_ready": "Knockout stage"
+      },
+      "stageDescs": {
+        "competition_created": "Sets up the competition container in the system",
+        "season_created": "Creates the season entry linked to the competition",
+        "groups_created": "Defines the group structure for the tournament",
+        "teams_added": "Register or add teams to participate",
+        "draw_completed": "Distribute all registered teams into groups",
+        "fixtures_generated": "Create match schedule with dates, times and venues",
+        "knockout_ready": "Set up knockout rounds after group stage"
+      },
+      "stageAction": {
+        "competition_created": "Go to settings",
+        "season_created": "Go to settings",
+        "groups_created": "Go to settings",
+        "teams_added": "Add teams",
+        "draw_completed": "Run the draw",
+        "fixtures_generated": "Generate fixtures",
+        "knockout_ready": "View bracket"
+      },
       "openRegistration": "Open registration",
       "openRegistrationToast": "Registration opened",
       "openRegistrationConfirm": "Teams will be able to register once opened. Continue?",
@@ -1121,7 +1203,11 @@
       "addFreeTeam": "Free team",
       "addFreeTeamDesc": "Temporary team without an account, removed after the tournament ends",
       "freeTeamName": "Team name",
+      "freeTeamNames": "Team names",
+      "freeTeamPlaceholder": "Team A\nTeam B\nTeam C\n...",
+      "freeTeamCount": "team(s) ready",
       "freeTeamAdded": "Free team added",
+      "freeTeamsAdded": "{{count}} free team(s) added",
       "freeBadge": "Free",
       "drawPendingDesc": "Hit the draw button to distribute teams into groups",
       "noFixtures": "No fixtures yet",
@@ -1166,6 +1252,7 @@
       "generate": "Generate",
       "fixturesGenerated": "Fixtures generated",
       "regenerate": "Regenerate",
+      "regenerateBlocked": "Cannot regenerate after a match has a result",
       "deleteFixtures": "Delete fixtures",
       "deleteFixturesConfirm": "All fixtures will be deleted. Continue?",
       "fixturesDeleted": "Fixtures deleted",
@@ -1205,6 +1292,8 @@
       "cancelMatch": "Cancel match",
       "cancelMatchConfirm": "Cancel this match? This cannot be undone.",
       "matchCancelled": "Match cancelled",
+      "restoreMatch": "Undo cancel",
+      "matchRestored": "Match restored",
       "reschedule": "Reschedule",
       "rescheduleTitle": "Reschedule match",
       "rescheduleDesc": "Change the date, time or stadium of this match",
@@ -1413,6 +1502,7 @@
       "needTeam": "Choose a team",
       "needPlayer": "Enter player name",
       "needMinute": "Enter a minute",
+      "minuteTooLow": "Minute must be at least {{min}}'",
       "needNote": "Write a note",
       "penaltyRequired": "The match ended in a draw, set the penalty shootout result for both teams",
       "penaltiesMustDiffer": "The penalty shootout cannot end in a draw",
@@ -1795,11 +1885,16 @@
     }
   },
   "terrain": {
+    "photos": {
+      "maxImages": "Maximum of 6 photos"
+    },
     "analytics": {
       "title": "Field analytics",
       "subtitle": "Confirmed booking revenue and favourite time slots",
       "stat": {
-        "revenue": "Confirmed revenue",
+        "revenue": "Revenue",
+        "confirmedRevenue": "Paid revenue",
+        "refunded": "Refunded",
         "bookings": "Bookings",
         "avgBooking": "Average booking value",
         "occupancy": "Occupancy",
@@ -1812,6 +1907,7 @@
       },
       "trend": {
         "title": "Revenue & bookings",
+        "titleHourly": "Revenue & bookings — hourly",
         "subtitle": "Confirmed bookings value only",
         "revenue": "Revenue",
         "bookings": "Bookings"
@@ -1819,6 +1915,19 @@
       "peakHours": "Peak hours",
       "popularDays": "Most requested days",
       "byStatus": "Bookings by status",
+      "byPaymentStatus": "Revenue by payment status",
+      "byType": "Revenue by reservation type",
+      "type": {
+        "single": "Single",
+        "weekly_subscription": "Subscription"
+      },
+      "payment": {
+        "unpaid": "Unpaid",
+        "pending": "Pending",
+        "paid": "Paid",
+        "refunded": "Refunded",
+        "failed": "Failed"
+      },
       "empty": "No data for this period"
     },
     "overview": {
@@ -1968,6 +2077,18 @@
       "noImages": "No photos yet",
       "prevPhoto": "Previous photo",
       "nextPhoto": "Next photo"
+    },
+    "empty": {
+      "noTerrains": "No fields yet",
+      "noTerrainsDesc": "Add your first field to start receiving bookings",
+      "addTerrain": "Add field",
+      "noPendingBookings": "No pending bookings",
+      "noFacilities": "No facilities available",
+      "noMatchingFacilities": "No matching facilities",
+      "noClosures": "No closures",
+      "noCancellationRequests": "No cancellation requests",
+      "noCalendarTerrains": "No fields",
+      "noCalendarTerrainsDesc": "Add a field first to view its booking calendar"
     },
     "calendar": {
       "bookerSectionTitle": "Booker information",
@@ -2164,7 +2285,11 @@
       "invalidNumber": "Invalid number (1-99)",
       "numberUpdated": "Player number updated",
       "numberUpdateFailed": "Could not update number",
-      "changeNumber": "Change number"
+      "changeNumber": "Change number",
+      "essentialPlayer": "Essential player",
+      "essentialDesc": "Mark importance in the team",
+      "essentialOn": "Player marked as essential",
+      "essentialOff": "Player removed from essentials"
     },
     "performance": {
       "title": "Team performance",
@@ -2314,7 +2439,25 @@
       "noTime": "No time",
       "inviteMessage": "Invite message (optional)",
       "inviteMessagePlaceholder": "Hello, we'd like you to join our upcoming match…",
-      "sendInvite": "Send invite"
+      "sendInvite": "Send invite",
+      "lineupTitle": "Match Lineup",
+      "lineupSubtitle": "Set starters and bench players",
+      "starters": "Starters",
+      "bench": "Bench",
+      "addToLineup": "Add to lineup",
+      "removeFromLineup": "Remove from lineup",
+      "captain": "Captain",
+      "viceCaptain": "Vice Captain",
+      "freeKickTaker": "Free Kick Taker",
+      "setCaptain": "Set as captain",
+      "setViceCaptain": "Set as vice captain",
+      "setFreeKickTaker": "Set as free kick taker",
+      "playerFormat": "Player Format",
+      "requiredStarters": "Required starters",
+      "startersCount": "{{count}} / {{required}} starters",
+      "lineupSaved": "Lineup saved successfully",
+      "lineupSaveFailed": "Failed to save lineup",
+      "formatBadge": "Format {{format}}"
     }
   },
   "auth": {
@@ -3034,6 +3177,14 @@
     "challengeError": "Failed to send match request",
     "matchDateRequired": "Set the match date and time"
   },
+  "validation": {
+    "nameAndCityRequired": "Name and city are required",
+    "guestNameAndTimeRequired": "Please complete the guest name and time slot",
+    "phoneOrEmailRequired": "A phone number or email is required for the guest",
+    "invalidPhone": "Invalid phone number",
+    "invalidEmail": "Invalid email address",
+    "subscriptionStartDateRequired": "Please select the subscription start date"
+  },
   "errors": {
     "loginRequired": "You need to log in to complete this action",
     "forbidden": "You are not allowed to access this page",
@@ -3046,7 +3197,10 @@
     "rateLimited": "Too many requests, please wait a moment and try again",
     "serverError": "A server error occurred",
     "serviceUnavailable": "Service is currently unavailable",
-    "network": "Unable to reach the server"
+    "network": "Unable to reach the server",
+    "actionFailed": "Action failed, please try again",
+    "loadFailed": "Failed to load data",
+    "saveFailed": "Failed to save"
   },
   "errorPage": {
     "back": "Back",
@@ -3168,5 +3322,29 @@
       "/player": "Player Dashboard",
       "/committee": "Committee Dashboard"
     }
+  },
+  "emptyStates": {
+    "noNotifications": "No notifications",
+    "noNotificationsDesc": "You're all caught up",
+    "noActivity": "No recent activity",
+    "noActivityDesc": "Activity will appear here once you start",
+    "noTeamMembers": "No team members",
+    "noTeamMembersDesc": "Invite players to build your squad",
+    "noResults": "No results found",
+    "noResultsDesc": "Try adjusting your search or filters",
+    "noSubAdmins": "No sub-admins",
+    "noSubAdminsDesc": "Add a sub-admin to help manage the platform",
+    "noAccountsInThisState": "No accounts in this state",
+    "noOpenMatches": "No open matches",
+    "noOpenMatchesDesc": "Create a match request first to invite players",
+    "noPendingBookings": "No pending bookings",
+    "noBookings": "No bookings",
+    "noMatches": "No matches",
+    "noClosures": "No closures",
+    "noClosureDesc": "Add a closure for a specific date or full day",
+    "noCancellationRequests": "No cancellation requests",
+    "noTerrains": "No fields yet",
+    "noTerrainsDesc": "Add your first field to start receiving bookings",
+    "addField": "Add field"
   }
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import { Card, Spinner, StatusBadge, Button, Empty, inputClass } from './ui'
@@ -6,6 +7,7 @@ import { Card, Spinner, StatusBadge, Button, Empty, inputClass } from './ui'
 const tabs = ['pending', 'approved', 'rejected', 'blocked', 'all']
 
 export default function ApprovalList({ endpoint, dataKey, searchable = true }) {
+  const { t } = useTranslation()
   const [status, setStatus] = useState('pending')
   const [search, setSearch] = useState('')
   const [busyId, setBusyId] = useState(null)
@@ -60,7 +62,7 @@ export default function ApprovalList({ endpoint, dataKey, searchable = true }) {
         <Spinner />
       ) : list.length === 0 ? (
         <Card>
-          <Empty title="لا توجد حسابات في هذه الحالة" />
+          <Empty title={t('emptyStates.noAccountsInThisState')} />
         </Card>
       ) : (
         <div className="space-y-3">

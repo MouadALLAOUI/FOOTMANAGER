@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CalendarCheck, CircleDollarSign, Clock, History, Search, Swords } from 'lucide-react'
 import { Button, Empty, SectionTitle, SkeletonCards, StatusBadge } from '../../../components/dashboard/ui'
 import { queryClient } from '../../../api/queryClient'
@@ -9,6 +10,7 @@ import BookingDrawer from '../components/BookingDrawer'
 import { fetchTerrainBookings } from '../components/bookingsData'
 import { useOwnerTerrains, useOwnerBookings } from '../../../api/queries'
 import { mapHttpError } from '../../../lib/errorState'
+import { toastApiError } from '../../../lib/errors'
 import { SectionError } from '../../../components/errors'
 
 const segments = [
@@ -32,6 +34,7 @@ function formatDate(str) {
 }
 
 export default function Bookings() {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const { data: terrainsData, isLoading: terrainsLoading, refetch: refetchTerrains } = useOwnerTerrains()
   const { data: bookingsData, isLoading: bookingsLoading, error: bookingsError, refetch: refetchBookings } = useOwnerBookings()
@@ -111,7 +114,7 @@ export default function Bookings() {
       if (wa) window.open(wa, '_blank')
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذرت العملية')
+      toastApiError(e, t)
       return false
     } finally {
       setBusy(false)
@@ -219,7 +222,7 @@ export default function Bookings() {
               }`}
             >
               <History className="size-3.5" />
-              {showAll ? 'إخفاء الماضية' : 'عرض كل الأوقات'}
+              {showAll ? t('terrain.bookings.hidePast', 'Hide past') : t('terrain.bookings.showAll', 'Show all')}
             </button>
           </div>
 
@@ -229,15 +232,15 @@ export default function Bookings() {
             <SkeletonCards count={4} />
           ) : filtered.length === 0 ? (
             <Empty
-              title={hasHiddenPast ? 'لا حجوزات قادمة' : 'لا توجد حجوزات'}
+              title={hasHiddenPast ? t('terrain.bookings.noUpcoming', 'No upcoming bookings') : t('terrain.bookings.noBookings', 'No bookings')}
               description={
-                hasHiddenPast ? 'توجد حجوزات سابقة في الفترة الماضية، يمكنك عرضها' : 'ستظهر هنا حجوزات المواعيد على ملاعبك'
+                hasHiddenPast ? t('terrain.bookings.pastBookingsExist', 'Past bookings exist, you can view them') : t('terrain.bookings.noBookingsDesc', 'Bookings on your fields will appear here')
               }
               action={
                 hasHiddenPast ? (
                   <Button size="sm" variant="outline" onClick={() => setShowAll(true)}>
                     <History className="size-3.5" />
-                    عرض الحجوزات الماضية
+                    {t('terrain.bookings.viewPast', 'View past bookings')}
                   </Button>
                 ) : undefined
               }
@@ -264,7 +267,7 @@ export default function Bookings() {
             )}
           </div>
           {matchRequests.length === 0 ? (
-            <Empty title="لا توجد مباريات" description="ستظهر هنا المباريات المفتوحة أو المؤكدة على ملاعبك" />
+            <Empty title={t('terrain.bookings.noMatches', 'No matches')} description={t('terrain.bookings.noMatchesDesc', 'Open or confirmed matches on your fields will appear here')} />
           ) : (
             <div className="space-y-2.5">
               {matchRequests.map((m) => (

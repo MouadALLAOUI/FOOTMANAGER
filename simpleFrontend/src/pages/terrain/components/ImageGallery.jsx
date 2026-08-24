@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ImagePlus, Star, Trash2, UploadCloud } from 'lucide-react'
 import api from '../../../api/client'
+import { getFieldErrors } from '../../../lib/errorState'
+import { toastApiError } from '../../../lib/errors'
 import { Spinner } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 
@@ -23,13 +26,14 @@ const summarizeErrors = (errors) => {
 
 export default function ImageGallery({ terrainId, images, onChanged }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const inputRef = useRef(null)
   const [busy, setBusy] = useState(false)
 
   const upload = async (files) => {
     if (!files.length) return
     if (images.length + files.length > 6) {
-      toast.error('الحد الأقصى 6 صور')
+      toast.error(t('terrain.photos.maxImages'))
       return
     }
     const fileList = Array.from(files)
@@ -52,7 +56,9 @@ export default function ImageGallery({ terrainId, images, onChanged }) {
       toast.success('تم رفع الصور بنجاح')
       onChanged()
     } catch (e) {
-      toast.error(summarizeErrors(e.response?.data?.errors) || e.response?.data?.message || 'تعذر رفع الصور')
+      const summary = summarizeErrors(getFieldErrors(e))
+      if (summary) toast.error(summary)
+      else toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -65,7 +71,7 @@ export default function ImageGallery({ terrainId, images, onChanged }) {
       toast.success('تم حذف الصورة')
       onChanged()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر حذف الصورة')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -78,7 +84,7 @@ export default function ImageGallery({ terrainId, images, onChanged }) {
       toast.success('تم تعيين الصورة كصورة رئيسية')
       onChanged()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر تعيين الصورة الرئيسية')
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }

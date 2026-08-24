@@ -165,7 +165,7 @@ export default function TournamentDetail() {
         })}
       </div>
 
-      {active === 'overview' && <OverviewTab {...tabProps} editable={editableStatuses.includes(tour.status)} />}
+      {active === 'overview' && <OverviewTab {...tabProps} editable={editableStatuses.includes(tour.status)} setActive={setActive} />}
       {active === 'settings' && <SettingsTab {...tabProps} />}
       {active === 'teams' && <TeamsTab {...tabProps} />}
       {renderStep('draw', DrawBoard)}

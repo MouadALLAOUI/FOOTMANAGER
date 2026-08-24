@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Eye, Check, X, CalendarDays, Users, MessageSquare } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import DataTable from '../../../components/admin/DataTable'
-import { PageHeader, Drawer, Button, Card, Input, Badge, Avatar, Skeleton } from '../../../components/admin/ui'
+import { PageHeader, Button, Card, Input, Badge, Avatar, Skeleton } from '../../../components/admin/ui'
+import Drawer from '../../../components/dashboard/Drawer'
 import { toast } from '../../../components/ui/Toast'
 import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
+import { toastApiError } from '../../../lib/errors'
 
 const statusLabels = {
   pending: 'قيد المراجعة',
@@ -125,6 +128,7 @@ function RejectModal({ request, onClose, onReject }) {
 }
 
 export default function Requests() {
+  const { t } = useTranslation()
   const [tab, setTab] = useState('pending')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -163,7 +167,7 @@ export default function Requests() {
       const res = await api.get(`/admin/player-team-requests/${row.id}`)
       setDetail((d) => ({ ...d, detail: res.data }))
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       setDetail(null)
     } finally {
       setDetailLoading(false)
@@ -182,7 +186,7 @@ export default function Requests() {
       }
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       return false
     } finally {
       setBusyId(null)
@@ -201,7 +205,7 @@ export default function Requests() {
       }
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       return false
     } finally {
       setBusyId(null)

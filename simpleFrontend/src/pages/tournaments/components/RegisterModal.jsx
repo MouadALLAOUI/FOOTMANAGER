@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { CalendarDays, CheckCircle2, Loader2, ScrollText, Trophy, Users, Wallet, X } from 'lucide-react'
 import api from '../../../api/client'
 import { TeamAvatar } from '../shared'
-import { useToast } from '../../../components/ui/Toast'
-import { getApiErrorMessage } from '../../../lib/errors'
+import { getApiErrorMessage, toastApiError } from '../../../lib/errors'
 
 function InfoRow({ icon: Icon, label, value }) {
   return (
@@ -29,7 +28,6 @@ const fmtPeriod = (value) => {
 
 export default function RegisterModal({ open, onClose, tour, availability, team, onSuccess }) {
   const { t } = useTranslation()
-  const { toast } = useToast()
   const [step, setStep] = useState('confirm')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -52,9 +50,8 @@ export default function RegisterModal({ open, onClose, tour, availability, team,
       setStep('done')
       onSuccess?.()
     } catch (e) {
-      const msg = getApiErrorMessage(e, t, t('public.registration.failed'))
-      setError(msg)
-      toast.error(msg)
+      setError(getApiErrorMessage(e, t, t('public.registration.failed')))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }

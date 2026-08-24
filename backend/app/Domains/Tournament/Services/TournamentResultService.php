@@ -57,8 +57,8 @@ class TournamentResultService
 
             $match = $fixture->match;
 
-            if ($match && $match->status === MatchStatus::Finished) {
-                throw new DomainException('لا يمكن تعديل نتيجة مباراة مسجلة');
+            if ($match) {
+                $this->assertMatchEditable($match);
             }
 
             $this->assertRoundUnlocked($fixture, $tournament);
@@ -103,6 +103,11 @@ class TournamentResultService
                     && ((int) $match->home_score !== $homeScore || (int) $match->away_score !== $awayScore)) {
                     throw new DomainException('النتيجة لا تتطابق مع أحداث المباراة المسجلة');
                 }
+
+                // When events are provided and validation passes, use event-derived scores
+                $homeScore = (int) $match->home_score;
+                $awayScore = (int) $match->away_score;
+                $winner = $this->resolveWinner($fixture, $homeScore, $awayScore, $data);
             }
 
             $this->syncStats($match, $data);
@@ -232,6 +237,8 @@ class TournamentResultService
                 ]);
 
                 $fixture->forceFill(['match_id' => $match->id])->save();
+            } else {
+                $this->assertMatchEditable($match);
             }
 
             if (array_key_exists('events', $data)) {
@@ -248,6 +255,12 @@ class TournamentResultService
             if (array_key_exists('events', $data) && ! ($data['force'] ?? false)
                 && ($homeScore !== (int) $match->home_score || $awayScore !== (int) $match->away_score)) {
                 throw new DomainException('النتيجة لا تتطابق مع أحداث المباراة المسجلة');
+            }
+
+            // When events are provided and no manual scores, use event-derived scores
+            if (array_key_exists('events', $data) && ! array_key_exists('home_score', $data)) {
+                $homeScore = (int) $match->home_score;
+                $awayScore = (int) $match->away_score;
             }
 
             $status = $match->status;
@@ -327,11 +340,12 @@ class TournamentResultService
                 throw new DomainException('لا يمكن تعديل الأحداث بعد انتهاء البطولة');
             }
 
+            $match = $this->matchFor($fixture);
+            $this->assertMatchEditable($match);
+
             $this->applySecondYellowConversion($fixture, $data);
 
             $this->assertEventPayload($fixture, $data);
-
-            $match = $this->matchFor($fixture);
 
             $event = MatchEvent::create($this->buildEventRecord($match->id, $data, $userId));
 
@@ -366,6 +380,9 @@ class TournamentResultService
                 throw new DomainException('لا يمكن تعديل الأحداث بعد انتهاء البطولة');
             }
 
+            $match = $event->match;
+            $this->assertMatchEditable($match);
+
             $data = array_merge([
                 'type' => $event->type?->value,
                 'team_id' => $event->team_id,
@@ -384,7 +401,6 @@ class TournamentResultService
 
             $event->update($this->buildEventRecord($event->match_id, $data, $userId));
 
-            $match = $event->match;
             $this->recomputeScore($match);
 
             if ($match->status === MatchStatus::Finished) {
@@ -414,6 +430,7 @@ class TournamentResultService
             }
 
             $match = $event->match;
+            $this->assertMatchEditable($match);
 
             $event->delete();
 
@@ -1101,6 +1118,9 @@ class TournamentResultService
             throw new DomainException('الفريق المحدد لا يشارك في هذه المباراة');
         }
 
+        $this->assertEventMinuteWithinLimits($fixture, $data);
+        $this->assertEventChronology($fixture, $data, $ignoredEventId);
+
         if ($playerId !== null) {
             if ($teamId === null) {
                 throw new DomainException('يجب تحديد الفريق الذي يلعب فيه اللاعب');
@@ -1148,6 +1168,46 @@ class TournamentResultService
     {
         if ((int) $event->match_id !== (int) $fixture->match_id) {
             throw new DomainException('الحدث لا ينتمي إلى هذه المباراة', 404);
+        }
+    }
+
+    private function assertMatchEditable(FootballMatch $match): void
+    {
+        if (! $match->status->isEditable()) {
+            throw new DomainException('لا يمكن تعديل مباراة منتهية أو ملغاة');
+        }
+    }
+
+    private function assertEventChronology(Fixture $fixture, array $data, ?int $ignoredEventId = null): void
+    {
+        $minute = (int) ($data['minute'] ?? 0);
+
+        if (! $fixture->match_id) {
+            return;
+        }
+
+        $lastEvent = MatchEvent::query()
+            ->where('match_id', $fixture->match_id)
+            ->when($ignoredEventId, fn ($query) => $query->where('id', '!=', $ignoredEventId))
+            ->orderByDesc('minute')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($lastEvent && $minute < (int) $lastEvent->minute) {
+            throw new DomainException("الدقيقة {$minute} أقل من ترتيب الأحداث الحالي ({$lastEvent->minute})");
+        }
+    }
+
+    private function assertEventMinuteWithinLimits(Fixture $fixture, array $data): void
+    {
+        $minute = (int) ($data['minute'] ?? 0);
+
+        $tournament = $this->tournamentFor($fixture);
+        $duration = $tournament->match_duration_minutes ?: 90;
+        $maxMinute = $duration + 30;
+
+        if ($minute > $maxMinute) {
+            throw new DomainException("الدقيقة {$minute} تتجاوز الحد الأقصى للمباراة ({$maxMinute} دقيقة)");
         }
     }
 

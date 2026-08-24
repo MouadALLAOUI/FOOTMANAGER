@@ -4,6 +4,7 @@ import { Camera, Loader2, Trash2 } from 'lucide-react'
 import api from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../ui/Toast'
+import { toastApiError } from '../../lib/errors'
 import { avatarThumb } from '../../lib/thumb'
 import ProfileAvatar from './ProfileAvatar'
 
@@ -67,7 +68,7 @@ export default function ProfileImageUploader({
     } catch (e) {
       const msg = e.response?.data?.message || t('profile.avatar.uploadFailed')
       setError(msg)
-      toast.error(msg)
+      toastApiError(e, t)
     } finally {
       setBusy('')
       setPreview('')
@@ -84,7 +85,7 @@ export default function ProfileImageUploader({
       applyUser(res.data.user)
       toast.success(res.data.message || t('profile.avatar.removed'))
     } catch (e) {
-      toast.error(e.response?.data?.message || t('profile.avatar.removeFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy('')
     }

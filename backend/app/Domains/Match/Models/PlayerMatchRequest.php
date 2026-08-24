@@ -15,6 +15,7 @@ class PlayerMatchRequest extends Model
         'player_id',
         'match_request_id',
         'type',
+        'position',
         'status',
         'message',
     ];

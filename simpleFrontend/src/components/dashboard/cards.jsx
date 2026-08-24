@@ -3,6 +3,7 @@ import {
   Clock,
   MapPin,
   Phone,
+  Repeat,
   ShieldCheck,
   Swords,
   Trophy,
@@ -137,6 +138,11 @@ export function MatchCard({ match, actions, onClick }) {
             {match.players_joined ?? 0}/{match.players_needed}
           </span>
         ) : null}
+        {match.player_format ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-600 ring-1 ring-emerald-200">
+            {match.player_format}
+          </span>
+        ) : null}
       </div>
 
       {actions && <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">{actions}</div>}
@@ -144,12 +150,27 @@ export function MatchCard({ match, actions, onClick }) {
   )
 }
 
+function safeStr(v, fallback = '') {
+  if (v == null) return fallback
+  if (typeof v === 'object') return fallback
+  return String(v)
+}
+
 export function BookingCard({ booking, actions }) {
   const { t } = useTranslation()
-  const terrain = booking.terrain || {}
+  const terrain = booking.terrain && typeof booking.terrain === 'object' && !Array.isArray(booking.terrain) ? booking.terrain : {}
   const start = booking.start_time
   const end = booking.end_time
   const date = booking.next_date || booking.booking_date
+  const isWeekly = booking.reservation_type === 'weekly_subscription'
+  const subscriptionStatus = typeof booking.subscription_status === 'string' ? booking.subscription_status : null
+  const occurrencesRemaining = typeof booking.occurrences_remaining === 'number' ? booking.occurrences_remaining : null
+
+  const subscriptionStatusColors = {
+    active: 'bg-emerald-50 text-emerald-600 ring-emerald-200',
+    expired: 'bg-rose-50 text-rose-600 ring-rose-200',
+    inactive: 'bg-slate-50 text-slate-600 ring-slate-200',
+  }
 
   return (
     <div className="group overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]">
@@ -164,13 +185,21 @@ export function BookingCard({ booking, actions }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-sm font-extrabold text-slate-900">{terrain.name || t('ov.common.terrain')}</p>
+              <p className="truncate text-sm font-extrabold text-slate-900">{safeStr(terrain.name, t('ov.common.terrain'))}</p>
               <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
                 <MapPin className="size-3 text-green-500" />
-                {terrain.city || '—'} {terrain.type ? `• ${terrain.type}` : ''}
+                {safeStr(terrain.city, '—')} {terrain.type ? `• ${safeStr(terrain.type)}` : ''}
               </p>
             </div>
-            <StatusBadge status={booking.status} />
+            <div className="flex items-center gap-2">
+              {isWeekly && subscriptionStatus && subscriptionStatus !== 'not_subscription' && (
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ring-1 ${subscriptionStatusColors[subscriptionStatus] || 'bg-slate-50 text-slate-600 ring-slate-200'}`}>
+                  <Repeat className="size-3" />
+                  {subscriptionStatus === 'active' ? 'نشط' : subscriptionStatus === 'expired' ? 'منتهي' : 'غير نشط'}
+                </span>
+              )}
+              <StatusBadge status={booking.status} />
+            </div>
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500">
             <span className="inline-flex items-center gap-1.5">
@@ -183,13 +212,26 @@ export function BookingCard({ booking, actions }) {
                 {start} - {end}
               </span>
             )}
+            {isWeekly && (
+              <span className="inline-flex items-center gap-1 text-violet-600">
+                <Repeat className="size-3" />
+                أسبوعي
+              </span>
+            )}
           </div>
-          {typeof booking.price === 'number' && booking.price > 0 && (
-            <p className="mt-2 text-sm font-black text-slate-900">
-              {booking.price}
-              <span className="ms-1 text-[11px] font-bold text-slate-400">{t('ov.common.currency')}</span>
-            </p>
-          )}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+            {typeof booking.price === 'number' && booking.price > 0 && (
+              <p className="text-sm font-black text-slate-900">
+                {booking.price}
+                <span className="ms-1 text-[11px] font-bold text-slate-400">{t('ov.common.currency')}</span>
+              </p>
+            )}
+            {isWeekly && subscriptionStatus === 'active' && occurrencesRemaining !== null && (
+              <span className="text-[11px] font-bold text-emerald-600">
+                {occurrencesRemaining} أسبوع متبقي
+              </span>
+            )}
+          </div>
         </div>
       </div>
       {actions && (

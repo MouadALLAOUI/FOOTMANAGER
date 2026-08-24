@@ -1,8 +1,5 @@
 import { useTranslation } from 'react-i18next'
-
-function hideBrokenImage(e) {
-  e.currentTarget.style.opacity = '0'
-}
+import { hideBrokenImage } from '../../lib/imageErrors'
 
 export default function FieldsHero() {
   const { t } = useTranslation()

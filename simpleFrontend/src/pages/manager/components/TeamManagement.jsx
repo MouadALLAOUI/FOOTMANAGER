@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, Pencil, Phone, Users, X } from 'lucide-react'
+import { Check, Pencil, Phone, Star, Users, X } from 'lucide-react'
 import api from '../../../api/client'
 import { Button, Skeleton } from '../../../components/dashboard/ui'
 import { useCommandCenter } from '../components/CommandCenterContext'
@@ -138,7 +138,12 @@ export default function TeamManagement() {
                   {name.charAt(0)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-extrabold text-slate-900">{name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate text-sm font-extrabold text-slate-900">{name}</p>
+                    {p.is_essential && (
+                      <Star className="size-3 shrink-0 fill-amber-400 text-amber-500" />
+                    )}
+                  </div>
                   <p className="text-[11px] font-semibold text-slate-400">
                     {positionLabels[p.position] && t('ov.positions.' + p.position) || positionLabels[p.position] || p.position || '—'}
                     {p.player_profile?.age ? ` • ${t('ov.team.yearsOld', { count: p.player_profile.age })}` : ''}

@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, Edit3, Trash2, Shield, Eye, EyeOff, Check, X } from 'lucide-react'
 import api from '../../../api/client'
 import { PageHeader, Button, StatusBadge, Avatar, Skeleton } from '../../../components/admin/ui'
 import { toast } from '../../../components/ui/Toast'
 import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
+import { toastApiError } from '../../../lib/errors'
 
 function PermissionBadge({ slug }) {
   return (
@@ -132,6 +134,7 @@ function SubAdminForm({ permissions, onSubmit, onCancel, loading, initial }) {
 }
 
 export default function SubAdmins() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const confirm = useConfirm()
   const [showForm, setShowForm] = useState(false)
@@ -155,7 +158,7 @@ export default function SubAdmins() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sub-admins'] })
       setShowForm(false)
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'حدث خطأ'),
+    onError: (e) => toastApiError(e, t),
   })
 
   const updateMut = useMutation({
@@ -165,7 +168,7 @@ export default function SubAdmins() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'sub-admins'] })
       setEditing(null)
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'حدث خطأ'),
+    onError: (e) => toastApiError(e, t),
   })
 
   const updatePermsMut = useMutation({
@@ -174,7 +177,7 @@ export default function SubAdmins() {
       toast.success(res.data.message)
       queryClient.invalidateQueries({ queryKey: ['admin', 'sub-admins'] })
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'حدث خطأ'),
+    onError: (e) => toastApiError(e, t),
   })
 
   const statusMut = useMutation({
@@ -183,7 +186,7 @@ export default function SubAdmins() {
       toast.success(res.data.message)
       queryClient.invalidateQueries({ queryKey: ['admin', 'sub-admins'] })
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'حدث خطأ'),
+    onError: (e) => toastApiError(e, t),
   })
 
   const deleteMut = useMutation({
@@ -192,7 +195,7 @@ export default function SubAdmins() {
       toast.success(res.data.message)
       queryClient.invalidateQueries({ queryKey: ['admin', 'sub-admins'] })
     },
-    onError: (e) => toast.error(e.response?.data?.message || 'حدث خطأ'),
+    onError: (e) => toastApiError(e, t),
   })
 
   const subAdmins = data?.sub_admins || []
@@ -257,8 +260,8 @@ export default function SubAdmins() {
       ) : subAdmins.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-slate-200 bg-white py-16 text-center">
           <UserPlus className="mx-auto mb-3 size-10 text-slate-300" />
-          <p className="text-sm font-bold text-slate-500">لا يوجد مسؤولون فرعيون</p>
-          <p className="mt-1 text-xs text-slate-400">أضف مسؤول فرعي لتخفيف عبء الإدارة.</p>
+          <p className="text-sm font-bold text-slate-500">{t('emptyStates.noSubAdmins')}</p>
+          <p className="mt-1 text-xs text-slate-400">{t('emptyStates.noSubAdminsDesc')}</p>
         </div>
       ) : (
         <div className="space-y-3">

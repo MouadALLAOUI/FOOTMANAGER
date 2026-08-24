@@ -10,10 +10,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { faHeart as faHeartRegular } from '@fortawesome/free-regular-svg-icons'
 import { formatCount } from '../../lib/adapters'
-
-function hideBrokenImage(e) {
-  e.currentTarget.style.opacity = '0'
-}
+import { hideBrokenImage } from '../../lib/imageErrors'
 
 function FieldCard({ card, liked, onToggleLike, onBook, variant }) {
   const { t, i18n } = useTranslation()

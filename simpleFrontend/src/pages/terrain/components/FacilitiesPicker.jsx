@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check, RefreshCw, Search } from 'lucide-react'
 
 export default function FacilitiesPicker({ facilities, selected, onChange, loading, error, onRetry }) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const list = useMemo(
     () => (facilities || []).filter((f) => (f.name || '').includes(query)),
@@ -29,14 +31,14 @@ export default function FacilitiesPicker({ facilities, selected, onChange, loadi
   if (error) {
     return (
       <div className="rounded-2xl border border-rose-100 bg-rose-50 p-6 text-center">
-        <p className="text-sm font-bold text-rose-600">تعذر تحميل المرافق</p>
+        <p className="text-sm font-bold text-rose-600">{t('errors.loadFailed')}</p>
         <button
           type="button"
           onClick={onRetry}
           className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-rose-700"
         >
           <RefreshCw className="size-3.5" />
-          إعادة المحاولة
+          {t('common.retry')}
         </button>
       </div>
     )
@@ -45,7 +47,7 @@ export default function FacilitiesPicker({ facilities, selected, onChange, loadi
   if (!facilities?.length) {
     return (
       <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 py-6 text-center text-xs text-slate-400">
-        لا توجد مرافق متاحة حالياً
+        {t('terrain.empty.noFacilities')}
       </p>
     )
   }
@@ -91,7 +93,7 @@ export default function FacilitiesPicker({ facilities, selected, onChange, loadi
             </button>
           )
         })}
-        {list.length === 0 && <p className="col-span-2 py-6 text-center text-xs text-slate-400">لا توجد مرافق مطابقة</p>}
+        {list.length === 0 && <p className="col-span-2 py-6 text-center text-xs text-slate-400">{t('terrain.empty.noMatchingFacilities')}</p>}
       </div>
     </div>
   )

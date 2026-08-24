@@ -27,6 +27,7 @@ import MatchCard from '../../../domains/committee/components/MatchCard'
 import FilterBar from '../../../domains/committee/components/FilterBar'
 import Drawer from '../../../components/dashboard/Drawer'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 import { LIVE_STATUSES } from '../../../data/fixtures'
 import MatchControlRoom from './MatchControlRoom'
 import MatchDetailsModal from '../../../domains/committee/components/MatchDetailsModal'
@@ -375,14 +376,21 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     refresh()
   }
 
-  const openDrawer = () => {
+  const openDrawer = (target) => {
     setPlan(null)
     setGenView('form')
     setConflictModal(false)
     setKoData(null)
     setQualified([])
     qualifiedAutoFilled.current = false
-    setForm((f) => ({ ...f, stage: 'group', stadium_ids: [] }))
+    const nextStage = target === 'knockout' || target === 'group'
+      ? target
+      : target === 'regenerate'
+        ? (isGroup ? 'group' : 'knockout')
+        : (isGroup ? 'group' : 'knockout')
+    // If no fixtures at all, default to group (first stage) unless explicitly knockout
+    const fallbackStage = !hasAnyFixtures && target !== 'knockout' ? 'group' : nextStage
+    setForm((f) => ({ ...f, stage: fallbackStage, stadium_ids: [] }))
     setGenOpen(true)
   }
 
@@ -430,7 +438,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         setGenView('review')
       }
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -448,7 +456,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       setGenOpen(false)
       afterChange()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -462,7 +470,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       toast.success(r.data?.message || t('committee.detail.fixturesDeleted'))
       afterChange()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -476,7 +484,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.matchPostponed'))
       afterChange()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -490,7 +498,20 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.matchCancelled'))
       afterChange()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const restoreMatch = async (f) => {
+    setBusy(f.id)
+    try {
+      await api.post(`/committee/tournaments/${tournament.id}/fixtures/${f.id}/restore`)
+      toast.success(t('committee.detail.matchRestored'))
+      afterChange()
+    } catch (e) {
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -938,25 +959,30 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
               </h3>
               <SummaryChips summary={summary} />
             </div>
-            <div className="flex flex-wrap gap-2">
-              {hasRounds ? (
-                <>
-                  <Button size="sm" variant="outline" onClick={() => openDrawer('regenerate')}>
-                    <RefreshCw className="size-4" />
-                    {t('committee.detail.regenerate')}
-                  </Button>
-                  <Button size="sm" variant="dangerSoft" loading={busy === 'del'} onClick={removeAll}>
-                    <Trash2 className="size-4" />
-                    {t('committee.detail.deleteFixtures')}
-                  </Button>
-                </>
-              ) : (
-                <Button size="sm" onClick={() => openDrawer()}>
-                  <CalendarPlus className="size-4" />
-                  {t('committee.detail.generateFixtures')}
-                </Button>
-              )}
-            </div>
+            {(() => {
+              const hasPlayed = (structure?.group_stage || []).some((s) => (s.completed || 0) > 0) || (structure?.knockout || []).some((s) => (s.completed || 0) > 0)
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {hasRounds ? (
+                    <>
+                      <Button size="sm" variant="outline" disabled={hasPlayed} title={hasPlayed ? t('committee.detail.regenerateBlocked') : undefined} onClick={() => openDrawer('regenerate')}>
+                        <RefreshCw className="size-4" />
+                        {t('committee.detail.regenerate')}
+                      </Button>
+                      <Button size="sm" variant="dangerSoft" loading={busy === 'del'} onClick={removeAll}>
+                        <Trash2 className="size-4" />
+                        {t('committee.detail.deleteFixtures')}
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" onClick={() => openDrawer()}>
+                      <CalendarPlus className="size-4" />
+                      {t('committee.detail.generateFixtures')}
+                    </Button>
+                  )}
+                </div>
+              )
+            })()}
           </div>
 
           {stateMeta && (
@@ -1000,7 +1026,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                   icon={Users}
                   title={t('committee.detail.stageNotCreated')}
                   description={t('committee.detail.stageNotCreatedDesc')}
-                  action={hasKnockoutStage ? <Button size="sm" variant="outline" onClick={() => openDrawer()}>{t('committee.detail.generateFixtures')}</Button> : undefined}
+                  action={hasKnockoutStage ? <Button size="sm" variant="outline" onClick={() => openDrawer('knockout')}>{t('committee.detail.generateFixtures')}</Button> : undefined}
                 />
               )
             ) : filtered.length === 0 ? (
@@ -1036,6 +1062,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                       onReschedule={() => setRescheduleFixture(f)}
                       onPostpone={() => postponeMatch(f)}
                       onCancel={() => cancelMatch(f)}
+                      onRestore={() => restoreMatch(f)}
                     />
                   ))}
                 </div>

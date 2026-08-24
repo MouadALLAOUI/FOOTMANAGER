@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import ImagePreview from '../ui/ImagePreview'
 
 // Renders a user avatar image with an initials fallback.
 // Pass `src` (e.g. avatarThumb(user)) or let it derive from `user.avatar_url`.
+// Set `previewable` to true to allow clicking to view the full image.
 export default function ProfileAvatar({
   user,
   src,
@@ -9,10 +11,12 @@ export default function ProfileAvatar({
   className = 'size-10',
   rounded = 'rounded-full',
   fontSize = 'text-base',
+  previewable = false,
 }) {
   const displayName = name ?? user?.name ?? ''
   const imageSrc = src ?? user?.avatar_url ?? ''
   const [failed, setFailed] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   useEffect(() => {
     setFailed(false)
@@ -20,14 +24,20 @@ export default function ProfileAvatar({
 
   if (imageSrc && !failed) {
     return (
-      <img
-        src={imageSrc}
-        alt={displayName || 'avatar'}
-        loading="lazy"
-        decoding="async"
-        onError={() => setFailed(true)}
-        className={`shrink-0 object-cover ${rounded} ${className}`}
-      />
+      <>
+        <img
+          src={imageSrc}
+          alt={displayName || 'avatar'}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+          className={`shrink-0 object-cover ${rounded} ${className} ${previewable ? 'cursor-pointer' : ''}`}
+          onClick={previewable ? (e) => { e.stopPropagation(); setPreviewOpen(true) } : undefined}
+        />
+        {previewable && (
+          <ImagePreview src={imageSrc} alt={displayName} open={previewOpen} onClose={() => setPreviewOpen(false)} />
+        )}
+      </>
     )
   }
 

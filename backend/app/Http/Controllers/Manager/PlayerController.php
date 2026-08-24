@@ -57,7 +57,7 @@ class PlayerController extends Controller
         abort_unless($player, 404);
 
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'sometimes|required|string|max:255',
             'position' => 'nullable|string|max:100',
             'number' => 'nullable|integer|min:0|max:99',
             'phone' => 'nullable|string|max:20',

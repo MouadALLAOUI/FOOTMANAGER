@@ -5,6 +5,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Button, Empty, Skeleton } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 import CommitteeBracket from '../../../domains/committee/components/CommitteeBracket'
 import TournamentStageBar from '../../../components/tournaments/TournamentStageBar'
 
@@ -29,7 +30,7 @@ export default function BracketTab({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.bracketCreated'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -43,7 +44,7 @@ export default function BracketTab({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.bracketPopulated'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -57,7 +58,7 @@ export default function BracketTab({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.bracketSynced'))
       refetch()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }

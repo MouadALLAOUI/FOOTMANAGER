@@ -11,7 +11,8 @@ const tooltipStyle = {
   boxShadow: '0 12px 28px rgba(15,23,42,0.25)',
 }
 
-export function AreaTrend({ data, xKey = 'label', series, height = 220 }) {
+export function AreaTrend({ data, xKey = 'label', series, height = 220, xAxisInterval }) {
+  const interval = xAxisInterval ?? (data.length > 14 ? 'preserveStartEnd' : 0)
   return (
     <div dir="ltr" style={{ height }} className="w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -29,6 +30,7 @@ export function AreaTrend({ data, xKey = 'label', series, height = 220 }) {
             axisLine={false}
             tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }}
             dy={8}
+            interval={interval}
           />
           <YAxis
             tickLine={false}
@@ -59,7 +61,8 @@ export function AreaTrend({ data, xKey = 'label', series, height = 220 }) {
 
 const donutColors = ['#22c55e', '#0ea5e9', '#f59e0b', '#8b5cf6', '#f43f5e', '#14b8a6']
 
-export function Bars({ data, xKey = 'label', bars = [], height = 220 }) {
+export function Bars({ data, xKey = 'label', bars = [], height = 220, xAxisInterval }) {
+  const interval = xAxisInterval ?? (data.length > 14 ? 'preserveStartEnd' : 0)
   return (
     <div dir="ltr" style={{ height }} className="w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -71,6 +74,7 @@ export function Bars({ data, xKey = 'label', bars = [], height = 220 }) {
             axisLine={false}
             tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }}
             dy={8}
+            interval={interval}
           />
           <YAxis
             tickLine={false}

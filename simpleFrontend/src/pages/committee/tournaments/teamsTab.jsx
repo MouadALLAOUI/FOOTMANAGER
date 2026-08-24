@@ -6,6 +6,7 @@ import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Empty, Field, Modal, Skeleton } from '../../../components/dashboard/ui'
 import Drawer from '../../../components/dashboard/Drawer'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 import { TeamAvatar } from '../../tournaments/shared'
 
 export default function TeamsTab({ tournament, refresh, refreshKey }) {
@@ -21,7 +22,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
   const [groupBusy, setGroupBusy] = useState(false)
 
   const [freeOpen, setFreeOpen] = useState(false)
-  const [freeName, setFreeName] = useState('')
+  const [freeNames, setFreeNames] = useState('')
   const [freeBusy, setFreeBusy] = useState(false)
 
   const { data: teams, loading } = useApi(
@@ -43,7 +44,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
       toast.success(t(action === 'approve' ? 'committee.detail.approveRequestToast' : 'committee.detail.rejectRequestToast'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -56,7 +57,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.markPaidToast'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -104,7 +105,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
       setSelected([])
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -118,7 +119,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
       toast.success(t('committee.detail.teamRemoved'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -136,7 +137,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
       setSelectMode(false)
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(null)
     }
@@ -156,24 +157,24 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
       setSelectMode(false)
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setGroupBusy(false)
     }
   }
 
-  const addFreeTeam = async () => {
-    const name = freeName.trim()
-    if (!name) return
+  const addFreeTeams = async () => {
+    const names = freeNames.split('\n').map((n) => n.trim()).filter(Boolean)
+    if (names.length === 0) return
     setFreeBusy(true)
     try {
-      await api.post(`/committee/tournaments/${tournament.id}/teams/free`, { name })
-      toast.success(t('committee.detail.freeTeamAdded'))
+      await api.post(`/committee/tournaments/${tournament.id}/teams/free/bulk`, { names })
+      toast.success(t('committee.detail.freeTeamsAdded', { count: names.length }))
       setFreeOpen(false)
-      setFreeName('')
+      setFreeNames('')
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setFreeBusy(false)
     }
@@ -450,19 +451,24 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
         subtitle={t('committee.detail.addFreeTeamDesc')}
       >
         <div className="space-y-4">
-          <Field label={t('committee.detail.freeTeamName')}>
-            <input
+          <Field label={t('committee.detail.freeTeamNames')}>
+            <textarea
               autoFocus
-              className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
-              value={freeName}
-              onChange={(e) => setFreeName(e.target.value)}
+              rows={5}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
+              placeholder={t('committee.detail.freeTeamPlaceholder')}
+              value={freeNames}
+              onChange={(e) => setFreeNames(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') addFreeTeam()
+                if (e.key === 'Enter' && e.ctrlKey) addFreeTeams()
               }}
             />
+            <p className="mt-1 text-[11px] text-slate-400">
+              {freeNames.split('\n').filter((n) => n.trim()).length} {t('committee.detail.freeTeamCount')}
+            </p>
           </Field>
           <div className="flex gap-2">
-            <Button className="flex-1" disabled={!freeName.trim() || freeBusy} loading={freeBusy} onClick={addFreeTeam}>
+            <Button className="flex-1" disabled={!freeNames.trim() || freeBusy} loading={freeBusy} onClick={addFreeTeams}>
               <Plus className="size-4" />
               {t('committee.detail.addFreeTeam')}
             </Button>

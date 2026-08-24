@@ -20,12 +20,14 @@ export const q = {
   notificationUnreadCount: () => ['notifications', 'unread-count'],
   teamProfile: () => ['manager', 'team-profile'],
   matchRequests: (params) => ['manager', 'match-requests', params],
-  bookings: () => ['manager', 'bookings'],
+  bookings: (params) => ['manager', 'bookings', params],
   players: () => ['manager', 'players'],
   matchFeed: (params) => ['manager', 'match-feed', params],
   recruitment: (params) => ['manager', 'recruitment', params],
   challenges: () => ['manager', 'challenges'],
   applicants: (id) => ['manager', 'matches', id, 'applicants'],
+  matchLineup: (matchRequestId) => ['manager', 'match-lineup', matchRequestId],
+  matchLineupRoster: (matchRequestId) => ['manager', 'match-lineup', matchRequestId, 'roster'],
   ownerTerrains: () => ['owner', 'terrains'],
   ownerStats: () => ['owner', 'stats'],
   ownerBookings: () => ['owner', 'bookings'],
@@ -38,6 +40,8 @@ export const q = {
   playerMatches: (params) => ['player', 'matches', params],
   playerFeed: (params) => ['player', 'match-feed', params],
   applications: () => ['player', 'applications'],
+  playerMatchDetail: (id) => ['player', 'match-detail', id],
+  publicManagerProfile: (id) => ['public', 'manager', id],
   cities: () => ['cities'],
   citiesSelect: () => ['cities', 'select'],
 }
@@ -72,8 +76,8 @@ export const useTeamProfile = (options) =>
   useTypedQuery(q.teamProfile(), () => get('/manager/team-profile'), options)
 export const useMatchRequests = (params, options) =>
   useTypedQuery(q.matchRequests(params), () => get('/manager/my-match-requests', params), options)
-export const useManagerBookings = (options) =>
-  useTypedQuery(q.bookings(), () => get('/manager/bookings'), options)
+export const useManagerBookings = (params, options) =>
+  useTypedQuery(q.bookings(params), () => get('/manager/bookings', params), options)
 export const useManagerPlayers = (options) =>
   useTypedQuery(q.players(), () => get('/manager/players'), options)
 export const useMatchFeed = (params, options) =>
@@ -82,6 +86,10 @@ export const useRecruitment = (params, options) =>
   useTypedQuery(q.recruitment(params), () => get('/manager/recruitment/search', params), options)
 export const useChallenges = (options) =>
   useTypedQuery(q.challenges(), () => get('/manager/received-challenges'), options)
+export const useMatchLineup = (matchRequestId, options) =>
+  useTypedQuery(q.matchLineup(matchRequestId), () => get(`/manager/match-requests/${matchRequestId}/lineup`), { ...options, enabled: !!matchRequestId })
+export const useMatchLineupRoster = (matchRequestId, options) =>
+  useTypedQuery(q.matchLineupRoster(matchRequestId), () => get(`/manager/match-requests/${matchRequestId}/lineup/roster`), { ...options, enabled: !!matchRequestId })
 export const useOwnerTerrains = (options) =>
   useTypedQuery(q.ownerTerrains(), () => get('/owner/terrains'), options)
 export const useOwnerStats = (options) =>
@@ -104,6 +112,10 @@ export const usePlayerFeed = (params, options) =>
   useTypedQuery(q.playerFeed(params), () => get('/player/match-feed', params), options)
 export const useApplications = (options) =>
   useTypedQuery(q.applications(), () => get('/player/applications'), options)
+export const usePlayerMatchDetail = (matchId, options) =>
+  useTypedQuery(q.playerMatchDetail(matchId), () => get(`/player/matches/${matchId}`), { ...options, enabled: !!matchId })
+export const usePublicManagerProfile = (managerId, options) =>
+  useTypedQuery(q.publicManagerProfile(managerId), () => get(`/public/managers/${managerId}`), { ...options, enabled: !!managerId })
 export const useCities = (options) =>
   useTypedQuery(q.cities(), () => get('/cities', { active_only: true }), options)
 export const useCitiesSelect = (options) =>

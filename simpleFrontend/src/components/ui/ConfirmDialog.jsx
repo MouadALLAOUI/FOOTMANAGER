@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Loader2 } from 'lucide-react'
+import useScrollLock from '../useScrollLock'
 
 const toneMeta = {
   danger: {
@@ -43,6 +44,8 @@ export function ConfirmDialog({
     }, 180)
   }, [loading, onClose])
 
+  useScrollLock(open)
+
   useEffect(() => {
     if (!open) return
     const restore = document.activeElement
@@ -77,10 +80,8 @@ export function ConfirmDialog({
     }
 
     window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
       if (restore && typeof restore.focus === 'function') restore.focus()
     }
   }, [open, requestClose])

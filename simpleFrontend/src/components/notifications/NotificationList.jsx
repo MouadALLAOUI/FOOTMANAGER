@@ -5,6 +5,7 @@ import api from '../../api/client'
 import { queryClient } from '../../api/queryClient'
 import { SectionTitle, Button, Empty, Skeleton } from '../dashboard/ui'
 import { useToast } from '../ui/Toast'
+import { toastApiError } from '../../lib/errors'
 import NotificationItem from './NotificationItem'
 
 const FILTERS = ['', 'unread', 'read', 'important', 'pinned']
@@ -52,7 +53,7 @@ export default function NotificationList({ containerClassName = 'mx-auto max-w-3
       refresh()
       load(page, true)
     } catch (e) {
-      toast.error(e.response?.data?.message || t('notifications.failed'))
+      toastApiError(e, t)
     } finally {
       setBusyId(null)
     }

@@ -4,6 +4,7 @@ import { CalendarClock, Check, ImagePlus, Lock, Palette, Save, ScrollText, Shiel
 import api from '../../../api/client'
 import { Button, Card, Field, FieldRow, Toggle, inputClass, selectClass } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
 
 const modes = [
   { key: 'fixed', icon: Lock, label: 'committee.detail.modeFixed', desc: 'committee.detail.modeFixedDesc' },
@@ -95,9 +96,7 @@ export default function SettingsTab({ tournament, refresh }) {
       toast.success(t('committee.detail.settingsSaved'))
       refresh()
     } catch (e) {
-      const err = e.response?.data?.errors
-      const first = err ? Object.values(err)[0]?.[0] : null
-      toast.error(first || e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBusy(false)
     }
@@ -111,7 +110,7 @@ export default function SettingsTab({ tournament, refresh }) {
       toast.success(t(open ? 'committee.detail.openRegistrationToast' : 'committee.detail.closeRegistrationToast'))
       refresh()
     } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setToggleBusy(false)
     }
@@ -131,9 +130,7 @@ export default function SettingsTab({ tournament, refresh }) {
       setCoverFile(null)
       refresh()
     } catch (e) {
-      const err = e.response?.data?.errors
-      const first = err ? Object.values(err)[0]?.[0] : null
-      toast.error(first || e.response?.data?.message || t('committee.detail.actionFailed'))
+      toastApiError(e, t)
     } finally {
       setBrandingBusy(false)
     }

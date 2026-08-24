@@ -37,7 +37,7 @@ class UpdateFixtureResultRequest extends FormRequest
             'events.*.team_id' => 'nullable|integer|exists:teams,id',
             'events.*.player_id' => 'nullable|integer|exists:players,id',
             'events.*.assist_player_id' => 'nullable|integer|exists:players,id',
-            'events.*.minute' => 'nullable|integer|min:0|max:130',
+            'events.*.minute' => 'nullable|integer|min:0|max:180',
             'events.*.added_time' => 'nullable|integer|min:0|max:30',
             'events.*.period' => 'nullable|string|max:20',
             'events.*.description' => 'nullable|string|max:500',

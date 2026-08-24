@@ -1,11 +1,14 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Eye, Check, X, Ban, ShieldCheck, CalendarDays, Trash2, KeyRound, Lock, Unlock } from 'lucide-react'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import DataTable from './DataTable'
-import { PageHeader, Drawer, Button, StatusBadge, Avatar, Skeleton } from './ui'
+import { PageHeader, Button, StatusBadge, Avatar, Skeleton } from './ui'
+import Drawer from '../dashboard/Drawer'
 import { toast } from '../ui/Toast'
 import { ConfirmDialog, useConfirm } from '../ui/ConfirmDialog'
+import { toastApiError } from '../../lib/errors'
 
 const actionMeta = {
   approve: { label: 'قبول', tone: 'primary', icon: Check },
@@ -156,6 +159,7 @@ export default function UserApproval({
   extraColumns = [],
   renderDetail,
 }) {
+  const { t } = useTranslation()
   const [tab, setTab] = useState('pending')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -187,7 +191,7 @@ export default function UserApproval({
       const res = await api.get(`${endpoint}/${row.id}`)
       setDetail((d) => ({ ...d, detail: res.data }))
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       setDetail(null)
     } finally {
       setDetailLoading(false)
@@ -205,7 +209,7 @@ export default function UserApproval({
       }
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       return false
     } finally {
       setBusyId(null)
@@ -220,7 +224,7 @@ export default function UserApproval({
       refetch()
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       return false
     }
   }
@@ -268,7 +272,7 @@ export default function UserApproval({
         refetch()
         setDetail(null)
       } catch (e) {
-        toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+        toastApiError(e, t)
       } finally {
         setDeleting(false)
       }
@@ -287,7 +291,7 @@ export default function UserApproval({
       toast.success(res.data.message || 'تم إنشاء رمز الاسترداد')
       setRecoveryToken(res.data.recovery)
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
     } finally {
       setBusyId(null)
     }
@@ -307,7 +311,7 @@ export default function UserApproval({
       }
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       return false
     } finally {
       setBusyId(null)
@@ -328,7 +332,7 @@ export default function UserApproval({
       }
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       return false
     } finally {
       setBusyId(null)

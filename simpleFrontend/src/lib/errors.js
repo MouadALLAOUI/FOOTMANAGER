@@ -1,4 +1,5 @@
 import { ERROR_TYPES, mapHttpError } from './errorState'
+import { toast } from '../components/ui/Toast'
 
 export function getApiErrorMessage(error, t, fallback) {
   const state = mapHttpError(error)
@@ -33,4 +34,8 @@ export function getApiErrorMessage(error, t, fallback) {
       return fallback || t('errors.generic')
     }
   }
+}
+
+export function toastApiError(error, t, fallback) {
+  toast.error(getApiErrorMessage(error, t, fallback))
 }

@@ -22,6 +22,7 @@ class MatchRequest extends Model
         'opponent_team_id',
         'mercenary_player_id',
         'stadium_id',
+        'player_format',
         'custom_terrain_name',
         'type',
         'match_datetime',
@@ -34,6 +35,7 @@ class MatchRequest extends Model
         'score_status',
         'needs_players',
         'players_needed',
+        'positions_needed',
         'started_at',
     ];
 
@@ -52,6 +54,7 @@ class MatchRequest extends Model
             'opponent_score' => 'integer',
             'needs_players' => 'boolean',
             'players_needed' => 'integer',
+            'positions_needed' => 'array',
             'started_at' => 'datetime',
         ];
     }
@@ -99,6 +102,11 @@ class MatchRequest extends Model
     public function playerApplications(): HasMany
     {
         return $this->hasMany(PlayerMatchRequest::class, 'match_request_id');
+    }
+
+    public function lineups(): HasMany
+    {
+        return $this->hasMany(MatchLineup::class, 'match_request_id');
     }
 
     public function getPlayersJoinedAttribute(): int

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Check,
   CheckCircle2,
@@ -36,6 +37,7 @@ import { PlayerCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
 import { useAuth } from '../../../context/AuthContext'
 import { photoThumb } from '../../../lib/thumb'
+import { toastApiError } from '../../../lib/errors'
 
 const positionLabels = { goalkeeper: 'حارس مرمى', defender: 'مدافع', midfielder: 'وسط', forward: 'مهاجم' }
 const skillLabels = { beginner: 'مبتدئ', amateur: 'هواة', semi_pro: 'نصف محترف', pro: 'محترف' }
@@ -334,6 +336,7 @@ function PlayerDetail({ player, onClose, onInvite }) {
 
 function Applications({ hosted }) {
   const { toast } = useToast()
+  const { t } = useTranslation()
   const [matchId, setMatchId] = useState('')
   const [apps, setApps] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -358,7 +361,7 @@ function Applications({ hosted }) {
       toast.success(res.data.message || (action === 'accept' ? 'تم قبول اللاعب' : 'تم رفض الطلب'))
       load(matchId)
     } catch (e) {
-      toast.error(e.response?.data?.message || 'تعذر إتمام العملية')
+      toastApiError(e, t)
     } finally {
       setBusyId(null)
     }

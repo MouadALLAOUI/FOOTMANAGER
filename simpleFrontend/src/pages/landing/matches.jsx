@@ -143,7 +143,7 @@ export default function Matches() {
   const cards = (data?.latest_matches || []).map((m) => ({ ...toMatchCard(m), status: 'looking' }))
 
   return (
-    <section id="matches" className="scroll-mt-[110px] bg-white py-[100px] lg:py-[120px]">
+    <section id="matches" className="bg-white py-[100px] lg:py-[120px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="text-start">

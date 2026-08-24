@@ -29,6 +29,7 @@ class MatchFeedResource extends JsonResource
                 'images' => $this->stadium->images?->pluck('image_url'),
             ]),
             'custom_terrain_name' => $this->custom_terrain_name,
+            'player_format' => $this->player_format,
             'has_custom_terrain' => $this->stadium_id === null,
         ];
     }

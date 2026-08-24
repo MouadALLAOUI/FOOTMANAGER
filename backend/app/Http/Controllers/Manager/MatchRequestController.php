@@ -98,9 +98,20 @@ class MatchRequestController extends Controller
             'price_per_player' => 'nullable|numeric|min:0',
             'needs_players' => 'sometimes|boolean',
             'players_needed' => 'nullable|integer|min:1|max:50|required_if:needs_players,true',
+            'positions_needed' => 'nullable|array',
+            'positions_needed.goalkeeper' => 'nullable|integer|min:0|max:50',
+            'positions_needed.defender' => 'nullable|integer|min:0|max:50',
+            'positions_needed.midfielder' => 'nullable|integer|min:0|max:50',
+            'positions_needed.forward' => 'nullable|integer|min:0|max:50',
         ]);
 
         $needsPlayers = (bool) ($validated['needs_players'] ?? false);
+        $positionsNeeded = $validated['positions_needed'] ?? null;
+
+        if ($positionsNeeded) {
+            $positionsNeeded = array_filter($positionsNeeded, fn ($v) => $v > 0);
+            $positionsNeeded = empty($positionsNeeded) ? null : $positionsNeeded;
+        }
 
         $teamId = $user->team->id;
         $datetime = Carbon::parse($validated['match_datetime']);
@@ -128,12 +139,14 @@ class MatchRequestController extends Controller
             $matchRequest = MatchRequest::create([
                 'host_team_id' => $user->team->id,
                 'stadium_id' => null,
+                'player_format' => null,
                 'custom_terrain_name' => $validated['custom_terrain_name'] ?? null,
                 'match_datetime' => $validated['match_datetime'],
                 'notes' => $validated['notes'] ?? null,
                 'price_per_player' => $validated['price_per_player'] ?? null,
                 'needs_players' => $needsPlayers,
                 'players_needed' => $needsPlayers ? ($validated['players_needed'] ?? null) : null,
+                'positions_needed' => $positionsNeeded,
             ]);
         } else {
             $terrain = Stadium::find($validated['stadium_id']);
@@ -154,12 +167,14 @@ class MatchRequestController extends Controller
                     $matchRequest = MatchRequest::create([
                         'host_team_id' => $user->team->id,
                         'stadium_id' => $validated['stadium_id'],
+                        'player_format' => $terrain->player_format,
                         'custom_terrain_name' => $validated['custom_terrain_name'] ?? null,
                         'match_datetime' => $validated['match_datetime'],
                         'notes' => $validated['notes'] ?? null,
                         'price_per_player' => $validated['price_per_player'] ?? null,
                         'needs_players' => (bool) ($validated['needs_players'] ?? false),
                         'players_needed' => ($validated['needs_players'] ?? false) ? ($validated['players_needed'] ?? null) : null,
+                        'positions_needed' => $positionsNeeded,
                     ]);
 
                     $dateToLock = $checkDate;
@@ -254,10 +269,21 @@ class MatchRequestController extends Controller
             'price_per_player' => 'nullable|numeric|min:0',
             'needs_players' => 'sometimes|boolean',
             'players_needed' => 'nullable|integer|min:1|max:50|required_if:needs_players,true',
+            'positions_needed' => 'nullable|array',
+            'positions_needed.goalkeeper' => 'nullable|integer|min:0|max:50',
+            'positions_needed.defender' => 'nullable|integer|min:0|max:50',
+            'positions_needed.midfielder' => 'nullable|integer|min:0|max:50',
+            'positions_needed.forward' => 'nullable|integer|min:0|max:50',
         ]);
 
         $teamId = $user->team->id;
         $needsPlayers = (bool) ($validated['needs_players'] ?? false);
+        $positionsNeeded = $validated['positions_needed'] ?? null;
+
+        if ($positionsNeeded) {
+            $positionsNeeded = array_filter($positionsNeeded, fn ($v) => $v > 0);
+            $positionsNeeded = empty($positionsNeeded) ? null : $positionsNeeded;
+        }
 
         $this->assertWithinMatchRequestLimit($user);
 
@@ -285,16 +311,24 @@ class MatchRequestController extends Controller
         }
 
         $matchRequest = DB::transaction(function () use ($validated, $teamId, $needsPlayers) {
+            $playerFormat = null;
+            if (! empty($validated['stadium_id'])) {
+                $terrain = \App\Domains\Stadium\Models\Stadium::find($validated['stadium_id']);
+                $playerFormat = $terrain?->player_format;
+            }
+
             return MatchRequest::create([
                 'host_team_id' => $teamId,
                 'target_team_id' => $validated['target_team_id'],
                 'stadium_id' => $validated['stadium_id'] ?? null,
+                'player_format' => $playerFormat,
                 'custom_terrain_name' => $validated['custom_terrain_name'] ?? null,
                 'match_datetime' => $validated['match_datetime'],
                 'notes' => $validated['notes'] ?? null,
                 'price_per_player' => $validated['price_per_player'] ?? null,
                 'needs_players' => $needsPlayers,
                 'players_needed' => $needsPlayers ? ($validated['players_needed'] ?? null) : null,
+                'positions_needed' => $positionsNeeded,
                 'type' => 'direct_challenge',
             ]);
         });
@@ -573,6 +607,7 @@ class MatchRequestController extends Controller
             $matchRequest = MatchRequest::create([
                 'host_team_id' => $user->team->id,
                 'stadium_id' => $booking->terrain_id,
+                'player_format' => $booking->terrain?->player_format,
                 'match_datetime' => $matchDatetime,
                 'notes' => $validated['notes'] ?? $booking->notes,
                 'needs_players' => $needsPlayers,

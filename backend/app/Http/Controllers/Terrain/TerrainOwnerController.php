@@ -78,6 +78,10 @@ class TerrainOwnerController extends Controller
         $validated['owner_id'] = $request->user()->id;
         unset($validated['city_id']);
 
+        // total_price = price_per_team * 2, price_per_hour = total_price
+        $validated['total_price'] = $validated['price_per_team'] * 2;
+        $validated['price_per_hour'] = $validated['total_price'];
+
         $terrain = Stadium::create($validated);
         $terrain->update(['city_id' => $city->id]);
 
@@ -123,6 +127,11 @@ class TerrainOwnerController extends Controller
             $validated['city'] = $city->name;
             $terrain->update(['city_id' => $city->id]);
             unset($validated['city_id']);
+        }
+
+        if (isset($validated['price_per_team'])) {
+            $validated['total_price'] = $validated['price_per_team'] * 2;
+            $validated['price_per_hour'] = $validated['total_price'];
         }
 
         $terrain->update($validated);
@@ -744,6 +753,8 @@ class TerrainOwnerController extends Controller
                 'range' => null,
                 'summary' => (object) [],
                 'by_status' => (object) [],
+                'by_type' => [],
+                'by_payment_status' => [],
                 'peak_hours' => array_fill(0, 24, 0),
                 'popular_days' => array_fill(0, 7, 0),
                 'series' => [],
@@ -760,22 +771,24 @@ class TerrainOwnerController extends Controller
             $fromDate = $toDate->copy()->subDays(366);
         }
 
+        $groupBy = in_array($request->query('group_by'), ['hour', 'day'], true) ? $request->query('group_by') : 'day';
+
         $from = $fromDate->toDateString();
         $to = $toDate->toDateString();
         $toEnd = $toDate->copy()->endOfDay();
 
         $payload = Cache::remember(
-            "owner:analytics:details:{$request->user()->id}:{$from}:{$to}",
+            "owner:analytics:details:{$request->user()->id}:{$from}:{$to}:{$groupBy}",
             60,
-            function () use ($terrainIds, $fromDate, $toDate, $from, $to, $toEnd) {
-                return $this->buildTerrainAnalyticsPayload($terrainIds, $fromDate, $toDate, $from, $to, $toEnd);
+            function () use ($terrainIds, $fromDate, $toDate, $from, $to, $toEnd, $groupBy) {
+                return $this->buildTerrainAnalyticsPayload($terrainIds, $fromDate, $toDate, $from, $to, $toEnd, $groupBy);
             }
         );
 
         return response()->json($payload);
     }
 
-    private function buildTerrainAnalyticsPayload($terrainIds, Carbon $fromDate, Carbon $toDate, string $from, string $to, Carbon $toEnd): array
+    private function buildTerrainAnalyticsPayload($terrainIds, Carbon $fromDate, Carbon $toDate, string $from, string $to, Carbon $toEnd, string $groupBy = 'day'): array
     {
         $schedules = TerrainSchedule::whereIn('terrain_id', $terrainIds)
             ->where('is_active', true)
@@ -794,7 +807,7 @@ class TerrainOwnerController extends Controller
         $singles = TerrainBooking::whereIn('terrain_id', $terrainIds)
             ->where('reservation_type', 'single')
             ->whereBetween('booking_date', [$fromDate, $toEnd])
-            ->get(['terrain_id', 'booking_date', 'start_time', 'end_time', 'status', 'price']);
+            ->get(['terrain_id', 'booking_date', 'start_time', 'end_time', 'status', 'price', 'payment_status', 'refund_amount']);
 
         $subscriptions = TerrainBooking::whereIn('terrain_id', $terrainIds)
             ->where('reservation_type', 'weekly_subscription')
@@ -804,7 +817,7 @@ class TerrainOwnerController extends Controller
             ->where(function ($q) use ($from) {
                 $q->whereNull('end_date')->orWhere('end_date', '>=', $from);
             })
-            ->get(['terrain_id', 'day_of_week', 'start_date', 'end_date', 'start_time', 'end_time', 'status', 'price']);
+            ->get(['terrain_id', 'day_of_week', 'start_date', 'end_date', 'start_time', 'end_time', 'status', 'price', 'payment_status', 'refund_amount']);
 
         $occurrencesOf = function ($subscription) use ($fromDate, $to) {
             $dow = (int) $subscription->day_of_week;
@@ -840,9 +853,14 @@ class TerrainOwnerController extends Controller
             }
         }
 
-        $isWeekly = $fromDate->copy()->diffInDays($toDate) > 62;
+        $isHourly = $groupBy === 'hour' && $fromDate->toDateString() === $toDate->toDateString();
+        $isWeekly = ! $isHourly && $fromDate->copy()->diffInDays($toDate) > 62;
         $buckets = [];
-        if ($isWeekly) {
+        if ($isHourly) {
+            for ($h = 0; $h < 24; $h++) {
+                $buckets[(string) $h] = ['revenue' => 0.0, 'bookings' => 0];
+            }
+        } elseif ($isWeekly) {
             for ($date = $fromDate->copy()->startOfWeek(); $date->lte($toDate); $date->addWeek()) {
                 $buckets[$date->toDateString()] = ['revenue' => 0.0, 'bookings' => 0];
             }
@@ -851,26 +869,49 @@ class TerrainOwnerController extends Controller
                 $buckets[$date->toDateString()] = ['revenue' => 0.0, 'bookings' => 0];
             }
         }
-        $bucketKey = function (Carbon $date) use ($isWeekly) {
-            return $isWeekly ? $date->copy()->startOfWeek()->toDateString() : $date->toDateString();
+        $bucketKey = function ($dateOrTime, ?Carbon $date = null) use ($isHourly, $isWeekly) {
+            if ($isHourly) {
+                $hour = $dateOrTime instanceof Carbon ? (int) $dateOrTime->format('G') : (int) Carbon::parse($dateOrTime)->format('G');
+                return (string) $hour;
+            }
+            if ($isWeekly) {
+                return $dateOrTime instanceof Carbon ? $dateOrTime->copy()->startOfWeek()->toDateString() : $dateOrTime;
+            }
+            return $dateOrTime instanceof Carbon ? $dateOrTime->toDateString() : $dateOrTime;
         };
+
+        $byType = ['single' => ['revenue' => 0.0, 'bookings' => 0], 'weekly_subscription' => ['revenue' => 0.0, 'bookings' => 0]];
+        $byPaymentStatus = ['unpaid' => 0.0, 'pending' => 0.0, 'paid' => 0.0, 'refunded' => 0.0];
+        $confirmedRevenue = 0.0;
+        $refundedAmount = 0.0;
 
         foreach ($singles as $booking) {
             $date = $booking->booking_date?->toDateString();
             if (! $date || $date < $from || $date > $to) {
                 continue;
             }
-            $key = $bucketKey($booking->booking_date);
+            $key = $isHourly ? $bucketKey($booking->start_time) : $bucketKey($booking->booking_date);
             if (! isset($buckets[$key])) {
                 continue;
             }
             $slots = $slotCount($booking->start_time, $booking->end_time, $booking->terrain_id, $booking->booking_date->dayOfWeek % 7);
             if (in_array($booking->status, ['approved', 'completed'], true)) {
                 $buckets[$key]['bookings'] += $slots;
+                $bookingRevenue = (float) $booking->price * $slots;
                 if ($booking->status === 'approved') {
-                    $buckets[$key]['revenue'] += (float) $booking->price * $slots;
+                    $buckets[$key]['revenue'] += $bookingRevenue;
+                    $byType['single']['revenue'] += $bookingRevenue;
+                    $byType['single']['bookings'] += $slots;
+                    $payStatus = $booking->payment_status ?? 'unpaid';
+                    if (isset($byPaymentStatus[$payStatus])) {
+                        $byPaymentStatus[$payStatus] += $bookingRevenue;
+                    }
+                    if ($payStatus === 'paid') {
+                        $confirmedRevenue += $bookingRevenue;
+                    }
                 }
             }
+            $refundedAmount += (float) ($booking->refund_amount ?? 0);
         }
 
         foreach ($subscriptions as $subscription) {
@@ -882,16 +923,29 @@ class TerrainOwnerController extends Controller
             $active = in_array($subscription->status, ['approved', 'completed'], true);
             $isApproved = $subscription->status === 'approved';
             foreach ($occurrencesOf($subscription) as $occurrence) {
-                $key = $bucketKey($occurrence);
+                $key = $isHourly ? $bucketKey($subscription->start_time) : $bucketKey($occurrence);
                 if (! isset($buckets[$key])) {
                     continue;
                 }
                 if ($active) {
                     $buckets[$key]['bookings'] += $slots;
+                    $subRevenue = (float) $subscription->price * $slots;
                     if ($isApproved) {
-                        $buckets[$key]['revenue'] += (float) $subscription->price * $slots;
+                        $buckets[$key]['revenue'] += $subRevenue;
+                        $byType['weekly_subscription']['revenue'] += $subRevenue;
+                        $byType['weekly_subscription']['bookings'] += $slots;
+                        $payStatus = $subscription->payment_status ?? 'unpaid';
+                        if (isset($byPaymentStatus[$payStatus])) {
+                            $byPaymentStatus[$payStatus] += $subRevenue;
+                        }
+                        if ($payStatus === 'paid') {
+                            $confirmedRevenue += $subRevenue;
+                        }
                     }
                 }
+            }
+            if ($isApproved) {
+                $refundedAmount += (float) ($subscription->refund_amount ?? 0);
             }
         }
 
@@ -968,12 +1022,14 @@ class TerrainOwnerController extends Controller
             'range' => [
                 'from' => $from,
                 'to' => $to,
-                'period' => $isWeekly ? 'week' : 'day',
+                'period' => $isHourly ? 'hour' : ($isWeekly ? 'week' : 'day'),
             ],
             'summary' => [
                 'total_bookings' => (int) array_sum($byStatus),
                 'bookings' => $bookings,
                 'revenue' => $revenue,
+                'confirmed_revenue' => (int) round($confirmedRevenue),
+                'refunded_amount' => (int) round($refundedAmount),
                 'avg_booking_value' => $bookings > 0 ? (int) round($revenue / $bookings) : 0,
                 'cancellations' => $byStatus['cancelled'],
                 'completed' => $byStatus['completed'],
@@ -984,6 +1040,8 @@ class TerrainOwnerController extends Controller
                 'available_slots' => max(0, $availableSlots - $bookedSlots),
             ],
             'by_status' => $byStatus,
+            'by_type' => $byType,
+            'by_payment_status' => $byPaymentStatus,
             'peak_hours' => $peakHours,
             'popular_days' => $popularDays,
             'series' => $series,

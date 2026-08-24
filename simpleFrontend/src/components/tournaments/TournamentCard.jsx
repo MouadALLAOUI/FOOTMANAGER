@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCalendarDays, faMapPin, faTrophy, faUsers } from '@fortawesome/free-solid-svg-icons'
+import { hideBrokenImage } from '../../lib/imageErrors'
 
 const REGISTRATION_STYLES = {
   open: 'bg-green-100 text-green-700',
@@ -16,10 +17,6 @@ function registrationState(tour) {
   if (tour.status === 'in_progress') return 'in_progress'
   if (tour.status === 'completed') return 'finished'
   return 'closed'
-}
-
-function hideBrokenImage(e) {
-  e.currentTarget.style.opacity = '0'
 }
 
 export default function TournamentCard({ tournament: tour, className = '' }) {

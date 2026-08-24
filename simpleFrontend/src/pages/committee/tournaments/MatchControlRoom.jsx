@@ -21,6 +21,7 @@ import SummarySidebar from '../../../domains/committee/components/SummarySidebar
 import FooterActions from '../../../domains/committee/components/FooterActions'
 import ConfirmResultModal from '../../../domains/committee/components/ConfirmResultModal'
 import { QUICK_ACTIONS, TYPE_OPTIONS, REFEREE_ROLES } from '../../../data/matchConstants'
+import useScrollLock from '../../../components/useScrollLock'
 
 
 const uid = () => Math.random().toString(36).slice(2, 10)
@@ -28,13 +29,16 @@ const uid = () => Math.random().toString(36).slice(2, 10)
 function computeScore(events, homeId, awayId) {
   let home = 0
   let away = 0
+  const hid = homeId != null ? Number(homeId) : null
+  const aid = awayId != null ? Number(awayId) : null
   for (const e of events) {
+    const tid = e.team_id != null ? Number(e.team_id) : null
     if (e.type === 'goal' || e.type === 'penalty_goal') {
-      if (e.team_id === homeId) home += 1
-      else if (e.team_id === awayId) away += 1
+      if (tid === hid) home += 1
+      else if (tid === aid) away += 1
     } else if (e.type === 'own_goal') {
-      if (e.team_id === homeId) away += 1
-      else if (e.team_id === awayId) home += 1
+      if (tid === hid) away += 1
+      else if (tid === aid) home += 1
     }
   }
   return { home, away }
@@ -56,6 +60,8 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const homeName = homeTeam?.name || fixture.slots?.home || t('committee.detail.tbd')
   const awayName = awayTeam?.name || fixture.slots?.away || t('committee.detail.tbd')
   const alreadyFinished = fixture.match?.status === 'finished'
+  const matchStatus = fixture.match?.status || 'scheduled'
+  const matchNotStarted = matchStatus === 'scheduled' || matchStatus === 'warmup'
   const isKnockout = Boolean(fixture.round?.stage && fixture.round.stage !== 'group')
   const liveMinute = fixture.match?.current_minute ?? 0
 
@@ -88,16 +94,30 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [timelineDirty, setTimelineDirty] = useState(false)
 
+  const addMinMinute = useMemo(() => {
+    if (!events.length) return 0
+    return Math.max(...events.map((e) => Number(e.minute) || 0))
+  }, [events])
+
+  const editMinMinute = useMemo(() => {
+    if (!editingKey || !events.length) return 0
+    const sorted = [...events].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0) || (Number(a.added_time) || 0) - (Number(b.added_time) || 0))
+    const idx = sorted.findIndex((e) => e._key === editingKey)
+    if (idx <= 0) return 0
+    return Number(sorted[idx - 1].minute) || 0
+  }, [events, editingKey])
+
+  const effectiveMinMinute = editingKey ? editMinMinute : addMinMinute
+  const lastEventMinute = addMinMinute
+
   const displayScore = (timelineDirty || events.length > 0) ? computeScore(events, homeId, awayId) : storedScore
+
+  useScrollLock(true)
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && !confirmOpen && onClose()
     window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
+    return () => window.removeEventListener('keydown', onKey)
   }, [onClose, confirmOpen])
 
   useEffect(() => {
@@ -184,6 +204,8 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     setEditingKey(null)
     setValidation(null)
     setSaveError(null)
+    const lastMinute = events.length ? Math.max(...events.map((e) => Number(e.minute) || 0)) : 0
+    const defaultMinute = lastMinute > 0 ? lastMinute : (liveMinute > 0 ? liveMinute : 1)
     setForm({
       team_id: type === 'other' ? '' : homeId ?? '',
       player_id: null,
@@ -191,7 +213,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       assist_player_id: null,
       assist: '',
       noAssist: true,
-      minute: liveMinute > 0 ? liveMinute : 1,
+      minute: defaultMinute,
       added_time: 0,
       goalType: 'regular',
       cardColor: type === 'red_card' ? 'red_card' : type === 'second_yellow' ? 'second_yellow' : 'yellow_card',
@@ -253,9 +275,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const toApiEvent = (e) => {
     const base = {
       type: e.type,
-      team_id: e.team_id || null,
+      team_id: e.team_id != null && e.team_id !== '' ? Number(e.team_id) : null,
       player_id: e.player_id || null,
-      minute: Math.min(Number(e.minute) || 0, 130),
+      minute: Math.min(Number(e.minute) || 0, 180),
       added_time: Math.min(Number(e.added_time) || 0, 30),
     }
     switch (e.type) {
@@ -273,7 +295,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
           ...base,
           assist_player_id: e.assist_player_id || null,
           description: e.player || e.description || null,
-          metadata: e.reason || e.goalType && e.goalType !== 'regular' ? { reason: e.reason || null, goalType: e.type === 'goal' ? e.goalType || null : null } : null,
+          metadata: (e.reason || (e.goalType && e.goalType !== 'regular')) ? { reason: e.reason || null, goalType: e.type === 'goal' ? e.goalType || null : null } : null,
         }
     }
   }
@@ -322,7 +344,8 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         events: evts.map(toApiEvent),
       }
       if (finish) payload.status = 'finished'
-      else payload.status = alreadyFinished ? 'finished' : 'scheduled'
+      else if (alreadyFinished) payload.status = 'finished'
+      else payload.status = 'scheduled'
 
       const r = await api.put(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/result`, payload)
       const m = r.data?.data?.match
@@ -391,6 +414,10 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       setValidation('needMinute')
       return
     }
+    if (Number(form.minute) < (effectiveMinMinute || 0)) {
+      setValidation('minuteTooLow')
+      return
+    }
     if (type !== 'other') {
       if (!form.team_id) {
         setValidation('needTeam')
@@ -446,7 +473,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     const ev = {
       _key: editingKey || uid(),
       type: eventType,
-      team_id: form.team_id || null,
+      team_id: form.team_id !== '' && form.team_id != null ? Number(form.team_id) : null,
       player_id: type === 'other' ? null : form.player_id,
       player: type === 'other' ? '' : form.player.trim(),
       assist_player_id: type === 'substitution'
@@ -524,13 +551,13 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     return out.sort((a, b) => a.name.localeCompare(b.name, 'ar'))
   }, [rosters, homeId, awayId])
 
-  const homeEvents = useMemo(() => events.filter((e) => e.team_id === homeId), [events, homeId])
-  const awayEvents = useMemo(() => events.filter((e) => e.team_id === awayId), [events, awayId])
-  const generalEvents = useMemo(() => events.filter((e) => e.team_id !== homeId && e.team_id !== awayId), [events, homeId, awayId])
+  const homeEvents = useMemo(() => events.filter((e) => Number(e.team_id) === Number(homeId)), [events, homeId])
+  const awayEvents = useMemo(() => events.filter((e) => Number(e.team_id) === Number(awayId)), [events, awayId])
+  const generalEvents = useMemo(() => events.filter((e) => Number(e.team_id) !== Number(homeId) && Number(e.team_id) !== Number(awayId)), [events, homeId, awayId])
 
   const scoreFor = (teamId) => {
-    if (teamId === homeId) return displayScore.home
-    if (teamId === awayId) return displayScore.away
+    if (Number(teamId) === Number(homeId)) return displayScore.home
+    if (Number(teamId) === Number(awayId)) return displayScore.away
     return null
   }
 
@@ -573,7 +600,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     <ModalShell onClose={onClose}>
       <HeaderBlock t={t} homeName={homeName} awayName={awayName} tournament={tournament} fixture={fixture} onClose={onClose} />
 
-      <ScoreActions displayScore={displayScore} homeTeam={homeTeam} awayTeam={awayTeam} homeName={homeName} awayName={awayName} alreadyFinished={alreadyFinished} liveMinute={liveMinute} openForm={openForm} quickActions={QUICK_ACTIONS} t={t} />
+      <ScoreActions displayScore={displayScore} homeTeam={homeTeam} awayTeam={awayTeam} homeName={homeName} awayName={awayName} alreadyFinished={alreadyFinished} liveMinute={liveMinute} matchNotStarted={matchNotStarted} openForm={openForm} quickActions={QUICK_ACTIONS} t={t} />
 
       {/* Body */}
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -655,6 +682,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                   validation={validation}
                   onSubmit={submitEvent}
                   suspendedIds={suspendedByTeam[form.team_id] || []}
+                  minMinute={effectiveMinMinute || 0}
                 />
               ) : (
                 <div className="grid grid-cols-2 gap-2">

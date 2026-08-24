@@ -23,7 +23,7 @@ function fixtureStatus(f) {
   return 'pending'
 }
 
-export default function MatchCard({ f, number, busy, locked, tournament, prevRoundKey, prevData, onOpenPrev, onResult, onDetails, onReschedule, onPostpone, onCancel }) {
+export default function MatchCard({ f, number, busy, locked, tournament, prevRoundKey, prevData, onOpenPrev, onResult, onDetails, onReschedule, onPostpone, onCancel, onRestore }) {
   const { t, i18n } = useTranslation()
   const [prevOpen, setPrevOpen] = useState(false)
   useEffect(() => { setPrevOpen(false) }, [prevRoundKey])
@@ -105,6 +105,9 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
           )}
           {st === 'postponed' && (
             <>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => onRestore(f)}>
+                {t('committee.detail.restoreMatch')}
+              </Button>
               <Button size="sm" variant="outline" disabled={busy || locked} onClick={onResult}>
                 {t('committee.detail.enterResult')}
               </Button>
@@ -114,9 +117,14 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
             </>
           )}
           {st === 'cancelled' && (
-            <Button size="sm" variant="outline" disabled={busy} onClick={onDetails}>
-              {t('committee.detail.viewDetails')}
-            </Button>
+            <>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => onRestore(f)}>
+                {t('committee.detail.restoreMatch')}
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={onDetails}>
+                {t('committee.detail.viewDetails')}
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -141,11 +149,16 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
             <div className="space-y-1.5 border-t border-slate-50 bg-slate-50/60 px-4 py-3">
               {prevData?.loading ? (
                 <Skeleton className="h-10" />
-              ) : prevData?.fixtures?.length ? (
-                prevData.fixtures.map((pf) => <PrevResultRow key={pf.id} f={pf} tournament={tournament} />)
-              ) : (
-                <p className="py-2 text-center text-[11px] font-semibold text-slate-400">{t('committee.detail.prevResultsEmpty')}</p>
-              )}
+              ) : (() => {
+                const list = f.group?.id
+                  ? (prevData.fixtures || []).filter((pf) => pf.group?.id === f.group.id)
+                  : (prevData.fixtures || [])
+                return list.length ? (
+                  list.map((pf) => <PrevResultRow key={pf.id} f={pf} tournament={tournament} />)
+                ) : (
+                  <p className="py-2 text-center text-[11px] font-semibold text-slate-400">{t('committee.detail.prevResultsEmpty')}</p>
+                )
+              })()}
             </div>
           )}
         </div>

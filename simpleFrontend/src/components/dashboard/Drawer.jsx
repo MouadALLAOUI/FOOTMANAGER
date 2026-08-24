@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { useDialogA11y } from './ui'
+import useScrollLock from '../useScrollLock'
 
 const MIN_WIDTH = 320
 
@@ -61,15 +62,13 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
     return () => window.removeEventListener('resize', onResize)
   }, [open, size])
 
+  useScrollLock(open)
+
   useEffect(() => {
     if (!open) return
     const onKey = (e) => e.key === 'Escape' && requestClose()
     window.addEventListener('keydown', onKey)
-    document.body.style.overflow = 'hidden'
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
+    return () => window.removeEventListener('keydown', onKey)
   }, [open, requestClose])
 
   useEffect(() => () => {

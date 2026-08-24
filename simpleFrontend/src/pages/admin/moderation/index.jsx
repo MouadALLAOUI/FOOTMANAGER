@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ClipboardList, EyeOff, Eye, CheckCircle2 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
@@ -6,6 +7,7 @@ import DataTable from '../../../components/admin/DataTable'
 import { PageHeader, Button, Badge, Tabs } from '../../../components/admin/ui'
 import { toast } from '../../../components/ui/Toast'
 import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
+import { toastApiError } from '../../../lib/errors'
 
 const typeLabels = {
   comment: 'تعليق',
@@ -29,6 +31,7 @@ const reportStatusMeta = {
 }
 
 export default function Moderation() {
+  const { t } = useTranslation()
   const [tab, setTab] = useState('reports')
   const [reportStatus, setReportStatus] = useState('pending')
   const [reportPage, setReportPage] = useState(1)
@@ -52,7 +55,7 @@ export default function Moderation() {
       toast.success(res.data.message || 'تم تحديث حالة البلاغ')
       refetchReports()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
     } finally {
       setBusyId(null)
     }
@@ -70,7 +73,7 @@ export default function Moderation() {
       refetchHidden()
       return true
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
       return false
     } finally {
       setBusyId(null)
@@ -94,7 +97,7 @@ export default function Moderation() {
       toast.success(res.data.message || 'تم إظهار المحتوى')
       refetchHidden()
     } catch (e) {
-      toast.error(e.response?.data?.message || 'حدث خطأ، حاول مجدداً')
+      toastApiError(e, t)
     } finally {
       setBusyId(null)
     }

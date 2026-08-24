@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CalendarDays, Check, Percent } from 'lucide-react'
 import api from '../../../api/client'
+import { toastApiError } from '../../../lib/errors'
 import { Button, Empty, SectionTitle } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
@@ -12,6 +14,7 @@ import ClosureDrawer from '../components/ClosureDrawer'
 import { useTerrainCalendar } from './useTerrainCalendar'
 
 export default function TerrainCalendarPage() {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const {
     calendar,
@@ -63,13 +66,13 @@ export default function TerrainCalendarPage() {
         if (wa) window.open(wa, '_blank')
         return true
       } catch (e) {
-        toast.error(e.response?.data?.message || 'تعذرت العملية')
+        toastApiError(e, t)
         return false
       } finally {
         setBusy(false)
       }
     },
-    [toast, refresh],
+    [toast, refresh, t],
   )
 
   const approveBooking = useCallback((id) => act(() => api.put(`/owner/bookings/${id}/approve`), 'تم قبول الحجز'), [act])
@@ -172,7 +175,7 @@ export default function TerrainCalendarPage() {
       </div>
 
       {hasNoTerrains ? (
-        <Empty title="لا توجد ملاعب" description="أضف ملعبًا أولًا لعرض تقويم حجوزاته" />
+        <Empty title={t('terrain.empty.noCalendarTerrains')} description={t('terrain.empty.noCalendarTerrainsDesc')} />
       ) : (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
           <div className="min-w-0">

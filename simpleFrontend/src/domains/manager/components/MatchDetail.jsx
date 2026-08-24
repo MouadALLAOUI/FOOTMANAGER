@@ -1,11 +1,11 @@
 import React from 'react'
-import { MapPin, Clock, Trophy, MessageSquare, Users } from 'lucide-react'
+import { MapPin, Clock, Trophy, MessageSquare, Users, Shield } from 'lucide-react'
 import Drawer from '../../../components/dashboard/Drawer'
 import { StatusBadge } from '../../../components/dashboard/ui'
 import { ManagerContact } from '../../../components/dashboard/cards'
 import { logoThumb } from '../../../lib/thumb'
 
-export default function MatchDetail({ match, onClose, onActions }) {
+export default function MatchDetail({ match, onClose, onActions, onLineup }) {
   const datetime = match?.match_datetime ? new Date(match.match_datetime) : null
   const joined = match?.players_joined ?? 0
   const needed = match?.players_needed ?? 0
@@ -106,6 +106,29 @@ export default function MatchDetail({ match, onClose, onActions }) {
               </div>
             </div>
           ) : null}
+
+          {match.player_format && (
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+              <span className="grid size-9 place-items-center rounded-xl bg-white text-emerald-600 shadow-sm">
+                <Shield className="size-4" />
+              </span>
+              <div>
+                <p className="text-[10px] font-bold text-emerald-600/70">صيغة اللاعبين</p>
+                <p className="text-sm font-bold text-slate-800">{match.player_format}</p>
+              </div>
+            </div>
+          )}
+
+          {onLineup && (match.status === 'open' || match.status === 'accepted') && (
+            <button
+              type="button"
+              onClick={() => onLineup(match)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700 transition hover:bg-green-100"
+            >
+              <Shield className="size-4" />
+              تشكيلة المباراة
+            </button>
+          )}
 
           {match.notes && (
             <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">

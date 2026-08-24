@@ -80,10 +80,10 @@ export function TerrainCard({ terrain, onEdit, onImages, onDelete, onToggle, occ
           )}
         </div>
         <div className="absolute bottom-3 start-4 end-4">
-          <p className="truncate text-lg font-black text-white">{terrain.name}</p>
+          <p className="truncate text-lg font-black text-white">{typeof terrain.name === 'string' ? terrain.name : 'ملعب'}</p>
           <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-white/70">
             <MapPin className="size-3" />
-            {terrain.city || 'بدون مدينة'} • {typeLabels[terrain.type] || terrain.type}
+            {typeof terrain.city === 'string' ? terrain.city : 'بدون مدينة'} • {typeLabels[terrain.type] || terrain.type}
           </p>
         </div>
       </div>
@@ -179,9 +179,9 @@ export function TerrainListItem({ terrain, onEdit, onToggle, onDelete }) {
     <div className="flex items-center gap-3 rounded-3xl border border-slate-200/70 bg-white p-3.5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-colors hover:border-green-200">
       <StatusBadge status={terrain.is_open === false ? 'cancelled' : 'open'} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-extrabold text-slate-900">{terrain.name}</p>
+        <p className="truncate text-sm font-extrabold text-slate-900">{typeof terrain.name === 'string' ? terrain.name : 'ملعب'}</p>
         <p className="truncate text-[11px] text-slate-400">
-          {terrain.city || '—'} • {typeLabels[terrain.type] || terrain.type} • {terrain.player_format || '—'} •{' '}
+          {typeof terrain.city === 'string' ? terrain.city : '—'} • {typeLabels[terrain.type] || terrain.type} • {terrain.player_format || '—'} •{' '}
           {Number(terrain.price_per_team || 0).toLocaleString('ar-MA')} د.م
         </p>
       </div>

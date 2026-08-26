@@ -52,6 +52,8 @@ class PlayerRecruitController extends Controller
             ->orderByDesc('points')
             ->paginate(20);
 
+        $players->getCollection()->transform(fn ($p) => tap($p, fn ($x) => $x->user?->makeVisible('phone')));
+
         return response()->json([
             'players' => $players->items(),
             'current_page' => $players->currentPage(),
@@ -134,6 +136,8 @@ class PlayerRecruitController extends Controller
             ->where('match_request_id', $matchId)
             ->orderBy('created_at', 'asc')
             ->get();
+
+        $applications->transform(fn ($app) => tap($app, fn ($x) => $x->player?->makeVisible('phone')));
 
         return response()->json([
             'match_request' => $match->load(['hostTeam', 'stadium']),

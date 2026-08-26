@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domains\Shared\Base\Controller;
+use App\Domains\Social\Models\Activity;
+use App\Domains\Social\Services\ActivityService;
 use App\Models\Permission;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +15,9 @@ use Illuminate\Validation\Rule;
 
 class SubAdminController extends Controller
 {
+    public function __construct(
+        protected ActivityService $activityService,
+    ) {}
     public function permissions(): JsonResponse
     {
         $permissions = Permission::orderBy('group')->orderBy('slug')->get();
@@ -64,6 +69,13 @@ class SubAdminController extends Controller
 
         $user->load('permissions:slug,name,group');
 
+        $this->activityService->record(
+            Activity::TYPE_SUB_ADMIN_CREATED,
+            $request->user(),
+            $user,
+            ['permissions' => $data['permissions']],
+        );
+
         return response()->json([
             'message' => 'تم إنشاء حساب المسؤول الفرعي بنجاح',
             'sub_admin' => [
@@ -108,6 +120,13 @@ class SubAdminController extends Controller
 
         $user->update($data);
 
+        $this->activityService->record(
+            Activity::TYPE_SUB_ADMIN_UPDATED,
+            $request->user(),
+            $user,
+            ['fields' => array_keys($data)],
+        );
+
         return response()->json([
             'message' => 'تم تحديث بيانات المسؤول الفرعي بنجاح',
             'sub_admin' => [
@@ -129,10 +148,19 @@ class SubAdminController extends Controller
             'permissions.*' => 'string|exists:permissions,slug',
         ]);
 
+        $oldPermissions = $user->getPermissionSlugs();
+
         $permissionIds = Permission::whereIn('slug', $data['permissions'])->pluck('id');
         $user->permissions()->sync($permissionIds);
 
         $user->revokeTokens();
+
+        $this->activityService->record(
+            Activity::TYPE_SUB_ADMIN_PERMISSIONS_CHANGED,
+            $request->user(),
+            $user,
+            ['old' => $oldPermissions, 'new' => $data['permissions']],
+        );
 
         return response()->json([
             'message' => 'تم تحديث الصلاحيات بنجاح. سيتعين على المسؤول الفرعي إعادة تسجيل الدخول.',
@@ -154,21 +182,40 @@ class SubAdminController extends Controller
             $user->revokeTokens();
         }
 
+        $activityType = $data['status'] === 'blocked'
+            ? Activity::TYPE_SUB_ADMIN_BLOCKED
+            : Activity::TYPE_SUB_ADMIN_ACTIVATED;
+
+        $this->activityService->record(
+            $activityType,
+            $request->user(),
+            $user,
+        );
+
         return response()->json([
             'message' => $data['status'] === 'blocked' ? 'تم حظر المسؤول الفرعي' : 'تم تفعيل المسؤول الفرعي',
             'status' => $user->status,
         ]);
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $user = User::where('role', 'sub_admin')->findOrFail($id);
+
+        $userName = $user->name;
 
         DB::transaction(function () use ($user) {
             $user->permissions()->detach();
             $user->revokeTokens();
             $user->delete();
         });
+
+        $this->activityService->record(
+            Activity::TYPE_SUB_ADMIN_REMOVED,
+            $request->user(),
+            null,
+            ['sub_admin_name' => $userName, 'sub_admin_id' => $id],
+        );
 
         return response()->json([
             'message' => 'تم حذف حساب المسؤول الفرعي بنجاح',

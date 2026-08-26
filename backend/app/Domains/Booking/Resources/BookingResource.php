@@ -54,7 +54,6 @@ class BookingResource extends JsonResource
             'owner' => [
                 'id' => $this->terrain?->owner?->id,
                 'name' => $this->terrain?->owner?->name,
-                'phone' => $this->terrain?->owner?->phone,
             ],
             'team' => [
                 'id' => $this->team?->id,

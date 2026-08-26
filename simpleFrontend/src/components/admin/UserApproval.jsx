@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Eye, Check, X, Ban, ShieldCheck, CalendarDays, Trash2, KeyRound, Lock, Unlock } from 'lucide-react'
+import { Eye, Check, X, Ban, ShieldCheck, CalendarDays, Trash2, KeyRound, Lock, Unlock, CreditCard } from 'lucide-react'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import DataTable from './DataTable'
@@ -8,6 +8,8 @@ import { PageHeader, Button, StatusBadge, Avatar, Skeleton } from './ui'
 import Drawer from '../dashboard/Drawer'
 import { toast } from '../ui/Toast'
 import { ConfirmDialog, useConfirm } from '../ui/ConfirmDialog'
+import PlanBadge from './PlanBadge'
+import UserSubscriptionDrawer from './UserSubscriptionDrawer'
 import { toastApiError } from '../../lib/errors'
 
 const actionMeta = {
@@ -158,6 +160,7 @@ export default function UserApproval({
   detailTitle = 'تفاصيل الحساب',
   extraColumns = [],
   renderDetail,
+  showPlan = false,
 }) {
   const { t } = useTranslation()
   const [tab, setTab] = useState('pending')
@@ -170,6 +173,7 @@ export default function UserApproval({
   const [recoveryToken, setRecoveryToken] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [lockModal, setLockModal] = useState(null)
+  const [subDrawer, setSubDrawer] = useState(null)
 
   const params = useMemo(
     () => ({ status: tab, search, page, per_page: 15 }),
@@ -366,6 +370,19 @@ export default function UserApproval({
       ),
     },
     ...extraColumns,
+    ...(showPlan ? [{
+      key: 'plan_name',
+      label: 'الخطة',
+      render: (u) => (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setSubDrawer({ id: u.id, name: u.name }) }}
+          className="group cursor-pointer"
+        >
+          <PlanBadge plan={u.plan_name ? { name: u.plan_name } : null} />
+        </button>
+      ),
+    }] : []),
     {
       key: 'created_at',
       label: 'تاريخ التسجيل',
@@ -535,6 +552,15 @@ export default function UserApproval({
                 <Trash2 className="size-4" />
                 حذف
               </Button>
+              {showPlan && (
+                <Button
+                  variant="softViolet"
+                  onClick={() => { setDetail(null); setSubDrawer({ id: detailRow.id, name: detailRow.name }) }}
+                >
+                  <CreditCard className="size-4" />
+                  إدارة الاشتراك
+                </Button>
+              )}
             </>
           )
         }
@@ -577,6 +603,15 @@ export default function UserApproval({
               </div>
             </div>
 
+            {showPlan && (
+              <div className="rounded-2xl border border-slate-100 p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">الخطة الحالية</p>
+                  <PlanBadge plan={detailRow?.plan_name ? { name: detailRow.plan_name } : null} />
+                </div>
+              </div>
+            )}
+
             {detailRow?.activity_locked && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-center gap-2">
@@ -618,6 +653,14 @@ export default function UserApproval({
           user={lockModal}
           onClose={() => setLockModal(null)}
           onLock={lockActivity}
+        />
+      )}
+
+      {subDrawer && (
+        <UserSubscriptionDrawer
+          userId={subDrawer.id}
+          userName={subDrawer.name}
+          onClose={() => setSubDrawer(null)}
         />
       )}
     </div>

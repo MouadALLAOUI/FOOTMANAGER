@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
-import { useMatchRequests } from '../../../api/queries'
+import { useMatchRequests, useCitiesSelect } from '../../../api/queries'
 import {
   Button,
   Empty,
@@ -32,6 +32,7 @@ import {
   inputClass,
   selectClass,
 } from '../../../components/dashboard/ui'
+import Select from '../../../components/ui/Select'
 import Drawer from '../../../components/dashboard/Drawer'
 import { PlayerCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
@@ -130,14 +131,12 @@ function SearchBar({ meta }) {
             </select>
           </Field>
           <Field label="المدينة">
-            <select className={selectClass} value={searchParams.get('city') || ''} onChange={(e) => setParam('city', e.target.value)}>
-              <option value="">كل المدن</option>
-              {meta.cities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={searchParams.get('city') || ''}
+              onChange={(v) => setParam('city', v)}
+              options={meta.cities.map((c) => ({ value: c, label: c }))}
+              placeholder="كل المدن"
+            />
           </Field>
           <div className="flex items-end">
             <Button variant="ghost" className="w-full border border-slate-200" onClick={() => setSearchParams({})}>
@@ -468,7 +467,7 @@ export default function Recruitment() {
   const [tab, setTab] = useState('search')
   const [invitePlayer, setInvitePlayer] = useState(null)
   const [detail, setDetail] = useState(null)
-  const [meta, setMeta] = useState({ cities: [] })
+  const { data: citiesData } = useCitiesSelect()
 
   const { data, loading, refetch } = useApi(() => {
     const params = new URLSearchParams(searchParams)
@@ -482,12 +481,9 @@ export default function Recruitment() {
     return list.filter((m) => m.status === 'open' && m.host_team_id === myTeamId)
   }, [allRequests, myTeamId])
 
-  useEffect(() => {
-    api
-      .get('/v1/stadiums?per_page=1')
-      .then((r) => setMeta({ cities: r.data?.meta?.filters?.cities || [] }))
-      .catch(() => {})
-  }, [])
+  const meta = useMemo(() => ({
+    cities: (citiesData?.cities || []).map((c) => c.localized_name),
+  }), [citiesData])
 
   const players = data?.players || []
   const total = data?.total || 0

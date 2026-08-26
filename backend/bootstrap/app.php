@@ -4,6 +4,7 @@ use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Team\Events;
 use App\Domains\Team\Listeners;
 use App\Http\Middleware\AddSecurityHeaders;
+use App\Http\Middleware\EnsureAccountNotBlocked;
 use App\Http\Middleware\EnsureActivityNotLocked;
 use App\Http\Middleware\EnsureAdminAccess;
 use App\Http\Middleware\EnsureCommitteeApproved;
@@ -36,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(append: [
             AddSecurityHeaders::class,
+            EnsureAccountNotBlocked::class,
         ]);
 
         $middleware->alias([
@@ -48,6 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'player.approved' => EnsurePlayerApproved::class,
             'user.approved' => EnsureUserApproved::class,
             'activity.not_locked' => EnsureActivityNotLocked::class,
+            'account.not_blocked' => EnsureAccountNotBlocked::class,
             'module.maintenance' => EnsureModuleMaintenance::class,
         ]);
     })

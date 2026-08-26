@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../api/client'
+import { queryClient } from '../api/queryClient'
 
 const AuthContext = createContext(null)
 
@@ -64,6 +65,9 @@ export function AuthProvider({ children }) {
       // ignore
     }
     persist(null, null)
+    try {
+      queryClient.clear()
+    } catch {}
   }, [persist])
 
   const updateUser = useCallback((usr) => persist(token, usr), [persist, token])

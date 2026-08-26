@@ -16,8 +16,10 @@ import {
   Bell,
   CreditCard,
   UserPlus,
+  MapPin,
 } from 'lucide-react'
 import Shell from '../../components/admin/Shell'
+import { PermissionRoute } from '../../components/auth'
 import { usePermission } from '../../context/AuthContext'
 
 const Overview = lazy(() => import('./overview'))
@@ -27,6 +29,7 @@ const Players = lazy(() => import('./players'))
 const Committees = lazy(() => import('./committees'))
 const Moderation = lazy(() => import('./moderation'))
 const Facilities = lazy(() => import('./facilities'))
+const Cities = lazy(() => import('./cities'))
 const SettingsPage = lazy(() => import('./settings'))
 const Activity = lazy(() => import('./activity'))
 const Profile = lazy(() => import('./profile'))
@@ -67,6 +70,7 @@ const navConfig = [
     label: 'nav.admin.groups.platform',
     items: [
       { to: '/admin/messages', label: 'nav.admin.messages', icon: Inbox, prefetch: () => import('./messages'), permission: 'messages.view' },
+      { to: '/admin/cities', label: 'nav.admin.cities', icon: MapPin, prefetch: () => import('./cities'), permission: 'cities.view' },
       { to: '/admin/facilities', label: 'nav.admin.facilities', icon: Hotel, prefetch: () => import('./facilities'), permission: 'facilities.view' },
       { to: '/admin/plans', label: 'nav.admin.plans', icon: CreditCard, prefetch: () => import('./plans'), permission: 'plans.view' },
       { to: '/admin/settings', label: 'nav.admin.settings', icon: Settings, prefetch: () => import('./settings'), permission: 'settings.view' },
@@ -107,21 +111,22 @@ export default function AdminDashboard() {
       <Suspense fallback={<PageSkeleton />}>
         <Routes>
           <Route path="/" element={<Overview />} />
-          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/analytics" element={<PermissionRoute permission="analytics.view"><Analytics /></PermissionRoute>} />
           <Route path="/notifications" element={<Notifications />} />
-          <Route path="/managers" element={<Managers />} />
-          <Route path="/owners" element={<Owners />} />
-          <Route path="/players" element={<Players />} />
-          <Route path="/committees" element={<Committees />} />
-          <Route path="/requests" element={<Requests />} />
-          <Route path="/moderation" element={<Moderation />} />
-          <Route path="/facilities" element={<Facilities />} />
-          <Route path="/plans" element={<Plans />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/messages" element={<Messages />} />
-          <Route path="/activities" element={<Activity />} />
+          <Route path="/managers" element={<PermissionRoute permission="users.view"><Managers /></PermissionRoute>} />
+          <Route path="/owners" element={<PermissionRoute permission="users.view"><Owners /></PermissionRoute>} />
+          <Route path="/players" element={<PermissionRoute permission="users.view"><Players /></PermissionRoute>} />
+          <Route path="/committees" element={<PermissionRoute permission="users.view"><Committees /></PermissionRoute>} />
+          <Route path="/requests" element={<PermissionRoute permission="users.view"><Requests /></PermissionRoute>} />
+          <Route path="/moderation" element={<PermissionRoute permission="moderation.view"><Moderation /></PermissionRoute>} />
+          <Route path="/facilities" element={<PermissionRoute permission="facilities.view"><Facilities /></PermissionRoute>} />
+          <Route path="/plans" element={<PermissionRoute permission="plans.view"><Plans /></PermissionRoute>} />
+          <Route path="/settings" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
+          <Route path="/messages" element={<PermissionRoute permission="messages.view"><Messages /></PermissionRoute>} />
+          <Route path="/cities" element={<PermissionRoute permission="cities.view"><Cities /></PermissionRoute>} />
+          <Route path="/activities" element={<PermissionRoute permission="activity.view"><Activity /></PermissionRoute>} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/sub-admins" element={<SubAdmins />} />
+          <Route path="/sub-admins" element={<PermissionRoute permission="admin.manage"><SubAdmins /></PermissionRoute>} />
         </Routes>
       </Suspense>
     </Shell>

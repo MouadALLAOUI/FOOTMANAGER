@@ -9,6 +9,7 @@ use App\Domains\Shared\Base\Controller;
 use App\Domains\Social\Models\Comment;
 use App\Domains\Social\Models\Report;
 use App\Domains\Stadium\Models\Facility;
+use App\Domains\Subscription\Services\SubscriptionService;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,11 +23,15 @@ class ManagerApprovalController extends Controller
         'unblock' => 'approved',
     ];
 
+    public function __construct(
+        private readonly SubscriptionService $subscriptionService,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $status = $request->query('status', 'pending');
 
-        $query = User::with('team')
+        $query = User::with(['team', 'activeSubscription.plan:id,name,slug,is_free'])
             ->where('role', 'manager')
             ->latest();
 
@@ -46,8 +51,13 @@ class ManagerApprovalController extends Controller
         $perPage = min(50, max(1, (int) $request->query('per_page', 15)));
         $paginator = $query->paginate($perPage)->withQueryString();
 
+        $collection = $paginator->getCollection()->map(
+            fn ($user) => $user->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at')
+                ->append('plan_name'),
+        );
+
         return response()->json([
-            'managers' => $paginator->getCollection(),
+            'managers' => $collection,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
@@ -84,10 +94,13 @@ class ManagerApprovalController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $manager = User::with('team')
+        $manager = User::with(['team', 'activeSubscription.plan'])
             ->where('role', 'manager')
             ->where('id', $id)
-            ->firstOrFail();
+            ->firstOrFail()
+            ->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
+
+        $manager->append('plan_name');
 
         return response()->json(['manager' => $manager]);
     }
@@ -197,7 +210,7 @@ class ManagerApprovalController extends Controller
     {
         $status = $request->query('status', 'pending');
 
-        $query = User::with('terrains')
+        $query = User::with(['terrains', 'activeSubscription.plan:id,name,slug,is_free'])
             ->where('role', 'terrain_owner')
             ->latest();
 
@@ -217,8 +230,13 @@ class ManagerApprovalController extends Controller
         $perPage = min(50, max(1, (int) $request->query('per_page', 15)));
         $paginator = $query->paginate($perPage)->withQueryString();
 
+        $collection = $paginator->getCollection()->map(
+            fn ($user) => $user->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at')
+                ->append('plan_name'),
+        );
+
         return response()->json([
-            'owners' => $paginator->getCollection(),
+            'owners' => $collection,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
@@ -255,10 +273,13 @@ class ManagerApprovalController extends Controller
 
     public function showTerrainOwner(int $id): JsonResponse
     {
-        $owner = User::with('terrains.images')
+        $owner = User::with(['terrains.images', 'activeSubscription.plan'])
             ->where('role', 'terrain_owner')
             ->where('id', $id)
-            ->firstOrFail();
+            ->firstOrFail()
+            ->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
+
+        $owner->append('plan_name');
 
         return response()->json(['owner' => $owner]);
     }

@@ -222,11 +222,13 @@ class BookingController extends Controller
         }
 
         $conflictMsg = null;
+        $unavailableMsg = null;
         $weekPrice = $terrain->price_per_team ?? 0;
 
         $booking = null;
 
-        DB::transaction(function () use ($validated, $terrain, $isWeekly, &$conflictMsg, &$weekPrice, &$booking, $user, $team) {
+        DB::transaction(function () use ($validated, $terrain, $isWeekly, &$conflictMsg, &$unavailableMsg, &$weekPrice, &$booking, $user, $team) {
+            \App\Domains\Stadium\Models\Stadium::where('id', $validated['terrain_id'])->lockForUpdate()->first();
             $dateToLock = $isWeekly ? $validated['start_date'] : $validated['booking_date'];
             TerrainBooking::where('terrain_id', $validated['terrain_id'])
                 ->where(function ($q) use ($dateToLock) {
@@ -250,6 +252,19 @@ class BookingController extends Controller
             );
 
             if ($conflictMsg) {
+                return;
+            }
+
+            $closure = TerrainSlotClosure::where('terrain_id', $validated['terrain_id'])
+                ->where('closure_date', $dateToLock)
+                ->where('start_time', '<', $validated['end_time'])
+                ->where('end_time', '>', $validated['start_time'])
+                ->first();
+
+            if ($closure) {
+                $unavailableMsg = $closure->reason
+                    ? "هذا التوقيت مغلق — {$closure->reason}"
+                    : 'هذا التوقيت مغلق — لا يمكن الحجز';
                 return;
             }
 
@@ -285,7 +300,11 @@ class BookingController extends Controller
         });
 
         if ($conflictMsg) {
-            return response()->json(['message' => $conflictMsg], 422);
+            return response()->json(['message' => $conflictMsg], 409);
+        }
+
+        if ($unavailableMsg) {
+            return response()->json(['message' => $unavailableMsg], 422);
         }
 
         if (! $booking) {
@@ -293,6 +312,7 @@ class BookingController extends Controller
         }
 
         $booking->load(['terrain.owner', 'team', 'manager']);
+        $booking->terrain?->owner?->makeVisible('phone');
 
         event(new BookingCreated($booking));
 
@@ -570,7 +590,7 @@ class BookingController extends Controller
             });
 
             if ($conflictMsg) {
-                return response()->json(['message' => $conflictMsg], 422);
+                return response()->json(['message' => $conflictMsg], 409);
             }
         } else {
             $statusToSet = $validated['status'];
@@ -675,6 +695,7 @@ class BookingController extends Controller
         $conflictMsg = null;
         $unavailableMsg = null;
         DB::transaction(function () use ($terrainId, $validated, $isWeekly, &$guestBooking, &$conflictMsg, &$unavailableMsg) {
+            \App\Domains\Stadium\Models\Stadium::where('id', $terrainId)->lockForUpdate()->first();
             $dateToLock = $isWeekly ? $validated['start_date'] : $validated['booking_date'];
             TerrainBooking::where('terrain_id', $terrainId)
                 ->where(function ($q) use ($dateToLock) {
@@ -778,7 +799,7 @@ class BookingController extends Controller
         });
 
         if ($conflictMsg) {
-            return response()->json(['message' => $conflictMsg], 422);
+            return response()->json(['message' => $conflictMsg], 409);
         }
 
         if ($unavailableMsg) {
@@ -1028,20 +1049,33 @@ class BookingController extends Controller
             'reason' => 'nullable|string|max:500',
         ]);
 
-        $existing = CancellationRequest::where('terrain_booking_id', $bookingId)
-            ->where('status', 'pending')
-            ->first();
+        $cancellation = null;
+        $duplicateMsg = null;
 
-        if ($existing) {
-            return response()->json(['message' => 'طلب إلغاء موجود بالفعل'], 422);
+        DB::transaction(function () use ($booking, $bookingId, $validated, $user, &$cancellation, &$duplicateMsg) {
+            TerrainBooking::where('id', $bookingId)->lockForUpdate()->first();
+
+            $existing = CancellationRequest::where('terrain_booking_id', $bookingId)
+                ->where('status', 'pending')
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                $duplicateMsg = 'طلب إلغاء موجود بالفعل';
+                return;
+            }
+
+            $cancellation = CancellationRequest::create([
+                'terrain_booking_id' => $bookingId,
+                'user_id' => $user->id,
+                'reason' => $validated['reason'] ?? null,
+                'status' => 'pending',
+            ]);
+        });
+
+        if ($duplicateMsg) {
+            return response()->json(['message' => $duplicateMsg], 409);
         }
-
-        $cancellation = CancellationRequest::create([
-            'terrain_booking_id' => $bookingId,
-            'user_id' => $user->id,
-            'reason' => $validated['reason'] ?? null,
-            'status' => 'pending',
-        ]);
 
         $booking->load('terrain.owner');
         if ($booking->terrain?->owner_id) {
@@ -1071,7 +1105,6 @@ class BookingController extends Controller
             'id' => $manager->id,
             'name' => $manager->name,
             'phone' => $manager->phone,
-            'email' => $manager->email,
             'profile_image' => $manager->playerProfile?->photo_url,
         ];
     }

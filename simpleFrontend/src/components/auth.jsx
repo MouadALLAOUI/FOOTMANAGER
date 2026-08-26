@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom'
-import { useAuth, homeForRole } from '../context/AuthContext'
+import { useAuth, usePermission, homeForRole } from '../context/AuthContext'
 
 export function LoadingScreen() {
   return (
@@ -23,6 +23,16 @@ export function ProtectedRoute({ role, children }) {
     }
   }
   if (user.status !== 'approved') return <Navigate to="/pending" replace />
+
+  return children
+}
+
+export function PermissionRoute({ permission, children }) {
+  const can = usePermission()
+
+  if (!can(permission)) {
+    return <Navigate to="/admin" replace />
+  }
 
   return children
 }

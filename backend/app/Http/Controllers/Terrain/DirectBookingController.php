@@ -55,11 +55,12 @@ class DirectBookingController extends Controller
         }
 
         $conflictMsg = null;
+        $unavailableMsg = null;
         $price = $terrain->price_per_team ?? 0;
 
         $booking = null;
-        DB::transaction(function () use ($validated, $terrain, $isWeekly, &$conflictMsg, &$price, &$booking, $user, $team) {
-            // Lock existing bookings for this terrain and date to prevent race conditions
+        DB::transaction(function () use ($validated, $terrain, $isWeekly, &$conflictMsg, &$unavailableMsg, &$price, &$booking, $user, $team) {
+            \App\Domains\Stadium\Models\Stadium::where('id', $validated['terrain_id'])->lockForUpdate()->first();
             $dateToLock = $isWeekly ? $validated['start_date'] : $validated['booking_date'];
             TerrainBooking::where('terrain_id', $validated['terrain_id'])
                 ->where(function ($q) use ($dateToLock) {
@@ -83,6 +84,16 @@ class DirectBookingController extends Controller
             );
 
             if ($conflictMsg) {
+                return;
+            }
+
+            $closure = \App\Domains\Booking\Models\TerrainSlotClosure::where('terrain_id', $validated['terrain_id'])
+                ->where('closure_date', $dateToLock)
+                ->where('start_time', '<', $validated['end_time'])
+                ->where('end_time', '>', $validated['start_time'])
+                ->first();
+            if ($closure) {
+                $unavailableMsg = $closure->reason ? "هذا التوقيت مغلق — {$closure->reason}" : 'هذا التوقيت مغلق — لا يمكن الحجز';
                 return;
             }
 
@@ -114,7 +125,11 @@ class DirectBookingController extends Controller
         });
 
         if ($conflictMsg) {
-            return response()->json(['message' => $conflictMsg], 422);
+            return response()->json(['message' => $conflictMsg], 409);
+        }
+
+        if ($unavailableMsg) {
+            return response()->json(['message' => $unavailableMsg], 422);
         }
 
         if (! $booking) {
@@ -122,6 +137,7 @@ class DirectBookingController extends Controller
         }
 
         $booking->load(['terrain.owner', 'team', 'manager']);
+        $booking->terrain?->owner?->makeVisible('phone');
 
         event(new BookingCreated($booking));
 

@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
-import { toStadiumCard, cityFilterValue } from '../../lib/adapters'
+import { useCitiesSelect } from '../../api/queries'
+import { toStadiumCard } from '../../lib/adapters'
 import BookingModal from '../../components/public/BookingModal'
 import { usePublicActions } from '../../components/public/usePublicActions'
 import FieldsHero from './hero'
@@ -19,11 +20,10 @@ const PAGE_SIZE = 12
 const emptyFilters = { type: 'all', surface: 'all', cover: 'all' }
 const FORMATS = ['5v5', '7v7', '11v11']
 
-function buildParams({ city, panelType, filters, sort, page, t }) {
+function buildParams({ city, panelType, filters, sort, page, citiesMap }) {
   const params = { per_page: PAGE_SIZE, page }
 
-  const cityValue = cityFilterValue(city, t)
-  if (cityValue) params.city = cityValue
+  if (city && citiesMap[city]) params.city = citiesMap[city]
 
   if (panelType) {
     if (FORMATS.includes(panelType)) params.player_format = panelType
@@ -51,6 +51,20 @@ export default function Fields() {
   const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
 
+  const { data: citiesData } = useCitiesSelect()
+  const apiCities = citiesData?.cities || []
+
+  const citiesOptions = useMemo(
+    () => apiCities.map((c) => ({ value: c.slug, label: c.localized_name })),
+    [apiCities],
+  )
+
+  const citiesMap = useMemo(() => {
+    const m = {}
+    apiCities.forEach((c) => { m[c.slug] = c.localized_name })
+    return m
+  }, [apiCities])
+
   const [city, setCity] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -64,8 +78,8 @@ export default function Fields() {
   const { openBooking } = usePublicActions({ onBooking: setBooking })
 
   const params = useMemo(
-    () => buildParams({ city, panelType, filters, sort, page, t }),
-    [city, panelType, filters, sort, page, t],
+    () => buildParams({ city, panelType, filters, sort, page, citiesMap }),
+    [city, panelType, filters, sort, page, citiesMap],
   )
 
   const { data, loading } = useApi(
@@ -126,7 +140,7 @@ export default function Fields() {
   }
 
   const activeFilters = []
-  if (city) activeFilters.push({ key: 'city', label: t(`landing.hero.cities.${city}`), onRemove: () => setCity('') })
+  if (city) activeFilters.push({ key: 'city', label: citiesMap[city] || city, onRemove: () => setCity('') })
   if (date)
     activeFilters.push({
       key: 'date',
@@ -140,7 +154,7 @@ export default function Fields() {
   return (
     <>
       <FieldsHero />
-      <FieldsSearchPanel values={{ city, date, time, type: panelType }} onChange={handlePanelChange} onSearch={handleSearch} />
+      <FieldsSearchPanel values={{ city, date, time, type: panelType }} onChange={handlePanelChange} onSearch={handleSearch} cities={citiesOptions} />
 
       <main id="main-content" className="mx-auto max-w-[1400px] px-6 pb-48 pt-10 lg:pb-40">
         <FilterToolbar

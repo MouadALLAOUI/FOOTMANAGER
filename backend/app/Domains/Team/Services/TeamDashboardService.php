@@ -22,7 +22,8 @@ class TeamDashboardService
         $ttl = (int) config('team.cache.dashboard_ttl');
 
         return Cache::remember(TeamCache::dashboard($team->id), $ttl, function () use ($team) {
-            $team->load(['primaryStadium', 'captain', 'viceCaptain', 'manager:id,name,phone,status,is_whatsapp']);
+            $team->load(['primaryStadium', 'captain', 'viceCaptain', 'manager:id,name,email,phone,status,is_whatsapp']);
+            $team->manager->makeVisible('phone', 'email', 'is_whatsapp');
 
             $upcoming = $this->fixtures->upcoming($team, 1)->first();
             $recentResults = array_slice($this->fixtures->history($team, 5)->items(), 0, 5);

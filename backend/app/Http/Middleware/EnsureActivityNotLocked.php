@@ -13,14 +13,14 @@ class EnsureActivityNotLocked
         $user = $request->user();
 
         if (! $user) {
-            return response()->json(['message' => 'غير مصرح'], 401);
+            return $next($request);
         }
 
         if ($user->isAdmin()) {
             return $next($request);
         }
 
-        if ($user->activity_locked) {
+        if ($user->activity_locked && ! $request->isMethod('GET') && ! $request->isMethod('HEAD')) {
             return response()->json([
                 'message' => 'تم تقييد نشاط حسابك',
                 'activity_locked' => true,

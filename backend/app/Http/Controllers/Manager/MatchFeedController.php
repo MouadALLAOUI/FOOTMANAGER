@@ -157,6 +157,7 @@ $dateTime->copy()->addHours((int) Setting::get('default_match_hours', 2))->forma
                 ]);
 
                 $matchRequest->load(['hostTeam.manager', 'stadium']);
+                $matchRequest->hostTeam->manager->makeVisible('phone', 'is_whatsapp');
 
                 NotificationService::push(
                     (int) $matchRequest->hostTeam->manager_id,

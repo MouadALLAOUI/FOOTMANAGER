@@ -166,7 +166,7 @@ export default function LoginForm() {
         </label>
 
         <Link
-          to="/recovery"
+          to="/forgot-password"
           className="text-sm font-bold text-green-600 transition-all duration-300 hover:text-green-700 hover:underline hover:underline-offset-4"
         >
           {t('auth.forgotPassword')}

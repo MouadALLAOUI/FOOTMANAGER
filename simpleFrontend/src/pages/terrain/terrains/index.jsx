@@ -7,6 +7,7 @@ import { toastApiError } from '../../../lib/errors'
 import { useApi } from '../../../hooks/useApi'
 import { useCitiesSelect } from '../../../api/queries'
 import { Button, Field, FieldRow, Modal, SectionTitle, SkeletonCards, Spinner, Toggle, inputClass } from '../../../components/dashboard/ui'
+import Select from '../../../components/ui/Select'
 import Drawer from '../../../components/dashboard/Drawer'
 import { useToast } from '../../../components/ui/Toast'
 import { TerrainCard, TerrainListItem, typeLabels } from '../components/TerrainCard'
@@ -69,11 +70,12 @@ export default function Terrains() {
 
   const cities = useMemo(() => {
     const apiCities = citiesData?.cities || []
-    const derivedCities = [...new Set(terrains.map((t) => t.city).filter(Boolean))]
     const merged = new Map()
     apiCities.forEach((c) => merged.set(c.localized_name, { id: c.id, name: c.localized_name }))
-    derivedCities.forEach((name) => {
-      if (!merged.has(name)) merged.set(name, { id: null, name })
+    terrains.forEach((t) => {
+      if (t.city && !merged.has(t.city)) {
+        merged.set(t.city, { id: t.city_id || null, name: t.city })
+      }
     })
     return [...merged.values()]
   }, [citiesData, terrains])
@@ -282,12 +284,13 @@ export default function Terrains() {
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <select className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 outline-none" value={fCity} onChange={(e) => setFCity(e.target.value)}>
-          <option value="">كل المدن</option>
-          {cities.map((c) => (
-            <option key={c.name} value={c.id || ''}>{c.name}</option>
-          ))}
-        </select>
+        <Select
+          value={fCity}
+          onChange={setFCity}
+          options={cities.map((c) => ({ value: c.id || '', label: c.name }))}
+          placeholder="كل المدن"
+          className="h-11 w-auto min-w-[140px]"
+        />
         <select className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 outline-none" value={fAvail} onChange={(e) => setFAvail(e.target.value)}>
           <option value="">الكل</option>
           <option value="open">مفتوح</option>
@@ -378,21 +381,14 @@ export default function Terrains() {
                     </Field>
                     <FieldRow>
                       <Field label="المدينة" required>
-                        <select
-                          className={inputClass}
+                        <Select
                           value={form.city_id}
-                          onChange={(e) => setForm((f) => ({ ...f, city_id: e.target.value }))}
+                          onChange={(v) => setForm((f) => ({ ...f, city_id: v }))}
+                          options={cities.map((c) => ({ value: c.id || '', label: c.name }))}
+                          placeholder={citiesLoading ? 'جارٍ تحميل المدن…' : citiesError ? 'تعذر تحميل المدن' : 'اختر مدينة…'}
                           disabled={citiesLoading}
-                        >
-                          <option value="">
-                            {citiesLoading ? 'جارٍ تحميل المدن…' : citiesError ? 'تعذر تحميل المدن' : 'اختر مدينة…'}
-                          </option>
-                          {cities.map((c) => (
-                            <option key={c.id ?? c.name} value={c.id || ''}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </select>
+                          loading={citiesLoading}
+                        />
                       </Field>
                       <Field label="السعر للفريق (د.م)" required>
                         <input type="number" min="0" className={inputClass} value={form.price_per_team} onChange={set('price_per_team')} />

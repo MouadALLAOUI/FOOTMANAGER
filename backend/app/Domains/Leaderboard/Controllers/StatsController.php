@@ -13,8 +13,6 @@ class StatsController extends Controller
 
     public function index(): JsonResponse
     {
-        return response()->json([
-            'data' => new StatsResource($this->statsService->stats()),
-        ]);
+        return response()->json(new StatsResource($this->statsService->stats()));
     }
 }

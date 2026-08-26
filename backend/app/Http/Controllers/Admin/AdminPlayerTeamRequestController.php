@@ -35,8 +35,15 @@ class AdminPlayerTeamRequestController extends Controller
         $perPage = min(50, max(1, (int) $request->query('per_page', 15)));
         $paginator = $query->paginate($perPage)->withQueryString();
 
+        $collection = $paginator->getCollection()->map(function ($item) {
+            $item->player?->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
+            $item->handler?->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
+
+            return $item;
+        });
+
         return response()->json([
-            'requests' => $paginator->getCollection(),
+            'requests' => $collection,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
@@ -51,6 +58,9 @@ class AdminPlayerTeamRequestController extends Controller
         $request = PlayerTeamRequest::with(['player', 'handler'])
             ->where('id', $id)
             ->firstOrFail();
+
+        $request->player?->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
+        $request->handler?->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
 
         return response()->json(['request' => $request]);
     }
@@ -68,6 +78,9 @@ class AdminPlayerTeamRequestController extends Controller
             $request->user(),
             $data['team_name'] ?? null,
         );
+
+        $updated->player?->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
+        $updated->handler?->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
 
         return response()->json([
             'message' => 'تم قبول طلب الانضمام وإنشاء الفريق بنجاح.',
@@ -88,6 +101,9 @@ class AdminPlayerTeamRequestController extends Controller
             $request->user(),
             $data['rejection_reason'] ?? null,
         );
+
+        $updated->player?->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
+        $updated->handler?->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
 
         return response()->json([
             'message' => 'تم رفض طلب الانضمام.',

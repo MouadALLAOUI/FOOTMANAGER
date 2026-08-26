@@ -19,6 +19,8 @@ class TeamProfileController extends Controller
             return response()->json(['message' => 'لا يوجد فريق مرتبط بحسابك'], 404);
         }
 
+        $team->manager->makeVisible('phone', 'email', 'is_whatsapp');
+
         return response()->json(['team' => $team]);
     }
 
@@ -45,9 +47,12 @@ class TeamProfileController extends Controller
 
         $team->update($validated);
 
+        $team->load(['primaryStadium', 'manager']);
+        $team->manager->makeVisible('phone', 'email', 'is_whatsapp');
+
         return response()->json([
             'message' => 'تم تحديث بيانات الفريق بنجاح!',
-            'team' => $team->load(['primaryStadium', 'manager']),
+            'team' => $team,
         ]);
     }
 
@@ -79,11 +84,14 @@ class TeamProfileController extends Controller
             'logo_thumbnail_path' => $result['thumbnail_path'],
         ]);
 
+        $team->load(['primaryStadium', 'manager']);
+        $team->manager->makeVisible('phone', 'email', 'is_whatsapp');
+
         return response()->json([
             'message' => 'تم رفع الشعار بنجاح!',
             'logo_url' => $team->logo_url,
             'logo_thumbnail_url' => $team->logo_thumbnail_url,
-            'team' => $team->load(['primaryStadium', 'manager']),
+            'team' => $team,
         ]);
     }
 }

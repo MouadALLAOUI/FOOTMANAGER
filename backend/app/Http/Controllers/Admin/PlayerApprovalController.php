@@ -20,7 +20,7 @@ class PlayerApprovalController extends Controller
     {
         $status = $request->query('status', 'pending');
 
-        $query = User::with('playerProfile')
+        $query = User::with(['playerProfile', 'activeSubscription.plan:id,name,slug,is_free'])
             ->where('role', 'player')
             ->latest();
 
@@ -40,8 +40,13 @@ class PlayerApprovalController extends Controller
         $perPage = min(50, max(1, (int) $request->query('per_page', 15)));
         $paginator = $query->paginate($perPage)->withQueryString();
 
+        $collection = $paginator->getCollection()->map(
+            fn ($user) => $user->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at')
+                ->append('plan_name'),
+        );
+
         return response()->json([
-            'players' => $paginator->getCollection(),
+            'players' => $collection,
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
@@ -78,10 +83,13 @@ class PlayerApprovalController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $player = User::with('playerProfile')
+        $player = User::with(['playerProfile', 'activeSubscription.plan'])
             ->where('role', 'player')
             ->where('id', $id)
-            ->firstOrFail();
+            ->firstOrFail()
+            ->makeVisible('phone', 'email', 'is_whatsapp', 'avatar_path', 'avatar_thumbnail_path', 'email_verified_at', 'activity_lock_reason', 'activity_locked_by', 'activity_locked_at');
+
+        $player->append('plan_name');
 
         return response()->json(['player' => $player]);
     }

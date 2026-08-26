@@ -30,6 +30,8 @@ class MatchResultController extends Controller
             ->orderBy('match_datetime', 'asc')
             ->get();
 
+        $matches->each(fn ($m) => $m->opponentTeam?->manager?->makeVisible('phone'));
+
         return response()->json(['matches' => $matches]);
     }
 
@@ -48,6 +50,8 @@ class MatchResultController extends Controller
             ->where('score_submitted_by', '!=', $user->id)
             ->orderBy('match_datetime', 'asc')
             ->get();
+
+        $matches->each(fn ($m) => $m->opponentTeam?->manager?->makeVisible('phone'));
 
         return response()->json(['matches' => $matches]);
     }
@@ -98,9 +102,12 @@ class MatchResultController extends Controller
             );
         }
 
+        $fresh = $match->fresh()->load(['hostTeam', 'opponentTeam.manager']);
+        $fresh->opponentTeam?->manager?->makeVisible('phone');
+
         return response()->json([
             'message' => 'تم تسجيل النتيجة بنجاح. في انتظار تأكيد الفريق المنافس',
-            'match' => $match->fresh()->load(['hostTeam', 'opponentTeam.manager']),
+            'match' => $fresh,
         ]);
     }
 

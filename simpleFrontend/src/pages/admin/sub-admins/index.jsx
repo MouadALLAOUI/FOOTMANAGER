@@ -224,7 +224,7 @@ export default function SubAdmins() {
       <PageHeader
         title="المسؤولون الفرعيون"
         subtitle="إدارة حسابات المسؤولين الفرعيين وصلاحياتهم"
-        action={
+        actions={
           <Button onClick={() => { setShowForm(true); setEditing(null) }}>
             <UserPlus className="size-4" />
             إضافة مسؤول فرعي

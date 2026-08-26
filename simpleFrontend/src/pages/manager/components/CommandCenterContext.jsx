@@ -16,6 +16,7 @@ import {
   useRecruitment,
   useStadiums,
   useTeamProfile,
+  useCitiesSelect,
 } from '../../../api/queries'
 import { isSameDay } from './shared'
 
@@ -35,6 +36,7 @@ export function CommandCenterProvider({ children }) {
   const recruitQ = useRecruitment({ per_page: 5 })
   const boardQ = useLeaderboard({ per_page: 100 })
   const stadiumQ = useStadiums({ per_page: 100 })
+  const citiesQ = useCitiesSelect()
 
   const team = teamQ.data?.team ?? null
   const requests = requestsQ.data?.match_requests || []
@@ -47,7 +49,7 @@ export function CommandCenterProvider({ children }) {
   const recruits = recruitQ.data?.players || []
   const board = boardQ.data?.data || []
   const stadiums = stadiumQ.data?.data || []
-  const cities = stadiumQ.data?.meta?.filters?.cities || []
+  const cities = (citiesQ.data?.cities || []).map((c) => c.localized_name)
 
   const loadingBy = {
     team: teamQ.isLoading,

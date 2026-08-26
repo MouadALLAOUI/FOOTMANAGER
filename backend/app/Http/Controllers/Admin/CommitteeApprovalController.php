@@ -20,7 +20,9 @@ class CommitteeApprovalController extends Controller
     {
         $status = $request->query('status', 'pending');
 
-        $query = User::where('role', 'committee')->latest();
+        $query = User::with('activeSubscription.plan:id,name,slug,is_free')
+            ->where('role', 'committee')
+            ->latest();
 
         if ($status !== 'all') {
             $query->where('status', $status);
@@ -39,7 +41,9 @@ class CommitteeApprovalController extends Controller
         $paginator = $query->paginate($perPage)->withQueryString();
 
         return response()->json([
-            'committees' => $paginator->getCollection(),
+            'committees' => $paginator->getCollection()->map(
+                fn ($user) => $user->append('plan_name'),
+            ),
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),
@@ -76,9 +80,12 @@ class CommitteeApprovalController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $committee = User::where('role', 'committee')
+        $committee = User::with('activeSubscription.plan')
+            ->where('role', 'committee')
             ->where('id', $id)
             ->firstOrFail();
+
+        $committee->append('plan_name');
 
         return response()->json(['committee' => $committee]);
     }

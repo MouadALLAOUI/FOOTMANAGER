@@ -71,7 +71,7 @@ class CalendarSlotService
                     'price' => $booking->price,
                     'start_time' => $booking->start_time,
                     'end_time' => $booking->end_time,
-                    'manager' => $booking->manager?->only(['id', 'name', 'phone', 'is_whatsapp']),
+                    'manager' => $booking->manager?->only(['id', 'name']),
                     'team' => $booking->team?->only(['id', 'name']),
                 ] : null,
                 'closure' => $closure ? [
@@ -185,7 +185,7 @@ class CalendarSlotService
                             'price' => $booking->price,
                             'start_time' => $booking->start_time,
                             'end_time' => $booking->end_time,
-                            'manager' => $booking->manager?->only(['id', 'name', 'phone', 'is_whatsapp']),
+                            'manager' => $booking->manager?->only(['id', 'name']),
                             'team' => $booking->team?->only(['id', 'name']),
                         ] : null,
                         'closure' => $slotClosure ? [

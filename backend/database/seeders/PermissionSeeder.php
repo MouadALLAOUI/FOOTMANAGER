@@ -22,6 +22,8 @@ class PermissionSeeder extends Seeder
             ['slug' => 'moderation.manage', 'name' => 'إدارة الإشراف', 'group' => 'moderation'],
             ['slug' => 'facilities.view', 'name' => 'عرض المرافق', 'group' => 'facilities'],
             ['slug' => 'facilities.manage', 'name' => 'إدارة المرافق', 'group' => 'facilities'],
+            ['slug' => 'cities.view', 'name' => 'عرض المدن', 'group' => 'cities'],
+            ['slug' => 'cities.manage', 'name' => 'إدارة المدن', 'group' => 'cities'],
             ['slug' => 'plans.view', 'name' => 'عرض الخطط', 'group' => 'plans'],
             ['slug' => 'plans.manage', 'name' => 'إدارة الخطط', 'group' => 'plans'],
             ['slug' => 'activity.view', 'name' => 'عرض النشاط', 'group' => 'activity'],

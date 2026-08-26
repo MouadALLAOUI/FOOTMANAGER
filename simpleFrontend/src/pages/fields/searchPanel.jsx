@@ -2,12 +2,12 @@ import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDays,
-  faChevronDown,
   faFutbol,
   faLocationDot,
   faMagnifyingGlass,
 } from '@fortawesome/free-solid-svg-icons'
 import TimePicker from '../../components/TimePicker'
+import Select from '../../components/ui/Select'
 
 const today = new Date().toISOString().split('T')[0]
 
@@ -22,23 +22,12 @@ function SelectColumn({ label, icon: Icon, value, onChange, options, placeholder
       <span className="flex min-w-0 flex-1 flex-col text-start">
         <span className="text-xs font-semibold text-slate-400">{label}</span>
         <span className="relative">
-          <select
+          <Select
+            bare
             value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full cursor-pointer appearance-none bg-transparent py-0.5 pe-5 text-sm font-bold text-slate-800 outline-none"
-          >
-            <option value="" disabled>
-              {placeholder}
-            </option>
-            {options.map(({ key, label: optLabel }) => (
-              <option key={key} value={key}>
-                {optLabel}
-              </option>
-            ))}
-          </select>
-          <FontAwesomeIcon
-            icon={faChevronDown}
-            className="pointer-events-none absolute end-0 top-1/2 size-4 -translate-y-1/2 text-slate-400"
+            onChange={onChange}
+            options={options}
+            placeholder={placeholder}
           />
         </span>
       </span>
@@ -46,14 +35,10 @@ function SelectColumn({ label, icon: Icon, value, onChange, options, placeholder
   )
 }
 
-export default function FieldsSearchPanel({ values, onChange, onSearch }) {
+export default function FieldsSearchPanel({ values, onChange, onSearch, cities }) {
   const { t } = useTranslation()
-
-  const cities = Object.entries(t('landing.hero.cities', { returnObjects: true })).map(
-    ([key, label]) => ({ key, label }),
-  )
   const types = Object.entries(t('fieldsPage.search.types', { returnObjects: true })).map(
-    ([key, label]) => ({ key, label }),
+    ([key, label]) => ({ value: key, label }),
   )
 
   return (

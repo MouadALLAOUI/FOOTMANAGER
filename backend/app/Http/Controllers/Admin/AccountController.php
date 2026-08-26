@@ -76,7 +76,7 @@ class AccountController extends Controller
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
-                    'phone' => $user->phone,
+                    'phone' => $user->makeVisible('phone')->phone,
                 ],
             ],
         ]);

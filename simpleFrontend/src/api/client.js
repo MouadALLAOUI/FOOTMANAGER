@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+import { queryClient } from './queryClient';
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: {
@@ -25,10 +27,19 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isAuthCall) {
       localStorage.removeItem('auth_token');
       localStorage.removeItem('auth_user');
+      try {
+        queryClient.clear();
+      } catch {}
       if (!window.location.pathname.startsWith('/login')) {
         sessionStorage.setItem(AUTH_REDIRECT_KEY, window.location.pathname + window.location.search);
         window.location.href = '/login';
       }
+    }
+    if (error.response?.status === 403 && error.response?.data?.activity_locked) {
+      try {
+        const { toast } = require('../components/ui/Toast/toastStore');
+        toast.error(error.response.data.message || 'تم تقييد نشاط حسابك');
+      } catch {}
     }
     return Promise.reject(error);
   },

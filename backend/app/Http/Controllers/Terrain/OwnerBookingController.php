@@ -74,6 +74,7 @@ class OwnerBookingController extends Controller
         }
 
         $booking->refresh()->load(['terrain.owner', 'team', 'manager']);
+        $booking->manager?->makeVisible('phone');
 
         event(new BookingApproved($booking));
 
@@ -126,6 +127,7 @@ class OwnerBookingController extends Controller
         }
 
         $booking->refresh()->load(['terrain.owner', 'team', 'manager']);
+        $booking->manager?->makeVisible('phone');
 
         event(new BookingRejected($booking));
 
@@ -158,7 +160,8 @@ class OwnerBookingController extends Controller
             ->where('status', 'pending')
             ->with(['booking.terrain:id,name', 'booking.team:id,name', 'user:id,name,phone'])
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->each(fn ($r) => $r->user?->makeVisible('phone'));
 
         return response()->json(['cancellation_requests' => $requests]);
     }
@@ -179,31 +182,67 @@ class OwnerBookingController extends Controller
             return response()->json(['message' => 'تم التعامل مع هذا الطلب مسبقاً'], 422);
         }
 
-        if ($validated['action'] === 'approve') {
-            $cancellation->booking->update(['status' => 'cancelled']);
-            $cancellation->update(['status' => 'approved']);
-            $message = 'تمت الموافقة على إلغاء الحجز';
+        $result = DB::transaction(function () use ($cancellation, $validated, $user) {
+            // Lock both the cancellation request and the booking row
+            $lockedCancellation = CancellationRequest::whereKey($cancellation->id)->lockForUpdate()->firstOrFail();
+            $lockedBooking = TerrainBooking::whereKey($lockedCancellation->terrain_booking_id)->lockForUpdate()->firstOrFail();
+
+            if ($lockedCancellation->status !== 'pending') {
+                return null;
+            }
+
+            if ($validated['action'] === 'approve') {
+                $policy = $lockedBooking->cancellationPolicy;
+                $slotStart = \Illuminate\Support\Carbon::parse(
+                    $lockedBooking->booking_date->toDateString().' '.$lockedBooking->start_time
+                );
+                $refundPercentage = $policy ? $policy->refundPercentageAt($slotStart) : 0;
+                $refundAmount = round(((float) $lockedBooking->total) * $refundPercentage / 100, 2);
+
+                $lockedBooking->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                    'refund_percentage' => $refundPercentage,
+                    'refund_amount' => $refundAmount,
+                ]);
+
+                if ($lockedBooking->payment_status === 'paid') {
+                    $lockedBooking->update(['payment_status' => 'refunded']);
+                    $lockedBooking->payments()->where('status', 'succeeded')->update(['status' => 'refunded']);
+                }
+
+                $lockedCancellation->update(['status' => 'approved']);
+
+                NotificationService::push(
+                    (int) $lockedCancellation->user_id,
+                    'cancellation_approved',
+                    'تمت الموافقة على إلغاء الحجز',
+                    "صاحب الملعب {$lockedBooking->terrain?->name} وافق على إلغاء حجزك",
+                    ['booking_id' => $lockedCancellation->terrain_booking_id],
+                    '/dashboard/my-reservations',
+                );
+
+                return ['status' => 'approved', 'message' => 'تمت الموافقة على إلغاء الحجز'];
+            }
+
+            $lockedCancellation->update(['status' => 'rejected']);
+
             NotificationService::push(
-                (int) $cancellation->user_id,
-                'cancellation_approved',
-                'تمت الموافقة على إلغاء الحجز',
-                "صاحب الملعب {$cancellation->booking?->terrain?->name} وافق على إلغاء حجزك",
-                ['booking_id' => $cancellation->terrain_booking_id],
-                '/dashboard/my-reservations',
-            );
-        } else {
-            $cancellation->update(['status' => 'rejected']);
-            $message = 'تم رفض طلب الإلغاء';
-            NotificationService::push(
-                (int) $cancellation->user_id,
+                (int) $lockedCancellation->user_id,
                 'cancellation_rejected',
                 'تم رفض إلغاء الحجز',
-                "صاحب الملعب {$cancellation->booking?->terrain?->name} رفض إلغاء حجزك",
-                ['booking_id' => $cancellation->terrain_booking_id],
+                "صاحب الملعب {$lockedBooking->terrain?->name} رفض إلغاء حجزك",
+                ['booking_id' => $lockedCancellation->terrain_booking_id],
                 '/dashboard/my-reservations',
             );
+
+            return ['status' => 'rejected', 'message' => 'تم رفض طلب الإلغاء'];
+        });
+
+        if ($result === null) {
+            return response()->json(['message' => 'تم التعامل مع هذا الطلب مسبقاً'], 422);
         }
 
-        return response()->json(['message' => $message]);
+        return response()->json(['message' => $result['message']]);
     }
 }

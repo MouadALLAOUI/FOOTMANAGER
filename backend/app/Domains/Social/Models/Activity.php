@@ -28,6 +28,22 @@ class Activity extends Model
 
     public const TYPE_REVIEW_ADDED = 'review_added';
 
+    public const TYPE_SUB_ADMIN_CREATED = 'sub_admin_created';
+
+    public const TYPE_SUB_ADMIN_UPDATED = 'sub_admin_updated';
+
+    public const TYPE_SUB_ADMIN_PERMISSIONS_CHANGED = 'sub_admin_permissions_changed';
+
+    public const TYPE_SUB_ADMIN_BLOCKED = 'sub_admin_blocked';
+
+    public const TYPE_SUB_ADMIN_ACTIVATED = 'sub_admin_activated';
+
+    public const TYPE_SUB_ADMIN_REMOVED = 'sub_admin_removed';
+
+    public const TYPE_PLAN_ASSIGNED = 'plan_assigned';
+    public const TYPE_PLAN_CHANGED = 'plan_changed';
+    public const TYPE_PLAN_REMOVED = 'plan_removed';
+
     protected $fillable = [
         'type',
         'actor_type',

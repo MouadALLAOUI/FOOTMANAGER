@@ -11,7 +11,7 @@ class PublicTeamController extends Controller
 {
     public function show(int $id): JsonResponse
     {
-        $team = Team::with(['primaryStadium', 'manager:id,name,phone,status,is_whatsapp'])
+        $team = Team::with(['primaryStadium', 'manager:id,name,status'])
             ->findOrFail($id);
 
         if ($team->manager->status !== 'approved') {

@@ -16,7 +16,7 @@ class PublicManagerController extends Controller
         $manager = User::where('id', $managerId)
             ->where('role', 'manager')
             ->where('status', 'approved')
-            ->select('id', 'name', 'avatar_url', 'city', 'phone', 'created_at')
+            ->select('id', 'name', 'avatar_url', 'city', 'created_at')
             ->first();
 
         if (! $manager) {

@@ -59,7 +59,28 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'phone',
+        'email',
+        'is_whatsapp',
+        'avatar_path',
+        'avatar_thumbnail_path',
+        'email_verified_at',
+        'activity_lock_reason',
+        'activity_locked_by',
+        'activity_locked_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::updated(function (User $user) {
+            if ($user->wasChanged('status') && in_array($user->status, ['blocked', 'rejected'], true)) {
+                $user->revokeTokens();
+            }
+            if ($user->wasChanged('password')) {
+                $user->revokeTokens();
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -85,6 +106,11 @@ class User extends Authenticatable
     public function getAvatarThumbnailUrlAttribute(): ?string
     {
         return $this->resolveStorageUrl($this->avatar_thumbnail_path);
+    }
+
+    public function getPlanNameAttribute(): ?string
+    {
+        return $this->activeSubscription?->plan?->name;
     }
 
     private function resolveStorageUrl(?string $path): ?string
@@ -239,6 +265,11 @@ class User extends Authenticatable
         $this->tokens()->delete();
     }
 
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\Auth\ResetPasswordNotification($token));
+    }
+
     public function currentTeam(): ?Team
     {
         if ($this->isManager()) {
@@ -318,10 +349,10 @@ class User extends Authenticatable
                     $blockers[] = "الفريق لديه {$activeBookings} حجز(ות) نشطة";
                 }
 
-                $pendingMatches = $team->hostMatchRequests()
+                $pendingMatches = $team->hostedMatches()
                     ->whereIn('status', ['open', 'accepted', 'pending_score', 'pending_confirmation'])
                     ->count();
-                $pendingMatches += $team->opponentMatchRequests()
+                $pendingMatches += $team->opponentMatches()
                     ->whereIn('status', ['open', 'accepted', 'pending_score', 'pending_confirmation'])
                     ->count();
                 if ($pendingMatches > 0) {

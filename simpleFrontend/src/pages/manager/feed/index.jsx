@@ -13,8 +13,9 @@ import {
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
-import { useStadiums } from '../../../api/queries'
+import { useStadiums, useCitiesSelect } from '../../../api/queries'
 import { Button, Empty, Field, Modal, Pagination, SectionTitle, SkeletonCards, selectClass } from '../../../components/dashboard/ui'
+import Select from '../../../components/ui/Select'
 import { ManagerContact, MatchCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
 import NeedPlayersField from '../../../components/NeedPlayersField'
@@ -27,14 +28,15 @@ function FilterBar({ onApply }) {
   const [expanded, setExpanded] = useState(false)
   const [search, setSearch] = useState(searchParams.get('search') || '')
   const { data: stadiumsData } = useStadiums({ per_page: 50 })
+  const { data: citiesData } = useCitiesSelect()
 
   const meta = useMemo(
     () => ({
-      cities: stadiumsData?.meta?.filters?.cities || [],
+      cities: (citiesData?.cities || []).map((c) => c.localized_name),
       formats: stadiumsData?.meta?.filters?.player_formats || [],
       stadiums: stadiumsData?.data || [],
     }),
-    [stadiumsData],
+    [citiesData, stadiumsData],
   )
 
   useEffect(() => {
@@ -87,14 +89,12 @@ function FilterBar({ onApply }) {
       {expanded && (
         <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
           <Field label="المدينة">
-            <select className={selectClass} value={searchParams.get('city') || ''} onChange={(e) => setParam('city', e.target.value)}>
-              <option value="">كل المدن</option>
-              {meta.cities.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <Select
+              value={searchParams.get('city') || ''}
+              onChange={(v) => setParam('city', v)}
+              options={meta.cities.map((c) => ({ value: c, label: c }))}
+              placeholder="كل المدن"
+            />
           </Field>
           <Field label="الفئة">
             <select className={selectClass} value={searchParams.get('category') || ''} onChange={(e) => setParam('category', e.target.value)}>

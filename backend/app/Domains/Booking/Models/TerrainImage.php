@@ -33,9 +33,11 @@ class TerrainImage extends Model
         return $this->belongsTo(Stadium::class, 'terrain_id');
     }
 
-    public function getImageUrlAttribute(): string
+    public function getImageUrlAttribute(): ?string
     {
-        return Storage::disk('public')->url($this->image_path);
+        return $this->image_path
+            ? Storage::disk('public')->url($this->image_path)
+            : null;
     }
 
     public function getThumbnailUrlAttribute(): ?string

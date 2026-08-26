@@ -23,6 +23,7 @@ export default function Committees() {
       subtitle="إدارة حسابات اللجان المنظمة للبطولات والموافقة على طلباتهم"
       tabs={tabs}
       detailTitle="تفاصيل اللجنة المنظمة"
+      showPlan
       extraColumns={[
         {
           key: 'role',

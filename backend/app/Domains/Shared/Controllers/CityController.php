@@ -72,9 +72,13 @@ class CityController extends Controller
 
     public function listForSelect(Request $request): JsonResponse
     {
-        // Lightweight endpoint for dropdowns/selects
-        $cities = City::active()
-            ->ordered()
+        $query = City::query();
+
+        if ($request->boolean('active_only', true)) {
+            $query->active();
+        }
+
+        $cities = $query->ordered()
             ->get(['id', 'name', 'name_ar', 'name_fr', 'name_en', 'slug'])
             ->map(function ($city) {
                 return [

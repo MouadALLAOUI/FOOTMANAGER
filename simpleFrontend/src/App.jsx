@@ -7,6 +7,7 @@ import { ToastContainer } from './components/ui/Toast'
 import { ErrorBoundary, NotFound } from './components/errors'
 import MaintenanceGate from './components/system/MaintenanceGate'
 import PageMaintenanceGate from './components/system/PageMaintenanceGate'
+import ActivityLockBanner from './components/system/ActivityLockBanner'
 import PageSkeleton from './components/system/PageSkeleton'
 
 const Landing = lazy(() => import('./pages/landing'))
@@ -22,6 +23,8 @@ const PublicTournamentDetail = lazy(() => import('./pages/tournaments/detail'))
 const Login = lazy(() => import('./pages/auth/login'))
 const Register = lazy(() => import('./pages/auth/register'))
 const Pending = lazy(() => import('./pages/auth/pending'))
+const ForgotPassword = lazy(() => import('./pages/auth/forgot-password'))
+const ResetPassword = lazy(() => import('./pages/auth/reset-password'))
 const RecoveryApply = lazy(() => import('./pages/auth/recovery'))
 const ManagerDashboard = lazy(() => import('./pages/manager'))
 const TerrainDashboard = lazy(() => import('./pages/terrain'))
@@ -46,6 +49,7 @@ function App() {
     <BrowserRouter>
       <Suspense fallback={<RouteFallback />}>
         <ErrorBoundary>
+          <ActivityLockBanner />
           <MaintenanceGate>
             <Routes>
               <Route element={<Layout />}>
@@ -64,6 +68,8 @@ function App() {
 
               <Route path="/login" element={<GuestRoute><PageMaintenanceGate><Login /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/register" element={<GuestRoute><PageMaintenanceGate><Register /></PageMaintenanceGate></GuestRoute>} />
+              <Route path="/forgot-password" element={<GuestRoute><PageMaintenanceGate><ForgotPassword /></PageMaintenanceGate></GuestRoute>} />
+              <Route path="/reset-password" element={<GuestRoute><PageMaintenanceGate><ResetPassword /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/pending" element={<PageMaintenanceGate><Pending /></PageMaintenanceGate>} />
               <Route path="/recovery" element={<PageMaintenanceGate><RecoveryApply /></PageMaintenanceGate>} />
 

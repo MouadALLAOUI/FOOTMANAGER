@@ -25,6 +25,7 @@ export default function Managers() {
       subtitle="إدارة حسابات مسيري الفرق، مراجعة الطلبات والموافقة عليها"
       tabs={tabs}
       detailTitle="تفاصيل حساب المسير"
+      showPlan
       extraColumns={[
         {
           key: 'team',

@@ -24,6 +24,7 @@ export default function Players() {
       subtitle="إدارة حسابات لاعبي الميركاطو والموافقة على طلباتهم"
       tabs={tabs}
       detailTitle="تفاصيل اللاعب"
+      showPlan
       extraColumns={[
         {
           key: 'position',

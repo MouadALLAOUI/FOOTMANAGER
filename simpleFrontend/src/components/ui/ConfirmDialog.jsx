@@ -88,7 +88,7 @@ export function ConfirmDialog({
 
   if (!open) return null
 
-  const meta = toneMeta[tone]
+  const meta = toneMeta[tone] || toneMeta.default
   const resolvedCancel = cancelLabel || t('common.cancel')
 
   return (

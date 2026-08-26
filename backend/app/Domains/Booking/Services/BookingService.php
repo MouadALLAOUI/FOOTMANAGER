@@ -58,11 +58,33 @@ class BookingService
                 ]);
             }
 
-            $conflict = TerrainBooking::checkConflict($terrain->id, $dateStr, $start, $end);
+                        $conflict = TerrainBooking::where('terrain_id', $terrain->id)
+                ->whereIn('status', ['pending', 'confirmed', 'approved'])
+                ->where(function ($q) use ($dateStr, $start, $end) {
+                    $q->where(function ($sq) use ($dateStr, $start, $end) {
+                        $sq->where('reservation_type', 'single')
+                            ->where('booking_date', $dateStr)
+                            ->where('start_time', '<', $end)
+                            ->where('end_time', '>', $start);
+                    });
+                    $q->orWhere(function ($sq) use ($date, $start, $end) {
+                        $sq->where('reservation_type', 'weekly_subscription')
+                            ->where('day_of_week', $date->dayOfWeek)
+                            ->where(function ($wq) use ($dateStr) {
+                                $wq->whereNull('start_date')->orWhere('start_date', '<=', $dateStr);
+                            })
+                            ->where(function ($wq) use ($dateStr) {
+                                $wq->whereNull('end_date')->orWhere('end_date', '>=', $dateStr);
+                            })
+                            ->where('start_time', '<', $end)
+                            ->where('end_time', '>', $start);
+                    });
+                })
+                ->lockForUpdate()
+                ->exists();
+
             if ($conflict) {
-                throw ValidationException::withMessages([
-                    'time_slot' => 'هذا التوقيت محجوز بالفعل في التاريخ المحدد',
-                ]);
+                throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('هذا التوقيت محجوز بالفعل في التاريخ المحدد');
             }
 
             $duplicate = TerrainBooking::where('terrain_id', $terrain->id)
@@ -71,11 +93,24 @@ class BookingService
                 ->where('booking_date', $dateStr)
                 ->where('start_time', $start)
                 ->where('end_time', $end)
+                ->lockForUpdate()
                 ->exists();
 
             if ($duplicate) {
+                throw new \Symfony\Component\HttpKernel\Exception\ConflictHttpException('لديك بالفعل حجز على هذا التوقيت');
+            }
+
+            $closure = \App\Domains\Booking\Models\TerrainSlotClosure::where('terrain_id', $terrain->id)
+                ->where('closure_date', $dateStr)
+                ->where('start_time', '<', $end)
+                ->where('end_time', '>', $start)
+                ->first();
+
+            if ($closure) {
                 throw ValidationException::withMessages([
-                    'time_slot' => 'لديك بالفعل حجز على هذا التوقيت',
+                    'time_slot' => $closure->reason
+                        ? "هذا التوقيت مغلق — {$closure->reason}"
+                        : 'هذا التوقيت مغلق — لا يمكن الحجز',
                 ]);
             }
 

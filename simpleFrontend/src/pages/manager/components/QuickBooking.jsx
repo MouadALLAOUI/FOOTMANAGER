@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CalendarPlus, MapPin, Search, ShieldCheck } from 'lucide-react'
 import api from '../../../api/client'
-import { Button, Field, Skeleton, inputClass, selectClass } from '../../../components/dashboard/ui'
+import { Button, Field, Skeleton, inputClass } from '../../../components/dashboard/ui'
+import Select from '../../../components/ui/Select'
 import { useCommandCenter } from '../components/CommandCenterContext'
 import { Section } from '../components/shared'
 import { coverThumb } from '../../../lib/thumb'
@@ -52,14 +53,12 @@ export default function QuickBooking() {
     >
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Field label={t('ov.common.city')}>
-          <select className={selectClass} value={city} onChange={(e) => setCity(e.target.value)}>
-            <option value="">{t('ov.quick.allCities')}</option>
-            {cities.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+          <Select
+            value={city}
+            onChange={setCity}
+            options={cities.map((c) => ({ value: c, label: c }))}
+            placeholder={t('ov.quick.allCities')}
+          />
         </Field>
         <Field label={t('ov.common.date')}>
           <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />

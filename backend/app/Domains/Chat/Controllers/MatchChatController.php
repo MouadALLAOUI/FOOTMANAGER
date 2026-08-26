@@ -31,11 +31,11 @@ class MatchChatController extends Controller
 
     public function store(Request $request, FootballMatch $match): ChatMessageResource
     {
+        Gate::authorize('chat.send', $match);
+
         $data = $request->validate([
             'message' => 'required|string|min:1|max:1000',
         ]);
-
-        Gate::authorize('chat.send', $match);
 
         return new ChatMessageResource($this->chat->send($request->user(), $match, $data['message']));
     }
@@ -115,6 +115,8 @@ class MatchChatController extends Controller
 
     public function report(Request $request, MatchChatMessage $message): JsonResponse
     {
+        Gate::authorize('chat.view', $message->match);
+
         $data = $request->validate([
             'reason' => 'required|string|max:60',
             'details' => 'nullable|string|max:1000',

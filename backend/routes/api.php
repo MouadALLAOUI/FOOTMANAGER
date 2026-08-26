@@ -50,6 +50,7 @@ use App\Domains\Team\Controllers\TeamStatisticsController;
 use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\SubAdminController;
+use App\Http\Controllers\Admin\CityController as AdminCityController;
 use App\Http\Controllers\Admin\CommitteeApprovalController;
 use App\Http\Controllers\Admin\ContactMessageController;
 use App\Http\Controllers\Admin\FacilityController;
@@ -57,6 +58,7 @@ use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AdminPlayerTeamRequestController;
 use App\Http\Controllers\Admin\ManagerApprovalController;
 use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\Admin\UserSubscriptionController;
 use App\Http\Controllers\Admin\PlayerApprovalController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Auth\AuthController;
@@ -106,11 +108,16 @@ use App\Http\Controllers\Terrain\SlotClosureController;
 use App\Http\Controllers\Terrain\TerrainOwnerController;
 use Illuminate\Support\Facades\Route;
 
-Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
-Route::post('/register-terrain-owner', [AuthController::class, 'registerTerrainOwner'])->middleware('throttle:5,1');
-Route::post('/register-player', [AuthController::class, 'registerPlayer'])->middleware('throttle:5,1');
-Route::post('/register-committee', [AuthController::class, 'registerCommittee'])->middleware('throttle:5,1');
-Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
+Route::post('/register-terrain-owner', [AuthController::class, 'registerTerrainOwner'])->middleware('throttle:auth');
+Route::post('/register-player', [AuthController::class, 'registerPlayer'])->middleware('throttle:auth');
+Route::post('/register-committee', [AuthController::class, 'registerCommittee'])->middleware('throttle:auth');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+
+// Self-service password recovery
+Route::post('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'sendResetLink'])->middleware('throttle:password');
+Route::post('/forgot-password/validate-token', [\App\Http\Controllers\Auth\PasswordResetController::class, 'validateToken'])->middleware('throttle:password');
+Route::post('/reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'reset'])->middleware('throttle:password');
 
 Route::get('/health', \App\Http\Controllers\HealthController::class);
 
@@ -166,13 +173,13 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'module.maintenance:tournaments'])->group(function () {
         Route::get('/tournaments/{tournament}/registration/me', [TournamentRegistrationController::class, 'me']);
 
-        Route::middleware('activity.not_locked')->group(function () {
+        Route::middleware(['activity.not_locked', 'throttle:team-request'])->group(function () {
             Route::post('/tournaments/{tournament}/registration', [TournamentRegistrationController::class, 'register']);
             Route::delete('/tournaments/{tournament}/registration', [TournamentRegistrationController::class, 'destroy']);
         });
     });
 
-    Route::middleware(['auth:sanctum', 'user.approved', 'activity.not_locked', 'module.maintenance:bookings'])->prefix('bookings')->group(function () {
+    Route::middleware(['auth:sanctum', 'user.approved', 'activity.not_locked', 'module.maintenance:bookings', 'throttle:booking'])->prefix('bookings')->group(function () {
         Route::post('/confirm', [V1BookingController::class, 'confirm']);
         Route::post('/{booking}/payment-intent', [V1BookingController::class, 'paymentIntent']);
         Route::post('/{booking}/cancel', [V1BookingController::class, 'cancel']);
@@ -188,7 +195,7 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'manager.approved', 'module.maintenance:teams'])->prefix('manager/team')->group(function () {
         Route::get('/', [V1TeamProfileController::class, 'show']);
 
-        Route::middleware('activity.not_locked')->group(function () {
+        Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
             Route::put('/', [V1TeamProfileController::class, 'update']);
             Route::post('/logo', [V1TeamProfileController::class, 'uploadLogo']);
             Route::post('/cover', [V1TeamProfileController::class, 'uploadCover']);
@@ -196,7 +203,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/gallery', [TeamGalleryController::class, 'index']);
 
-        Route::middleware('activity.not_locked')->group(function () {
+        Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
             Route::post('/gallery', [TeamGalleryController::class, 'store']);
             Route::post('/gallery/reorder', [TeamGalleryController::class, 'reorder']);
             Route::put('/gallery/{image}/cover', [TeamGalleryController::class, 'setCover']);
@@ -254,7 +261,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/team/statistics', [TeamStatisticsController::class, 'index']);
     });
 
-    Route::middleware(['auth:sanctum', 'manager.approved', 'activity.not_locked', 'module.maintenance:matches'])->prefix('live')->group(function () {
+    Route::middleware(['auth:sanctum', 'manager.approved', 'activity.not_locked', 'module.maintenance:matches', 'throttle:match-live'])->prefix('live')->group(function () {
         Route::post('/{match}/start', [LiveMatchController::class, 'start']);
         Route::post('/{match}/pause', [LiveMatchController::class, 'pause']);
         Route::post('/{match}/resume', [LiveMatchController::class, 'resume']);
@@ -297,7 +304,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('/profile', [ProfileController::class, 'show']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::put('/profile', [ProfileController::class, 'update']);
                 Route::post('/profile/photo', [ProfileController::class, 'uploadPhoto']);
                 Route::post('/profile/cover', [ProfileController::class, 'uploadCover']);
@@ -306,7 +313,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('/gallery', [GalleryController::class, 'index']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::post('/gallery', [GalleryController::class, 'store']);
                 Route::post('/gallery/reorder', [GalleryController::class, 'reorder']);
                 Route::put('/gallery/{image}/cover', [GalleryController::class, 'setCover']);
@@ -351,7 +358,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/resources', [ResourcesController::class, 'index']);
             Route::get('/events', [EventsController::class, 'index']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:password'])->group(function () {
                 Route::post('/security/password', [SecurityController::class, 'updatePassword']);
             });
 
@@ -407,7 +414,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/live/{match}/chat', [MatchChatController::class, 'index']);
         Route::get('/live/{match}/chat/read', [MatchChatController::class, 'readStatus']);
 
-        Route::middleware('activity.not_locked')->group(function () {
+        Route::middleware(['activity.not_locked', 'throttle:chat'])->group(function () {
             Route::post('/live/{match}/chat', [MatchChatController::class, 'store']);
             Route::post('/live/{match}/chat/announcement', [MatchChatController::class, 'announcement']);
             Route::post('/live/{match}/chat/read', [MatchChatController::class, 'read']);
@@ -457,34 +464,40 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('activity.not_locked')->group(function () {
         Route::put('/me', [AuthController::class, 'updateProfile']);
-        Route::post('/me/avatar', [AuthController::class, 'uploadAvatar']);
+        Route::post('/me/avatar', [AuthController::class, 'uploadAvatar'])->middleware('throttle:upload');
         Route::delete('/me/avatar', [AuthController::class, 'removeAvatar']);
     });
 });
 
-Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifications'])->group(function () {
-    Route::get('/notifications', [NotificationController::class, 'index']);
-    Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
-    Route::get('/notifications/preferences', [NotificationController::class, 'preferences']);
-    Route::get('/notifications/v1', [NotificationController::class, 'indexV1']);
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/recovery/apply', [AccountController::class, 'applyRecovery'])->middleware('throttle:password');
+});
 
-    Route::middleware('activity.not_locked')->group(function () {
-        Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-        Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
-        Route::put('/notifications/{id}/pin', [NotificationController::class, 'togglePin']);
-        Route::put('/notifications/{id}/important', [NotificationController::class, 'toggleImportant']);
-        Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
-        Route::put('/notifications/preferences', [NotificationController::class, 'updatePreferences']);
+Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
+    Route::middleware('module.maintenance:notifications')->prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index']);
+        Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/preferences', [NotificationController::class, 'preferences']);
+        Route::get('/v1', [NotificationController::class, 'indexV1']);
+
+        Route::middleware('activity.not_locked')->group(function () {
+            Route::put('/{id}/read', [NotificationController::class, 'markAsRead']);
+            Route::put('/read-all', [NotificationController::class, 'markAllAsRead']);
+            Route::put('/{id}/pin', [NotificationController::class, 'togglePin']);
+            Route::put('/{id}/important', [NotificationController::class, 'toggleImportant']);
+            Route::delete('/{id}', [NotificationController::class, 'destroy']);
+            Route::put('/preferences', [NotificationController::class, 'updatePreferences']);
+        });
     });
 
-    Route::prefix('admin')->middleware('admin')->group(function () {
+    Route::prefix('admin')->middleware(['admin', 'throttle:admin'])->group(function () {
         Route::get('/permissions', [SubAdminController::class, 'permissions']);
         Route::apiResource('sub-admins', SubAdminController::class)->except('create', 'edit');
         Route::put('/sub-admins/{id}/permissions', [SubAdminController::class, 'updatePermissions']);
         Route::put('/sub-admins/{id}/status', [SubAdminController::class, 'updateStatus']);
     });
 
-    Route::prefix('admin')->middleware('admin.access')->group(function () {
+    Route::prefix('admin')->middleware(['admin.access', 'throttle:admin'])->group(function () {
         Route::get('/stats', [ManagerApprovalController::class, 'stats']);
 
         Route::middleware('permission:users.view')->group(function () {
@@ -599,6 +612,18 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             Route::delete('/facilities/{facility}', [FacilityController::class, 'destroy']);
         });
 
+        Route::middleware('permission:cities.view')->group(function () {
+            Route::get('/cities', [AdminCityController::class, 'index']);
+            Route::get('/cities/{id}', [AdminCityController::class, 'show']);
+        });
+
+        Route::middleware('permission:cities.manage')->group(function () {
+            Route::post('/cities', [AdminCityController::class, 'store']);
+            Route::put('/cities/{id}', [AdminCityController::class, 'update']);
+            Route::patch('/cities/{id}/toggle-active', [AdminCityController::class, 'toggleActive']);
+            Route::delete('/cities/{id}', [AdminCityController::class, 'destroy']);
+        });
+
         Route::middleware('permission:plans.view')->group(function () {
             Route::get('/plans', [PlanController::class, 'index']);
             Route::get('/plans/{plan}', [PlanController::class, 'show']);
@@ -612,10 +637,12 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             Route::put('/plans/{plan}/discount', [PlanController::class, 'updateDiscount']);
             Route::post('/plans/reorder', [PlanController::class, 'reorder']);
             Route::delete('/plans/{plan}', [PlanController::class, 'destroy']);
+
+            Route::get('/users/{id}/subscription', [UserSubscriptionController::class, 'show']);
+            Route::put('/users/{id}/subscription', [UserSubscriptionController::class, 'update']);
+            Route::delete('/users/{id}/subscription', [UserSubscriptionController::class, 'destroy']);
         });
     });
-
-    Route::post('/recovery/apply', [AccountController::class, 'applyRecovery']);
 
     Route::middleware(['committee.approved', 'module.maintenance:tournaments'])->prefix('committee')->group(function () {
         Route::get('/teams', [CommitteeTeamController::class, 'index']);
@@ -641,7 +668,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             Route::get('/', [TournamentController::class, 'show']);
             Route::get('/progress', [TournamentController::class, 'progress']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::put('/', [TournamentController::class, 'update']);
                 Route::delete('/', [TournamentController::class, 'destroy']);
                 Route::post('/open-registration', [TournamentController::class, 'openRegistration']);
@@ -732,7 +759,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
 
             Route::get('/news', [TournamentNewsController::class, 'index']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::post('/news', [TournamentNewsController::class, 'store']);
                 Route::put('/news/{news}', [TournamentNewsController::class, 'update']);
                 Route::delete('/news/{news}', [TournamentNewsController::class, 'destroy']);
@@ -740,7 +767,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
 
             Route::get('/gallery', [TournamentGalleryController::class, 'index']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::post('/gallery', [TournamentGalleryController::class, 'store']);
                 Route::put('/gallery/{image}', [TournamentGalleryController::class, 'update']);
                 Route::delete('/gallery/{image}', [TournamentGalleryController::class, 'destroy']);
@@ -748,7 +775,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
 
             Route::get('/sponsors', [TournamentSponsorController::class, 'index']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::post('/sponsors', [TournamentSponsorController::class, 'store']);
                 Route::put('/sponsors/{sponsor}', [TournamentSponsorController::class, 'update']);
                 Route::delete('/sponsors/{sponsor}', [TournamentSponsorController::class, 'destroy']);
@@ -756,7 +783,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
 
             Route::get('/partners', [TournamentPartnerController::class, 'index']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::post('/partners', [TournamentPartnerController::class, 'store']);
                 Route::put('/partners/{partner}', [TournamentPartnerController::class, 'update']);
                 Route::delete('/partners/{partner}', [TournamentPartnerController::class, 'destroy']);
@@ -783,7 +810,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             Route::get('/manager/my-match-requests', [MatchRequestController::class, 'index']);
             Route::get('/manager/received-challenges', [MatchRequestController::class, 'receivedChallenges']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:match'])->group(function () {
                 Route::post('/manager/match-requests', [MatchRequestController::class, 'store']);
                 Route::post('/manager/challenges', [MatchRequestController::class, 'sendChallenge']);
                 Route::put('/manager/challenges/{id}/respond', [MatchRequestController::class, 'respondToChallenge']);
@@ -792,7 +819,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
 
             Route::get('/manager/match-feed', [MatchFeedController::class, 'index']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:match'])->group(function () {
                 Route::post('/manager/match-requests/{id}/accept', [MatchFeedController::class, 'accept']);
                 Route::post('/manager/match-requests/{id}/start', [MatchRequestController::class, 'start']);
             });
@@ -800,7 +827,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             Route::get('/manager/matches/pending-scores', [MatchResultController::class, 'pendingScores']);
             Route::get('/manager/matches/pending-confirmations', [MatchResultController::class, 'pendingConfirmations']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:match'])->group(function () {
                 Route::post('/manager/matches/{id}/submit-score', [MatchResultController::class, 'submitScore']);
                 Route::post('/manager/matches/{id}/confirm-score', [MatchResultController::class, 'confirmScore']);
                 Route::post('/manager/matches/{id}/dispute-score', [MatchResultController::class, 'disputeScore']);
@@ -822,7 +849,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
         Route::middleware('module.maintenance:teams')->group(function () {
             Route::get('/manager/team-profile', [TeamProfileController::class, 'show']);
 
-            Route::middleware('activity.not_locked')->group(function () {
+            Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::put('/manager/team-profile', [TeamProfileController::class, 'update']);
                 Route::post('/manager/team-profile/logo', [TeamProfileController::class, 'uploadLogo']);
             });
@@ -851,25 +878,25 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
             });
         });
 
-        Route::middleware('module.maintenance:bookings')->group(function () {
-            Route::get('/manager/bookings', [BookingController::class, 'getManagerBookings']);
-            Route::get('/manager/terrains/{terrainId}/my-reservations', [BookingController::class, 'myReservations']);
+        Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:bookings', 'throttle:booking'])->prefix('manager')->group(function () {
+            Route::get('/bookings', [BookingController::class, 'getManagerBookings']);
+            Route::get('/terrains/{terrainId}/my-reservations', [BookingController::class, 'myReservations']);
 
             Route::middleware('activity.not_locked')->group(function () {
-                Route::post('/manager/bookings/{bookingId}/request-cancel', [BookingController::class, 'requestCancel']);
-                Route::post('/manager/match-requests/from-booking/{bookingId}', [MatchRequestController::class, 'createFromBooking']);
-                Route::post('/manager/bookings/training', [BookingController::class, 'createTrainingBooking']);
-                Route::post('/manager/direct-bookings', [DirectBookingController::class, 'store']);
+                Route::post('/bookings/{bookingId}/request-cancel', [BookingController::class, 'requestCancel']);
+                Route::post('/match-requests/from-booking/{bookingId}', [MatchRequestController::class, 'createFromBooking']);
+                Route::post('/bookings/training', [BookingController::class, 'createTrainingBooking']);
+                Route::post('/direct-bookings', [DirectBookingController::class, 'store']);
             });
         });
 
         Route::middleware('module.maintenance:recruitment')->group(function () {
             Route::get('/manager/recruitment/search', [PlayerRecruitController::class, 'search']);
 
-            Route::middleware('activity.not_locked')->group(function () {
-                Route::post('/manager/recruitment/{playerId}/invite', [PlayerRecruitController::class, 'invite']);
-                Route::put('/manager/recruitment/applications/{applicationId}/respond', [PlayerRecruitController::class, 'respond']);
-            });
+        Route::middleware(['activity.not_locked', 'throttle:team-request'])->group(function () {
+            Route::post('/manager/recruitment/{playerId}/invite', [PlayerRecruitController::class, 'invite']);
+            Route::put('/manager/recruitment/applications/{applicationId}/respond', [PlayerRecruitController::class, 'respond']);
+        });
         });
 
         Route::middleware('module.maintenance:tournaments')->group(function () {
@@ -892,9 +919,9 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
         Route::get('/overview', [PlayerProfileController::class, 'overview']);
         Route::get('/my-team', [TeamMembershipController::class, 'myTeam']);
 
-        Route::middleware('activity.not_locked')->group(function () {
+        Route::middleware(['activity.not_locked', 'throttle:team-request'])->group(function () {
             Route::put('/profile', [PlayerProfileController::class, 'updateProfile']);
-            Route::post('/profile/photo', [PlayerProfileController::class, 'uploadPhoto']);
+            Route::post('/profile/photo', [PlayerProfileController::class, 'uploadPhoto'])->middleware('throttle:upload');
             Route::post('/matches/{matchId}/apply', [PlayerProfileController::class, 'apply']);
             Route::put('/applications/{applicationId}/respond', [PlayerProfileController::class, 'respond']);
             Route::put('/applications/{applicationId}/cancel', [PlayerProfileController::class, 'cancel']);
@@ -908,7 +935,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
         Route::get('/terrains', [TerrainOwnerController::class, 'index']);
         Route::get('/terrains/{id}', [TerrainOwnerController::class, 'show']);
 
-        Route::middleware('activity.not_locked')->group(function () {
+        Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
             Route::post('/terrains', [TerrainOwnerController::class, 'store']);
             Route::put('/terrains/{id}', [TerrainOwnerController::class, 'update']);
             Route::delete('/terrains/{id}', [TerrainOwnerController::class, 'destroy']);
@@ -930,7 +957,7 @@ Route::middleware(['auth:sanctum', 'user.approved', 'module.maintenance:notifica
 
         Route::get('/terrains/{terrainId}/calendar', [BookingController::class, 'getOwnerCalendar']);
 
-        Route::middleware('activity.not_locked')->group(function () {
+        Route::middleware(['activity.not_locked', 'throttle:booking-manage'])->group(function () {
             Route::put('/bookings/{bookingId}/status', [BookingController::class, 'ownerManageBooking']);
             Route::post('/terrains/{terrainId}/guest-bookings', [BookingController::class, 'ownerCreateGuestBooking']);
             Route::put('/bookings/{id}/approve', [OwnerBookingController::class, 'approve']);

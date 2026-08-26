@@ -24,7 +24,7 @@ export default function AboutStats() {
     { key: 'teams', icon: faUsers, label: t('about.stats.teams') },
     { key: 'stadiums', icon: faLandmark, label: t('about.stats.stadiums') },
     { key: 'matches', icon: faTrophy, label: t('about.stats.matches') },
-    { key: 'live', icon: null, label: t('about.stats.live') },
+    { key: 'live_matches', icon: null, label: t('about.stats.live') },
   ]
 
   return (

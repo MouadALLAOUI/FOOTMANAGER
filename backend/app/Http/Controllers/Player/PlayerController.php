@@ -24,7 +24,7 @@ class PlayerController extends Controller
         $user = $request->user()->load('playerProfile');
 
         return response()->json([
-            'user' => $user->only('id', 'name', 'email', 'phone', 'role', 'status', 'is_whatsapp'),
+            'user' => $user->makeVisible('phone', 'email', 'is_whatsapp')->only('id', 'name', 'email', 'phone', 'role', 'status', 'is_whatsapp'),
             'profile' => $user->playerProfile,
         ]);
     }
@@ -70,7 +70,7 @@ class PlayerController extends Controller
 
         return response()->json([
             'message' => 'تم تحديث الملف الشخصي بنجاح',
-            'user' => $user->only('id', 'name', 'email', 'phone', 'role', 'status', 'is_whatsapp'),
+            'user' => $user->makeVisible('phone', 'email', 'is_whatsapp')->only('id', 'name', 'email', 'phone', 'role', 'status', 'is_whatsapp'),
             'profile' => $user->playerProfile,
         ]);
     }
@@ -511,7 +511,7 @@ class PlayerController extends Controller
         $team = $user->rosterPlayer?->team;
 
         return response()->json([
-            'user' => $user->only('id', 'name', 'email', 'phone', 'role', 'status', 'is_whatsapp'),
+            'user' => $user->makeVisible('phone', 'email', 'is_whatsapp')->only('id', 'name', 'email', 'phone', 'role', 'status', 'is_whatsapp'),
             'profile' => $user->playerProfile,
             'stats' => $this->statsFor($user),
             'upcoming_match' => $upcomingMatch,

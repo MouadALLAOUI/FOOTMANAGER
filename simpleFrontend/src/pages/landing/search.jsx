@@ -3,11 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faCalendarDays,
-  faChevronDown,
   faMagnifyingGlass,
   faMapPin,
 } from '@fortawesome/free-solid-svg-icons'
 import TimePicker from '../../components/TimePicker'
+import Select from '../../components/ui/Select'
 import { useCitiesSelect } from '../../api/queries'
 
 const today = new Date().toISOString().split('T')[0]
@@ -41,6 +41,8 @@ export default function Search({ city, onCityChange, onSubmit }) {
   const { data: citiesData } = useCitiesSelect()
   const cities = citiesData?.cities || []
 
+  const cityOptions = cities.map((c) => ({ value: c.slug, label: c.localized_name }))
+
   const openPicker = (ref) => (e) => {
     const el = ref.current
     if (!el || el.contains(e.target)) return
@@ -69,23 +71,14 @@ export default function Search({ city, onCityChange, onSubmit }) {
             icon={faMapPin}
             onClick={openPicker(cityRef)}
           >
-            <span className="relative">
-              <select
-                ref={cityRef}
+            <span className="relative" ref={cityRef}>
+              <Select
+                bare
                 value={city}
-                onChange={(e) => onCityChange(e.target.value)}
-                className="w-full cursor-pointer appearance-none bg-transparent py-0.5 pe-5 text-sm font-bold text-slate-800 outline-none"
-              >
-                <option value="" disabled>
-                  {t('landing.hero.cityPlaceholder')}
-                </option>
-                {cities.map((c) => (
-                  <option key={c.id} value={c.slug}>
-                    {c.localized_name}
-                  </option>
-                ))}
-              </select>
-              <FontAwesomeIcon icon={faChevronDown} className="pointer-events-none absolute end-0 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                onChange={onCityChange}
+                options={cityOptions}
+                placeholder={t('landing.hero.cityPlaceholder')}
+              />
             </span>
           </Field>
 

@@ -434,7 +434,6 @@ class TerrainOwnerController extends Controller
             'id' => $manager->id,
             'name' => $manager->name,
             'phone' => $manager->phone,
-            'email' => $manager->email,
             'profile_image' => $manager->playerProfile?->photo_url,
         ];
     }

@@ -491,6 +491,7 @@ class MatchRequestController extends Controller
 
                 if (! empty($matchRequest->stadium_id)) {
                     $matchRequest->load(['hostTeam.manager', 'stadium']);
+                    $matchRequest->hostTeam->manager->makeVisible('phone', 'is_whatsapp');
 
                     return response()->json([
                         'message' => 'تم قبول التحدي بنجاح! يمكنك الآن التواصل مع الفريق المنظم',

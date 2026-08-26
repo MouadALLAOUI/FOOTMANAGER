@@ -25,6 +25,7 @@ export default function Owners() {
       subtitle="إدارة حسابات أصحاب التيران والموافقة على طلباتهم"
       tabs={tabs}
       detailTitle="تفاصيل صاحب الملاعب"
+      showPlan
       extraColumns={[
         {
           key: 'terrains',

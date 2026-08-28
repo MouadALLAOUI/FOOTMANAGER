@@ -7,7 +7,6 @@ import {
   faGlobe,
   faPlus,
   faUser,
-  faFutbol,
   faXmark,
   faArrowRightFromBracket,
   faGaugeHigh,
@@ -116,9 +115,11 @@ export default function Navbar() {
             className="group flex items-center gap-3"
             aria-label="أجي نقصرو"
           >
-            <div className="grid size-10 place-items-center rounded-xl bg-green-500 shadow-[0_8px_20px_rgba(22,163,74,0.45)] transition-transform duration-300 group-hover:scale-105">
-              <FontAwesomeIcon icon={faFutbol} className="size-6 text-white" />
-            </div>
+            <img
+              src="/logo.jpeg"
+              alt=""
+              className="size-11 shrink-0 rounded-xl object-cover shadow-[0_8px_20px_rgba(22,163,74,0.45)] ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-105"
+            />
             <div className="leading-tight">
               <p className="text-base font-extrabold text-white">أجي نقصرو</p>
               <p className="hidden text-[11px] text-white/60 sm:block">{t('landing.nav.tagline')}</p>

@@ -39,9 +39,11 @@ export default function PromoPanel() {
 
       <div className="relative z-10 flex flex-1 flex-col p-10 xl:p-12">
         <div className="flex items-center gap-3 cursor-pointer" onClick={(e) => navigate('/')}>
-          <div className="grid size-12 place-items-center rounded-2xl bg-green-500 shadow-[0_14px_34px_rgba(22,163,74,0.5)]">
-            <FontAwesomeIcon icon={faFutbol} className="size-7 text-white" />
-          </div>
+          <img
+            src="/logo.jpeg"
+            alt=""
+            className="size-12 shrink-0 rounded-2xl object-cover shadow-[0_14px_34px_rgba(22,163,74,0.5)] ring-1 ring-white/20"
+          />
           <div className="leading-tight">
             <p className="text-xl font-black text-white">{t('common.appName')}</p>
             <p className="mt-1 text-xs text-white/60">{t('auth.promo.tagline')}</p>

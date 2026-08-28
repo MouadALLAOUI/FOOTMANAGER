@@ -32,6 +32,7 @@ import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import { AreaTrend } from '../../../components/dashboard/charts'
 import { useAuth } from '../../../context/AuthContext'
 import { useToast } from '../../../components/ui/Toast'
+import GoToSite from '../../../components/ui/GoToSite'
 import { invalidateKeys, useNotifications, useOwnerOverview, useOwnerOverviewAnalytics } from '../../../api/queries'
 import { typeLabels } from '../components/TerrainCard'
 import { bookingTypeLabels, reservationTypeLabels } from '../components/OwnerBookingCard'
@@ -212,6 +213,10 @@ export default function Overview() {
 
   return (
     <div>
+      <div className="mb-4 flex justify-end">
+        <GoToSite />
+      </div>
+
       {/* Hero */}
       <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-l from-[#0b1220] via-[#0f1a2e] to-[#12321f] p-7 text-white shadow-[0_18px_40px_rgba(15,23,42,0.25)] lg:p-8">
         <div className="pointer-events-none absolute -end-16 -top-16 size-64 rounded-full bg-green-500/20 blur-3xl" />

@@ -12,9 +12,8 @@ import {
   faCheck,
 } from '@fortawesome/free-solid-svg-icons'
 import { useAuth } from '../../context/AuthContext'
-import { consumeAction, peekAction } from '../../lib/intent'
+import { peekAction } from '../../lib/intent'
 import { getFieldErrors } from '../../lib/errorState'
-import { takeAuthRedirect } from '../../api/client'
 import PremiumField from './premiumField'
 
 export default function LoginForm() {
@@ -49,31 +48,8 @@ export default function LoginForm() {
     setFieldErrors({})
     setBusy(true)
     try {
-      const user = await login(loginValue, password)
-      const redirect = takeAuthRedirect()
-      const intent = consumeAction()
-      let dest
-      if (redirect && redirect.startsWith('/')) {
-        dest = redirect
-      } else if (intent?.type === 'book') {
-        dest = `/fields?book=${intent.id}`
-      } else if (intent?.type === 'challenge') {
-        dest = `/matches?challenge=${intent.teamId}&teamName=${encodeURIComponent(intent.teamName || '')}`
-      } else if (intent?.type === 'register_tournament') {
-        dest = `/tournaments/${intent.slug}?register=1`
-      } else {
-        dest =
-          user.role === 'admin' || user.role === 'sub_admin'
-            ? '/admin'
-            : user.role === 'terrain_owner'
-              ? '/terrain'
-              : user.role === 'player'
-                ? '/player'
-                : user.role === 'committee'
-                  ? '/committee'
-                  : '/dashboard'
-      }
-      navigate(dest)
+      await login(loginValue, password)
+      navigate('/')
     } catch (err) {
       const fe = getFieldErrors(err)
       if (Object.keys(fe).length > 0) {

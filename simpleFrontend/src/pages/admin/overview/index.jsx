@@ -5,6 +5,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Card, PageHeader, StatWidget, Skeleton, Badge } from '../../../components/admin/ui'
 import { activityTypeMeta, typeToneMap } from '../../../components/admin/activityMeta'
+import GoToSite from '../../../components/ui/GoToSite'
 
 export default function Overview() {
   const { t } = useTranslation()
@@ -40,6 +41,9 @@ export default function Overview() {
 
   return (
     <div>
+      <div className="mb-4 flex justify-end">
+        <GoToSite />
+      </div>
       <PageHeader
         title={t('admin.overview.title')}
         subtitle={t('admin.overview.subtitle')}

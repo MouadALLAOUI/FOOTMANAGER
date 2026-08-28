@@ -8,6 +8,7 @@ import PerformancePanel from '../components/PerformancePanel'
 import BookingsPanel from '../components/BookingsPanel'
 import RecruitmentPanel from '../components/RecruitmentPanel'
 import ActivityFeed from '../components/ActivityFeed'
+import GoToSite from '../../../components/ui/GoToSite'
 import {
   MatchDrawer,
   BookingDrawer,
@@ -25,6 +26,7 @@ export default function Overview() {
   return (
     <CommandCenterProvider>
       <div className="space-y-5">
+        <GoToSite />
         <HeroHeader />
 
         <TodayPanel />

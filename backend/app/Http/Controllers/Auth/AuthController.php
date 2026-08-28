@@ -47,8 +47,8 @@ class AuthController extends Controller
 
             Team::create([
                 'name' => $data['team_name'],
-                'member_count' => $data['member_count'] ?? null,
-                'category' => $data['team_category'] ?? null,
+                'member_count' => $data['member_count'] ?? 0,
+                'category' => $data['team_category'] ?? 'adult',
                 'association_name' => $data['association_name'] ?? null,
                 'manager_id' => $user->id,
                 'visibility' => 'private',

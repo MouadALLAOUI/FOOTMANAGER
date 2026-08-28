@@ -18,8 +18,11 @@ import {
   faShirt,
   faLocationDot,
   faTrophy,
+  faClock,
+  faCircleCheck,
 } from '@fortawesome/free-solid-svg-icons'
 import { useAuth } from '../../context/AuthContext'
+import { useCitiesSelect } from '../../api/queries'
 import PremiumField from './premiumField'
 
 const roles = [
@@ -41,6 +44,9 @@ export default function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const { data: citiesData, isLoading: citiesLoading } = useCitiesSelect()
+  const cities = citiesData?.cities || []
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -50,13 +56,44 @@ export default function RegisterForm() {
     setBusy(true)
     try {
       await register(role, form)
-      navigate('/pending')
+      setSuccess(true)
     } catch (err) {
       const first = Object.values(err.response?.data?.errors || {})[0]
       setError(first?.[0] || err.response?.data?.message || t('auth.errors.registerFailed'))
     } finally {
       setBusy(false)
     }
+  }
+
+  if (success) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col items-center justify-center px-2 py-8 text-center">
+        <div className="mb-5 grid size-16 place-items-center rounded-3xl bg-amber-500/15 text-amber-500">
+          <FontAwesomeIcon icon={faClock} className="size-7" />
+        </div>
+        <h2 className="text-xl font-extrabold text-slate-900">طلبك قيد المراجعة</h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-500">
+          تم استلام طلبك بنجاح. فريقنا يراجع طلبك حالياً وسيتم تفعيل حسابك فور الموافقة، عادة خلال 24 ساعة.
+        </p>
+        <div className="mt-6 w-full rounded-2xl bg-slate-50 p-4 text-start ring-1 ring-slate-200">
+          <div className="flex items-center gap-3">
+            <FontAwesomeIcon icon={faCircleCheck} className="size-4 text-green-500" />
+            <span className="text-xs font-bold text-slate-900">{form.name || t('auth.fields.name')}</span>
+          </div>
+          <div className="mt-2 flex items-center gap-3">
+            <FontAwesomeIcon icon={faCircleCheck} className="size-4 text-green-500" />
+            <span className="text-xs text-slate-500">تم استلام جميع المعلومات بنجاح</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/pending')}
+          className="mt-6 flex h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-extrabold text-white transition-colors hover:bg-slate-800"
+        >
+          متابعة
+        </button>
+      </div>
+    )
   }
 
   if (!role) {
@@ -199,11 +236,20 @@ export default function RegisterForm() {
           <PremiumField
             id="reg-city"
             label={t('auth.fields.city')}
-            placeholder={t('auth.placeholders.city')}
+            select
             icon={<FontAwesomeIcon icon={faLocationDot} className="size-[18px]" />}
             value={form.city || ''}
             onChange={set('city')}
-          />
+          >
+            <option value="" disabled>
+              {citiesLoading ? t('common.loading') : t('auth.selects.city', { defaultValue: 'Select city' })}
+            </option>
+            {cities.map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.localized_name || c.name}
+              </option>
+            ))}
+          </PremiumField>
         </div>
       )}
 

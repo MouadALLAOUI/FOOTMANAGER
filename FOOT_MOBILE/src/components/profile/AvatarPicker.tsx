@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useTheme } from '@/theme/ThemeProvider';
 import { useI18n } from '@/i18n/I18nProvider';
 import { Camera, Trash2 } from 'lucide-react-native';
+import { compressSquareImage } from '@/utils/image';
 
 interface Props {
   editable?: boolean;
@@ -33,7 +34,7 @@ export function AvatarPicker({ editable = true }: Props): React.JSX.Element {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.85,
@@ -41,12 +42,15 @@ export function AvatarPicker({ editable = true }: Props): React.JSX.Element {
     });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
-    const uri = asset.uri;
-    const name = asset.fileName ?? `avatar_${Date.now()}.jpg`;
-    const type = asset.mimeType ?? 'image/jpeg';
-    setPreviewUri(uri);
+    setPreviewUri(asset.uri);
     setUploading(true);
     try {
+      const compressed = await compressSquareImage(asset.uri, 512, 500);
+      const uri = compressed.uri;
+      const baseName = asset.fileName?.replace(/\.[a-z0-9]+$/i, '') ?? '';
+      const name = baseName ? `${baseName}_${Date.now()}.jpg` : `avatar_${Date.now()}.jpg`;
+      const type = 'image/jpeg';
+      setPreviewUri(uri);
       const res = await uploadAvatar({ uri, name, type });
       updateCachedUser(res.user);
       show(isRTL ? 'تم تحديث الصورة' : 'Avatar updated', 'success');

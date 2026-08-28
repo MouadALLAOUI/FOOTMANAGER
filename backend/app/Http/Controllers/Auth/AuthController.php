@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -46,8 +47,8 @@ class AuthController extends Controller
 
             Team::create([
                 'name' => $data['team_name'],
-                'member_count' => $data['member_count'],
-                'category' => $data['team_category'],
+                'member_count' => $data['member_count'] ?? null,
+                'category' => $data['team_category'] ?? null,
                 'association_name' => $data['association_name'] ?? null,
                 'manager_id' => $user->id,
                 'visibility' => 'private',
@@ -62,7 +63,7 @@ class AuthController extends Controller
             'phone' => $data['phone'],
             'email' => $data['email'] ?? null,
             'team_name' => $data['team_name'],
-            'team_category' => $data['team_category'],
+            'team_category' => $data['team_category'] ?? null,
         ]);
 
         return response()->json([
@@ -76,6 +77,7 @@ class AuthController extends Controller
         $request->validate([
             'login' => 'required|string',
             'password' => 'required|string',
+            'device_id' => 'nullable|string|max:100',
         ]);
 
         $login = $request->login;
@@ -108,13 +110,26 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // Per-device token rotation: keep multi-session, but a given device
+        // (identified by a stable device_id) only ever holds one live token.
+        $deviceId = trim((string) $request->input('device_id'));
+        if ($deviceId === '') {
+            $deviceId = (string) Str::uuid();
+        }
+        $deviceId = Str::limit($deviceId, 100, '');
+
+        // Revoke this device's previous token (name = device_id); other
+        // devices' tokens are left untouched.
+        $user->tokens()->where('name', $deviceId)->delete();
+
         $expiration = config('sanctum.expiration');
         $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
-        $token = $user->createToken('auth_token', ['*'], $expiresAt)->plainTextToken;
+        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
 
         return response()->json([
             'user' => $this->userPayload($user),
             'token' => $token,
+            'device_id' => $deviceId,
         ]);
     }
 

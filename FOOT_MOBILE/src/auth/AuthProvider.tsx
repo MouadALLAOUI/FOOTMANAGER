@@ -13,6 +13,7 @@ import { getUserMessage, isApiError } from '@/api/errors';
 import { queryClient } from '@/api/query-client';
 import { type CanFn, createCan, type ActivityLockInfo, getActivityLockInfo } from '@/auth/permissions';
 import { type Role, isAdmin as checkAdmin, hasAdminAccess as checkAdminAccess } from '@/auth/roles';
+import { registerCurrentDevice, unregisterCurrentDevice } from '@/services/notifications/push-notifications';
 import { persistentStorage } from '@/services/storage/persistent-storage';
 import { secureStorage } from '@/services/storage/secure-storage';
 
@@ -129,6 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
         setUser(data.user);
         persistentStorage.setJson(CACHED_USER_KEY, data.user);
+
+        // Re-register the device token on session restore (fresh token may
+        // have been issued while the app was away, or the row was pruned).
+        void registerCurrentDevice();
       } catch {
         if (cancelled) return;
         // Token invalid / expired — clear everything
@@ -148,19 +153,28 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   // ── Login ──
   const login = useCallback(async (loginField: string, password: string): Promise<void> => {
+    const deviceId = await secureStorage.getDeviceIdAsync();
+
     const res = await post<{ user: AuthUser; token: string }>(
       '/login',
-      { login: loginField, password },
+      { login: loginField, password, device_id: deviceId },
       { auth: false },
     );
 
     await secureStorage.setTokenAsync(res.token);
     persistentStorage.setJson(CACHED_USER_KEY, res.user);
     setUser(res.user);
+
+    // Register this device for push notifications (best-effort).
+    void registerCurrentDevice();
   }, []);
 
   // ── Logout ──
   const logout = useCallback(async (): Promise<void> => {
+    // Remove the device push token before server-side logout so the user
+    // stops receiving notifications once signed out.
+    await unregisterCurrentDevice().catch(() => {});
+
     // Best-effort server-side logout
     try {
       await post('/logout');

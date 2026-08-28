@@ -33,6 +33,7 @@ class UpdateTournamentRequest extends FormRequest
             'teams_count' => 'sometimes|integer|min:2|max:64',
             'groups_count' => 'sometimes|integer|min:1|max:16',
             'teams_per_group' => 'sometimes|integer|min:2|max:16',
+            'max_players_per_team' => 'nullable|integer|min:1|max:99',
             'group_mode' => 'sometimes|in:free,fixed',
             'match_duration_minutes' => 'sometimes|integer|min:1|max:300',
             'matches_per_day' => 'nullable|integer|min:1|max:30',
@@ -52,6 +53,8 @@ class UpdateTournamentRequest extends FormRequest
             'start_date.required' => 'تاريخ انطلاق البطولة مطلوب',
             'end_date.after_or_equal' => 'تاريخ نهاية البطولة يجب أن يكون بعد تاريخ البداية أو مساوياً له',
             'tournament_format.in' => 'صيغة البطولة غير صالحة',
+            'max_players_per_team.min' => 'الحد الأقصى للاعبين يجب أن يكون 1 على الأقل',
+            'max_players_per_team.max' => 'الحد الأقصى للاعبين لا يجب أن يتجاوز 99',
         ];
     }
 }

@@ -134,8 +134,10 @@ export function toTeamCard(m) {
 export function toLeaderboardRow(r) {
   return {
     id: r.rank ?? r.id,
+    team_id: r.id,
     name: r.name || '—',
     city: r.city || '',
+    logo_url: r.logo_url || '',
     played: r.matches_played ?? 0,
     wins: r.wins ?? 0,
     goals: r.goals_for ?? 0,

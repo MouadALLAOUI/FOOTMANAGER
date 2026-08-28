@@ -174,8 +174,8 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
                   <Button
                     size="sm"
                     className="shrink-0"
-                    loading={busy === `respond-${r.team_id}`}
-                    onClick={() => respond(r.team_id, 'approve')}
+                    loading={busy === `respond-${r.team?.id}`}
+                    onClick={() => respond(r.team?.id, 'approve')}
                   >
                     <Check className="size-3.5" />
                     {t('committee.detail.approveRequest')}
@@ -184,10 +184,10 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
                     size="sm"
                     variant="dangerSoft"
                     className="shrink-0"
-                    loading={busy === `respond-${r.team_id}`}
+                    loading={busy === `respond-${r.team?.id}`}
                     onClick={() => {
                       if (!window.confirm(t('committee.detail.rejectRequestConfirm'))) return
-                      respond(r.team_id, 'reject')
+                      respond(r.team?.id, 'reject')
                     }}
                   >
                     <X className="size-3.5" />

@@ -4,13 +4,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, type ViewStyle } 
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, sizes } from '@/theme/spacing';
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface Props {
   title: string;
   onPress?: () => void;
-  variant?: Variant;
+  variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: boolean;
   loading?: boolean;

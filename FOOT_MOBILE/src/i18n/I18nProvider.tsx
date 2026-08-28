@@ -5,6 +5,7 @@ import * as Localization from 'expo-localization';
 import { STORAGE_KEYS } from '@/services/storage/keys';
 import { persistentStorage } from '@/services/storage/persistent-storage';
 import type { SupportedLocale } from '@/types';
+import { formatDate as canonicalFormatDate, formatNumber as canonicalFormatNumber, formatRelativeTime as canonicalFormatRelativeTime } from '@/utils/format';
 
 import ar from './locales/ar.json';
 import en from './locales/en.json';
@@ -59,12 +60,6 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
-const localeTag: Record<SupportedLocale, string> = {
-  ar: 'ar-MA',
-  en: 'en-US',
-  fr: 'fr-FR',
-};
-
 export function I18nProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const [locale, setLocaleState] = useState<SupportedLocale>(() => detectDeviceLocale());
   const [hydrated, setHydrated] = useState(false);
@@ -98,54 +93,19 @@ export function I18nProvider({ children }: { children: ReactNode }): React.JSX.E
   );
 
   const formatDate = useCallback(
-    (value: string | Date, opts?: Intl.DateTimeFormatOptions): string => {
-      const date = typeof value === 'string' ? new Date(value) : value;
-      if (Number.isNaN(date.getTime())) return String(value);
-      try {
-        return new Intl.DateTimeFormat(localeTag[locale], {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          ...opts,
-        }).format(date);
-      } catch {
-        return date.toLocaleDateString();
-      }
-    },
+    (value: string | Date, opts?: Intl.DateTimeFormatOptions): string =>
+      canonicalFormatDate(value, locale, opts),
     [locale],
   );
 
   const formatRelativeTime = useCallback(
-    (value: string | Date): string => {
-      const date = typeof value === 'string' ? new Date(value) : value;
-      if (Number.isNaN(date.getTime())) return String(value);
-      const diffMs = Date.now() - date.getTime();
-      const minutes = Math.round(diffMs / 60000);
-      const hours = Math.round(minutes / 60);
-      const days = Math.round(hours / 24);
-      try {
-        if (typeof Intl !== 'undefined' && typeof (Intl as unknown as { RelativeTimeFormat?: unknown }).RelativeTimeFormat !== 'undefined') {
-          const rtf = new (Intl as unknown as { RelativeTimeFormat: new (l: string, o: unknown) => { format: (n: number, u: string) => string } }).RelativeTimeFormat(localeTag[locale], { numeric: 'auto' });
-          if (Math.abs(minutes) < 60) return rtf.format(-minutes, 'minute');
-          if (Math.abs(hours) < 24) return rtf.format(-hours, 'hour');
-          return rtf.format(-days, 'day');
-        }
-      } catch {}
-      if (Math.abs(minutes) < 60) return `${Math.abs(minutes)}m`;
-      if (Math.abs(hours) < 24) return `${Math.abs(hours)}h`;
-      return `${Math.abs(days)}d`;
-    },
+    (value: string | Date): string => canonicalFormatRelativeTime(value, locale),
     [locale],
   );
 
   const formatNumber = useCallback(
-    (value: number, opts?: Intl.NumberFormatOptions): string => {
-      try {
-        return new Intl.NumberFormat(localeTag[locale], opts).format(value);
-      } catch {
-        return String(value);
-      }
-    },
+    (value: number, opts?: Intl.NumberFormatOptions): string =>
+      canonicalFormatNumber(value, locale, opts),
     [locale],
   );
 

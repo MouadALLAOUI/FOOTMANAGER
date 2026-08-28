@@ -41,21 +41,57 @@ export const q = {
     matchRequestId,
     'roster',
   ],
+  managerMatchDetail: (id: number | string) => ['manager', 'match-detail', id],
+  managerPendingScores: () => ['manager', 'pending-scores'],
+  managerPendingConfirmations: () => ['manager', 'pending-confirmations'],
+
+  teamMembers: (params?: QueryParams) => ['manager', 'team-members', params],
+  squadMemberDetail: (id: number | string) => ['manager', 'team-members', id],
+  managerBookingDetail: (id: number | string) => ['manager', 'bookings', id],
 
   ownerTerrains: () => ['owner', 'terrains'],
+  ownerTerrainDetail: (id: number | string | undefined) => ['owner', 'terrains', id],
   ownerStats: () => ['owner', 'stats'],
   ownerBookings: () => ['owner', 'bookings'],
   ownerOverview: () => ['owner', 'overview'],
   ownerOverviewAnalytics: (mode: string) => ['owner', 'analytics', 'overview', mode],
-  ownerCalendar: (id: number | string, week?: string | number) => [
+  ownerCalendar: (id: number | string | undefined, week?: string | number) => [
     'owner',
     'terrains',
     id,
     'calendar',
     week,
   ],
+  ownerSlotClosures: (terrainId: number | string | undefined) => [
+    'owner',
+    'terrains',
+    terrainId,
+    'slot-closures',
+  ],
+  ownerCancellationRequests: () => ['owner', 'cancellation-requests'],
+  ownerPendingBookings: () => ['owner', 'pending-bookings'],
 
   adminStats: () => ['admin', 'stats'],
+
+  adminApprovalFeed: () => ['admin', 'approvals', 'feed'],
+  adminPendingManagers: () => ['admin', 'approvals', 'managers'],
+  adminPendingOwners: () => ['admin', 'approvals', 'owners'],
+  adminPendingCommittees: () => ['admin', 'approvals', 'committees'],
+
+  adminUsers: (scope: string, search?: string) => ['admin', 'users', scope ?? 'all', search ?? ''],
+
+  committeeTournaments: (params?: QueryParams) => ['committee', 'tournaments', params],
+  committeeTournament: (id: number | string) => ['committee', 'tournaments', id],
+  tournamentRegistrations: (id: number | string) => ['committee', 'tournaments', id, 'registrations'],
+  tournamentTeams: (id: number | string) => ['committee', 'tournaments', id, 'teams'],
+  tournamentFixtures: (id: number | string) => ['committee', 'tournaments', id, 'fixtures'],
+  tournamentFixturesFiltered: (id: number | string, matchday?: number, roundId?: number) => [
+    'committee',
+    'tournaments',
+    id,
+    'fixtures',
+    { matchday, roundId },
+  ],
 
   playerStats: () => ['player', 'stats'],
   playerProfile: () => ['player', 'profile'],
@@ -63,10 +99,15 @@ export const q = {
   playerFeed: (params?: QueryParams) => ['player', 'match-feed', params],
   applications: () => ['player', 'applications'],
   playerMatchDetail: (id: number | string) => ['player', 'match-detail', id],
+  myTeam: () => ['player', 'my-team'],
+  playerBookings: (scope?: string) => ['player', 'bookings', scope ?? 'list'],
+  playerBookingDetail: (id: number | string) => ['player', 'bookings', id],
 
   tournaments: (params?: QueryParams) => ['v1', 'tournaments', params],
   tournamentStatistics: (slug: string) => ['v1', 'tournaments', slug, 'statistics'],
   tournamentStandings: (slug: string) => ['v1', 'tournaments', slug, 'standings'],
+
+  committeeTournamentStandings: (id: number | string) => ['committee', 'tournaments', id, 'standings'],
 
   playerLeaderboard: (params?: QueryParams) => ['player', 'leaderboard', params],
   playerDomainStatistics: () => ['player', 'domain-statistics'],

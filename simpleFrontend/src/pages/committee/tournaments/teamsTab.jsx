@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ListChecks, Plus, Trash2, UserPlus, Wallet, X } from 'lucide-react'
+import { Check, ListChecks, Plus, RotateCcw, Trash2, UserPlus, Wallet, X } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Empty, Field, Modal, Skeleton } from '../../../components/dashboard/ui'
@@ -8,6 +8,7 @@ import Drawer from '../../../components/dashboard/Drawer'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import { TeamAvatar } from '../../tournaments/shared'
+import TeamSquadModal from './teamSquadModal'
 
 export default function TeamsTab({ tournament, refresh, refreshKey }) {
   const { t } = useTranslation()
@@ -15,6 +16,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState([])
   const [busy, setBusy] = useState(null)
+  const [squadTeam, setSquadTeam] = useState(null)
 
   const [selectMode, setSelectMode] = useState(false)
   const [bulkSelected, setBulkSelected] = useState([])
@@ -55,6 +57,19 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
     try {
       await api.post(`/committee/tournaments/${tournament.id}/teams/${teamId}/payment`)
       toast.success(t('committee.detail.markPaidToast'))
+      refresh()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const unmarkPaid = async (teamId) => {
+    setBusy(`unpay-${teamId}`)
+    try {
+      await api.post(`/committee/tournaments/${tournament.id}/teams/${teamId}/payment/unmark`)
+      toast.success(t('committee.detail.unmarkPaidToast'))
       refresh()
     } catch (e) {
       toastApiError(e, t)
@@ -235,8 +250,8 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                   <Button
                     size="sm"
                     className="shrink-0"
-                    loading={busy === `respond-${r.team_id}`}
-                    onClick={() => respond(r.team_id, 'approve')}
+                    loading={busy === `respond-${r.team?.id}`}
+                    onClick={() => respond(r.team?.id, 'approve')}
                   >
                     <Check className="size-3.5" />
                     {t('committee.detail.approveRequest')}
@@ -245,10 +260,10 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     size="sm"
                     variant="dangerSoft"
                     className="shrink-0"
-                    loading={busy === `respond-${r.team_id}`}
+                    loading={busy === `respond-${r.team?.id}`}
                     onClick={() => {
                       if (!window.confirm(t('committee.detail.rejectRequestConfirm'))) return
-                      respond(r.team_id, 'reject')
+                      respond(r.team?.id, 'reject')
                     }}
                   >
                     <X className="size-3.5" />
@@ -293,8 +308,13 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
             return (
               <div
                 key={p.id}
-                className={`flex items-center gap-3 rounded-3xl border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-colors ${
-                  selectMode && checked ? 'border-green-400 bg-green-50/70' : 'border-slate-200/70 bg-white'
+                onClick={() => !selectMode && setSquadTeam(p)}
+                className={`flex items-center gap-3 rounded-3xl border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all ${
+                  selectMode && checked
+                    ? 'border-green-400 bg-green-50/70'
+                    : selectMode
+                      ? 'border-slate-200/70 bg-white'
+                      : 'cursor-pointer border-slate-200/70 bg-white hover:border-green-300 hover:shadow-md'
                 }`}
               >
                 {selectMode ? (
@@ -325,7 +345,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     {p.payment_status === 'pending' && (
                       <button
                         type="button"
-                        onClick={() => markPaid(p.team?.id)}
+                        onClick={(e) => { e.stopPropagation(); markPaid(p.team?.id) }}
                         disabled={busy === `pay-${p.team?.id}`}
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200 transition-colors hover:bg-amber-100 disabled:opacity-50"
                         title={t('committee.detail.markPaid')}
@@ -339,14 +359,25 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                       </button>
                     )}
                     {p.payment_status === 'completed' && (
-                      <span className="inline-flex items-center gap-1 rounded-lg bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700 ring-1 ring-green-200">
-                        <Check className="size-3" />
-                        {t('committee.detail.paymentPaid')}
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700 ring-1 ring-green-200">
+                          <Check className="size-3" />
+                          {t('committee.detail.paymentPaid')}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); unmarkPaid(p.team?.id) }}
+                          disabled={busy === `unpay-${p.team?.id}`}
+                          className="grid size-9 place-items-center rounded-xl bg-slate-50 text-slate-500 ring-1 ring-slate-200 transition-colors hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
+                          title={t('committee.detail.unmarkPaid')}
+                        >
+                          <RotateCcw className="size-4" />
+                        </button>
                       </span>
                     )}
                     <button
                       type="button"
-                      onClick={() => removeTeam(p.team?.id)}
+                      onClick={(e) => { e.stopPropagation(); removeTeam(p.team?.id) }}
                       className="grid size-9 place-items-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50"
                       aria-label={t('committee.detail.removeTeam')}
                     >
@@ -476,6 +507,14 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
           </div>
         </div>
       </Modal>
+
+      <TeamSquadModal
+        key={squadTeam?.team?.id ?? 'none'}
+        team={squadTeam?.team}
+        tournamentId={tournament?.id}
+        open={Boolean(squadTeam)}
+        onClose={() => setSquadTeam(null)}
+      />
     </div>
   )
 }

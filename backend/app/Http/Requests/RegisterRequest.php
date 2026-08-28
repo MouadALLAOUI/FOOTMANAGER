@@ -20,8 +20,8 @@ class RegisterRequest extends FormRequest
             'is_whatsapp' => 'boolean',
             'password' => 'required|string|min:8',
             'team_name' => 'required|string|max:255',
-            'member_count' => 'required|integer|min:1',
-            'team_category' => 'required|in:adult,teenager,children',
+            'member_count' => 'nullable|integer|min:1',
+            'team_category' => 'nullable|in:adult,teenager,children',
             'association_name' => 'nullable|string|max:255',
         ];
     }

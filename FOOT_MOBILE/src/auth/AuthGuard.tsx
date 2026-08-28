@@ -20,6 +20,15 @@ const ALLOWED_GROUPS: Record<string, string[]> = {
   sub_admin: ['(admin)'],
 };
 
+function resolveGroup(segments: string[]): string | null {
+  for (const seg of segments) {
+    if (seg.startsWith('(') && seg.endsWith(')')) {
+      return seg;
+    }
+  }
+  return null;
+}
+
 export function AuthGuard({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { sessionState, role } = useAuth();
   const router = useRouter();
@@ -32,8 +41,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }): React.JS
       return;
     }
     if (sessionState !== 'authenticated' || !role) return;
-    const group = segments[0] as string | undefined;
-    if (!group || group === '(auth)' || group === '(public)' || group === '') return;
+
+    const group = resolveGroup(segments);
+
+    if (group === '(auth)' || group === '(public)' || !group) {
+      if ((group === '(auth)' || group === '(public)') && sessionState === 'authenticated' && role) {
+        router.replace(homeForRole(role as Role));
+      }
+      return;
+    }
+
     const allowed = ALLOWED_GROUPS[role as Role] ?? [];
     if (allowed.length > 0 && !allowed.includes(group)) {
       router.replace(homeForRole(role as Role));

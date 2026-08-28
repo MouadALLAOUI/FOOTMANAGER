@@ -3,8 +3,7 @@
  *
  * Pure module (zero react-native imports) so it stays unit-testable in Node.
  * Used as the web fallback for persistent storage, and as an emergency
- * fallback when native MMKV cannot initialize (e.g. Expo Go, where nitro
- * modules are not available without a development build).
+ * fallback when expo-sqlite cannot initialize.
  */
 export interface StringKV {
   getString(key: string): string | undefined;

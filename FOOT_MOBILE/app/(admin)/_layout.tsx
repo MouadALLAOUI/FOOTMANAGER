@@ -16,18 +16,19 @@ export default function AdminLayout(): React.JSX.Element {
         options={{ title: t('nav.home', 'الرئيسية'), tabBarIcon: ({ color, size }) => <Home size={size} color={color} /> }}
       />
       <Tabs.Screen
-        name="users"
-        options={{ title: t('nav.users', 'المستخدمين'), tabBarIcon: ({ color, size }) => <Users size={size} color={color} /> }}
-      />
-      <Tabs.Screen
         name="approvals"
         options={{ title: t('nav.approvals', 'الطلبات'), tabBarIcon: ({ color, size }) => <CheckCircle size={size} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="users"
+        options={{ title: t('nav.users', 'المستخدمين'), tabBarIcon: ({ color, size }) => <Users size={size} color={color} /> }}
       />
       <Tabs.Screen
         name="profile"
         options={{ title: t('nav.profile', 'حسابي'), tabBarIcon: ({ color, size }) => <User size={size} color={color} /> }}
       />
       <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

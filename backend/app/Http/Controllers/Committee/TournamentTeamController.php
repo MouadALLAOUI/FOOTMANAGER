@@ -10,6 +10,7 @@ use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Resources\TournamentTeamResource;
+use App\Domains\Tournament\Services\TournamentRegistrationService;
 use App\Http\Requests\Committee\AddTournamentTeamsRequest;
 use App\Http\Requests\Committee\BulkCreateFreeTeamsRequest;
 use App\Http\Requests\Committee\CreateFreeTeamRequest;
@@ -22,6 +23,11 @@ use Illuminate\Support\Facades\DB;
 class TournamentTeamController extends Controller
 {
     use AuthorizesRequests;
+
+    public function __construct(
+        private readonly TournamentRegistrationService $registrationService,
+    ) {
+    }
 
     public function index(Tournament $tournament): AnonymousResourceCollection
     {
@@ -70,6 +76,7 @@ class TournamentTeamController extends Controller
                     'tournament_id' => $tournament->id,
                     'team_id' => $teamId,
                     'status' => TournamentTeam::STATUS_REGISTERED,
+                    'payment_status' => $this->registrationService->initialPaymentStatus($tournament),
                 ]);
             }
         });
@@ -88,8 +95,12 @@ class TournamentTeamController extends Controller
 
             $this->assertCapacity($tournament, 1);
 
+            $name = trim($request->input('name'));
+
+            $this->assertUniqueTeamNames($tournament, [$name]);
+
             $team = Team::query()->create([
-                'name' => $request->input('name'),
+                'name' => $name,
                 'is_free' => true,
             ]);
 
@@ -97,6 +108,7 @@ class TournamentTeamController extends Controller
                 'tournament_id' => $tournament->id,
                 'team_id' => $team->id,
                 'status' => TournamentTeam::STATUS_REGISTERED,
+                'payment_status' => $this->registrationService->initialPaymentStatus($tournament),
             ]);
         });
 
@@ -116,6 +128,8 @@ class TournamentTeamController extends Controller
 
             $this->assertCapacity($tournament, count($names));
 
+            $this->assertUniqueTeamNames($tournament, $names);
+
             foreach ($names as $name) {
                 $team = Team::query()->create([
                     'name' => trim($name),
@@ -126,6 +140,7 @@ class TournamentTeamController extends Controller
                     'tournament_id' => $tournament->id,
                     'team_id' => $team->id,
                     'status' => TournamentTeam::STATUS_REGISTERED,
+                    'payment_status' => $this->registrationService->initialPaymentStatus($tournament),
                 ]);
             }
         });
@@ -133,9 +148,11 @@ class TournamentTeamController extends Controller
         return $this->teamCollection($tournament);
     }
 
-    public function approve(Tournament $tournament, int $teamId): AnonymousResourceCollection
+    public function approve(Tournament $tournament, $teamId): AnonymousResourceCollection
     {
         $this->authorize('manage', $tournament);
+
+        $teamId = (int) $teamId;
 
         DB::transaction(function () use ($tournament, $teamId) {
             $tournament = Tournament::query()->lockForUpdate()->findOrFail($tournament->id);
@@ -150,9 +167,11 @@ class TournamentTeamController extends Controller
         return $this->teamCollection($tournament);
     }
 
-    public function reject(Tournament $tournament, int $teamId): AnonymousResourceCollection
+    public function reject(Tournament $tournament, $teamId): AnonymousResourceCollection
     {
         $this->authorize('manage', $tournament);
+
+        $teamId = (int) $teamId;
 
         $registration = $this->findRegistration($tournament, $teamId, TournamentTeam::STATUS_PENDING);
 
@@ -161,9 +180,11 @@ class TournamentTeamController extends Controller
         return $this->teamCollection($tournament);
     }
 
-    public function markPaid(Tournament $tournament, int $teamId): AnonymousResourceCollection
+    public function markPaid(Tournament $tournament, $teamId): AnonymousResourceCollection
     {
         $this->authorize('manage', $tournament);
+
+        $teamId = (int) $teamId;
 
         $registration = TournamentTeam::query()
             ->where('tournament_id', $tournament->id)
@@ -175,6 +196,26 @@ class TournamentTeamController extends Controller
         }
 
         $registration->forceFill(['payment_status' => TournamentTeam::PAYMENT_COMPLETED])->save();
+
+        return $this->teamCollection($tournament);
+    }
+
+    public function unmarkPaid(Tournament $tournament, $teamId): AnonymousResourceCollection
+    {
+        $this->authorize('manage', $tournament);
+
+        $teamId = (int) $teamId;
+
+        $registration = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('team_id', $teamId)
+            ->first();
+
+        if (! $registration || $registration->payment_status !== TournamentTeam::PAYMENT_COMPLETED) {
+            throw new DomainException('لا يوجد دفع مؤكد لهذا الفريق');
+        }
+
+        $registration->forceFill(['payment_status' => TournamentTeam::PAYMENT_PENDING])->save();
 
         return $this->teamCollection($tournament);
     }
@@ -271,11 +312,13 @@ class TournamentTeamController extends Controller
             });
     }
 
-    public function destroy(Tournament $tournament, int $teamId): Response
+    public function destroy(Tournament $tournament, $teamId): Response
     {
         $this->authorize('manage', $tournament);
 
         $this->assertEditable($tournament);
+
+        $teamId = (int) $teamId;
 
         if ($tournament->fixtures()->whereNotNull('home_team_id')->where('home_team_id', $teamId)->exists()
             || $tournament->fixtures()->whereNotNull('away_team_id')->where('away_team_id', $teamId)->exists()) {
@@ -319,6 +362,38 @@ class TournamentTeamController extends Controller
             throw new DomainException(
                 "تجاوزت سعة البطولة: المسجل {$registered} من أصل {$tournament->teams_count}",
             );
+        }
+    }
+
+    /**
+     * Team names must be unique within the tournament (not globally across
+     * tournaments), so identical free teams can exist in different editions.
+     *
+     * @param  list<string>  $names
+     */
+    private function assertUniqueTeamNames(Tournament $tournament, array $names): void
+    {
+        $existing = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->with('team:id,name')
+            ->get()
+            ->map(fn (TournamentTeam $pivot) => $pivot->team ? mb_strtolower(trim($pivot->team->name)) : null)
+            ->filter()
+            ->values()
+            ->all();
+
+        $seen = [];
+
+        foreach ($names as $name) {
+            $name = trim($name);
+            $normalized = mb_strtolower($name);
+
+            if ($normalized === '' || in_array($normalized, $existing, true) || isset($seen[$normalized])) {
+                throw new DomainException("يوجد فريق باسم \"{$name}\" مسجل بالفعل في هذه البطولة");
+            }
+
+            $seen[$normalized] = true;
         }
     }
 }

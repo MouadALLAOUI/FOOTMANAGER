@@ -16,7 +16,6 @@ use App\Domains\Match\Models\MatchStatistic;
 use App\Domains\Match\Models\PlayerMatchPerformance;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Exceptions\DomainException;
-use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use Illuminate\Support\Facades\DB;
@@ -710,18 +709,6 @@ class TournamentResultService
             'plan' => $plan,
             'status' => Tournament::STATUS_COMPLETED,
         ])->save();
-
-        $this->cleanupFreeTeams($tournament);
-    }
-
-    private function cleanupFreeTeams(Tournament $tournament): void
-    {
-        Team::query()
-            ->whereIn('id', TournamentTeam::query()
-                ->where('tournament_id', $tournament->id)
-                ->pluck('team_id'))
-            ->where('is_free', true)
-            ->delete();
     }
 
     private function tournamentFor(Fixture $fixture): Tournament

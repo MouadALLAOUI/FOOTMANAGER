@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -15,11 +16,13 @@ import { Eye, EyeOff, MapPin, Trophy, User, Users } from 'lucide-react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
+import { useToast } from '@/components/ui/Toast';
 import { CitySelect } from '@/components/registration/CitySelect';
 import { ProgressIndicator } from '@/components/registration/ProgressIndicator';
 import { ReviewCard } from '@/components/registration/ReviewCard';
 import { RoleCard } from '@/components/registration/RoleCard';
 import { useAuth, type RegisterRole } from '@/auth/AuthProvider';
+import { getSupportContact } from '@/config/env';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, spacing } from '@/theme/spacing';
@@ -56,25 +59,31 @@ const SKILL_LEVELS = [
 ] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────
-function roleDesc(role: Role, isRTL: boolean, locale: string): string {
-  if (role === 'player') return isRTL ? 'ابحث عن مباريات وانضم كفريق أو لاعب.' : locale === 'fr' ? 'Trouvez des matchs et rejoignez des équipes.' : 'Find matches, join teams and play football.';
-  if (role === 'manager') return isRTL ? 'أدر فريقك ونظم المباريات وابحث عن لاعبين.' : locale === 'fr' ? 'Gérez votre équipe et organisez des matchs.' : 'Manage your team, organize matches and find players.';
-  if (role === 'terrain_owner') return isRTL ? 'أدر ملعبك وحجوزاتك وتوفرك.' : locale === 'fr' ? 'Gérez votre terrain et vos réservations.' : 'Manage your terrain, reservations and availability.';
-  return isRTL ? 'أدر المسابقات والأنشطة الخاصة بالبطولات.' : locale === 'fr' ? 'Gérez les compétitions et tournois.' : 'Manage competitions and tournament activities.';
+function roleTitleKey(role: Role): string {
+  switch (role) {
+    case 'manager': return 'auth.roleManagerTitle';
+    case 'player': return 'auth.rolePlayerTitle';
+    case 'terrain_owner': return 'auth.roleTerrainTitle';
+    default: return 'auth.roleCommitteeTitle';
+  }
 }
-function roleTitleLabel(role: Role, isRTL: boolean, locale: string): string {
-  if (role === 'manager') return isRTL ? 'مدير فريق' : locale === 'fr' ? 'Manager' : 'Manager';
-  if (role === 'player') return isRTL ? 'لاعب' : locale === 'fr' ? 'Joueur' : 'Player';
-  if (role === 'terrain_owner') return isRTL ? 'صاحب ملعب' : locale === 'fr' ? 'Propriétaire' : 'Terrain Owner';
-  return isRTL ? 'اللجنة المنظمة' : locale === 'fr' ? 'Comité' : 'Committee';
+
+function optionLabel(
+  value: { labelAr: string; labelEn: string; labelFr: string },
+  locale: string,
+): string {
+  if (locale === 'ar') return value.labelAr;
+  if (locale === 'fr') return value.labelFr;
+  return value.labelEn;
 }
 
 // ─── Main Wizard ──────────────────────────────────────────────────────
 export default function RegisterWizard(): React.JSX.Element {
   const { register } = useAuth();
-  const { isRTL, locale } = useI18n();
+  const { t, locale, isRTL } = useI18n();
   const { colors } = useTheme();
   const router = useRouter();
+  const toast = useToast();
 
   // ── step: 1..5 (5 = result)
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
@@ -114,16 +123,25 @@ export default function RegisterWizard(): React.JSX.Element {
 
   const getFieldError = (key: string): string | undefined => fieldErrors[key]?.[0];
 
+  const handleSupport = (): void => {
+    const contact = getSupportContact();
+    if (!contact) {
+      toast.show(t('landing.supportNotConfigured'), 'info');
+      return;
+    }
+    Linking.openURL(contact).catch(() => toast.show(t('landing.supportNotConfigured'), 'error'));
+  };
+
   // ── Validation per step ──
   const validateStep2 = (): boolean => {
     const errs: Record<string, string[]> = {};
-    if (!name.trim()) errs.name = [isRTL ? 'أدخل اسمك' : locale === 'fr' ? 'Entrez votre nom' : 'Enter your full name.'];
-    if (!phone.trim()) errs.phone = [isRTL ? 'أدخل رقم الهاتف' : 'Enter your phone number.'];
-    else if (phone.trim().length > 20) errs.phone = [isRTL ? 'رقم الهاتف طويل جداً' : 'Phone too long (max 20).'];
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = [isRTL ? 'أدخل بريداً إلكترونياً صالحاً.' : 'Enter a valid email address.'];
-    if (password.length < 8) errs.password = [isRTL ? 'كلمة المرور 8 أحرف على الأقل' : 'Password must be at least 8 characters.'];
-    if (confirmPassword !== password) errs.password_confirmation = [isRTL ? 'كلمتا المرور غير متطابقتين.' : 'Passwords do not match.'];
-    if (!terms) errs.terms = [isRTL ? 'يجب الموافقة على الشروط.' : 'You must agree to the Terms.'];
+    if (!name.trim()) errs.name = [t('auth.nameRequired')];
+    if (!phone.trim()) errs.phone = [t('auth.phoneRequired')];
+    else if (phone.trim().length > 20) errs.phone = [t('auth.phoneTooLong')];
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = [t('auth.invalidEmail')];
+    if (password.length < 8) errs.password = [t('auth.passwordMinLength')];
+    if (confirmPassword !== password) errs.password_confirmation = [t('auth.passwordMismatch')];
+    if (!terms) errs.terms = [t('auth.termsRequired')];
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) {
       const first = Object.values(errs)[0]?.[0];
@@ -137,10 +155,10 @@ export default function RegisterWizard(): React.JSX.Element {
     if (!role) return false;
     const errs: Record<string, string[]> = {};
     if (role === 'manager') {
-      if (!teamName.trim()) errs.team_name = [isRTL ? 'أدخل اسم الفريق' : 'Enter your team name.'];
+      if (!teamName.trim()) errs.team_name = [t('auth.teamNameRequired')];
       const c = parseInt(memberCount, 10);
-      if (!memberCount || Number.isNaN(c) || c < 1) errs.member_count = [isRTL ? 'أدخل عدداً صحيحاً (1 على الأقل).' : 'Enter valid member count (min 1).'];
-      if (!teamCategory) errs.team_category = [isRTL ? 'اختر فئة الفريق.' : 'Choose team category.'];
+      if (!memberCount || Number.isNaN(c) || c < 1) errs.member_count = [t('auth.memberCountRequired')];
+      if (!teamCategory) errs.team_category = [t('auth.categoryRequired')];
     }
     // player fields are all optional — no required validation
     // terrain_owner / committee: no fields — always valid
@@ -157,7 +175,7 @@ export default function RegisterWizard(): React.JSX.Element {
     clearErrors();
     if (step === 1) {
       if (!role) {
-        setGlobalError(isRTL ? 'اختر نوع الحساب للمتابعة.' : 'Choose an account type to continue.');
+        setGlobalError(t('auth.chooseAccountType'));
         return;
       }
       setStep(2);
@@ -233,27 +251,23 @@ export default function RegisterWizard(): React.JSX.Element {
 
   // ── Result screen ──
   if (step === 5 && result) {
-    const roleTitle = roleTitleLabel(result.role, isRTL, locale);
+    const roleTitle = t(roleTitleKey(result.role));
     return (
       <Screen>
         <View style={styles.center}>
           <View style={[styles.iconCircle, { backgroundColor: colors.primary + '18' }]}>
             <Text style={[styles.iconEmoji, { color: colors.primary }]}>✓</Text>
           </View>
-          <Text style={[styles.title, { color: colors.text }]}>{isRTL ? 'تم إنشاء الحساب!' : locale === 'fr' ? 'Compte créé !' : 'Account Created!'}</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{t('auth.accountCreated')}</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted, textAlign: 'center', lineHeight: 20 }]}>{result.message}</Text>
           <Text style={[styles.desc, { color: colors.textMuted, textAlign: 'center', lineHeight: 18 }]}>
-            {isRTL
-              ? `حساب ${roleTitle} الخاص بك قيد انتظار موافقة فريق FootMANAGER. سنعلمك عند الجاهزية.`
-              : locale === 'fr'
-                ? `Votre compte ${roleTitle} est en attente d'approbation.`
-                : `Your ${roleTitle.toLowerCase()} account is waiting for approval from the FootMANAGER team. We'll notify you once it's ready.`}
+            {t('auth.pendingApproval').replace('%s', roleTitle)}
           </Text>
           <View style={styles.resultActions}>
-            <Button title={isRTL ? 'الذهاب لتسجيل الدخول' : 'GO TO LOGIN'} fullWidth onPress={() => router.replace('/(auth)')} />
-            <Link href="/(public)" asChild>
-              <Text style={StyleSheet.flatten([styles.link, { color: colors.primary }])}>{isRTL ? 'تواصل مع الدعم' : 'CONTACT SUPPORT'}</Text>
-            </Link>
+            <Button title={t('auth.goToLogin')} fullWidth onPress={() => router.replace('/(auth)')} />
+            <Pressable onPress={handleSupport} accessibilityRole="link" hitSlop={12} style={styles.center}>
+              <Text style={StyleSheet.flatten([styles.link, { color: colors.primary }])}>{t('landing.contactSupport')}</Text>
+            </Pressable>
           </View>
         </View>
       </Screen>
@@ -262,7 +276,7 @@ export default function RegisterWizard(): React.JSX.Element {
 
   // ── Progress label per step ──
   const progressLabel =
-    step === 1 ? (isRTL ? 'نوع الحساب' : 'Account Type') : step === 2 ? (isRTL ? 'معلومات الحساب' : 'Account Info') : step === 3 ? (isRTL ? 'معلومات الدور' : 'Role Info') : isRTL ? 'المراجعة' : 'Review';
+    step === 1 ? t('auth.accountType') : step === 2 ? t('auth.accountInfo') : step === 3 ? t('auth.roleInfo') : t('auth.review');
 
   return (
     <Screen>
@@ -279,14 +293,14 @@ export default function RegisterWizard(): React.JSX.Element {
               }}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel={isRTL ? 'رجوع' : 'Back'}
+              accessibilityLabel={t('auth.wizardBack')}
               style={styles.backBtn}
             >
-              <Text style={[styles.backText, { color: colors.text }]}>{isRTL ? '‹ رجوع' : '‹ Back'}</Text>
+              <Text style={[styles.backText, { color: colors.text }]}>{t('auth.wizardBack')}</Text>
             </Pressable>
             <Text style={[styles.logo, { color: colors.primary }]}>FootMANAGER</Text>
             <Link href="/(auth)" asChild>
-              <Text style={StyleSheet.flatten([styles.loginLink, { color: colors.primary }])}>{isRTL ? 'دخول' : 'Login'}</Text>
+              <Text style={StyleSheet.flatten([styles.loginLink, { color: colors.primary, textAlign: isRTL ? 'right' : 'left' }])}>{t('auth.loginShort')}</Text>
             </Link>
           </View>
 
@@ -295,16 +309,16 @@ export default function RegisterWizard(): React.JSX.Element {
           {step === 1 ? (
             <>
               <View style={styles.titles}>
-                <Text style={[styles.title, { color: colors.text }]}>{isRTL ? 'انضم إلى FootMANAGER' : locale === 'fr' ? 'Rejoignez FootMANAGER' : 'Join FootMANAGER'}</Text>
-                <Text style={[styles.subtitle, { color: colors.textMuted }]}>{isRTL ? 'اختر كيف ستستخدم FootMANAGER' : locale === 'fr' ? 'Choisissez votre utilisation' : "Choose how you'll use FootMANAGER"}</Text>
+                <Text style={[styles.title, { color: colors.text }]}>{t('auth.joinTitle')}</Text>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>{t('auth.chooseUsage')}</Text>
               </View>
 
               <View style={styles.roleGrid}>
                 {ROLES.map((r) => (
                   <RoleCard
                     key={r.id}
-                    title={roleTitleLabel(r.id as Role, isRTL, locale)}
-                    description={roleDesc(r.id as Role, isRTL, locale)}
+                    title={t(roleTitleKey(r.id as Role))}
+                    description={t(`auth.role${r.id === 'player' ? 'Player' : r.id === 'manager' ? 'Manager' : r.id === 'terrain_owner' ? 'Terrain' : 'Committee'}Desc`)}
                     Icon={r.Icon as never}
                     selected={role === r.id}
                     onPress={() => {
@@ -322,7 +336,7 @@ export default function RegisterWizard(): React.JSX.Element {
               ) : null}
 
               <Button
-                title={isRTL ? 'متابعة →' : 'Continue →'}
+                title={t('auth.continue')}
                 onPress={handleContinue}
                 disabled={!role}
                 fullWidth
@@ -333,8 +347,8 @@ export default function RegisterWizard(): React.JSX.Element {
           {step === 2 ? (
             <>
               <View style={styles.titles}>
-                <Text style={[styles.title, { color: colors.text }]}>{isRTL ? 'إنشاء حساب' : 'Create Account'}</Text>
-                <Text style={[styles.subtitle, { color: colors.textMuted }]}>{isRTL ? 'أدخل بياناتك الأساسية للبدء' : 'Enter your basic details to get started'}</Text>
+                <Text style={[styles.title, { color: colors.text }]}>{t('auth.createTitle')}</Text>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>{t('auth.createSubtitle')}</Text>
               </View>
 
               {globalError ? (
@@ -344,31 +358,31 @@ export default function RegisterWizard(): React.JSX.Element {
               ) : null}
 
               <View style={styles.form}>
-                <Input label={isRTL ? 'الاسم الكامل' : 'Full Name'} placeholder={isRTL ? 'مثال: أحمد' : 'e.g. John Doe'} value={name} onChangeText={(v) => { setName(v); clearErrors(); }} error={getFieldError('name')} textContentType="name" autoComplete="name" />
-                <Input label={isRTL ? 'رقم الهاتف' : 'Phone Number'} placeholder={isRTL ? '+212 6XX XX XX XX' : '+212 6XX XX XX XX'} value={phone} onChangeText={(v) => { setPhone(v); clearErrors(); }} error={getFieldError('phone')} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" hint={isRTL ? 'المغرب: +212' : 'Morocco: +212'} />
+                <Input label={t('auth.fullName')} placeholder={t('auth.fullNamePlaceholder')} value={name} onChangeText={(v) => { setName(v); clearErrors(); }} error={getFieldError('name')} textContentType="name" autoComplete="name" />
+                <Input label={t('auth.phone')} placeholder={t('auth.phonePlaceholder')} value={phone} onChangeText={(v) => { setPhone(v); clearErrors(); }} error={getFieldError('phone')} keyboardType="phone-pad" textContentType="telephoneNumber" autoComplete="tel" hint={t('auth.phoneCountryHint')} />
                 <View style={[styles.switchRow, { backgroundColor: colors.bgMuted, borderColor: colors.border }]}>
-                  <Text style={[styles.switchLabel, { color: colors.text }]}>{isRTL ? 'هذا الرقم واتساب' : 'This number is WhatsApp'}</Text>
+                  <Text style={[styles.switchLabel, { color: colors.text }]}>{t('auth.whatsappNumber')}</Text>
                   <Switch value={isWhatsapp} onValueChange={setIsWhatsapp} trackColor={{ true: colors.primary }} />
                 </View>
-                <Input label={isRTL ? 'البريد الإلكتروني' : 'Email Address'} placeholder="john@example.com" value={email} onChangeText={(v) => { setEmail(v); clearErrors(); }} error={getFieldError('email')} keyboardType="email-address" autoCapitalize="none" textContentType="emailAddress" autoComplete="email" />
+                <Input label={t('auth.email')} placeholder={t('auth.emailPlaceholder')} value={email} onChangeText={(v) => { setEmail(v); clearErrors(); }} error={getFieldError('email')} keyboardType="email-address" autoCapitalize="none" textContentType="emailAddress" autoComplete="email" />
                 <View style={styles.passwordWrap}>
                   <Input
-                    label={isRTL ? 'كلمة المرور' : 'Password'}
-                    placeholder={isRTL ? '8 أحرف على الأقل' : 'At least 8 characters'}
+                    label={t('auth.password')}
+                    placeholder={t('auth.passwordMinHint')}
                     value={password}
                     onChangeText={(v) => { setPassword(v); clearErrors(); }}
                     secureTextEntry={!showPassword}
                     textContentType="newPassword"
                     autoComplete="new-password"
                     error={getFieldError('password')}
-                    hint={password.length > 0 && password.length < 8 ? (isRTL ? '8 أحرف على الأقل' : 'At least 8 characters') : undefined}
+                    hint={password.length > 0 && password.length < 8 ? t('auth.passwordMinHint') : undefined}
                   />
                   <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eyeBtn} hitSlop={8} accessibilityLabel={showPassword ? 'Hide' : 'Show'}>
                     {showPassword ? <EyeOff size={18} color={colors.textMuted} /> : <Eye size={18} color={colors.textMuted} />}
                   </Pressable>
                 </View>
                 <Input
-                  label={isRTL ? 'تأكيد كلمة المرور' : 'Confirm Password'}
+                  label={t('auth.confirmPassword')}
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChangeText={(v) => { setConfirmPassword(v); clearErrors(); }}
@@ -377,8 +391,8 @@ export default function RegisterWizard(): React.JSX.Element {
                   error={getFieldError('password_confirmation') || getFieldError('password')}
                 />
                 <View style={styles.passwordHint}>
-                  <Text style={[styles.hintText, { color: password.length >= 8 ? colors.success : colors.textSubtle }]}>{password.length >= 8 ? '✓ ' : '○ '}{isRTL ? '8 أحرف على الأقل' : 'At least 8 characters'}</Text>
-                  <Text style={[styles.hintNote, { color: colors.textSubtle }]}>{isRTL ? 'المتطلبات حسب الخادم: 8 أحرف فقط.' : 'Requirements per backend: 8 characters only.'}</Text>
+                  <Text style={[styles.hintText, { color: password.length >= 8 ? colors.success : colors.textSubtle }]}>{password.length >= 8 ? '✓ ' : '○ '}{t('auth.passwordMinHint')}</Text>
+                  <Text style={[styles.hintNote, { color: colors.textSubtle }]}>{t('auth.passwordRequirements')}</Text>
                 </View>
 
                 <Pressable onPress={() => setTerms(!terms)} style={styles.termsRow} accessibilityRole="checkbox" accessibilityState={{ checked: terms }}>
@@ -386,15 +400,15 @@ export default function RegisterWizard(): React.JSX.Element {
                     {terms ? <Text style={styles.checkMark}>✓</Text> : null}
                   </View>
                   <Text style={[styles.termsText, { color: colors.text }]}>
-                    {isRTL ? 'أوافق على ' : 'I agree to the '}
-                    <Text style={{ color: colors.primary, fontWeight: '700' }}>{isRTL ? 'الشروط والأحكام' : 'Terms & Conditions'}</Text>
-                    {isRTL ? ' و ' : ' and '}
-                    <Text style={{ color: colors.primary, fontWeight: '700' }}>{isRTL ? 'سياسة الخصوصية' : 'Privacy Policy'}</Text>
+                    {t('auth.agreeTo')}{' '}
+                    <Text style={{ color: colors.primary, fontWeight: '700' }}>{t('auth.termsAndConditions')}</Text>
+                    {' '}{t('auth.and')}{' '}
+                    <Text style={{ color: colors.primary, fontWeight: '700' }}>{t('auth.privacyPolicy')}</Text>
                   </Text>
                 </Pressable>
                 {getFieldError('terms') ? <Text style={[styles.fieldError, { color: colors.danger }]}>{getFieldError('terms')}</Text> : null}
 
-                <Button title={isRTL ? 'متابعة →' : 'Continue →'} onPress={handleContinue} fullWidth />
+                <Button title={t('auth.continue')} onPress={handleContinue} fullWidth />
               </View>
             </>
           ) : null}
@@ -403,30 +417,10 @@ export default function RegisterWizard(): React.JSX.Element {
             <>
               <View style={styles.titles}>
                 <Text style={[styles.title, { color: colors.text }]}>
-                  {role === 'manager'
-                    ? isRTL
-                      ? 'معلومات الفريق'
-                      : 'Team Information'
-                    : role === 'player'
-                      ? isRTL
-                        ? 'معلومات اللاعب'
-                        : 'Player Information'
-                      : isRTL
-                        ? 'تأكيد'
-                        : 'Confirmation'}
+                  {role === 'manager' ? t('auth.teamInfo') : role === 'player' ? t('auth.playerInfo') : t('auth.confirmInfo')}
                 </Text>
                 <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                  {role === 'manager'
-                    ? isRTL
-                      ? 'أدخل بيانات فريقك'
-                      : 'Enter your team details'
-                    : role === 'player'
-                      ? isRTL
-                        ? 'اختياري — يمكنك الإكمال لاحقاً'
-                        : 'Optional — you can complete later'
-                      : isRTL
-                        ? 'لا توجد معلومات إضافية مطلوبة لهذا النوع.'
-                        : 'No additional information required for this account type.'}
+                  {role === 'manager' ? t('auth.enterTeamDetails') : role === 'player' ? t('auth.optionalCompleteLater') : t('auth.noExtraInfo')}
                 </Text>
               </View>
 
@@ -438,10 +432,10 @@ export default function RegisterWizard(): React.JSX.Element {
 
               {role === 'manager' ? (
                 <View style={styles.form}>
-                  <Input label={isRTL ? 'اسم الفريق *' : 'Team Name *'} placeholder={isRTL ? 'مثال: فريق الأمل' : 'e.g. Al-Amal'} value={teamName} onChangeText={(v) => { setTeamName(v); clearErrors(); }} error={getFieldError('team_name')} />
-                  <Input label={isRTL ? 'عدد الأعضاء *' : 'Member Count *'} placeholder="18" value={memberCount} onChangeText={(v) => { setMemberCount(v.replace(/[^0-9]/g, '')); clearErrors(); }} keyboardType="numeric" error={getFieldError('member_count')} />
+                  <Input label={t('auth.teamName')} placeholder={t('auth.fullNamePlaceholder')} value={teamName} onChangeText={(v) => { setTeamName(v); clearErrors(); }} error={getFieldError('team_name')} />
+                  <Input label={t('auth.memberCount')} placeholder="18" value={memberCount} onChangeText={(v) => { setMemberCount(v.replace(/[^0-9]/g, '')); clearErrors(); }} keyboardType="numeric" error={getFieldError('member_count')} />
                   <View>
-                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{isRTL ? 'فئة الفريق *' : 'Team Category *'}</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{t('auth.category')}</Text>
                     <View style={styles.chipRow}>
                       {CATEGORIES.map((cat) => (
                         <Pressable
@@ -450,63 +444,63 @@ export default function RegisterWizard(): React.JSX.Element {
                           style={[styles.chip, { backgroundColor: teamCategory === cat.value ? colors.primary + '20' : colors.surface, borderColor: teamCategory === cat.value ? colors.primary : colors.border }]}
                         >
                           <Text style={[styles.chipText, { color: teamCategory === cat.value ? colors.primary : colors.textMuted }]}>
-                            {isRTL ? cat.labelAr : locale === 'fr' ? cat.labelFr : cat.labelEn}
+                            {optionLabel(cat, locale)}
                           </Text>
                         </Pressable>
                       ))}
                     </View>
                     {getFieldError('team_category') ? <Text style={[styles.fieldError, { color: colors.danger }]}>{getFieldError('team_category')}</Text> : null}
                   </View>
-                  <Input label={isRTL ? 'اسم الجمعية (اختياري)' : 'Association (optional)'} placeholder={isRTL ? 'اسم الجمعية' : 'Association name'} value={associationName} onChangeText={(v) => { setAssociationName(v); clearErrors(); }} error={getFieldError('association_name')} />
-                  <Button title={isRTL ? 'متابعة →' : 'Continue →'} onPress={handleContinue} fullWidth />
+                  <Input label={t('auth.association')} placeholder={t('auth.association')} value={associationName} onChangeText={(v) => { setAssociationName(v); clearErrors(); }} error={getFieldError('association_name')} />
+                  <Button title={t('auth.continue')} onPress={handleContinue} fullWidth />
                 </View>
               ) : null}
 
               {role === 'player' ? (
                 <View style={styles.form}>
                   <View>
-                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{isRTL ? 'المركز (اختياري)' : 'Position (optional)'}</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{t('auth.positionOptional')}</Text>
                     <View style={styles.chipRow}>
                       {POSITIONS.map((p) => (
                         <Pressable key={p.value} onPress={() => { setPosition(position === p.value ? '' : p.value); clearErrors(); }} style={[styles.chip, { backgroundColor: position === p.value ? colors.primary + '20' : colors.surface, borderColor: position === p.value ? colors.primary : colors.border }]}>
-                          <Text style={[styles.chipText, { color: position === p.value ? colors.primary : colors.textMuted }]}>{isRTL ? p.labelAr : locale === 'fr' ? p.labelFr : p.labelEn}</Text>
+                          <Text style={[styles.chipText, { color: position === p.value ? colors.primary : colors.textMuted }]}>{optionLabel(p, locale)}</Text>
                         </Pressable>
                       ))}
                     </View>
                     {getFieldError('position') ? <Text style={[styles.fieldError, { color: colors.danger }]}>{getFieldError('position')}</Text> : null}
                   </View>
                   <View>
-                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{isRTL ? 'المستوى (اختياري)' : 'Skill Level (optional)'}</Text>
+                    <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>{t('auth.skillLevelOptional')}</Text>
                     <View style={styles.chipRow}>
                       {SKILL_LEVELS.map((s) => (
                         <Pressable key={s.value} onPress={() => { setSkillLevel(skillLevel === s.value ? '' : s.value); clearErrors(); }} style={[styles.chip, { backgroundColor: skillLevel === s.value ? colors.primary + '20' : colors.surface, borderColor: skillLevel === s.value ? colors.primary : colors.border }]}>
-                          <Text style={[styles.chipText, { color: skillLevel === s.value ? colors.primary : colors.textMuted }]}>{isRTL ? s.labelAr : locale === 'fr' ? s.labelFr : s.labelEn}</Text>
+                          <Text style={[styles.chipText, { color: skillLevel === s.value ? colors.primary : colors.textMuted }]}>{optionLabel(s, locale)}</Text>
                         </Pressable>
                       ))}
                     </View>
                     {getFieldError('skill_level') ? <Text style={[styles.fieldError, { color: colors.danger }]}>{getFieldError('skill_level')}</Text> : null}
                   </View>
                   <CitySelect
-                    label={isRTL ? 'المدينة (اختياري)' : 'City (optional)'}
+                    label={t('auth.city')}
                     value={city || null}
                     onChange={(val) => {
                       setCity(val ?? '');
                       clearErrors();
                     }}
                     error={getFieldError('city')}
-                    placeholder={isRTL ? 'اختر المدينة' : 'Select city'}
+                    placeholder={t('auth.selectCity')}
                   />
-                  <Input label={isRTL ? 'سنة الميلاد (اختياري)' : 'Birth Year (optional)'} placeholder="1998" value={birthYear} onChangeText={(v) => { setBirthYear(v.replace(/[^0-9]/g, '').slice(0, 4)); clearErrors(); }} keyboardType="numeric" error={getFieldError('birth_year')} />
-                  <Button title={isRTL ? 'متابعة →' : 'Continue →'} onPress={handleContinue} fullWidth />
+                  <Input label={t('auth.birthYearOptional')} placeholder="1998" value={birthYear} onChangeText={(v) => { setBirthYear(v.replace(/[^0-9]/g, '').slice(0, 4)); clearErrors(); }} keyboardType="numeric" error={getFieldError('birth_year')} />
+                  <Button title={t('auth.continue')} onPress={handleContinue} fullWidth />
                 </View>
               ) : null}
 
               {(role === 'terrain_owner' || role === 'committee') ? (
                 <View style={styles.form}>
                   <View style={[styles.infoBox, { backgroundColor: colors.primary + '0F', borderColor: colors.primary + '30' }]}>
-                    <Text style={[styles.infoText, { color: colors.text }]}>{isRTL ? 'حسابك جاهز للمراجعة. يمكنك إكمال إعدادات الملعب/البطولات بعد الموافقة على الويب.' : 'Your account is ready for review. You can complete terrain/tournament setup after approval on web.'}</Text>
+                    <Text style={[styles.infoText, { color: colors.text }]}>{t('auth.noExtraInfo')}</Text>
                   </View>
-                  <Button title={isRTL ? 'متابعة →' : 'Continue →'} onPress={handleContinue} fullWidth />
+                  <Button title={t('auth.continue')} onPress={handleContinue} fullWidth />
                 </View>
               ) : null}
             </>
@@ -515,8 +509,8 @@ export default function RegisterWizard(): React.JSX.Element {
           {step === 4 ? (
             <>
               <View style={styles.titles}>
-                <Text style={[styles.title, { color: colors.text }]}>{isRTL ? 'مراجعة التفاصيل' : 'Review Details'}</Text>
-                <Text style={[styles.subtitle, { color: colors.textMuted }]}>{isRTL ? 'تحقق من معلوماتك قبل الإنهاء.' : 'Check your information before finishing.'}</Text>
+                <Text style={[styles.title, { color: colors.text }]}>{t('auth.reviewDetails')}</Text>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>{t('auth.checkInfo')}</Text>
               </View>
 
               {globalError ? (
@@ -526,33 +520,33 @@ export default function RegisterWizard(): React.JSX.Element {
               ) : null}
 
               <View style={styles.form}>
-                <ReviewCard label={isRTL ? 'نوع الحساب' : 'Account Type'} value={role ? roleTitleLabel(role as never, isRTL, locale) : '—'} onEdit={() => setStep(1)} />
-                <ReviewCard label={isRTL ? 'الاسم الكامل' : 'Full Name'} value={name} onEdit={() => setStep(2)} />
-                <ReviewCard label={isRTL ? 'البريد الإلكتروني' : 'Email'} value={email || (isRTL ? '—' : '—')} onEdit={() => setStep(2)} />
-                <ReviewCard label={isRTL ? 'رقم الهاتف' : 'Phone Number'} value={`${phone}${isWhatsapp ? ' · WhatsApp' : ''}`} onEdit={() => setStep(2)} />
+                <ReviewCard label={t('auth.accountType')} value={role ? t(roleTitleKey(role as Role)) : '—'} onEdit={() => setStep(1)} />
+                <ReviewCard label={t('auth.fullName')} value={name} onEdit={() => setStep(2)} />
+                <ReviewCard label={t('auth.email')} value={email || '—'} onEdit={() => setStep(2)} />
+                <ReviewCard label={t('auth.phone')} value={`${phone}${isWhatsapp ? ' · WhatsApp' : ''}`} onEdit={() => setStep(2)} />
 
                 {role === 'manager' ? (
                   <>
-                    <ReviewCard label={isRTL ? 'اسم الفريق' : 'Team Name'} value={teamName} onEdit={() => setStep(3)} />
-                    <ReviewCard label={isRTL ? 'عدد الأعضاء' : 'Member Count'} value={memberCount} onEdit={() => setStep(3)} />
-                    <ReviewCard label={isRTL ? 'فئة الفريق' : 'Team Category'} value={teamCategory} onEdit={() => setStep(3)} />
-                    {associationName ? <ReviewCard label={isRTL ? 'الجمعية' : 'Association'} value={associationName} onEdit={() => setStep(3)} /> : null}
+                    <ReviewCard label={t('auth.teamName')} value={teamName} onEdit={() => setStep(3)} />
+                    <ReviewCard label={t('auth.memberCount')} value={memberCount} onEdit={() => setStep(3)} />
+                    <ReviewCard label={t('auth.category')} value={optionLabel(CATEGORIES.find((c) => c.value === teamCategory) ?? CATEGORIES[0], locale)} onEdit={() => setStep(3)} />
+                    {associationName ? <ReviewCard label={t('auth.association')} value={associationName} onEdit={() => setStep(3)} /> : null}
                   </>
                 ) : null}
                 {role === 'player' ? (
                   <>
-                    {position ? <ReviewCard label={isRTL ? 'المركز' : 'Position'} value={position} onEdit={() => setStep(3)} /> : null}
-                    {skillLevel ? <ReviewCard label={isRTL ? 'المستوى' : 'Skill Level'} value={skillLevel} onEdit={() => setStep(3)} /> : null}
-                    {city ? <ReviewCard label={isRTL ? 'المدينة' : 'City'} value={city} onEdit={() => setStep(3)} /> : null}
-                    {birthYear ? <ReviewCard label={isRTL ? 'سنة الميلاد' : 'Birth Year'} value={birthYear} onEdit={() => setStep(3)} /> : null}
+                    {position ? <ReviewCard label={t('auth.position')} value={optionLabel(POSITIONS.find((p) => p.value === position) ?? POSITIONS[0], locale)} onEdit={() => setStep(3)} /> : null}
+                    {skillLevel ? <ReviewCard label={t('auth.skillLevel')} value={optionLabel(SKILL_LEVELS.find((s) => s.value === skillLevel) ?? SKILL_LEVELS[0], locale)} onEdit={() => setStep(3)} /> : null}
+                    {city ? <ReviewCard label={t('auth.city')} value={city} onEdit={() => setStep(3)} /> : null}
+                    {birthYear ? <ReviewCard label={t('auth.birthYear')} value={birthYear} onEdit={() => setStep(3)} /> : null}
                   </>
                 ) : null}
 
                 <View style={styles.reviewHint}>
-                  <Text style={[styles.hintText, { color: colors.textMuted }]}>{isRTL ? 'لن يتم عرض كلمة المرور هنا.' : 'Password is never displayed.'}</Text>
+                  <Text style={[styles.hintText, { color: colors.textMuted }]}>{t('auth.passwordNeverDisplayed')}</Text>
                 </View>
 
-                <Button title={isRTL ? 'إنشاء الحساب ✓' : 'Create Account ✓'} onPress={() => void handleCreateAccount()} loading={loading} disabled={loading} fullWidth />
+                <Button title={t('auth.createAccount')} onPress={() => void handleCreateAccount()} loading={loading} disabled={loading} fullWidth />
               </View>
             </>
           ) : null}

@@ -23,48 +23,58 @@ const STATUS_STYLE = {
 function MatchRow({ f, onOpen }) {
   const { t, i18n } = useTranslation()
   const played = matchStatus(f) === 'finished'
+  const live = matchStatus(f) === 'live'
   const winnerTeamId = played ? f.match?.winner_team_id : null
-  const clickable = Boolean(onOpen) && Boolean(f.match?.id)
+  const clickable = Boolean(onOpen) && Boolean(f.match?.id ?? f.match_id)
   const datePart = f.scheduled_at ? new Date(f.scheduled_at).toISOString().slice(0, 10) : null
+  const pens = played && f.match?.home_penalties != null ? `${f.match.home_penalties}-${f.match.away_penalties}` : null
 
   return (
     <button
       type="button"
       onClick={() => clickable && onOpen(f)}
       disabled={!clickable}
-      className={`w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-3 text-start transition-colors ${
-        clickable ? 'hover:border-slate-300 hover:shadow-[0_4px_16px_rgba(15,23,42,0.05)]' : ''
+      className={`w-full rounded-2xl border bg-white px-4 py-3.5 text-start shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all ${
+        clickable
+          ? 'border-slate-200/70 hover:border-green-200 hover:shadow-[0_14px_32px_-14px_rgba(16,185,129,0.4)]'
+          : 'border-slate-200/60'
       }`}
     >
       <div className="flex items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <TeamAvatar team={f.home_team} className="size-8" />
-          <span className="truncate text-xs font-bold text-slate-800">{f.home_team?.name || '—'}</span>
+          <TeamAvatar team={f.home_team} className="size-9" />
+          <span className="truncate text-sm font-extrabold text-slate-800">{f.home_team?.name || '—'}</span>
           {winnerTeamId === f.home_team?.id && <Trophy className="size-3.5 shrink-0 text-amber-500" />}
         </div>
-        <div className="flex shrink-0 flex-col items-center">
-          <span className={`text-base font-black ${played ? 'text-slate-900' : 'text-slate-400'}`}>
+        <div className="flex shrink-0 flex-col items-center px-1">
+          <span className={`text-base font-black tabular-nums ${played ? 'text-slate-900' : 'text-slate-400'}`}>
             {played ? `${f.match.home_score} - ${f.match.away_score}` : 'VS'}
           </span>
-          <span className={`mt-0.5 rounded-full px-2 py-0.5 text-[9px] font-black ${STATUS_STYLE[matchStatus(f)]}`}>
+          {pens && <span className="text-[9px] font-black text-slate-400">({pens})</span>}
+          <span
+            className={`mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black ${
+              STATUS_STYLE[matchStatus(f)]
+            } ${live ? 'animate-pulse' : ''}`}
+          >
+            {live && <span className="size-1 rounded-full bg-current" />}
             {t(`public.tournamentPage.matchStatus.${matchStatus(f)}`)}
           </span>
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2.5">
           {winnerTeamId === f.away_team?.id && <Trophy className="size-3.5 shrink-0 text-amber-500" />}
-          <span className="truncate text-xs font-bold text-slate-800">{f.away_team?.name || '—'}</span>
-          <TeamAvatar team={f.away_team} className="size-8" />
+          <span className="truncate text-sm font-extrabold text-slate-800">{f.away_team?.name || '—'}</span>
+          <TeamAvatar team={f.away_team} className="size-9" />
         </div>
         {clickable && <ChevronLeft className="size-4 shrink-0 text-slate-300 rtl:rotate-180" />}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-50 pt-2 text-[10px] font-semibold text-slate-400">
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-50 pt-2 text-[10px] font-semibold text-slate-400">
         {f.scheduled_at && (
           <span className="inline-flex items-center gap-1">
             <CalendarDays className="size-3" />
             {matchDay(f.scheduled_at, i18n.language)} {formatTime(f.scheduled_at)}
           </span>
         )}
-        {f.round?.name && <span>{f.round.name}</span>}
+        {f.round?.name && <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-500">{f.round.name}</span>}
         {f.group?.name && <span>{f.group.name}</span>}
         {f.stadium?.name && (
           <span className="inline-flex items-center gap-1">
@@ -72,7 +82,7 @@ function MatchRow({ f, onOpen }) {
             {f.stadium.name}
           </span>
         )}
-        {datePart && <span className="ms-auto text-[9px] opacity-60">{datePart}</span>}
+        {datePart && <span className="ms-auto text-[9px] font-bold opacity-60">{datePart}</span>}
       </div>
     </button>
   )
@@ -83,7 +93,7 @@ function FilterSelect({ label, value, onChange, options }) {
   return (
     <label className="flex items-center gap-2">
       <span className="shrink-0 text-[11px] font-bold text-slate-500">{label}</span>
-      <select className={`${selectClass} h-9 rounded-lg px-2.5 text-xs`} value={value} onChange={(e) => onChange(e.target.value)}>
+      <select className={`${selectClass} h-10 rounded-xl px-3 text-xs`} value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">{t('public.tournamentPage.all')}</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
@@ -184,7 +194,7 @@ export default function FixturesSection({ fixtures, mode = 'upcoming', onOpen })
   return (
     <div className="space-y-4">
       {showFilters && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/70 bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/70 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-slate-400">
             <Filter className="size-3.5" />
             {t('public.tournamentPage.filters')}

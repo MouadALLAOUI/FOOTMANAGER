@@ -41,6 +41,12 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
   const pool = teams.filter((p) => !p.group)
   const total = teams.length
   const assigned = total - pool.length
+  const drawPayload = () =>
+    teams.map((p) => ({
+      team_id: p.team?.id,
+      group_id: p.group?.id ?? null,
+      group_position: p.group_position ?? null,
+    }))
   const hasFixtures = (tournament.stats?.fixtures ?? 0) > 0
   const confirmed = Boolean(tournament.draw_confirmed_at)
   const editableStatus = ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
@@ -93,11 +99,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
     setBusy('save')
     try {
       await api.put(`/committee/tournaments/${tournament.id}/draw/teams`, {
-        teams: teams.map((p) => ({
-          team_id: p.team?.id,
-          group_id: p.group?.id ?? null,
-          group_position: p.group_position ?? null,
-        })),
+        teams: drawPayload(),
       })
       setDirty(false)
       toast.success(t('committee.detail.drawSaved'))
@@ -131,6 +133,12 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
   const confirmDraw = async () => {
     setBusy('confirm')
     try {
+      if (dirty) {
+        await api.put(`/committee/tournaments/${tournament.id}/draw/teams`, {
+          teams: drawPayload(),
+        })
+        setDirty(false)
+      }
       await api.post(`/committee/tournaments/${tournament.id}/draw/confirm`)
       setPreviewOpen(false)
       toast.success(t('committee.detail.drawConfirmed'))

@@ -1,19 +1,22 @@
 import { useState } from 'react';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/auth/AuthProvider';
+import { homeForRole } from '@/auth/homeForRole';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 
 export default function LoginScreen(): React.JSX.Element {
-  const { login, getLoginErrorMessage } = useAuth();
-  const { isRTL } = useI18n();
+  const { login, getLoginErrorMessage, role } = useAuth();
+  const { t } = useI18n();
   const { colors } = useTheme();
+  const router = useRouter();
 
   const [loginField, setLoginField] = useState('');
   const [password, setPassword] = useState('');
@@ -24,18 +27,18 @@ export default function LoginScreen(): React.JSX.Element {
     setError('');
 
     if (!loginField.trim()) {
-      setError(isRTL ? 'أدخل البريد الإلكتروني أو رقم الهاتف' : 'Enter your email or phone');
+      setError(t('auth.emailOrPhoneRequired'));
       return;
     }
     if (!password) {
-      setError(isRTL ? 'أدخل كلمة المرور' : 'Enter your password');
+      setError(t('auth.passwordRequired'));
       return;
     }
 
     setLoading(true);
     try {
       await login(loginField.trim(), password);
-      // Navigation is handled by the auth guard in _layout
+      router.replace(homeForRole(role));
     } catch (e: unknown) {
       setError(getLoginErrorMessage(e));
     } finally {
@@ -58,12 +61,12 @@ export default function LoginScreen(): React.JSX.Element {
             <View style={[styles.logoCircle, { backgroundColor: colors.primary + '18' }]}>
               <Text style={[styles.logoText, { color: colors.primary }]}>⚽</Text>
             </View>
-            <Text style={[styles.title, { color: colors.text }]}>
-              {isRTL ? 'تسجيل الدخول' : 'Sign In'}
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-              {isRTL ? 'أدخل بياناتك للوصول لحسابك' : 'Enter your credentials to access your account'}
-            </Text>
+            <AppText variant="h1" align="center">
+              {t('auth.loginTitle')}
+            </AppText>
+            <AppText variant="label" muted align="center">
+              {t('auth.enterCredentials')}
+            </AppText>
           </View>
 
           <View style={styles.form}>
@@ -74,8 +77,8 @@ export default function LoginScreen(): React.JSX.Element {
             ) : null}
 
             <Input
-              label={isRTL ? 'البريد الإلكتروني أو رقم الهاتف' : 'Email or Phone'}
-              placeholder={isRTL ? 'أدخل البريد أو الهاتف' : 'Enter email or phone'}
+              label={t('auth.emailOrPhone')}
+              placeholder={t('auth.emailOrPhonePlaceholder')}
               value={loginField}
               onChangeText={(v: string) => { setLoginField(v); setError(''); }}
               keyboardType="email-address"
@@ -85,8 +88,8 @@ export default function LoginScreen(): React.JSX.Element {
             />
 
             <Input
-              label={isRTL ? 'كلمة المرور' : 'Password'}
-              placeholder={isRTL ? 'أدخل كلمة المرور' : 'Enter password'}
+              label={t('auth.password')}
+              placeholder={t('auth.passwordPlaceholder')}
               value={password}
               onChangeText={(v: string) => { setPassword(v); setError(''); }}
               secureTextEntry
@@ -97,7 +100,7 @@ export default function LoginScreen(): React.JSX.Element {
             />
 
             <Button
-              title={isRTL ? 'تسجيل الدخول' : 'Sign In'}
+              title={t('auth.login')}
               onPress={handleSubmit}
               loading={loading}
               disabled={loading}
@@ -108,17 +111,17 @@ export default function LoginScreen(): React.JSX.Element {
           <View style={styles.links}>
             <Link href="/(auth)/forgot-password" asChild>
               <Text style={StyleSheet.flatten([styles.link, { color: colors.primary }])}>
-                {isRTL ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+                {t('auth.forgotPassword')}
               </Text>
             </Link>
 
             <View style={styles.registerRow}>
               <Text style={StyleSheet.flatten([styles.registerText, { color: colors.textMuted }])}>
-                {isRTL ? 'ليس لديك حساب؟' : "Don't have an account?"}
+                {t('auth.dontHaveAccount')}
               </Text>
               <Link href="/(auth)/register" asChild>
                 <Text style={StyleSheet.flatten([styles.link, { color: colors.primary }])}>
-                  {isRTL ? 'إنشاء حساب' : 'Create one'}
+                  {t('auth.createAccountLink')}
                 </Text>
               </Link>
             </View>

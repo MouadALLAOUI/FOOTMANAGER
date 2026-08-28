@@ -6,8 +6,8 @@ import { ChevronRight, ChevronLeft, Globe, Info, LogOut, UserCircle } from 'luci
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Card } from '@/components/ui/Card';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
-import { Modal } from '@/components/ui/Modal';
 import { Screen } from '@/components/ui/Screen';
 import { Button } from '@/components/ui/Button';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -94,20 +94,19 @@ export function SettingsScreen(): React.JSX.Element {
         </View>
       </ScrollView>
 
-      <Modal visible={confirmLogout} onClose={() => setConfirmLogout(false)} title={t('auth.logout', 'تسجيل الخروج')}>
-        <Text style={[styles.confirmText, { color: colors.text }]}>{t('settings.logoutConfirm', 'هل أنت متأكد أنك تريد تسجيل الخروج؟')}</Text>
-        <View style={styles.confirmActions}>
-          <Button title={t('common.cancel', 'إلغاء')} variant="ghost" onPress={() => setConfirmLogout(false)} />
-          <Button
-            title={t('auth.logout', 'تسجيل الخروج')}
-            variant="danger"
-            onPress={() => {
-              setConfirmLogout(false);
-              void logout();
-            }}
-          />
-        </View>
-      </Modal>
+      <ConfirmationDialog
+        visible={confirmLogout}
+        title={t('auth.logout', 'تسجيل الخروج')}
+        description={t('settings.logoutConfirm', 'هل أنت متأكد أنك تريد تسجيل الخروج؟')}
+        confirmLabel={t('auth.logout', 'تسجيل الخروج')}
+        cancelLabel={t('common.cancel', 'إلغاء')}
+        destructive
+        onCancel={() => setConfirmLogout(false)}
+        onConfirm={() => {
+          setConfirmLogout(false);
+          void logout();
+        }}
+      />
     </Screen>
   );
 }
@@ -128,6 +127,4 @@ const styles = StyleSheet.create({
   aboutVersion: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
   aboutNote: { fontSize: 11, textAlign: 'center', marginTop: 4, lineHeight: 16 },
   logoutWrap: { marginTop: spacing.sm },
-  confirmText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  confirmActions: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, justifyContent: 'flex-end' },
 });

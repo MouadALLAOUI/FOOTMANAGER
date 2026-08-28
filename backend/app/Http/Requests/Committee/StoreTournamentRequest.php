@@ -33,6 +33,7 @@ class StoreTournamentRequest extends FormRequest
             'teams_count' => 'required|integer|min:2|max:64',
             'groups_count' => 'nullable|integer|min:1|max:16',
             'teams_per_group' => 'nullable|integer|min:2|max:16|required_if:tournament_format,groups_knockout,groups_only',
+            'max_players_per_team' => 'nullable|integer|min:1|max:99',
             'group_mode' => 'sometimes|in:free,fixed',
             'match_duration_minutes' => 'sometimes|integer|min:1|max:300',
             'matches_per_day' => 'nullable|integer|min:1|max:30',
@@ -54,6 +55,8 @@ class StoreTournamentRequest extends FormRequest
             'teams_count.min' => 'عدد الفرق يجب أن يكون 2 على الأقل',
             'groups_count.min' => 'عدد المجموعات يجب أن يكون 1 على الأقل',
             'teams_per_group.min' => 'عدد الفرق في المجموعة يجب أن يكون 2 على الأقل',
+            'max_players_per_team.min' => 'الحد الأقصى للاعبين يجب أن يكون 1 على الأقل',
+            'max_players_per_team.max' => 'الحد الأقصى للاعبين لا يجب أن يتجاوز 99',
         ];
     }
 }

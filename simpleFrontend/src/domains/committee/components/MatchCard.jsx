@@ -10,6 +10,7 @@ import {
 import { Button, Skeleton } from '../../../components/dashboard/ui'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
 import { matchDay, formatTime } from '../../../lib/adapters'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 
 import { LIVE_STATUSES, PILL_STYLES } from '../../../data/fixtures'
 
@@ -220,16 +221,27 @@ function matchPoints(tournament, f) {
 }
 
 function TeamSide({ team, name, align }) {
-  const { t } = useTranslation()
+  const { openTeam } = useProfileModal()
   const slot = !team
+  const clickable = !!team?.id
   return (
     <div className={`flex min-w-0 items-center gap-2 ${align === 'end' ? 'flex-row-reverse' : ''}`}>
       {slot ? (
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-300"><Clock className="size-4" /></span>
       ) : (
-        <TeamAvatar team={team} className="size-8" />
+        <TeamAvatar team={team} className="size-8" onClick={clickable ? () => openTeam(team) : undefined} />
       )}
-      <span className={`min-w-0 truncate text-xs font-bold ${slot ? 'text-slate-400 italic' : 'text-slate-800'}`}>{name}</span>
+      {clickable ? (
+        <button
+          type="button"
+          onClick={() => openTeam(team)}
+          className="min-w-0 truncate text-start text-xs font-bold text-slate-800 transition-colors hover:text-green-700"
+        >
+          {name}
+        </button>
+      ) : (
+        <span className={`min-w-0 truncate text-xs font-bold ${slot ? 'text-slate-400 italic' : 'text-slate-800'}`}>{name}</span>
+      )}
     </div>
   )
 }

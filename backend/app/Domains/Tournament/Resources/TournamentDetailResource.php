@@ -57,6 +57,7 @@ class TournamentDetailResource extends JsonResource
             'teams_count' => $this->teams_count,
             'groups_count' => $this->groups_count,
             'teams_per_group' => $this->teams_per_group,
+            'max_players_per_team' => $this->max_players_per_team,
             'group_mode' => $this->group_mode ?? 'fixed',
             'match_duration_minutes' => $this->match_duration_minutes ?? 90,
             'matches_per_day' => $this->matches_per_day,

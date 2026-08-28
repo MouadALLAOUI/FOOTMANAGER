@@ -9,6 +9,7 @@ import MaintenanceGate from './components/system/MaintenanceGate'
 import PageMaintenanceGate from './components/system/PageMaintenanceGate'
 import ActivityLockBanner from './components/system/ActivityLockBanner'
 import PageSkeleton from './components/system/PageSkeleton'
+import { ProfileModalProvider } from './components/profile/ProfileModalContext'
 
 const Landing = lazy(() => import('./pages/landing'))
 const About = lazy(() => import('./pages/about'))
@@ -51,7 +52,8 @@ function App() {
         <ErrorBoundary>
           <ActivityLockBanner />
           <MaintenanceGate>
-            <Routes>
+            <ProfileModalProvider>
+              <Routes>
               <Route element={<Layout />}>
                 <Route path="/" element={<PageMaintenanceGate><Landing /></PageMaintenanceGate>} />
                 <Route path="/about" element={<PageMaintenanceGate><About /></PageMaintenanceGate>} />
@@ -79,6 +81,7 @@ function App() {
               <Route path="/player/*" element={<ProtectedRoute role="player"><PageMaintenanceGate><PlayerDashboard /></PageMaintenanceGate></ProtectedRoute>} />
               <Route path="/committee/*" element={<ProtectedRoute role="committee"><PageMaintenanceGate><CommitteeDashboard /></PageMaintenanceGate></ProtectedRoute>} />
             </Routes>
+            </ProfileModalProvider>
           </MaintenanceGate>
         </ErrorBoundary>
       </Suspense>

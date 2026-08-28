@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Trophy, Users, User } from 'lucide-react-native';
+import { Home, Trophy, Calendar, Users, User } from 'lucide-react-native';
 
 import { useI18n } from '@/i18n/I18nProvider';
 import { baseTabScreenOptions } from '@/navigation/tabOptions';
@@ -20,6 +20,10 @@ export default function PlayerLayout(): React.JSX.Element {
         options={{ title: t('nav.matches', 'المباريات'), tabBarIcon: ({ color, size }) => <Trophy size={size} color={color} /> }}
       />
       <Tabs.Screen
+        name="bookings"
+        options={{ title: t('nav.bookings', 'الحجوزات'), tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} /> }}
+      />
+      <Tabs.Screen
         name="team"
         options={{ title: t('nav.team', 'الفريق'), tabBarIcon: ({ color, size }) => <Users size={size} color={color} /> }}
       />
@@ -27,8 +31,9 @@ export default function PlayerLayout(): React.JSX.Element {
         name="profile"
         options={{ title: t('nav.profile', 'حسابي'), tabBarIcon: ({ color, size }) => <User size={size} color={color} /> }}
       />
-      <Tabs.Screen name="feed" options={{ href: null }} />
       <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="applications" options={{ href: null }} />
     </Tabs>
   );
 }

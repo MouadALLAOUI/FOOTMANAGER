@@ -128,7 +128,7 @@ export default function RegistrationSection({ tour }) {
     if (!avail || !avail.can_register) return
     if (user && (meQuery.loading || me?.eligible === false)) return
     const reg = me?.registration
-    if (reg && ['pending', 'registered'].includes(reg.status)) return
+    if (reg && ['pending', 'registered', 'rejected'].includes(reg.status)) return
     autoOpen.current = true
     registerAction()
   }, [params, avail, user, me, meQuery.loading, registerAction])
@@ -161,8 +161,8 @@ export default function RegistrationSection({ tour }) {
 
   const myReg = me?.registration
   const hasActiveReg = myReg && ['pending', 'registered'].includes(myReg.status)
-  const showCTA = avail?.can_register && !hasActiveReg
-  const regActionable = !myReg || ['rejected', 'cancelled'].includes(myReg.status)
+  const showCTA = avail?.can_register && !hasActiveReg && myReg?.status !== 'rejected'
+  const regActionable = !myReg || myReg.status === 'cancelled'
 
   if (availQuery.error && !avail) {
     return (
@@ -220,8 +220,8 @@ export default function RegistrationSection({ tour }) {
                     onClick={registerAction}
                     className={`btn-ripple inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-6 text-sm font-extrabold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 ${tone.btn}`}
                   >
-                    {myReg?.status === 'rejected' ? <PlusCircle className="size-4" /> : <Rocket className="size-4" />}
-                    {myReg?.status === 'rejected' ? t('public.registration.registerAgain') : t('public.registration.registerCta')}
+                    {myReg?.status === 'cancelled' ? <PlusCircle className="size-4" /> : <Rocket className="size-4" />}
+                    {myReg?.status === 'cancelled' ? t('public.registration.registerAgain') : t('public.registration.registerCta')}
                   </button>
                 )}
               </div>
@@ -246,6 +246,12 @@ export default function RegistrationSection({ tour }) {
                     {t('public.registration.cancelRequest')}
                   </button>
                 </>
+              )}
+              {myReg.status === 'rejected' && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-700 ring-1 ring-rose-200">
+                  <CircleSlash className="size-3.5" />
+                  {t('public.registration.rejected')}
+                </span>
               )}
               {myReg.status === 'registered' && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-[11px] font-black text-green-700 ring-1 ring-green-200">

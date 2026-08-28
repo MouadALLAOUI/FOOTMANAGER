@@ -10,10 +10,12 @@ import {
   RectangleHorizontal,
   Square,
   Trophy,
+  UserRound,
   X,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import { TeamAvatar } from '../shared'
 
 const EVENT_STYLE = {
@@ -58,28 +60,40 @@ function EventRow({ event }) {
   )
 }
 
-function TeamSide({ team, winner, isLive }) {
+function TeamSide({ team, winner, isLive, onOpen }) {
   const { t } = useTranslation()
   return (
-    <div className={`flex flex-1 flex-col items-center gap-2 ${winner ? '' : 'opacity-80'}`}>
-      <div className="relative">
-        <TeamAvatar team={team} className="size-16" />
+    <button
+      type="button"
+      onClick={onOpen}
+      disabled={!onOpen}
+      className={`group flex flex-1 flex-col items-center gap-2 text-center ${winner ? '' : 'opacity-80'}`}
+    >
+      <span className="relative">
+        <TeamAvatar team={team} className={`size-16 ${onOpen ? 'transition-transform group-hover:scale-105' : ''}`} />
         {isLive && <span className="absolute -end-1 -top-1 size-3 animate-pulse rounded-full bg-rose-500 ring-2 ring-white" />}
         {winner && (
           <span className="absolute -start-1 -top-1 grid size-5 place-items-center rounded-full bg-amber-500 text-white shadow">
             <Trophy className="size-3" />
           </span>
         )}
-      </div>
-      <p className="max-w-full truncate text-center text-xs font-black text-slate-900">{team?.name || '—'}</p>
-      {winner && <p className="text-[10px] font-bold text-amber-600">{t('public.matchDetail.winner')}</p>}
-    </div>
+      </span>
+      <span className="block max-w-full truncate text-center text-xs font-black text-slate-900 transition-colors group-hover:text-green-700">
+        {team?.name || '—'}
+      </span>
+      {winner && <span className="text-[10px] font-bold text-amber-600">{t('public.matchDetail.winner')}</span>}
+      <span className="inline-flex h-4 items-center gap-1 rounded-full bg-slate-100 px-2 text-[9px] font-black text-slate-400 opacity-0 transition-opacity group-hover:opacity-100">
+        <UserRound className="size-2.5" />
+        {t('public.matchDetail.viewTeam')}
+      </span>
+    </button>
   )
 }
 
 export default function MatchDetailModal({ open, onClose, tournamentKey, fixture }) {
   const { t } = useTranslation()
-  const matchId = fixture?.match?.id
+  const { openTeam } = useProfileModal()
+  const matchId = fixture?.match?.id ?? fixture?.match_id
   const enabled = open && Boolean(tournamentKey) && Boolean(matchId)
 
   const detailQuery = useApi(
@@ -156,7 +170,13 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
               )}
 
               <div className="flex items-center justify-center gap-4">
-                <TeamSide team={m.home_team} score={m.home_score} winner={m.is_finished && m.winner_team_id === m.home_team?.id} isLive={m.is_live} />
+                <TeamSide
+                  team={m.home_team}
+                  score={m.home_score}
+                  winner={m.is_finished && m.winner_team_id === m.home_team?.id}
+                  isLive={m.is_live}
+                  onOpen={m.home_team?.id != null ? () => openTeam(m.home_team) : undefined}
+                />
                 <div className="shrink-0 text-center">
                   <p className="text-3xl font-black tracking-widest text-slate-900">
                     {m.is_finished || m.is_live ? `${m.home_score ?? 0} - ${m.away_score ?? 0}` : 'VS'}
@@ -176,7 +196,13 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
                     {m.is_live ? (liveLabel && `● ${liveLabel}${m.current_minute ? ` • ${m.current_minute}'` : ''}`) : t(`public.tournamentPage.matchStatus.${m.status}`)}
                   </span>
                 </div>
-                <TeamSide team={m.away_team} score={m.away_score} winner={m.is_finished && m.winner_team_id === m.away_team?.id} isLive={m.is_live} />
+                <TeamSide
+                  team={m.away_team}
+                  score={m.away_score}
+                  winner={m.is_finished && m.winner_team_id === m.away_team?.id}
+                  isLive={m.is_live}
+                  onOpen={m.away_team?.id != null ? () => openTeam(m.away_team) : undefined}
+                />
               </div>
 
               {events.length > 0 ? (

@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Text, View, Pressable, StyleSheet } from 'react-native';
@@ -12,10 +11,14 @@ import { AuthProvider } from '@/auth/AuthProvider';
 import { SessionRestoreGate } from '@/auth/SessionRestoreGate';
 import { ToastProvider } from '@/components/ui/Toast';
 import { I18nProvider } from '@/i18n/I18nProvider';
+
 import { ActivityLockBanner } from '@/system/ActivityLockBanner';
+import { DeepLinkBootstrap } from '@/system/DeepLinkBootstrap';
 import { ErrorBoundary } from '@/system/ErrorBoundary';
 import { MaintenanceGate } from '@/system/MaintenanceGate';
 import { OfflineBanner } from '@/system/OfflineBanner';
+import { PushNotificationsBootstrap } from '@/system/PushNotificationsBootstrap';
+import { ThemedStatusBar } from '@/system/ThemedStatusBar';
 import { useAppBootstrap } from '@/system/useAppBootstrap';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 
@@ -53,7 +56,9 @@ export default function RootLayout(): React.JSX.Element {
                 <AuthProvider>
                   <SessionRestoreGate>
                     <ToastProvider>
-                    <StatusBar style="light" />
+                    <PushNotificationsBootstrap />
+                    <DeepLinkBootstrap />
+                    <ThemedStatusBar />
                     <OfflineBanner />
                     <ActivityLockBanner />
                     <MaintenanceGate>

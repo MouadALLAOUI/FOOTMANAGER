@@ -1977,6 +1977,8 @@
       "slots": "Slots",
       "period": "Registration period",
       "rules": "Rules",
+      "rulesShow": "Show rules",
+      "rulesHide": "Hide rules",
       "tournament": "Tournament",
       "myTeam": "My team",
       "needTeam": "Create your team profile first to register",

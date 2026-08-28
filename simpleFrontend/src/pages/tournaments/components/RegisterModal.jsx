@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, CheckCircle2, Loader2, ScrollText, Trophy, Users, Wallet, X } from 'lucide-react'
+import { CalendarDays, CheckCircle2, ChevronDown, Loader2, ScrollText, Trophy, Users, Wallet, X } from 'lucide-react'
 import api from '../../../api/client'
 import { TeamAvatar } from '../shared'
+import { MarkdownText } from '../../../components/ui'
 import { getApiErrorMessage, toastApiError } from '../../../lib/errors'
 
 function InfoRow({ icon: Icon, label, value }) {
@@ -31,6 +32,7 @@ export default function RegisterModal({ open, onClose, tour, availability, team,
   const [step, setStep] = useState('confirm')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [rulesOpen, setRulesOpen] = useState(false)
 
   if (!open) return null
 
@@ -66,7 +68,7 @@ export default function RegisterModal({ open, onClose, tour, availability, team,
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={close} />
-      <div className="relative w-full max-w-md overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+      <div className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-3 px-6 pb-2 pt-6">
           <div className="flex items-center gap-3">
             <span className="grid size-12 place-items-center rounded-2xl bg-green-500 text-white shadow-[0_10px_24px_rgba(22,163,74,0.4)]">
@@ -93,7 +95,7 @@ export default function RegisterModal({ open, onClose, tour, availability, team,
         </div>
 
         {step === 'done' ? (
-          <div className="px-6 pb-6 pt-3">
+          <div className="flex-1 overflow-y-auto px-6 pb-6 pt-3">
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 text-center">
               <p className="text-sm font-extrabold text-emerald-800">{t('public.registration.pending')}</p>
               {availability?.requires_registration_fee && (
@@ -109,7 +111,7 @@ export default function RegisterModal({ open, onClose, tour, availability, team,
             </button>
           </div>
         ) : (
-          <div className="space-y-4 px-6 pb-6 pt-3">
+          <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6 pt-3">
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
               <TeamAvatar team={team} className="size-12" />
               <div className="min-w-0 flex-1">
@@ -133,14 +135,33 @@ export default function RegisterModal({ open, onClose, tour, availability, team,
             </div>
 
             {(tour.rules || tour.description) && (
-              <div className="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3">
-                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-white text-slate-500">
-                  <ScrollText className="size-4" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{t('public.registration.rules')}</p>
-                  <p className="whitespace-pre-line text-xs leading-relaxed text-slate-600">{tour.rules || tour.description}</p>
-                </div>
+              <div className="overflow-hidden rounded-2xl bg-slate-50">
+                <button
+                  type="button"
+                  onClick={() => setRulesOpen((v) => !v)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-slate-100"
+                  aria-expanded={rulesOpen}
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-slate-500">
+                    <ScrollText className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      {t('public.registration.rules')}
+                    </span>
+                    <span className="block text-xs font-bold text-slate-700">
+                      {rulesOpen ? t('public.registration.rulesHide') : t('public.registration.rulesShow')}
+                    </span>
+                  </span>
+                  <ChevronDown
+                    className={`size-4 shrink-0 text-slate-400 transition-transform ${rulesOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {rulesOpen && (
+                  <div className="border-t border-slate-200/70 px-4 py-3">
+                    <MarkdownText content={tour.rules || tour.description} />
+                  </div>
+                )}
               </div>
             )}
 

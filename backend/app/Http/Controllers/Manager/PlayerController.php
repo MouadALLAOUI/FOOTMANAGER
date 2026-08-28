@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers\Manager;
 
+use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Team\Services\ManagerRosterService;
-use App\Models\Player;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

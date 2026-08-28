@@ -51,14 +51,14 @@ export default function Footer() {
   }
 
   return (
-    <footer className="relative bg-[#0F172A]">
+    <footer className="relative overflow-hidden bg-[#0F172A]">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="animate-gradient-move absolute -top-48 start-[20%] size-[520px] rounded-full bg-[radial-gradient(circle,rgba(34,197,94,0.16),transparent_65%)] blur-[60px]" />
         <div className="absolute -bottom-48 end-0 size-[440px] rounded-full bg-[radial-gradient(circle,rgba(22,163,74,0.14),transparent_65%)] blur-[70px]" />
       </div>
 
-      <div className="absolute inset-x-0 top-0 z-10 -translate-y-1/2 px-6">
-        <div className="mx-auto max-w-[1400px]">
+      <div className="relative mx-auto max-w-[1400px] px-6 pt-16 lg:pt-20">
+        <div className="relative">
           <div className="overflow-hidden rounded-[30px] bg-gradient-to-l from-green-600/50 via-[#134e2e] to-slate-900 px-8 py-12 shadow-[0_45px_100px_rgba(2,6,23,0.65),0_25px_70px_rgba(22,163,74,0.25)] ring-1 ring-white/15 lg:p-[50px]">
           <FontAwesomeIcon
             icon={faFutbol}
@@ -101,16 +101,16 @@ export default function Footer() {
           </div>
           </div>
         </div>
-      </div>
 
-      <div className="relative mx-auto max-w-[1400px] px-6">
-        <div className="pt-[200px] pb-[70px] lg:pt-[170px]">
+        <div className="pt-14 pb-[70px]">
           <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
             <div className="text-center sm:text-start">
               <div className="flex items-center justify-center gap-3 sm:justify-start">
-                <div className="grid size-11 place-items-center rounded-2xl bg-green-500 shadow-[0_10px_30px_rgba(22,163,74,0.4)]">
-                  <FontAwesomeIcon icon={faFutbol} className="size-7 text-white" />
-                </div>
+                <img
+                  src="/logo.jpeg"
+                  alt=""
+                  className="size-12 shrink-0 rounded-2xl object-cover shadow-[0_10px_30px_rgba(22,163,74,0.4)] ring-1 ring-white/20"
+                />
                 <span className="text-xl font-black text-white">أجي نقصرو</span>
               </div>
               <p className="mt-5 max-w-[280px] text-sm leading-relaxed text-slate-400">

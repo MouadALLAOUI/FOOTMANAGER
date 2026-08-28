@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFutbol, faRightToBracket, faUserPlus } from '@fortawesome/free-solid-svg-icons'
+import { faRightToBracket, faUserPlus } from '@fortawesome/free-solid-svg-icons'
 import PromoPanel from './promoPanel'
 import LanguageSelector from './languageSelector'
 import LoginForm from './loginForm'
@@ -45,9 +45,11 @@ export default function AuthPage({ initialTab = 'login' }) {
 
           <div className="fade-in my-auto w-full" style={{ animationDelay: '140ms' }}>
             <div className="mb-8 flex flex-col items-center gap-2 lg:hidden">
-              <div className="grid size-12 place-items-center rounded-2xl bg-green-500 shadow-[0_12px_30px_rgba(22,163,74,0.45)]">
-                <FontAwesomeIcon icon={faFutbol} className="size-6 text-white" />
-              </div>
+              <img
+                src="/logo.jpeg"
+                alt=""
+                className="size-14 rounded-2xl object-cover shadow-[0_12px_30px_rgba(22,163,74,0.4)] ring-1 ring-slate-200"
+              />
             </div>
 
             <header>

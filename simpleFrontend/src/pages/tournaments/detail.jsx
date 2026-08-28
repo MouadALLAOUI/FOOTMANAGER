@@ -135,8 +135,6 @@ export default function PublicTournamentDetail() {
       .map(([key, icon]) => ({ key, icon, label: key === 'scorers' ? 'public.detail.statistics' : `public.detail.${key}` }))
   }, [tour])
 
-  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
-
   if (detailQuery.loading) {
     return (
       <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 pb-24 sm:px-6 lg:px-8">
@@ -179,7 +177,6 @@ export default function PublicTournamentDetail() {
 
   const handleSection = (key) => {
     setActive(key)
-    scrollToTop()
   }
 
   return (

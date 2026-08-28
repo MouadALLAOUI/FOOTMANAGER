@@ -22,6 +22,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { TeamAvatar } from '../shared'
+import { MarkdownText } from '../../../components/ui'
 import { formatTime, matchDay } from '../../../lib/adapters'
 import { formatTournamentDateRange } from '../list/shared'
 import { useProfileModal } from '../../../components/profile/ProfileModalContext'
@@ -158,7 +159,7 @@ function RulesCard({ rules }) {
       </button>
       {open && (
         <div className="border-t border-slate-100 px-5 py-4">
-          <p className="whitespace-pre-line text-xs leading-relaxed text-slate-600">{rules}</p>
+          <MarkdownText content={rules} />
         </div>
       )}
     </div>

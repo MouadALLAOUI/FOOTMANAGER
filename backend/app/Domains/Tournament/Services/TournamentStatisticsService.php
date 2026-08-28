@@ -127,7 +127,7 @@ class TournamentStatisticsService
             ->map('intval')
             ->all();
 
-        $teams = $teamIds ? Team::query()->whereKey($teamIds)->get(['id', 'name', 'logo_path']) : collect();
+        $teams = $teamIds ? Team::query()->withTrashed()->whereKey($teamIds)->get(['id', 'name', 'logo_path']) : collect();
 
         $teamMap = [];
         foreach ($teams as $team) {

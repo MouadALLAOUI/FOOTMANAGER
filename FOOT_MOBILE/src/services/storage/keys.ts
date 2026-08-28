@@ -4,12 +4,14 @@
  * Two strictly separated categories (mobile audit S-7):
  * - SECURE_KEYS   -> expo-secure-store ONLY (iOS Keychain / Android Keystore).
  *                    Tokens and credentials. NEVER written anywhere else.
- * - STORAGE_KEYS  -> persistent KV storage (react-native-mmkv on native dev
- *                    builds). Preferences, locale, non-sensitive cache only.
+ * - STORAGE_KEYS  -> persistent KV storage (expo-sqlite kv-store). Preferences,
+ *                    locale, non-sensitive cache only.
  */
 export const SECURE_KEYS = {
   /** Sanctum bearer token — written during the auth phase, never here. */
   authToken: 'fm.secure.auth_token',
+  /** Stable per-install device id used for per-device token rotation. */
+  deviceId: 'fm.secure.device_id',
 } as const;
 
 export const STORAGE_KEYS = {

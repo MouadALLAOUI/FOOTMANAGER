@@ -16,7 +16,8 @@ class TournamentRegistrationService
      * Authoritative guards (all inside a row-locked transaction):
      * - status + registration window must allow registration
      * - duplicate registered/pending registrations are rejected (409)
-     * - a rejected registration is re-opened as pending
+     * - a cancelled registration is re-opened as pending
+     * - a rejected registration cannot be re-registered
      * - capacity is enforced (only confirmed registrations consume slots)
      */
     public function register(Tournament $tournament, Team $team): TournamentTeam
@@ -38,6 +39,10 @@ class TournamentRegistrationService
             }
 
             if ($existing && $existing->status === TournamentTeam::STATUS_REJECTED) {
+                throw new DomainException('تم رفض طلب تسجيل فريقك في هذه البطولة ولا يمكن إعادة التسجيل', 422);
+            }
+
+            if ($existing && $existing->status === TournamentTeam::STATUS_CANCELLED) {
                 $existing->forceFill([
                     'status' => TournamentTeam::STATUS_PENDING,
                     'payment_status' => $this->initialPaymentStatus($tournament),
@@ -62,7 +67,8 @@ class TournamentRegistrationService
     }
 
     /**
-     * Cancel a pending registration.
+     * Cancel a pending or, before the draw is confirmed, a confirmed
+     * registration so the manager can drop out of the tournament.
      */
     public function cancel(Tournament $tournament, Team $team): TournamentTeam
     {
@@ -70,14 +76,23 @@ class TournamentRegistrationService
             $registration = TournamentTeam::query()
                 ->where('tournament_id', $tournament->id)
                 ->where('team_id', $team->id)
-                ->where('status', TournamentTeam::STATUS_PENDING)
+                ->whereIn('status', [TournamentTeam::STATUS_PENDING, TournamentTeam::STATUS_REGISTERED])
                 ->first();
 
             if (! $registration) {
                 throw new DomainException('لا يوجد طلب تسجيل قابل للإلغاء', 422);
             }
 
-            $registration->forceFill(['status' => TournamentTeam::STATUS_CANCELLED])->save();
+            if ($registration->status === TournamentTeam::STATUS_REGISTERED
+                && ($tournament->draw_confirmed_at !== null || ! $tournament->isEditable())) {
+                throw new DomainException('لا يمكن إلغاء التسجيل بعد تأكيد القرعة', 422);
+            }
+
+            $registration->forceFill([
+                'status' => TournamentTeam::STATUS_CANCELLED,
+                'group_id' => null,
+                'group_position' => null,
+            ])->save();
 
             return $registration;
         });

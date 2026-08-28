@@ -317,7 +317,11 @@ class TournamentBracketService
 
         return $rounds->map(function (Round $round) {
             $fixtures = Fixture::query()
-                ->with(['homeTeam:id,name,logo_path', 'awayTeam:id,name,logo_path', 'match'])
+                ->with([
+                    'homeTeam' => fn ($query) => $query->withTrashed(),
+                    'awayTeam' => fn ($query) => $query->withTrashed(),
+                    'match',
+                ])
                 ->where('round_id', $round->id)
                 ->orderBy('id')
                 ->get();

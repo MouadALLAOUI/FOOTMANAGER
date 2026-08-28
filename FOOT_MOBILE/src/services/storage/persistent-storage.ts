@@ -1,26 +1,25 @@
 /**
  * Persistent (non-secret) storage — Phase 1.5
  *
- * Engine: react-native-mmkv v4 on native development builds (audit lines
- * 864-865); in-memory fallback on web and when MMKV cannot initialize
- * (e.g. Expo Go without a dev build). Secrets NEVER go through here —
- * see ./secure-storage.
+ * Engine: expo-sqlite KV store (SQLite-backed, synchronous API). Works in Expo
+ * Go AND native dev builds, persists across restarts. In-memory fallback on
+ * web (wasm sqlite is not bundled here) and when SQLite cannot initialize.
+ * Secrets NEVER go through here — see ./secure-storage.
  *
  * Feature code imports `persistentStorage` (or typed pref helpers) — it must
- * not import 'react-native-mmkv' or 'expo-secure-store' directly anywhere else.
+ * not import 'expo-sqlite' or 'expo-secure-store' directly anywhere else.
  */
 import { Platform } from 'react-native';
 
 import { createMemoryStorage, type StringKV } from './memory-storage';
 
-export type PersistentBackend = 'mmkv' | 'memory';
+export type PersistentBackend = 'sqlite' | 'memory';
 
-interface MmkvInstance {
-  getString(key: string): string | undefined;
-  set(key: string, value: string | number | boolean): void;
-  delete(key: string): void;
-  contains(key: string): boolean;
-  clearAll(): void;
+interface SqliteKvLike {
+  getItemSync(key: string): string | null;
+  setItemSync(key: string, value: string): void;
+  removeItemSync(key: string): boolean;
+  clearSync(): boolean;
 }
 
 let engine: StringKV | null = null;
@@ -33,33 +32,27 @@ function ensureEngine(): StringKV {
   if (Platform.OS !== 'web') {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { MMKV } = require('react-native-mmkv') as {
-        MMKV?: new () => MmkvInstance;
-      };
-      if (!MMKV) throw new Error('react-native-mmkv has no MMKV export');
-      const store = new MMKV();
+      const sqliteKv = require('expo-sqlite/kv-store').default as SqliteKvLike;
+      if (!sqliteKv?.setItemSync) throw new Error('expo-sqlite kv-store has no sync API');
       engine = {
-        getString: (key) => store.getString(key) ?? undefined,
+        getString: (key) => sqliteKv.getItemSync(key) ?? undefined,
         setString: (key, value) => {
-          store.set(key, value);
+          sqliteKv.setItemSync(key, value);
         },
         remove: (key) => {
-          store.delete(key);
+          sqliteKv.removeItemSync(key);
         },
-        contains: (key) => store.contains(key),
+        contains: (key) => sqliteKv.getItemSync(key) !== null,
         clearAll: () => {
-          store.clearAll();
+          sqliteKv.clearSync();
         },
       };
-      backend = 'mmkv';
+      backend = 'sqlite';
       return engine;
     } catch {
       if (!warnedOnce && __DEV__) {
         warnedOnce = true;
-        console.log(
-          '[storage] react-native-mmkv unavailable — using in-memory fallback ' +
-            '(data will NOT persist; expected in Expo Go). Secrets remain in SecureStore.',
-        );
+        console.log('[storage] expo-sqlite unavailable — using in-memory fallback (will not persist).');
       }
     }
   } else if (!warnedOnce && __DEV__) {
@@ -72,7 +65,7 @@ function ensureEngine(): StringKV {
   return engine;
 }
 
-/** Which backend is active after first use ('mmkv' or 'memory'). */
+/** Which backend is active after first use ('sqlite' or 'memory'). */
 export function getPersistentBackend(): PersistentBackend {
   ensureEngine();
   return backend;

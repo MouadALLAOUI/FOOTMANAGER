@@ -120,8 +120,10 @@ class NotificationService
      * Create an in-app notification for a user.
      *
      * Respects the user's in-app preference for the type (system types are
-     * always delivered). A delivery failure never throws — the failure is
-     * logged and the business action proceeds.
+     * always delivered). When the user enabled the push channel, the same
+     * content is also dispatched as an Expo push notification (queued).
+     * A delivery failure never throws — the failure is logged and the
+     * business action proceeds.
      */
     public static function push(
         int $userId,
@@ -133,22 +135,36 @@ class NotificationService
         bool $important = false,
         bool $pinned = false,
     ): ?AppNotification {
+        $service = new self;
+
         try {
-            if (! (new self)->channelEnabled($userId, $type, 'database')) {
-                return null;
+            $model = null;
+
+            if ($service->channelEnabled($userId, $type, 'database')) {
+                $model = AppNotification::query()->create([
+                    'user_id' => $userId,
+                    'type' => $type,
+                    'title' => $title,
+                    'body' => $body,
+                    'data' => $data,
+                    'action_url' => $actionUrl,
+                    'is_read' => false,
+                    'is_pinned' => $pinned,
+                    'is_important' => $important,
+                ]);
             }
 
-            return AppNotification::query()->create([
-                'user_id' => $userId,
-                'type' => $type,
-                'title' => $title,
-                'body' => $body,
-                'data' => $data,
-                'action_url' => $actionUrl,
-                'is_read' => false,
-                'is_pinned' => $pinned,
-                'is_important' => $important,
-            ]);
+            if ($service->channelEnabled($userId, $type, 'push')) {
+                $push = app(\App\Domains\Device\Services\PushNotificationService::class);
+                $push->sendToUser($userId, $title, (string) $body, [
+                    'type' => $type,
+                    'category' => self::categoryOf($type),
+                    'action_url' => $actionUrl,
+                    ...$data,
+                ]);
+            }
+
+            return $model;
         } catch (\Throwable $e) {
             Log::error('Notification delivery failed', [
                 'user_id' => $userId,

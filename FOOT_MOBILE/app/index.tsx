@@ -11,7 +11,7 @@ export default function Index(): React.JSX.Element {
   }
 
   if (sessionState === 'unauthenticated') {
-    return <Redirect href="/(auth)" />;
+    return <Redirect href="/(public)" />;
   }
 
   return <Redirect href={homeForRole(role)} />;

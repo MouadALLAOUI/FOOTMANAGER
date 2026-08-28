@@ -36,6 +36,7 @@ class TournamentResource extends JsonResource
             'teams_count' => $this->teams_count,
             'groups_count' => $this->groups_count,
             'teams_per_group' => $this->teams_per_group,
+            'max_players_per_team' => $this->max_players_per_team,
             'points_for_win' => $this->points_for_win,
             'points_for_draw' => $this->points_for_draw,
             'points_for_loss' => $this->points_for_loss,

@@ -12,6 +12,7 @@ use App\Domains\Booking\Services\BookingService;
 use App\Domains\Booking\Services\CancellationService;
 use App\Domains\Booking\Services\PaymentIntentService;
 use App\Domains\Booking\Services\ReceiptService;
+use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Base\Controller;
 use App\Http\Requests\V1\CancelBookingRequest;
 use App\Http\Requests\V1\StoreBookingRequest;
@@ -68,7 +69,7 @@ class BookingController extends Controller
     public function history(Request $request): AnonymousResourceCollection
     {
         $bookings = TerrainBooking::with(['terrain.owner', 'team', 'cancellationPolicy'])
-            ->where('manager_id', $request->user()->id)
+            ->where(fn ($query) => $this->visibleToUser($query, $request->user()))
             ->orderByDesc('created_at')
             ->paginate(20);
 
@@ -78,7 +79,7 @@ class BookingController extends Controller
     public function upcoming(Request $request): AnonymousResourceCollection
     {
         $bookings = TerrainBooking::with(['terrain.owner', 'team', 'cancellationPolicy'])
-            ->where('manager_id', $request->user()->id)
+            ->where(fn ($query) => $this->visibleToUser($query, $request->user()))
             ->whereIn('status', ['pending', 'confirmed', 'approved'])
             ->whereDate('booking_date', '>=', now()->toDateString())
             ->orderBy('booking_date')
@@ -86,6 +87,22 @@ class BookingController extends Controller
             ->paginate(20);
 
         return BookingResource::collection($bookings);
+    }
+
+    private function visibleToUser($query, $user): void
+    {
+        $query->where('manager_id', $user->id);
+
+        if ($user->role === 'player') {
+            $teamIds = Player::query()
+                ->active()
+                ->where('user_id', $user->id)
+                ->pluck('team_id');
+
+            if ($teamIds->isNotEmpty()) {
+                $query->orWhereIn('team_id', $teamIds);
+            }
+        }
     }
 
     public function cancel(CancelBookingRequest $request, TerrainBooking $booking): JsonResponse

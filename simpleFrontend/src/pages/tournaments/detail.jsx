@@ -44,6 +44,9 @@ export default function PublicTournamentDetail() {
 
   const fixturesActive = ['overview', 'matches', 'results'].includes(active)
   const standingsActive = ['overview', 'teams', 'standings'].includes(active)
+  const isKnockout = ['groups_knockout', 'knockout_only'].includes(tour?.tournament_format)
+  const statsActive = active === 'scorers' || (Boolean(tour) && tour.status === 'completed' && active === 'overview')
+  const bracketActive = active === 'bracket' || (Boolean(tour) && isKnockout && active === 'overview')
 
   const fixturesQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/fixtures`).then((r) => r.data.data),
@@ -63,12 +66,12 @@ export default function PublicTournamentDetail() {
   const bracketQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/bracket`).then((r) => r.data.data),
     [slug],
-    { enabled: active === 'bracket' && Boolean(tour) },
+    { enabled: bracketActive && Boolean(tour) },
   )
   const statsQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/statistics`).then((r) => r.data.data),
     [slug],
-    { enabled: active === 'scorers' && Boolean(tour) },
+    { enabled: statsActive && Boolean(tour) },
   )
   const newsQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/news`).then((r) => r.data.data),
@@ -136,13 +139,18 @@ export default function PublicTournamentDetail() {
 
   if (detailQuery.loading) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] space-y-5 px-4 pb-10 sm:px-6 lg:px-8">
-        <Skeleton className="h-72 rounded-[2rem]" />
-        <Skeleton className="h-40 rounded-3xl" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-40 rounded-3xl" />
-          <Skeleton className="h-40 rounded-3xl" />
-          <Skeleton className="h-40 rounded-3xl" />
+      <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 pb-24 sm:px-6 lg:px-8">
+        <Skeleton className="h-[26rem] rounded-[2rem]" />
+        <Skeleton className="h-16 rounded-2xl" />
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="space-y-5">
+            <Skeleton className="h-64 rounded-3xl" />
+            <Skeleton className="h-32 rounded-3xl" />
+          </div>
+          <div className="space-y-5">
+            <Skeleton className="h-40 rounded-3xl" />
+            <Skeleton className="h-40 rounded-3xl" />
+          </div>
         </div>
       </div>
     )
@@ -150,7 +158,7 @@ export default function PublicTournamentDetail() {
 
   if (!tour) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] px-4 pb-10 pt-24 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1400px] px-4 pb-24 pt-24 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center gap-5 rounded-[2rem] border border-dashed border-slate-200 bg-white px-6 py-20 text-center">
         <span className="grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300"><Trophy className="size-7" /></span>
         <div>
@@ -175,22 +183,29 @@ export default function PublicTournamentDetail() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 pb-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 pb-24 sm:px-6 lg:px-8 lg:pb-32">
       <Hero tour={tour} />
 
       <RegistrationSection tour={tour} />
 
-      <nav className="sticky top-[106px] z-30 -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/70 bg-white/90 p-1.5 shadow-[0_8px_30px_rgba(15,23,42,0.06)] backdrop-blur-md">
+      <nav aria-label={t('public.detail.ariaTabs')} className="sticky top-[106px] z-30 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div
+          role="tablist"
+          className="flex snap-x items-center gap-1 overflow-x-auto rounded-2xl bg-slate-950/95 p-1.5 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.65)] ring-1 ring-white/10 backdrop-blur-xl"
+        >
           {sections.map(({ key, icon: Icon, label }) => {
             const isActive = active === key
             return (
               <button
                 key={key}
                 type="button"
+                role="tab"
+                aria-selected={isActive}
                 onClick={() => handleSection(key)}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition-colors ${
-                  isActive ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                className={`inline-flex shrink-0 snap-start items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition-all ${
+                  isActive
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-[0_10px_24px_-8px_rgba(16,185,129,0.7)]'
+                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <Icon className="size-3.5" />
@@ -204,7 +219,14 @@ export default function PublicTournamentDetail() {
       <section id={`section-${active}`} className="scroll-mt-32">
         {active === 'overview' && (
           <>
-            <OverviewSection tour={tour} fixtures={fixturesQuery.data} standings={standingsQuery.data} />
+            <OverviewSection
+              tour={tour}
+              fixtures={fixturesQuery.data}
+              standings={standingsQuery.data}
+              stats={statsQuery.data}
+              bracket={bracketQuery.data}
+              onOpen={setOpenMatch}
+            />
             <div className="mt-5 space-y-4">
               <SponsorsSection sponsors={sponsorsQuery.data} />
               <PartnersSection partners={partnersQuery.data} />
@@ -243,7 +265,7 @@ export default function PublicTournamentDetail() {
           active === 'bracket' && (
             <div className="space-y-5">
               <TournamentStageBar rounds={bracketQuery.data} />
-              <BracketView rounds={bracketQuery.data} />
+              <BracketView rounds={bracketQuery.data} onOpen={setOpenMatch} />
             </div>
           )
         )}

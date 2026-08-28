@@ -5,9 +5,10 @@ import {
   Ban,
   CalendarClock,
   CheckCheck,
+  CircleSlash,
   Clock,
-  PlusCircle,
   Shield,
+  Star,
   Trophy,
   Users,
   Wallet,
@@ -18,6 +19,7 @@ import { SectionError } from '../../../components/errors'
 import { Badge, Button, Empty, SectionTitle, SkeletonCards, StatusBadge } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
+import EssentialPlayersModal from './essentialPlayersModal'
 
 const fmtDate = (value) => {
   if (!value) return null
@@ -33,30 +35,21 @@ export default function ManagerTournaments() {
 
   const { data, loading, errorState, refetch } = useApi(() => api.get('/manager/tournaments').then((r) => r.data), [])
   const { data: me } = useApi(() => api.get('/me').then((r) => r.data), [])
+  const [essentialsTour, setEssentialsTour] = useState(null)
 
   const tournaments = data?.data ?? []
   const myTeam = me?.user?.team ?? null
   const hasTeam = Boolean(myTeam)
 
-  const register = async (tournament) => {
-    setBusy(`register-${tournament.id}`)
-    try {
-      await api.post(`/manager/tournaments/${tournament.id}/register`)
-      toast.success(t('manager.tournaments.registerSuccess'))
-      refetch()
-    } catch (e) {
-      toastApiError(e, t)
-    } finally {
-      setBusy(null)
-    }
-  }
-
   const cancelRequest = async (tournament) => {
-    if (!window.confirm(t('manager.tournaments.cancelConfirm'))) return
+    const confirmed = tournament.my_registration === 'registered'
+    const confirmKey = confirmed ? 'manager.tournaments.cancelRegisteredConfirm' : 'manager.tournaments.cancelConfirm'
+    const successKey = confirmed ? 'manager.tournaments.cancelRegisteredSuccess' : 'manager.tournaments.cancelSuccess'
+    if (!window.confirm(t(confirmKey))) return
     setBusy(`cancel-${tournament.id}`)
     try {
       await api.delete(`/manager/tournaments/${tournament.id}/register`)
-      toast.success(t('manager.tournaments.cancelSuccess'))
+      toast.success(t(successKey))
       refetch()
     } catch (e) {
       toastApiError(e, t)
@@ -84,6 +77,20 @@ export default function ManagerTournaments() {
   const actions = (tour) => {
     const reg = tour.my_registration
     if (reg?.status === 'registered') {
+      if (!tour.draw_confirmed_at) {
+        return (
+          <div className="flex w-full flex-col gap-2">
+            <Badge variant="success">
+              <CheckCheck className="size-3.5" />
+              {t('manager.tournaments.registered')}
+            </Badge>
+            <Button size="sm" variant="dangerSoft" loading={busy === `cancel-${tour.id}`} onClick={() => cancelRequest(tour)}>
+              <Ban className="size-3.5" />
+              {t('manager.tournaments.cancelRegistered')}
+            </Button>
+          </div>
+        )
+      }
       return (
         <Badge variant="success">
           <CheckCheck className="size-3.5" />
@@ -102,25 +109,26 @@ export default function ManagerTournaments() {
         </div>
       )
     }
+    if (reg?.status === 'rejected') {
+      return (
+        <Badge variant="danger">
+          <CircleSlash className="size-3.5" />
+          {t('manager.tournaments.rejected')}
+        </Badge>
+      )
+    }
     if (tour.status === 'open_for_registration') {
-      const label =
-        reg?.status === 'rejected'
-          ? t('manager.tournaments.rejected')
-          : reg?.status === 'cancelled'
-            ? t('manager.tournaments.cancelled')
-            : null
       return (
         <div className="flex w-full flex-col gap-2">
-          {label && <Badge variant="danger">{label}</Badge>}
+          {reg?.status === 'cancelled' && <Badge variant="danger">{t('manager.tournaments.cancelled')}</Badge>}
           <Button
             size="sm"
             className="w-full"
             disabled={!hasTeam}
-            loading={busy === `register-${tour.id}`}
-            onClick={() => register(tour)}
+            onClick={() => setEssentialsTour(tour)}
           >
-            <PlusCircle className="size-4" />
-            {reg?.status ? t('manager.tournaments.registerAgain') : t('manager.tournaments.register')}
+            <Star className="size-4" />
+            {t('manager.tournaments.essentialPlayers')}
           </Button>
           {!hasTeam && <p className="text-center text-[11px] font-semibold text-slate-400">{t('manager.tournaments.needTeam')}</p>}
         </div>
@@ -216,6 +224,15 @@ export default function ManagerTournaments() {
           })}
         </div>
       )}
+
+      <EssentialPlayersModal
+        key={essentialsTour?.id ?? 'none'}
+        tournament={essentialsTour}
+        open={Boolean(essentialsTour)}
+        onClose={() => setEssentialsTour(null)}
+        onRegistered={() => { setEssentialsTour(null); refetch() }}
+        hasTeam={hasTeam}
+      />
     </div>
   )
 }

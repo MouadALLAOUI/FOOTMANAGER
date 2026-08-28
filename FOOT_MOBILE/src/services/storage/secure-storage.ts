@@ -60,4 +60,42 @@ export const secureStorage = {
   async deleteTokenAsync(): Promise<void> {
     await this.deleteItemAsync(SECURE_KEYS.authToken);
   },
+
+  /**
+   * Stable per-install device id.
+   *
+   * Used for per-device Sanctum token rotation: the backend revokes only the
+   * token previously issued for this device id, so other installs stay logged
+   * in while re-login on this device rotates its single token.
+   *
+   * Generated once and persisted in secure storage. Falls back to an ephemereal
+   * id if secure storage is unavailable (e.g. web), so login still works.
+   */
+  async getDeviceIdAsync(): Promise<string> {
+    try {
+      const existing = await this.getItemAsync(SECURE_KEYS.deviceId);
+      if (existing) return existing;
+    } catch {
+      // Secure store unavailable (e.g. web) — fall through to ephemeral id.
+    }
+
+    const id = newRandomId();
+    try {
+      await this.setItemAsync(SECURE_KEYS.deviceId, id);
+    } catch {
+      // No durable storage available; ephemereal id is returned anyway.
+    }
+    return id;
+  },
 };
+
+function newRandomId(): string {
+  const bytes = new Uint8Array(16);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = Math.floor(Math.random() * 256);
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}

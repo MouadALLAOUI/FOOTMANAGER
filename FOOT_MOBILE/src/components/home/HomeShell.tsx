@@ -8,6 +8,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, spacing } from '@/theme/spacing';
 import { QuickActions, type QuickAction } from './QuickActions';
+import { NotificationBell } from './NotificationBell';
 import { useState } from 'react';
 
 interface Props {
@@ -41,12 +42,15 @@ export function HomeShell({ quickActions, upcomingTitleKey = 'home.upcoming', up
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void onRefresh()} tintColor={colors.primary} />}
       >
-        <View style={styles.greetingWrap}>
-          <Text style={[styles.greeting, { color: colors.text }]}>{greeting}</Text>
-          {displayRole ? <Text style={[styles.role, { color: colors.primary }]}>{displayRole}</Text> : null}
-          {user?.team && typeof user.team === 'object' ? (
-            <Text style={[styles.team, { color: colors.textMuted }]}>{(user.team as Record<string, unknown>).name as string}</Text>
-          ) : null}
+        <View style={styles.greetingRow}>
+          <View style={styles.greetingWrap}>
+            <Text style={[styles.greeting, { color: colors.text }]}>{greeting}</Text>
+            {displayRole ? <Text style={[styles.role, { color: colors.primary }]}>{displayRole}</Text> : null}
+            {user?.team && typeof user.team === 'object' ? (
+              <Text style={[styles.team, { color: colors.textMuted }]}>{(user.team as Record<string, unknown>).name as string}</Text>
+            ) : null}
+          </View>
+          <NotificationBell />
         </View>
 
         {isActivityLocked ? (
@@ -81,7 +85,8 @@ export function HomeShell({ quickActions, upcomingTitleKey = 'home.upcoming', up
 
 const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing['3xl'] },
-  greetingWrap: { gap: spacing.xs, paddingVertical: spacing.sm },
+  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  greetingWrap: { gap: spacing.xs, paddingVertical: spacing.sm, flex: 1, paddingEnd: spacing.sm },
   greeting: { fontSize: 22, fontWeight: '800' },
   role: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   team: { fontSize: 13, fontWeight: '600' },

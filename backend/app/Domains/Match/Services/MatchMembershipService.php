@@ -81,6 +81,47 @@ class MatchMembershipService
         return $matchRequest !== null && (int) $matchRequest->mercenary_player_id === (int) $user->id;
     }
 
+    /**
+     * Every user entitled to see / take part in a match — team managers,
+     * team players, accepted applicants and the mercenary player.
+     */
+    public function participantUserIds(FootballMatch $match): array
+    {
+        $teamIds = array_values(array_filter([
+            (int) $match->home_team_id,
+            (int) $match->away_team_id,
+        ]));
+
+        $userIds = [];
+
+        if ($teamIds !== []) {
+            $userIds[] = Team::query()->whereIn('id', $teamIds)->pluck('manager_id')->all();
+            $userIds[] = Player::query()->whereIn('team_id', $teamIds)->pluck('user_id')->all();
+        }
+
+        if ($match->match_request_id !== null) {
+            $userIds[] = PlayerMatchRequest::query()
+                ->where('match_request_id', $match->match_request_id)
+                ->where('status', 'accepted')
+                ->pluck('player_id')
+                ->all();
+
+            $mercenaryPlayerId = $match->matchRequest?->mercenary_player_id;
+
+            if ($mercenaryPlayerId) {
+                $userIds[] = [$mercenaryPlayerId];
+            }
+        }
+
+        return collect($userIds)
+            ->flatten()
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public static function teamHasMatchConflict(int $teamId, Carbon $datetime, ?int $excludeMatchId = null): bool
     {
         $window = PlayerMatchGuard::MATCH_WINDOW_HOURS;

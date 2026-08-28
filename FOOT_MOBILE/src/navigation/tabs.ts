@@ -6,21 +6,22 @@ import { ROLE, hasAdminAccess } from '@/auth/roles';
 export interface TabConfig {
   key: string;
   labelKey: string;
-  href: Href;
+  href: string;
+  icon?: string;
 }
 
-// ─── Per-role tab definitions (mobile-relevant only, 3–4 tabs each) ──────
-// Mobile-first: Home + primary actions + Profile; Settings is hidden stack via Profile.
 const MANAGER_TABS: TabConfig[] = [
   { key: 'home', labelKey: 'nav.home', href: '/(manager)' },
   { key: 'matches', labelKey: 'nav.matches', href: '/(manager)/matches' },
   { key: 'team', labelKey: 'nav.team', href: '/(manager)/team' },
+  { key: 'bookings', labelKey: 'nav.bookings', href: '/(manager)/bookings' },
   { key: 'profile', labelKey: 'nav.profile', href: '/(manager)/profile' },
 ];
 
 const PLAYER_TABS: TabConfig[] = [
   { key: 'home', labelKey: 'nav.home', href: '/(player)' },
   { key: 'matches', labelKey: 'nav.matches', href: '/(player)/matches' },
+  { key: 'bookings', labelKey: 'nav.bookings', href: '/(player)/bookings' },
   { key: 'team', labelKey: 'nav.team', href: '/(player)/team' },
   { key: 'profile', labelKey: 'nav.profile', href: '/(player)/profile' },
 ];
@@ -40,12 +41,10 @@ const COMMITTEE_TABS: TabConfig[] = [
 
 const ADMIN_TABS: TabConfig[] = [
   { key: 'home', labelKey: 'nav.home', href: '/(admin)' },
-  { key: 'users', labelKey: 'nav.users', href: '/(admin)/users' },
   { key: 'approvals', labelKey: 'nav.approvals', href: '/(admin)/approvals' },
+  { key: 'users', labelKey: 'nav.users', href: '/(admin)/users' },
   { key: 'profile', labelKey: 'nav.profile', href: '/(admin)/profile' },
 ];
-
-// ─── Tab selection ─────────────────────────────────────────
 
 const TABS_BY_ROLE: Record<string, TabConfig[]> = {
   [ROLE.manager]: MANAGER_TABS,
@@ -62,8 +61,7 @@ export function getTabsForRole(role: Role | string | null | undefined): TabConfi
   return TABS_BY_ROLE[role] ?? MANAGER_TABS;
 }
 
-// ─── helpers ───────────────────────────────────────────────
-const PROFILE_BY_ROLE: Record<string, Href> = {
+const PROFILE_BY_ROLE: Record<string, string> = {
   [ROLE.manager]: '/(manager)/profile',
   [ROLE.player]: '/(player)/profile',
   [ROLE.terrain_owner]: '/(terrain)/profile',
@@ -72,7 +70,7 @@ const PROFILE_BY_ROLE: Record<string, Href> = {
   [ROLE.sub_admin]: '/(admin)/profile',
 };
 
-const SETTINGS_BY_ROLE: Record<string, Href> = {
+const SETTINGS_BY_ROLE: Record<string, string> = {
   [ROLE.manager]: '/(manager)/settings',
   [ROLE.player]: '/(player)/settings',
   [ROLE.terrain_owner]: '/(terrain)/settings',
@@ -81,12 +79,26 @@ const SETTINGS_BY_ROLE: Record<string, Href> = {
   [ROLE.sub_admin]: '/(admin)/settings',
 };
 
+const NOTIFICATIONS_BY_ROLE: Record<string, string> = {
+  [ROLE.manager]: '/(manager)/notifications',
+  [ROLE.player]: '/(player)/notifications',
+  [ROLE.terrain_owner]: '/(terrain)/notifications',
+  [ROLE.committee]: '/(committee)/notifications',
+  [ROLE.admin]: '/(admin)/notifications',
+  [ROLE.sub_admin]: '/(admin)/notifications',
+};
+
 export function profilePathForRole(role: Role | string | null | undefined): Href {
   if (!role) return '/(manager)/profile';
-  return PROFILE_BY_ROLE[role] ?? '/(manager)/profile';
+  return (PROFILE_BY_ROLE[role] ?? '/(manager)/profile') as Href;
 }
 
 export function settingsPathForRole(role: Role | string | null | undefined): Href {
   if (!role) return '/(manager)/settings';
-  return SETTINGS_BY_ROLE[role] ?? '/(manager)/settings';
+  return (SETTINGS_BY_ROLE[role] ?? '/(manager)/settings') as Href;
+}
+
+export function notificationsPathForRole(role: Role | string | null | undefined): Href {
+  if (!role) return '/(manager)/notifications';
+  return (NOTIFICATIONS_BY_ROLE[role] ?? '/(manager)/notifications') as Href;
 }

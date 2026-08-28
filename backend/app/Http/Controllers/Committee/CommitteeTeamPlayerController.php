@@ -22,9 +22,10 @@ class CommitteeTeamPlayerController extends Controller
                     ->orWhere('number', 'like', "%{$search}%")
                     ->orWhere('position', 'like', "%{$search}%");
             }))
+            ->orderBy('is_essential', 'desc')
             ->orderBy('name')
-            ->limit(80)
-            ->get(['id', 'team_id', 'name', 'number', 'position']);
+            ->limit(120)
+            ->get(['id', 'team_id', 'name', 'number', 'position', 'is_essential']);
 
         return response()->json(['data' => $players]);
     }
@@ -55,7 +56,7 @@ class CommitteeTeamPlayerController extends Controller
         ]);
 
         return response()->json([
-            'data' => $player->only(['id', 'team_id', 'name', 'number', 'position']),
+            'data' => $player->only(['id', 'team_id', 'name', 'number', 'position', 'is_essential']),
             'created' => true,
             'duplicates' => $duplicates->values(),
             'message' => 'تمت إضافة اللاعب إلى قائمة الفريق',

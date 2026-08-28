@@ -13,14 +13,10 @@ import {
   faUserPlus,
   faArrowRight,
   faSpinner,
-  faLayerGroup,
   faPhone,
   faEnvelope,
-  faUsers,
   faShirt,
-  faChartLine,
   faLocationDot,
-  faCakeCandles,
   faTrophy,
 } from '@fortawesome/free-solid-svg-icons'
 import { useAuth } from '../../context/AuthContext'
@@ -33,9 +29,7 @@ const roles = [
   { id: 'committee', icon: faTrophy },
 ]
 
-const categories = ['adult', 'teenager', 'children']
 const positions = ['goalkeeper', 'defender', 'midfielder', 'forward']
-const skills = ['beginner', 'amateur', 'semi_pro', 'pro']
 
 export default function RegisterForm() {
   const { t } = useTranslation()
@@ -172,53 +166,15 @@ export default function RegisterForm() {
       </div>
 
       {role === 'manager' && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <PremiumField
-            id="reg-team"
-            label={t('auth.fields.teamName')}
-            placeholder={t('auth.placeholders.teamName')}
-            icon={<FontAwesomeIcon icon={faUserGroup} className="size-[18px]" />}
-            value={form.team_name || ''}
-            onChange={set('team_name')}
-            required
-          />
-          <PremiumField
-            id="reg-members"
-            label={t('auth.fields.memberCount')}
-            placeholder={t('auth.placeholders.memberCount')}
-            type="number"
-            min="1"
-            icon={<FontAwesomeIcon icon={faUsers} className="size-[18px]" />}
-            value={form.member_count || ''}
-            onChange={set('member_count')}
-            required
-          />
-          <PremiumField
-            id="reg-category"
-            label={t('auth.fields.teamCategory')}
-            select
-            icon={<FontAwesomeIcon icon={faLayerGroup} className="size-[18px]" />}
-            value={form.team_category || ''}
-            onChange={set('team_category')}
-            required
-          >
-            <option value="" disabled>
-              {t('auth.selects.category')}
-            </option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {t(`auth.selects.categories.${c}`)}
-              </option>
-            ))}
-          </PremiumField>
-          <PremiumField
-            id="reg-assoc"
-            label={t('auth.fields.associationName')}
-            placeholder={t('auth.placeholders.associationName')}
-            value={form.association_name || ''}
-            onChange={set('association_name')}
-          />
-        </div>
+        <PremiumField
+          id="reg-team"
+          label={t('auth.fields.teamName')}
+          placeholder={t('auth.placeholders.teamName')}
+          icon={<FontAwesomeIcon icon={faUserGroup} className="size-[18px]" />}
+          value={form.team_name || ''}
+          onChange={set('team_name')}
+          required
+        />
       )}
 
       {role === 'player' && (
@@ -241,40 +197,12 @@ export default function RegisterForm() {
             ))}
           </PremiumField>
           <PremiumField
-            id="reg-skill"
-            label={t('auth.fields.skillLevel')}
-            select
-            icon={<FontAwesomeIcon icon={faChartLine} className="size-[18px]" />}
-            value={form.skill_level || ''}
-            onChange={set('skill_level')}
-          >
-            <option value="" disabled>
-              {t('auth.selects.skill')}
-            </option>
-            {skills.map((s) => (
-              <option key={s} value={s}>
-                {t(`auth.selects.skills.${s}`)}
-              </option>
-            ))}
-          </PremiumField>
-          <PremiumField
             id="reg-city"
             label={t('auth.fields.city')}
             placeholder={t('auth.placeholders.city')}
             icon={<FontAwesomeIcon icon={faLocationDot} className="size-[18px]" />}
             value={form.city || ''}
             onChange={set('city')}
-          />
-          <PremiumField
-            id="reg-birth"
-            label={t('auth.fields.birthYear')}
-            placeholder={t('auth.placeholders.birthYear')}
-            type="number"
-            min="1950"
-            max={new Date().getFullYear()}
-            icon={<FontAwesomeIcon icon={faCakeCandles} className="size-[18px]" />}
-            value={form.birth_year || ''}
-            onChange={set('birth_year')}
           />
         </div>
       )}

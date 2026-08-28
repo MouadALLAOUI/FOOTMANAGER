@@ -23,6 +23,13 @@ const toLocalInput = (value) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
+const toIso = (value) => {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toISOString()
+}
+
 function SectionHeader({ icon: Icon, title, desc }) {
   return (
     <div className="mb-4 flex items-start gap-3 border-b border-slate-100 pb-3">
@@ -47,6 +54,7 @@ export default function SettingsTab({ tournament, refresh }) {
   const [format, setFormat] = useState(tournament.tournament_format ?? 'groups_knockout')
   const [teamsCount, setTeamsCount] = useState(tournament.teams_count ?? 8)
   const [teamsPerGroup, setTeamsPerGroup] = useState(tournament.teams_per_group ?? 4)
+  const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(tournament.max_players_per_team ?? '')
   const [qualifyPerGroup, setQualifyPerGroup] = useState(tournament.qualify_per_group ?? 2)
   const [groupMode, setGroupMode] = useState(tournament.group_mode ?? 'fixed')
   const [matchDuration, setMatchDuration] = useState(tournament.match_duration_minutes ?? 90)
@@ -78,6 +86,7 @@ export default function SettingsTab({ tournament, refresh }) {
         tournament_format: format,
         teams_count: teamsCount,
         teams_per_group: isGroupFormat ? teamsPerGroup : null,
+        max_players_per_team: maxPlayersPerTeam === '' || maxPlayersPerTeam === null ? null : Number(maxPlayersPerTeam),
         qualify_per_group: isGroupFormat ? qualifyPerGroup : null,
         knockout_teams: format === 'groups_knockout'
           ? computedKnockout
@@ -88,8 +97,8 @@ export default function SettingsTab({ tournament, refresh }) {
         match_duration_minutes: matchDuration,
         card_accumulation: cardAccumulation,
         matches_per_day: matchesPerDay === '' || matchesPerDay === null ? null : matchesPerDay,
-        registration_start_at: regStart || null,
-        registration_end_at: regEnd || null,
+        registration_start_at: toIso(regStart),
+        registration_end_at: toIso(regEnd),
         registration_fee: regFee === '' ? 0 : regFee,
         rules: rules || null,
       })
@@ -443,6 +452,18 @@ export default function SettingsTab({ tournament, refresh }) {
               </Field>
             )}
           </FieldRow>
+          <Field label={t('committee.detail.settingsMaxPlayersPerTeam')} hint={t('committee.detail.settingsMaxPlayersPerTeamHint')}>
+            <input
+              type="number"
+              min="1"
+              max="99"
+              className={inputClass}
+              value={maxPlayersPerTeam}
+              onChange={(e) => setMaxPlayersPerTeam(e.target.value)}
+              placeholder={t('committee.detail.settingsMaxPlayersPerTeamPlaceholder')}
+              disabled={!editable}
+            />
+          </Field>
           {isGroupFormat && (
             <Field label={t('committee.detail.settingsGroupsCount')} hint={t('committee.detail.settingsGroupsDerived')}>
               <div className="flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm font-bold text-slate-700">

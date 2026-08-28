@@ -30,7 +30,7 @@ export default function TournamentStageBar({ rounds = [] }) {
 
   return (
     <nav aria-label={t('stages.progression')} className="overflow-x-auto pb-1">
-      <ol className="flex min-w-max items-center gap-2">
+      <ol className="flex min-w-max items-center gap-2 px-1 py-1">
         {present.map((stage, i) => {
           const state = stageState(rounds.filter((r) => r.stage === stage))
           const isDone = state === 'done'
@@ -39,8 +39,8 @@ export default function TournamentStageBar({ rounds = [] }) {
             <li key={stage} className="flex items-center gap-2">
               <div
                 className={cx(
-                  'stage-step inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[11px] font-black',
-                  isDone && 'bg-green-500 text-white shadow-[0_6px_16px_rgba(22,163,74,0.28)]',
+                  'stage-step inline-flex h-7 items-center gap-1.5 rounded-xl px-3.5 text-[11px] font-black shadow-sm transition-all',
+                  isDone && 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-[0_8px_20px_-8px_rgba(16,185,129,0.55)]',
                   isCurrent && 'bg-green-50 text-green-700 ring-2 ring-green-500',
                   !isDone && !isCurrent && 'border border-slate-200 bg-white text-slate-400',
                 )}
@@ -52,7 +52,7 @@ export default function TournamentStageBar({ rounds = [] }) {
               {i < present.length - 1 && (
                 <span
                   aria-hidden="true"
-                  className={cx('h-0.5 w-7 rounded-full sm:w-12', isDone || isCurrent ? 'bg-green-400' : 'bg-slate-200')}
+                  className={cx('h-0.5 w-7 rounded-full sm:w-12', isDone || isCurrent ? 'bg-gradient-to-r from-green-400 to-emerald-400' : 'bg-slate-200')}
                 />
               )}
             </li>

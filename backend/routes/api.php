@@ -3,6 +3,7 @@
 use App\Domains\Booking\Controllers\BookingController as V1BookingController;
 use App\Domains\Chat\Controllers\MatchChatController;
 use App\Domains\Competition\Controllers\CompetitionController;
+use App\Domains\Device\Controllers\DeviceController;
 use App\Domains\Leaderboard\Controllers\LeaderboardController as PublicLeaderboardController;
 use App\Domains\Leaderboard\Controllers\StatsController;
 use App\Domains\Match\Controllers\LiveMatchController;
@@ -75,12 +76,13 @@ use App\Http\Controllers\Committee\TournamentMatchEventController;
 use App\Http\Controllers\Committee\TournamentNewsController;
 use App\Http\Controllers\Committee\TournamentPartnerController;
 use App\Http\Controllers\Committee\TournamentResultController;
-use App\Http\Controllers\Committee\TournamentSponsorController;
+use App\Http\Controllers\Committee\TournamentSquadController;
 use App\Http\Controllers\Committee\TournamentStadiumController;
 use App\Http\Controllers\Committee\TournamentStandingController;
 use App\Http\Controllers\Committee\TournamentStatisticsController;
 use App\Http\Controllers\Committee\TournamentTeamController;
 use App\Http\Controllers\Committee\TournamentContactController;
+use App\Http\Controllers\Committee\TournamentSponsorController;
 use App\Http\Controllers\Manager\MatchFeedController;
 use App\Http\Controllers\Manager\ManagerLineupController;
 use App\Http\Controllers\Manager\MatchRequestController;
@@ -91,6 +93,7 @@ use App\Http\Controllers\Manager\PublicTeamController;
 use App\Http\Controllers\Manager\TeamMembershipController;
 use App\Http\Controllers\Manager\TeamProfileController;
 use App\Http\Controllers\Manager\TournamentController as ManagerTournamentController;
+use App\Http\Controllers\Manager\TournamentSquadController as ManagerTournamentSquadController;
 use App\Http\Controllers\Player\PlayerController as PlayerProfileController;
 use App\Http\Controllers\Public\LeaderboardController;
 use App\Http\Controllers\Public\PlayerLeaderboardController;
@@ -99,6 +102,10 @@ use App\Http\Controllers\Public\TournamentRegistrationController;
 use App\Http\Controllers\Public\PublicContactController;
 use App\Http\Controllers\Public\PublicManagerController;
 use App\Http\Controllers\Public\PublicTournamentContactController;
+use App\Http\Controllers\Public\TeamProfileController as PublicTeamProfileController;
+use App\Http\Controllers\Public\PlayerProfileController as PublicPlayerProfileController;
+use App\Http\Controllers\Public\TerrainOwnerProfileController;
+use App\Http\Controllers\Public\CommitteeMemberProfileController;
 use App\Http\Controllers\StadiumController;
 use App\Http\Controllers\Terrain\BookingController;
 use App\Http\Controllers\Terrain\DirectBookingController;
@@ -169,6 +176,11 @@ Route::prefix('v1')->group(function () {
     Route::post('/contact/messages', [PublicContactController::class, 'storeMessage'])->middleware('throttle:contact');
 
     Route::get('/managers/{managerId}', [PublicManagerController::class, 'show']);
+
+    Route::get('/teams/{team}/profile', [PublicTeamProfileController::class, 'show']);
+    Route::get('/players/{player}/profile', [PublicPlayerProfileController::class, 'show']);
+    Route::get('/terrain-owners/{id}/profile', [TerrainOwnerProfileController::class, 'show']);
+    Route::get('/committee-members/{id}/profile', [CommitteeMemberProfileController::class, 'show']);
 
     Route::middleware(['auth:sanctum', 'module.maintenance:tournaments'])->group(function () {
         Route::get('/tournaments/{tournament}/registration/me', [TournamentRegistrationController::class, 'me']);
@@ -469,6 +481,13 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 });
 
+Route::middleware(['auth:sanctum', 'throttle:device'])->prefix('devices')->group(function () {
+    Route::get('/', [DeviceController::class, 'index']);
+    Route::post('/', [DeviceController::class, 'store']);
+    Route::delete('/', [DeviceController::class, 'destroyByToken']);
+    Route::delete('/{device}', [DeviceController::class, 'destroy']);
+});
+
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/recovery/apply', [AccountController::class, 'applyRecovery'])->middleware('throttle:password');
 });
@@ -684,9 +703,11 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/teams/{teamId}/approve', [TournamentTeamController::class, 'approve']);
                 Route::post('/teams/{teamId}/reject', [TournamentTeamController::class, 'reject']);
                 Route::post('/teams/{teamId}/payment', [TournamentTeamController::class, 'markPaid']);
+                Route::post('/teams/{teamId}/payment/unmark', [TournamentTeamController::class, 'unmarkPaid']);
             });
 
             Route::get('/teams', [TournamentTeamController::class, 'index']);
+            Route::get('/teams/{team}/squad', [TournamentSquadController::class, 'index']);
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/teams', [TournamentTeamController::class, 'store']);
@@ -694,6 +715,8 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/teams/free/bulk', [TournamentTeamController::class, 'storeBulkFree']);
                 Route::put('/teams/group', [TournamentTeamController::class, 'assignGroup']);
                 Route::delete('/teams/{teamId}', [TournamentTeamController::class, 'destroy']);
+                Route::put('/teams/{team}/squad/{playerId}', [TournamentSquadController::class, 'toggle']);
+                Route::post('/teams/{team}/squad', [TournamentSquadController::class, 'store']);
             });
 
             Route::get('/stadiums', [TournamentStadiumController::class, 'index']);
@@ -905,7 +928,10 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/manager/tournaments/{tournament}/register', [ManagerTournamentController::class, 'register']);
                 Route::delete('/manager/tournaments/{tournament}/register', [ManagerTournamentController::class, 'cancel']);
+                Route::put('/manager/tournaments/{tournament}/squad/{playerId}', [ManagerTournamentSquadController::class, 'toggle']);
             });
+
+            Route::get('/manager/tournaments/{tournament}/squad', [ManagerTournamentSquadController::class, 'index']);
         });
     });
 

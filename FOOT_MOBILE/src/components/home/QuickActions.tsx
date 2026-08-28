@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import type { Href } from 'expo-router';
 import type { LucideIcon } from 'lucide-react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
@@ -12,7 +11,7 @@ export interface QuickAction {
   labelKey: string;
   fallback: string;
   Icon: LucideIcon;
-  href: Href;
+  href: string;
   primary?: boolean;
 }
 
@@ -30,7 +29,7 @@ export function QuickActions({ actions }: Props): React.JSX.Element {
       {actions.map((a) => (
         <Pressable
           key={a.key}
-          onPress={() => router.push(a.href)}
+          onPress={() => router.push(a.href as any)}
           style={({ pressed }) => [
             styles.card,
             {

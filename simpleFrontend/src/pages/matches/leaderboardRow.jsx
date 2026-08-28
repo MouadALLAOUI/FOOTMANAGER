@@ -1,5 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCrown, faFutbol, faMapPin, faMedal } from '@fortawesome/free-solid-svg-icons'
+import { useProfileModal } from '../../components/profile/ProfileModalContext'
 
 const podium = {
   1: {
@@ -38,12 +39,15 @@ const gridClass =
   'grid grid-cols-[auto_1fr_auto] items-center gap-3 px-5 py-4 md:grid-cols-[64px_minmax(0,1.3fr)_minmax(0,1fr)_88px_88px_88px_96px] md:gap-4 md:px-8'
 
 export default function LeaderboardRow({ row }) {
+  const { openTeam } = useProfileModal()
   const accent = accents[row.id % accents.length]
   const top = podium[row.id]
+  const clickable = row.team_id != null
 
   return (
     <div
-      className={`${gridClass} transition-colors duration-300 ${
+      onClick={clickable ? () => openTeam({ id: row.team_id, name: row.name, city: row.city, logo_url: row.logo_url }) : undefined}
+      className={`${gridClass} ${clickable ? 'cursor-pointer' : ''} transition-colors duration-300 ${
         top ? `${top.row} ${top.ring} ring-1` : 'hover:bg-slate-50'
       }`}
     >

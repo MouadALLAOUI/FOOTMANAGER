@@ -28,6 +28,7 @@ export default function TerrainLayout(): React.JSX.Element {
         options={{ title: t('nav.profile', 'حسابي'), tabBarIcon: ({ color, size }) => <User size={size} color={color} /> }}
       />
       <Tabs.Screen name="settings" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -50,6 +50,7 @@ class TournamentFixtureResource extends JsonResource
             'status' => $this->status?->value,
             'leg' => $this->leg(),
             'match' => $this->whenLoaded('match', fn () => $this->match ? [
+                'id' => $this->match->id,
                 'status' => $this->match->status?->value,
                 'current_period' => $this->match->current_period,
                 'current_minute' => $this->match->current_minute,

@@ -6,6 +6,7 @@ export interface AppConfig {
   readonly apiUrl: string;
   readonly env: AppEnv;
   readonly version: string;
+  readonly supportContact: string;
 }
 
 function parseEnv(raw: string | undefined): AppEnv {
@@ -59,13 +60,18 @@ export function getAppConfig(): AppConfig {
   const apiUrl = validateApiUrl(rawApiUrl);
   const env = parseEnv(process.env.EXPO_PUBLIC_APP_ENV ?? extra.appEnv);
   const version = Constants.expoConfig?.version ?? '0.0.0';
+  const supportContact = (process.env.EXPO_PUBLIC_SUPPORT_CONTACT ?? '').trim();
 
-  cached = { apiUrl, env, version };
+  cached = { apiUrl, env, version, supportContact };
   return cached;
 }
 
 export function getApiUrl(): string {
   return getAppConfig().apiUrl;
+}
+
+export function getSupportContact(): string {
+  return getAppConfig().supportContact;
 }
 
 export function getAppEnv(): AppEnv {

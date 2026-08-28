@@ -1,27 +1,79 @@
-import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import type { ReactNode } from 'react';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
-import { Button } from './Button';
+import { spacing } from '@/theme/spacing';
+import { AppText } from './AppText';
+import { Button, type ButtonVariant } from './Button';
 
 interface Props {
-  title: string;
+  title?: string;
   description?: string;
-  icon?: string;
+  icon?: ReactNode | string;
   actionLabel?: string;
   onAction?: () => void;
+  actionVariant?: ButtonVariant;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  secondaryActionVariant?: ButtonVariant;
   style?: ViewStyle;
+  actionLoading?: boolean;
 }
 
-export function EmptyState({ title, description, icon = '—', actionLabel, onAction, style }: Props): React.JSX.Element {
+export function EmptyState({
+  title,
+  description,
+  icon = '—',
+  actionLabel,
+  onAction,
+  actionVariant = 'primary',
+  secondaryActionLabel,
+  onSecondaryAction,
+  secondaryActionVariant = 'ghost',
+  style,
+  actionLoading = false,
+}: Props): React.JSX.Element {
   const { colors } = useTheme();
+
   return (
     <View style={[styles.container, style]} accessibilityRole="summary">
-      <Text style={[styles.icon, { color: colors.textSubtle }]}>{icon}</Text>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-      {description ? <Text style={[styles.desc, { color: colors.textMuted }]}>{description}</Text> : null}
+      {typeof icon === 'string' ? (
+        <AppText variant="h1" style={[styles.icon, { color: colors.textSubtle }]}>
+          {icon}
+        </AppText>
+      ) : (
+        <View style={styles.iconNode}>{icon}</View>
+      )}
+      <AppText variant="bodyBold" style={styles.title}>
+        {title}
+      </AppText>
+      {description ? (
+        <AppText variant="caption" muted style={styles.desc}>
+          {description}
+        </AppText>
+      ) : null}
+
       {actionLabel && onAction ? (
-        <View style={styles.action}>
-          <Button title={actionLabel} onPress={onAction} variant="primary" size="md" />
+        <View style={styles.actions}>
+          <Button
+            title={actionLabel}
+            onPress={onAction}
+            variant={actionVariant}
+            size="md"
+            loading={actionLoading}
+            disabled={actionLoading}
+          />
+        </View>
+      ) : null}
+
+      {secondaryActionLabel && onSecondaryAction ? (
+        <View style={styles.secondary}>
+          <Button
+            title={secondaryActionLabel}
+            onPress={onSecondaryAction}
+            variant={secondaryActionVariant}
+            size="md"
+          />
         </View>
       ) : null}
     </View>
@@ -29,9 +81,11 @@ export function EmptyState({ title, description, icon = '—', actionLabel, onAc
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
-  icon: { fontSize: 32, marginBottom: 4 },
-  title: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  desc: { fontSize: 13, textAlign: 'center', lineHeight: 18 },
-  action: { marginTop: 12 },
+  container: { alignItems: 'center', justifyContent: 'center', padding: spacing['2xl'], gap: spacing.sm },
+  icon: { marginBottom: spacing.xs },
+  iconNode: { marginBottom: spacing.xs, justifyContent: 'center', alignItems: 'center' },
+  title: { textAlign: 'center' },
+  desc: { textAlign: 'center', lineHeight: 18 },
+  actions: { marginTop: spacing.sm },
+  secondary: { marginTop: spacing.xs },
 });

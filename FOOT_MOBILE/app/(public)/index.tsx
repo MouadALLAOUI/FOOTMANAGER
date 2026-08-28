@@ -1,253 +1,108 @@
 import { Link } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { MapPin, Swords, Trophy, Users } from 'lucide-react-native';
 
-import { get } from '@/api/client';
-import { getUserMessage } from '@/api/errors';
-import { qSelfTestPing } from '@/api/query-keys';
-import { getAppConfig } from '@/config/env';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { runStorageSelfTest, type StorageSelfTestReport } from '@/services/storage';
+import { AppText } from '@/components/ui/AppText';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Screen } from '@/components/ui/Screen';
+import { useI18n } from '@/i18n/I18nProvider';
+import { useTheme } from '@/theme/ThemeProvider';
+import { radius, spacing } from '@/theme/spacing';
 
-const COLORS = {
-  bg: '#0f172a',
-  surface: '#1e293b',
-  border: '#334155',
-  text: '#f8fafc',
-  muted: '#94a3b8',
-  primary: '#22c55e',
-  danger: '#f43f5e',
-  amber: '#f59e0b',
-} as const;
-
-const STATE_COLOR: Record<string, string> = {
-  pass: COLORS.primary,
-  fail: COLORS.danger,
-  skip: COLORS.amber,
-};
-const STATE_LABEL: Record<string, string> = { pass: '✓', fail: '✗', skip: '⤼' };
-
-function useApiConfig(): { apiUrl: string; env: string; error: string | null } {
-  try {
-    const config = getAppConfig();
-    return { apiUrl: config.apiUrl, env: config.env, error: null };
-  } catch (error) {
-    return {
-      apiUrl: '—',
-      env: 'unknown',
-      error: error instanceof Error ? error.message : 'Unknown env error',
-    };
-  }
+interface Feature {
+  icon: React.ReactNode;
+  titleKey: string;
+  descKey: string;
 }
 
-export default function PublicHome(): React.JSX.Element {
-  const api = useApiConfig();
-  const network = useNetworkStatus();
-  const [report, setReport] = useState<StorageSelfTestReport | null>(null);
-  const [running, setRunning] = useState(false);
+export default function LandingScreen(): React.JSX.Element {
+  const { t } = useI18n();
+  const { colors } = useTheme();
 
-  const ping = useQuery({
-    queryKey: qSelfTestPing(),
-    queryFn: async () => ({ ok: true, at: new Date().toISOString() }),
-  });
-
-  const health = useQuery({
-    queryKey: ['health'],
-    queryFn: () => get<{ status: string; timestamp: string }>('/health'),
-    retry: false,
-    enabled: network.isOnline,
-  });
-
-  const onRunSelfTest = useCallback(async () => {
-    setRunning(true);
-    setReport(null);
-    try {
-      const result = await runStorageSelfTest();
-      setReport(result);
-    } catch (error) {
-      setReport({
-        backend: 'memory',
-        secureSupported: false,
-        allPassed: false,
-        results: [{ id: 'runner', label: 'Runner crashed', state: 'fail', detail: String(error) }],
-      });
-    } finally {
-      setRunning(false);
-    }
-  }, []);
+  const features: Feature[] = [
+    { icon: <Swords size={22} color={colors.primary} />, titleKey: 'landing.featureMatchesTitle', descKey: 'landing.featureMatchesDesc' },
+    { icon: <Users size={22} color={colors.primary} />, titleKey: 'landing.featureTeamTitle', descKey: 'landing.featureTeamDesc' },
+    { icon: <MapPin size={22} color={colors.primary} />, titleKey: 'landing.featureTerrainsTitle', descKey: 'landing.featureTerrainsDesc' },
+    { icon: <Trophy size={22} color={colors.primary} />, titleKey: 'landing.featureTournamentsTitle', descKey: 'landing.featureTournamentsDesc' },
+  ];
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>FootMANAGER Mobile</Text>
-      <Text style={styles.subtitle}>Phase 1 — Foundation · Expo Router</Text>
+    <Screen scroll>
+      <View style={styles.content}>
+        <View style={styles.brand}>
+          <View style={[styles.logoCircle, { backgroundColor: colors.primary + '18' }]}>
+            <AppText style={styles.logoEmoji}>⚽</AppText>
+          </View>
+          <AppText variant="h1" align="center">{t('app.name')}</AppText>
+          <AppText variant="label" muted align="center">{t('app.tagline')}</AppText>
+          <AppText muted align="center" style={styles.subtitle}>{t('landing.subtitle')}</AppText>
+        </View>
 
-      <View style={styles.card}>
-        <SectionLabel label="Infrastructure" />
-        <Row k="Platform" v={String(process.env.EXPO_OS ?? 'native')} />
-        <Row k="API env" v={api.env} />
-        <Row k="API url" v={api.apiUrl} mono />
-        <Row k="Persistent store" v={report?.backend ?? 'mmkv | memory*'} />
-        <Row k="SecureStore" v={report ? String(report.secureSupported) : 'expo-secure-store'} />
-        <Row
-          k="QueryClient ping"
-          v={
-            ping.isSuccess && ping.data.ok
-              ? `✓ ${ping.data.at}`
-              : ping.isError
-                ? '✗ failed'
-                : '…'
-          }
-        />
-        {api.error ? <Text style={styles.errorText}>{api.error}</Text> : null}
-      </View>
+        <View style={styles.section}>
+          <AppText variant="h2">{t('landing.featuresTitle')}</AppText>
+          <View style={styles.featureList}>
+            {features.map((f) => (
+              <Card key={f.titleKey} style={styles.featureCard}>
+                <View style={styles.featureRow}>
+                  <View style={[styles.featureIcon, { backgroundColor: colors.primary + '14' }]}>{f.icon}</View>
+                  <View style={styles.featureText}>
+                    <AppText variant="bodyBold">{t(f.titleKey)}</AppText>
+                    <AppText variant="caption" muted>{t(f.descKey)}</AppText>
+                  </View>
+                  <AppText variant="caption" style={{ color: colors.textSubtle }}>‹</AppText>
+                </View>
+              </Card>
+            ))}
+          </View>
+        </View>
 
-      <View style={styles.card}>
-        <SectionLabel label="Network & API" />
-        <Row k="Network" v={network.isOnline ? `online (${network.type ?? 'unknown'})` : 'offline'} />
-        <Row
-          k="GET /health"
-          v={
-            !network.isOnline
-              ? '— offline (skipped)'
-              : health.isPending
-                ? '…'
-                : health.isSuccess
-                  ? `✓ ${health.data.status} @ ${health.data.timestamp}`
-                  : `✗ ${getUserMessage(health.error)}`
-          }
-          mono={health.isSuccess}
-        />
-        {health.isError && network.isOnline ? (
-          <Text style={styles.errorText}>{String((health.error as Error).message)}</Text>
+        <View style={styles.section}>
+          <AppText variant="h2">{t('landing.ctaTitle')}</AppText>
+          <View style={styles.ctaList}>
+            <Link href="/(auth)" asChild>
+              <Button title={t('auth.login')} fullWidth />
+            </Link>
+            <Link href="/(auth)/register" asChild>
+              <Button title={t('auth.register')} variant="outline" fullWidth />
+            </Link>
+          </View>
+        </View>
+
+        <AppText variant="caption" muted align="center" style={styles.footer}>
+          {t('landing.footer', '')}
+        </AppText>
+
+        {__DEV__ ? (
+          <Link href={'/(public)/dev' as never} style={styles.devLink}>
+            <AppText variant="small" muted align="center">{t('landing.devTools')}</AppText>
+          </Link>
         ) : null}
       </View>
-
-      {__DEV__ ? (
-        <View style={styles.card}>
-          <SectionLabel label="Storage self-test (dev)" />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void onRunSelfTest()}
-            disabled={running}
-            style={({ pressed }) => [
-              styles.button,
-              pressed && styles.buttonPressed,
-              running && styles.buttonDisabled,
-            ]}
-          >
-            {running ? (
-              <ActivityIndicator color={COLORS.bg} size="small" />
-            ) : (
-              <Text style={styles.buttonText}>Run self-test</Text>
-            )}
-          </Pressable>
-
-          {report ? (
-            <View style={styles.results}>
-              <Row
-                k="Summary"
-                v={report.allPassed ? '✓ ALL PASSED' : '✗ FAILURES'}
-                valueColor={report.allPassed ? COLORS.primary : COLORS.danger}
-              />
-              {report.results.map((result) => (
-                <View key={result.id} style={styles.resultLine}>
-                  <Text style={[styles.resultState, { color: STATE_COLOR[result.state] }]}>
-                    {STATE_LABEL[result.state]}
-                  </Text>
-                  <View style={styles.resultBody}>
-                    <Text style={styles.resultLabel}>{result.label}</Text>
-                    {result.detail ? <Text style={styles.resultDetail}>{result.detail}</Text> : null}
-                  </View>
-                </View>
-              ))}
-              <Text style={styles.note}>Test keys are removed after every run (secure + persistent).</Text>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-
-      <Link href="/(public)/design-system" style={styles.link}>
-        View design system →
-      </Link>
-      <Text style={styles.footer}>
-        No login yet (auth = next phase) · secrets → SecureStore only · prefs/cache → MMKV
-      </Text>
-    </ScrollView>
-  );
-}
-
-function SectionLabel({ label }: { label: string }): React.JSX.Element {
-  return <Text style={styles.sectionLabel}>{label}</Text>;
-}
-
-function Row({
-  k,
-  v,
-  mono,
-  valueColor,
-}: {
-  k: string;
-  v: string;
-  mono?: boolean;
-  valueColor?: string;
-}): React.JSX.Element {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowKey}>{k}</Text>
-      <Text style={[styles.rowValue, mono && styles.mono, valueColor ? { color: valueColor } : null]}>
-        {v}
-      </Text>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: 20, paddingTop: 64, gap: 16 },
-  title: { color: COLORS.text, fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  subtitle: { color: COLORS.muted, fontSize: 14, textAlign: 'center', marginBottom: 8 },
-  card: {
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: COLORS.border,
-    padding: 16,
-    gap: 10,
-  },
-  sectionLabel: {
-    color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  row: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
-  rowKey: { color: COLORS.muted, fontSize: 13 },
-  rowValue: { color: COLORS.text, fontSize: 13, fontWeight: '600', textAlign: 'right', flexShrink: 1 },
-  mono: { fontFamily: 'monospace', fontSize: 11 },
-  errorText: { color: COLORS.danger, fontSize: 12 },
-  button: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 12,
+  content: { flexGrow: 1, gap: spacing['2xl'], paddingVertical: spacing['2xl'] },
+  brand: { alignItems: 'center', gap: spacing.sm },
+  logoCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 24,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
-  buttonPressed: { opacity: 0.85 },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: COLORS.bg, fontWeight: '800', fontSize: 15 },
-  results: { gap: 8, marginTop: 4 },
-  resultLine: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
-  resultState: { fontSize: 14, fontWeight: '800', width: 16 },
-  resultBody: { flex: 1, flexShrink: 1 },
-  resultLabel: { color: COLORS.text, fontSize: 13, fontWeight: '600' },
-  resultDetail: {
-    color: COLORS.muted,
-    fontSize: 11,
-    fontFamily: 'monospace',
-    marginTop: 2,
-  },
-  note: { color: COLORS.muted, fontSize: 11, fontStyle: 'italic' },
-  footer: { color: COLORS.muted, fontSize: 11, textAlign: 'center', paddingBottom: 24 },
-  link: { color: COLORS.primary, fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 4 },
+  logoEmoji: { fontSize: 36 },
+  subtitle: { marginTop: spacing.xs, lineHeight: 20, paddingHorizontal: spacing.lg },
+  section: { gap: spacing.md },
+  featureList: { gap: spacing.md },
+  featureCard: { padding: spacing.md },
+  featureRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  featureIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  featureText: { flex: 1, gap: 2 } as ViewStyle,
+  ctaList: { gap: spacing.md },
+  footer: { marginTop: spacing.sm },
+  devLink: { marginTop: spacing.lg },
 });

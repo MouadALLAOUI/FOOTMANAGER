@@ -87,6 +87,7 @@ class TournamentController extends Controller
                 'teams_count' => $data['teams_count'],
                 'groups_count' => $data['groups_count'],
                 'teams_per_group' => $data['teams_per_group'],
+                'max_players_per_team' => $data['max_players_per_team'] ?? null,
                 'group_mode' => $data['group_mode'] ?? 'fixed',
                 'match_duration_minutes' => $data['match_duration_minutes'] ?? 90,
                 'matches_per_day' => $data['matches_per_day'] ?? null,
@@ -181,6 +182,23 @@ class TournamentController extends Controller
             } else {
                 $data['groups_count'] = null;
                 $data['teams_per_group'] = null;
+            }
+        }
+
+        if (array_key_exists('max_players_per_team', $data)) {
+            $newMax = $data['max_players_per_team'] !== null ? (int) $data['max_players_per_team'] : null;
+
+            if ($newMax !== null) {
+                $largestSquad = DB::table('tournament_squad_members')
+                    ->where('tournament_id', $tournament->id)
+                    ->selectRaw('team_id, COUNT(*) as cnt')
+                    ->groupBy('team_id')
+                    ->orderByDesc('cnt')
+                    ->value('cnt');
+
+                if ($largestSquad && (int) $largestSquad > $newMax) {
+                    throw new DomainException("لا يمكن تقليص الحد الأقصى إلى أقل من عدد اللاعبين المسجلين حالياً (أكبر قائمة تضم {$largestSquad} لاعباً)");
+                }
             }
         }
 

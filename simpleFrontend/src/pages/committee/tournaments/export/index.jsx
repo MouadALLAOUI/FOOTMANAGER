@@ -1,10 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
+import { pdf } from '@react-pdf/renderer'
 import { Printer, FileDown, Download, X, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 import { useToast } from '../../../../components/ui/Toast'
 import { useTournamentExportData } from './useTournamentExportData'
+import { collectImageUrls, validateImages } from './collectImages'
 import TournamentExportSheet from './exportSheet'
+import TournamentPdfDocument from './TournamentPdfDocument'
 import useScrollLock from '../../../../components/useScrollLock'
 import './print.css'
 
@@ -12,6 +15,7 @@ export default function TournamentExport({ tournament, onClose }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const { data, loading, error, reload } = useTournamentExportData(tournament?.id)
+  const [pdfBusy, setPdfBusy] = useState(false)
 
   useScrollLock(true)
 
@@ -25,9 +29,27 @@ export default function TournamentExport({ tournament, onClose }) {
 
   const handlePrint = () => window.print()
 
-  const handlePdf = () => {
-    window.print()
-    toast.info(t('committee.export.pdfHint'))
+  const handlePdf = async () => {
+    if (!data || pdfBusy) return
+    setPdfBusy(true)
+    try {
+      const urls = collectImageUrls(data)
+      const images = await validateImages(urls)
+      const blob = await pdf(<TournamentPdfDocument data={data} images={images} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `tournament-${tournament?.slug || tournament?.id || 'export'}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(url)
+      toast.success(t('committee.export.downloaded'))
+    } catch {
+      toast.error(t('committee.export.downloadError'))
+    } finally {
+      setPdfBusy(false)
+    }
   }
 
   const handleJson = () => {
@@ -68,9 +90,9 @@ export default function TournamentExport({ tournament, onClose }) {
                 <Printer size={18} />
                 {t('committee.export.print')}
               </button>
-              <button type="button" className="tm-export-btn tm-export-btn-primary" onClick={handlePdf} disabled={loading || !!error}>
-                <FileDown size={18} />
-                {t('committee.export.pdf')}
+              <button type="button" className="tm-export-btn tm-export-btn-primary" onClick={handlePdf} disabled={loading || !!error || pdfBusy}>
+                {pdfBusy ? <Loader2 className="tm-export-spinner" size={18} /> : <FileDown size={18} />}
+                {pdfBusy ? t('committee.export.generating') : t('committee.export.pdf')}
               </button>
               <button type="button" className="tm-export-btn tm-export-btn-ghost" onClick={handleJson} disabled={loading || !!error}>
                 <Download size={18} />

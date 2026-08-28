@@ -5,6 +5,7 @@ namespace App\Domains\Booking\Resources;
 use App\Domains\Booking\Services\ReceiptService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Gate;
 
 class BookingResource extends JsonResource
 {
@@ -43,6 +44,9 @@ class BookingResource extends JsonResource
             'cancellation_reason' => $this->cancellation_reason,
             'refund_percentage' => $this->refund_percentage !== null ? (float) $this->refund_percentage : null,
             'refund_amount' => $this->refund_amount !== null ? (float) $this->refund_amount : null,
+            'can_cancel' => $request->user() !== null
+                ? Gate::forUser($request->user())->allows('cancel', $this->resource)
+                : false,
             'stadium' => [
                 'id' => $this->terrain?->id,
                 'name' => $this->terrain?->name,

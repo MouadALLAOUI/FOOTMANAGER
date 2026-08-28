@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
+  ChevronLeft,
   Crown,
   Flame,
   MapPin,
@@ -13,19 +14,34 @@ import {
 import { Card, Badge } from '../../components/dashboard/ui'
 import { formatTime, matchDay } from '../../lib/adapters'
 import { logoThumb } from '../../lib/thumb'
+import { useProfileModal } from '../../components/profile/ProfileModalContext'
 
-export function TeamAvatar({ team, className = 'size-8' }) {
+export function TeamAvatar({ team, className = 'size-8', onClick }) {
+  const clickable = onClick ? 'cursor-pointer' : ''
   if (!team) return <span className={`${className} grid shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500`}>?</span>
-  if (team.logo_url) return <img src={logoThumb(team)} alt="" className={`${className} shrink-0 rounded-full object-cover`} loading="lazy" />
-  return (
-    <span className={`${className} grid shrink-0 place-items-center rounded-full bg-green-100 text-xs font-black text-green-700`}>
+  if (team.logo_url) {
+    const img = <img src={logoThumb(team)} alt="" className={`${className} ${clickable} shrink-0 rounded-full object-cover`} loading="lazy" />
+    return onClick ? (
+      <button type="button" onClick={onClick} aria-label={team.name} className="shrink-0 rounded-full">
+        {img}
+      </button>
+    ) : img
+  }
+  const letter = (
+    <span className={`${className} ${clickable} grid shrink-0 place-items-center rounded-full bg-green-100 text-xs font-black text-green-700`}>
       {(team.name || '؟').slice(0, 1)}
     </span>
   )
+  return onClick ? (
+    <button type="button" onClick={onClick} aria-label={team.name} className="shrink-0">
+      {letter}
+    </button>
+  ) : letter
 }
 
 export function DrawGroups({ teams }) {
   const { t } = useTranslation()
+  const { openTeam } = useProfileModal()
   const groups = []
   const map = new Map()
   for (const p of teams || []) {
@@ -48,8 +64,18 @@ export function DrawGroups({ teams }) {
           <div className="mt-3 space-y-2">
             {g.list.map((team) => (
               <div key={team?.id || Math.random()} className="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2">
-                <TeamAvatar team={team} className="size-7" />
-                <span className="truncate text-xs font-bold text-slate-700">{team?.name || '—'}</span>
+                <TeamAvatar
+                  team={team}
+                  className="size-7"
+                  onClick={team?.id != null ? () => openTeam(team) : undefined}
+                />
+                <button
+                  type="button"
+                  onClick={team?.id != null ? () => openTeam(team) : undefined}
+                  className="min-w-0 truncate text-start text-xs font-bold text-slate-700 transition-colors hover:text-green-700"
+                >
+                  {team?.name || '—'}
+                </button>
               </div>
             ))}
           </div>
@@ -61,17 +87,22 @@ export function DrawGroups({ teams }) {
 
 export function StandingsTable({ groups }) {
   const { t } = useTranslation()
-  const cols = ['#', 'team', 'played', 'wins', 'draws', 'losses', 'gf', 'ga', 'gd', 'points']
+  const { openTeam } = useProfileModal()
+  const cols = ['#', 'team', 'played', 'wins', 'draws', 'losses', 'gf', 'ga', 'gd', 'points', 'form']
   return (
     <div className="space-y-6">
       {(groups || []).map((group) => (
-        <Card key={group.group_id ?? 'unassigned'} title={group.name}>
+        <Card
+          key={group.group_id ?? 'unassigned'}
+          title={group.name}
+          subtitle={group.rows?.length ? t('committee.detail.teamsCount', { count: group.rows.length }) : undefined}
+        >
           <div className="-mx-6 overflow-x-auto px-6">
-            <table className="w-full min-w-[560px] text-sm">
+            <table className="w-full min-w-[640px] text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                <tr className="border-b border-slate-100 bg-slate-50/60 text-[10px] font-black uppercase tracking-wide text-slate-400">
                   {cols.map((c) => (
-                    <th key={c} className="px-2 py-2.5 text-center first:text-start last:text-end">
+                    <th key={c} className="px-2 py-2.5 text-center first:text-start last:text-center">
                       {c === '#'
                         ? '#'
                         : c === 'team'
@@ -83,15 +114,24 @@ export function StandingsTable({ groups }) {
               </thead>
               <tbody>
                 {(group.rows || []).map((row, i) => (
-                  <tr key={row.team_id} className="border-b border-slate-50 last:border-0">
+                  <tr
+                    key={row.team_id}
+                    className={`border-b border-slate-50 transition-colors last:border-0 hover:bg-slate-50/70 ${
+                      i === 0 && row.points > 0 ? 'bg-emerald-50/50' : ''
+                    }`}
+                  >
                     <td className="px-2 py-3 text-center text-xs font-black text-slate-400">
                       {i + 1 <= 2 ? <Crown className={`mx-auto size-4 ${i === 0 ? 'text-amber-500' : 'text-slate-400'}`} /> : i + 1}
                     </td>
                     <td className="px-2 py-3">
-                      <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={row.team?.id != null ? () => openTeam(row.team) : undefined}
+                        className="flex items-center gap-2.5 text-start"
+                      >
                         <TeamAvatar team={row.team} className="size-7" />
-                        <span className="truncate font-bold text-slate-800">{row.team?.name || '—'}</span>
-                      </div>
+                        <span className="truncate font-bold text-slate-800 transition-colors hover:text-green-700">{row.team?.name || '—'}</span>
+                      </button>
                     </td>
                     <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.played}</td>
                     <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.wins}</td>
@@ -102,7 +142,25 @@ export function StandingsTable({ groups }) {
                     <td className={`px-2 py-3 text-center font-bold ${row.goal_difference >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
                       {row.goal_difference >= 0 ? '+' : ''}{row.goal_difference}
                     </td>
-                    <td className="px-2 py-3 text-end text-base font-black text-slate-900">{row.points}</td>
+                    <td className="px-2 py-3 text-center text-base font-black text-slate-900">{row.points}</td>
+                    <td className="px-2 py-3 text-center">
+                      {(row.form || []).length ? (
+                        <div className="flex items-center justify-center gap-1">
+                          {(row.form || []).slice(-5).map((mark, k) => (
+                            <span
+                              key={k}
+                              className={`grid size-5 place-items-center rounded-full text-[9px] font-black ${
+                                mark === 'W' ? 'bg-emerald-100 text-emerald-700' : mark === 'D' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-600'
+                              }`}
+                            >
+                              {mark}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -114,7 +172,7 @@ export function StandingsTable({ groups }) {
   )
 }
 
-export function BracketView({ rounds }) {
+export function BracketView({ rounds, onOpen }) {
   const { t } = useTranslation()
   if (!rounds || rounds.length === 0) return null
   return (
@@ -125,23 +183,44 @@ export function BracketView({ rounds }) {
             {(round.fixtures || []).map((f) => {
               const played = f.status === 'finished'
               const winner = f.winner_team_id
-              return (
-                <div key={f.id} className="overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50/60">
-                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3">
-                    <div className={`flex min-w-0 items-center gap-2 ${winner && winner === f.home_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
-                      <TeamAvatar team={f.home_team} className="size-7" />
-                      <span className="truncate text-xs font-bold">{f.home_team?.name || t('committee.detail.tbd')}</span>
-                      {winner === f.home_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
-                    </div>
-                    <span className="text-base font-black text-slate-900">
+              const canOpen = Boolean(onOpen) && Boolean(f.match_id)
+              const inner = (
+                <>
+                  <div className={`flex min-w-0 items-center gap-2 ${winner && winner === f.home_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
+                    <TeamAvatar team={f.home_team} className="size-7" />
+                    <span className="truncate text-xs font-bold">{f.home_team?.name || t('committee.detail.tbd')}</span>
+                    {winner === f.home_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-base font-black tabular-nums text-slate-900">
                       {played ? `${f.home_score} - ${f.away_score}` : <span className="text-slate-400">vs</span>}
                     </span>
-                    <div className={`flex min-w-0 items-center justify-end gap-2 ${winner && winner === f.away_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
-                      {winner === f.away_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
-                      <span className="truncate text-xs font-bold">{f.away_team?.name || t('committee.detail.tbd')}</span>
-                      <TeamAvatar team={f.away_team} className="size-7" />
-                    </div>
+                    {played && f.home_penalties != null && (
+                      <span className="text-[9px] font-bold text-slate-400">
+                        p {f.home_penalties}-{f.away_penalties}
+                      </span>
+                    )}
                   </div>
+                  <div className={`flex min-w-0 items-center justify-end gap-2 ${winner && winner === f.away_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
+                    {winner === f.away_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
+                    <span className="truncate text-xs font-bold">{f.away_team?.name || t('committee.detail.tbd')}</span>
+                    <TeamAvatar team={f.away_team} className="size-7" />
+                  </div>
+                  {canOpen && <ChevronLeft className="size-4 shrink-0 self-center text-slate-300 transition-colors group-hover:text-green-500 rtl:rotate-180" />}
+                </>
+              )
+              return canOpen ? (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => onOpen({ ...f, match: { id: f.match_id } })}
+                  className="group grid w-full grid-cols-[1fr_auto_1fr_auto] items-center gap-2 overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50/60 p-3 text-start transition-all hover:border-green-200 hover:bg-white hover:shadow-[0_12px_28px_-14px_rgba(16,185,129,0.45)]"
+                >
+                  {inner}
+                </button>
+              ) : (
+                <div key={f.id} className="overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50/60">
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3">{inner}</div>
                 </div>
               )
             })}

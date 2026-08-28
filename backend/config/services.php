@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Expo Push Notifications
+    |--------------------------------------------------------------------------
+    | push_host: Expo's push delivery endpoint.
+    | access_token: (optional) Expo project access token from your EAS project
+    |               (Settings -> Credentials). Leave empty to send anonymously.
+    */
+
+    'expo' => [
+        'push_host' => env('EXPO_PUSH_HOST', 'https://exp.host/--/api/v2/push/send'),
+        'access_token' => env('EXPO_ACCESS_TOKEN'),
+    ],
+
 ];

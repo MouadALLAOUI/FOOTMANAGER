@@ -131,6 +131,11 @@ class User extends Authenticatable
         return $this->hasOne(Team::class, 'manager_id');
     }
 
+    public function devices(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Device\Models\Device::class);
+    }
+
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);

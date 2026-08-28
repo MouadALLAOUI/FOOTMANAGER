@@ -6,6 +6,8 @@ import { radius } from '@/theme/spacing';
 
 type Variant = 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 
+export type BadgeVariant = Variant;
+
 interface Props {
   label: string;
   variant?: Variant;

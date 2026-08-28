@@ -319,6 +319,8 @@ class TeamMembershipController extends Controller
                 'logo_url' => $player->team->logo_url,
                 'city' => $player->team->city,
                 'category' => $player->team->category,
+                'captain_id' => $player->team->captain_id,
+                'vice_captain_id' => $player->team->vice_captain_id,
                 'member_count' => Player::where('team_id', $player->team->id)->active()->count(),
             ],
             'teammates' => $teammates,

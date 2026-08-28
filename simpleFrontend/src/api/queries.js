@@ -42,6 +42,10 @@ export const q = {
   applications: () => ['player', 'applications'],
   playerMatchDetail: (id) => ['player', 'match-detail', id],
   publicManagerProfile: (id) => ['public', 'manager', id],
+  publicTeamProfile: (id) => ['public', 'teams', id, 'profile'],
+  publicPlayerProfile: (id) => ['public', 'players', id, 'profile'],
+  publicOwnerProfile: (id) => ['public', 'terrain-owners', id, 'profile'],
+  publicCommitteeProfile: (id) => ['public', 'committee-members', id, 'profile'],
   cities: () => ['cities'],
   citiesSelect: () => ['cities', 'select'],
 }
@@ -115,7 +119,15 @@ export const useApplications = (options) =>
 export const usePlayerMatchDetail = (matchId, options) =>
   useTypedQuery(q.playerMatchDetail(matchId), () => get(`/player/matches/${matchId}`), { ...options, enabled: !!matchId })
 export const usePublicManagerProfile = (managerId, options) =>
-  useTypedQuery(q.publicManagerProfile(managerId), () => get(`/public/managers/${managerId}`), { ...options, enabled: !!managerId })
+  useTypedQuery(q.publicManagerProfile(managerId), () => get(`/v1/managers/${managerId}`), { ...options, enabled: !!managerId })
+export const usePublicTeamProfile = (teamId, options) =>
+  useTypedQuery(q.publicTeamProfile(teamId), () => get(`/v1/teams/${teamId}/profile`), { ...options, enabled: !!teamId })
+export const usePublicPlayerProfile = (playerId, options) =>
+  useTypedQuery(q.publicPlayerProfile(playerId), () => get(`/v1/players/${playerId}/profile`), { ...options, enabled: !!playerId })
+export const usePublicOwnerProfile = (ownerId, options) =>
+  useTypedQuery(q.publicOwnerProfile(ownerId), () => get(`/v1/terrain-owners/${ownerId}/profile`), { ...options, enabled: !!ownerId })
+export const usePublicCommitteeProfile = (memberId, options) =>
+  useTypedQuery(q.publicCommitteeProfile(memberId), () => get(`/v1/committee-members/${memberId}/profile`), { ...options, enabled: !!memberId })
 export const useCities = (options) =>
   useTypedQuery(q.cities(), () => get('/cities', { active_only: true }), options)
 export const useCitiesSelect = (options) =>

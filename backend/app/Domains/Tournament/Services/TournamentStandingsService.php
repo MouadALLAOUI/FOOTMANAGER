@@ -105,7 +105,7 @@ class TournamentStandingsService
         }
 
         $teamIds = array_map('intval', array_keys($aggregates));
-        $teams = $teamIds ? Team::query()->whereKey($teamIds)->get(['id', 'name', 'logo_path', 'city']) : collect();
+        $teams = $teamIds ? Team::query()->withTrashed()->whereKey($teamIds)->get(['id', 'name', 'logo_path', 'city']) : collect();
 
         $rows = [];
 

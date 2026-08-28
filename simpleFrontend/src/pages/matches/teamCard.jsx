@@ -9,6 +9,7 @@ import {
   faTrophy,
 } from '@fortawesome/free-solid-svg-icons'
 import { matchDay } from '../../lib/adapters'
+import { useProfileModal } from '../../components/profile/ProfileModalContext'
 
 const accents = [
   { color: '#059669', soft: 'bg-emerald-50 text-emerald-700' },
@@ -35,11 +36,18 @@ const levelDots = {
 
 export default function TeamCard({ team, onChallenge }) {
   const { t, i18n } = useTranslation()
+  const { openTeam } = useProfileModal()
   const accent = accents[team.id % accents.length]
+  const clickable = team.teamId != null
+
+  const openProfile = () => {
+    if (!clickable) return
+    openTeam({ id: team.teamId, name: team.name, city: team.city, level: team.level })
+  }
 
   return (
     <article className="group flex h-full flex-col rounded-[28px] bg-white p-6 shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_26px_60px_rgba(17,24,39,0.16)] hover:ring-green-500/60">
-      <div className="relative text-center">
+      <div onClick={openProfile} className={`relative block w-full text-center ${clickable ? 'cursor-pointer' : ''}`}>
         <div
           className={`mx-auto grid size-[88px] place-items-center rounded-[26px] transition-transform duration-300 ease-out group-hover:scale-110 ${accent.soft}`}
         >

@@ -76,6 +76,7 @@ class Tournament extends Model
         'teams_count',
         'groups_count',
         'teams_per_group',
+        'max_players_per_team',
         'group_mode',
         'match_duration_minutes',
         'matches_per_day',
@@ -111,6 +112,7 @@ class Tournament extends Model
             'teams_count' => 'integer',
             'groups_count' => 'integer',
             'teams_per_group' => 'integer',
+            'max_players_per_team' => 'integer',
             'match_duration_minutes' => 'integer',
             'matches_per_day' => 'integer',
             'points_for_win' => 'integer',
@@ -161,6 +163,11 @@ class Tournament extends Model
     public function allRegistrations(): HasMany
     {
         return $this->hasMany(TournamentTeam::class);
+    }
+
+    public function squadMembers(): HasMany
+    {
+        return $this->hasMany(TournamentSquadMember::class);
     }
 
     public function pendingRegistrations(): HasMany

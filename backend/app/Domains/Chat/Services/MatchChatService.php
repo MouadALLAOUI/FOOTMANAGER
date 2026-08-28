@@ -5,12 +5,14 @@ namespace App\Domains\Chat\Services;
 use App\Domains\Chat\Models\MatchChatMessage;
 use App\Domains\Chat\Models\MatchChatMute;
 use App\Domains\Chat\Models\MatchChatRead;
+use App\Domains\Device\Services\PushNotificationService;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Services\MatchMembershipService;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Team\Models\Team;
 use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
 
 class MatchChatService
 {
@@ -25,7 +27,11 @@ class MatchChatService
             'message' => $message,
         ]);
 
-        return $msg->load('user:id,name,role');
+        $msg->load('user:id,name,role');
+
+        $this->notifyParticipants($msg, $user, $match);
+
+        return $msg;
     }
 
     public function sendSystem(FootballMatch $match, string $message): MatchChatMessage
@@ -159,6 +165,55 @@ class MatchChatService
             ->delete();
 
         return ['muted' => false];
+    }
+
+    /**
+     * Fan a chat message out as a push notification to every participant
+     * except the sender and anyone who muted the room (or chat pushes).
+     *
+     * Delivery is best-effort and queued; failures never break sending.
+     */
+    protected function notifyParticipants(MatchChatMessage $msg, User $sender, FootballMatch $match): void
+    {
+        try {
+            $recipients = app(MatchMembershipService::class)->participantUserIds($match);
+            $recipients = array_diff($recipients, [(int) $sender->id]);
+
+            $mutedIds = MatchChatMute::query()
+                ->where('match_id', $match->id)
+                ->whereIn('user_id', $recipients)
+                ->where(function ($q) {
+                    $q->whereNull('muted_until')->orWhere('muted_until', '>', now());
+                })
+                ->pluck('user_id')
+                ->all();
+
+            $recipients = array_diff($recipients, array_map('intval', $mutedIds));
+
+            $prefix = fn (MatchChatMessage $m): string => $m->type === MatchChatMessage::TYPE_ANNOUNCEMENT
+                ? '📢'
+                : '';
+
+            $senderName = $sender->name ?: 'عضو';
+            $body = trim($msg->message);
+            $preview = mb_strlen($body) <= 120 ? $body : mb_substr($body, 0, 117).'…';
+
+            $push = app(PushNotificationService::class);
+
+            foreach ($recipients as $userId) {
+                $push->sendToUser((int) $userId, $prefix($msg)." رسالة من {$senderName}", $preview, [
+                    'type' => 'chat_message',
+                    'category' => 'match',
+                    'match_id' => (int) $match->id,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Chat push notification dispatch failed', [
+                'match_id' => $match->id,
+                'message_id' => $msg->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     protected function assertCanSend(User $user, FootballMatch $match): void

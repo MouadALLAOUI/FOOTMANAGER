@@ -50,6 +50,25 @@ export function formatRelativeTime(
   return `${Math.abs(days)}d`;
 }
 
+export function formatTime(
+  value: string | Date,
+  locale: SupportedLocale | string = 'ar-MA',
+  opts?: Intl.DateTimeFormatOptions,
+): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return String(value);
+  const tag = localeTag[locale as SupportedLocale] ?? (locale as string);
+  try {
+    return new Intl.DateTimeFormat(tag, {
+      hour: '2-digit',
+      minute: '2-digit',
+      ...opts,
+    }).format(date);
+  } catch {
+    return date.toLocaleTimeString();
+  }
+}
+
 export function formatNumber(
   value: number,
   locale: SupportedLocale | string = 'ar-MA',

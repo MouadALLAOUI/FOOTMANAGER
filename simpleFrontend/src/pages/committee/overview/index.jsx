@@ -5,6 +5,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { useAuth } from '../../../context/AuthContext'
 import { Card, Skeleton, Stat } from '../../../components/dashboard/ui'
+import GoToSite from '../../../components/ui/GoToSite'
 
 export default function Overview() {
   const { t } = useTranslation()
@@ -18,6 +19,9 @@ export default function Overview() {
 
   return (
     <div>
+      <div className="mb-4 flex justify-end">
+        <GoToSite variant="dark" />
+      </div>
       <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-l from-[#0b1220] via-[#0f1a2e] to-[#12321f] p-7 text-white shadow-[0_18px_40px_rgba(15,23,42,0.25)] lg:p-8">
         <div className="pointer-events-none absolute -end-16 -top-16 size-64 rounded-full bg-green-500/20 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-20 start-1/4 size-64 rounded-full bg-emerald-400/10 blur-3xl" />

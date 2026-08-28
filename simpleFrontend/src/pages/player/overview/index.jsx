@@ -19,6 +19,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
 import { Card, Stat, SectionTitle, Empty, StatusBadge, Toggle, Button, Modal, SkeletonCards } from '../../../components/dashboard/ui'
+import GoToSite from '../../../components/ui/GoToSite'
 import { faStar, faFutbol, faMedal, faPercent } from '@fortawesome/free-solid-svg-icons'
 import { toast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
@@ -144,6 +145,9 @@ export default function Overview() {
 
   return (
     <div>
+      <div className="mb-4 flex justify-end">
+        <GoToSite />
+      </div>
       <SectionTitle title={t('player.overview.title')} subtitle={t('player.overview.subtitle')} />
 
       <Card>

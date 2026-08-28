@@ -31,7 +31,7 @@ phpExtensions = [
 ]
 
 [phases.build]
-cmds = ["composer install --no-dev --no-interaction --optimize-autoloader"] 
+cmds = ["composer install --no-dev --no-interaction --optimize-autoloader"]
 
 [start]
 cmd = "mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs && php artisan storage:link --force && php artisan serve --host=0.0.0.0 --port=$PORT"

@@ -394,6 +394,103 @@ class TournamentBracketService
     }
 
     /**
+     * Id of the first knockout round (smallest order_index, non-group), if any.
+     */
+    public function firstKnockoutRoundId(Tournament $tournament): ?int
+    {
+        if (! $tournament->competition_id || ! $tournament->season_id) {
+            return null;
+        }
+
+        $id = Round::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('stage', '!=', RoundStage::Group)
+            ->orderBy('order_index')
+            ->value('id');
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    /**
+     * Map of fixture id => slot type ('pair' | 'bye') for the FIRST knockout
+     * round only. Later rounds are fed automatically from winners, so they are
+     * never user-editable slots. Group fixtures have no slot type.
+     *
+     * @return array<int, string>
+     */
+    public function slotTypesForRound(Tournament $tournament, int $roundId): array
+    {
+        if ($this->firstKnockoutRoundId($tournament) !== $roundId) {
+            return [];
+        }
+
+        $ids = Fixture::query()
+            ->where('round_id', $roundId)
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $mode = $this->bracketMode($tournament);
+        $knockoutTeams = $this->setup->resolveKnockoutTeams($tournament);
+        $count = count($ids);
+        $types = [];
+
+        foreach ($ids as $index => $id) {
+            $types[$id] = match ($mode) {
+                'playin' => $index < $this->setup->playInSizes($knockoutTeams)['matches'] ? 'pair' : 'bye',
+                'bye_final' => ($knockoutTeams % 2 === 1) && $index === $count - 1 ? 'bye' : 'pair',
+                'byes' => $index >= 2 ? 'bye' : 'pair',
+                default => 'pair',
+            };
+        }
+
+        return $types;
+    }
+
+    /**
+     * Slot type of a single knockout fixture ('pair' | 'bye' | null when it is
+     * a group fixture or a non-editable later round).
+     */
+    public function slotType(Tournament $tournament, Fixture $fixture): ?string
+    {
+        return $this->slotTypesForRound($tournament, (int) $fixture->round_id)[(int) $fixture->id] ?? null;
+    }
+
+    /**
+     * Indexes (in fixture order) of the first knockout round that are real
+     * pairing slots. Bye slots are structural placeholders filled with a single
+     * team that advances directly.
+     *
+     * @return array<int, int>
+     */
+    public function pairIndexes(Tournament $tournament, int $fixtureCount): array
+    {
+        $mode = $this->bracketMode($tournament);
+        $knockoutTeams = $this->setup->resolveKnockoutTeams($tournament);
+
+        return match ($mode) {
+            'playin' => range(0, max(0, $this->setup->playInSizes($knockoutTeams)['matches'] - 1)),
+            'bye_final' => $knockoutTeams % 2 === 1 ? range(0, $fixtureCount - 2) : range(0, $fixtureCount - 1),
+            'byes' => [0, 1],
+            default => range(0, $fixtureCount - 1),
+        };
+    }
+
+    /**
+     * Effective bracket mode: the persisted plan choice wins, falling back to
+     * the standard 6-team byes bracket for team-of-six tournaments.
+     */
+    private function bracketMode(Tournament $tournament): ?string
+    {
+        $mode = ($tournament->plan ?? [])['knockout']['mode'] ?? null;
+
+        return $mode ?? ($this->isSixTeamBracket($tournament) ? 'byes' : null);
+    }
+
+    /**
      * @param  array<int, int>  $qualified  team ids ordered by rank (1st, 2nd, ...)
      * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
      */
@@ -996,7 +1093,14 @@ class TournamentBracketService
             ->orderBy('order_index')
             ->get();
 
-        return $rounds->map(function (Round $round) {
+        $firstTypes = [];
+        $firstRoundId = $this->firstKnockoutRoundId($tournament);
+
+        if ($firstRoundId !== null) {
+            $firstTypes = $this->slotTypesForRound($tournament, $firstRoundId);
+        }
+
+        return $rounds->map(function (Round $round) use ($firstTypes) {
             $fixtures = Fixture::query()
                 ->with([
                     'homeTeam' => fn ($query) => $query->withTrashed(),
@@ -1017,6 +1121,7 @@ class TournamentBracketService
                 'fixtures' => $fixtures->map(fn (Fixture $fixture) => [
                     'id' => $fixture->id,
                     'match_id' => $fixture->match_id,
+                    'slot_type' => $firstTypes[$fixture->id] ?? null,
                     'home_team_id' => $fixture->home_team_id,
                     'away_team_id' => $fixture->away_team_id,
                     'bye_team_id' => $fixture->bye_team_id,

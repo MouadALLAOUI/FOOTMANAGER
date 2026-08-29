@@ -742,9 +742,13 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/fixtures', [TournamentFixtureController::class, 'store']);
+                Route::post('/fixtures/layout', [TournamentFixtureController::class, 'storeLayout']);
                 Route::post('/fixtures/preview', [TournamentFixtureController::class, 'preview']);
                 Route::delete('/fixtures', [TournamentFixtureController::class, 'destroy']);
+                Route::delete('/fixtures/knockout', [TournamentFixtureController::class, 'destroyKnockout']);
+                Route::put('/fixtures/slots', [TournamentFixtureController::class, 'assignSlots']);
                 Route::put('/fixtures/{fixture}', [TournamentFixtureController::class, 'reschedule']);
+                Route::put('/fixtures/{fixture}/slot', [TournamentFixtureController::class, 'assignSlot']);
                 Route::post('/fixtures/{fixture}/postpone', [TournamentFixtureController::class, 'postpone']);
                 Route::post('/fixtures/{fixture}/cancel', [TournamentFixtureController::class, 'cancel']);
                 Route::post('/fixtures/{fixture}/restore', [TournamentFixtureController::class, 'restore']);

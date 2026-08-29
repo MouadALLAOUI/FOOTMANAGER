@@ -19,6 +19,12 @@ class TournamentFixtureResource extends JsonResource
             'id' => $this->id,
             'match_id' => $this->match_id,
             'matchday' => $this->matchday,
+            'slot_type' => $this->slot_type,
+            'bye_team' => $this->whenLoaded('byeTeam', fn () => $this->byeTeam ? [
+                'id' => $this->byeTeam->id,
+                'name' => $this->byeTeam->name,
+                'logo_url' => $this->byeTeam->logo_url,
+            ] : null),
             'round' => $this->whenLoaded('round', fn () => [
                 'id' => $this->round->id,
                 'name' => $this->round->name,

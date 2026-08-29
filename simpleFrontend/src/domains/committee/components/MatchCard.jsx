@@ -6,6 +6,7 @@ import {
   History,
   ChevronDown,
   Clock,
+  X,
 } from 'lucide-react'
 import { Button, Skeleton } from '../../../components/dashboard/ui'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
@@ -24,7 +25,7 @@ function fixtureStatus(f) {
   return 'pending'
 }
 
-export default function MatchCard({ f, number, busy, locked, tournament, prevRoundKey, prevData, onOpenPrev, onResult, onDetails, onReschedule, onPostpone, onCancel, onRestore }) {
+export default function MatchCard({ f, number, busy, locked, tournament, prevRoundKey, prevData, onOpenPrev, onResult, onDetails, onReschedule, onPostpone, onCancel, onRestore, layoutMode, draft, teamById, onStageSlot, slotErrors }) {
   const { t, i18n } = useTranslation()
   const [prevOpen, setPrevOpen] = useState(false)
   useEffect(() => { setPrevOpen(false) }, [prevRoundKey])
@@ -33,6 +34,8 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
   const live = st === 'live'
   const showScore = played || live
   const lang = i18n.language
+  const isGroupFixture = Boolean(f.group)
+  const editableSlot = !locked && layoutMode && (f.slot_type || isGroupFixture) && (st === 'pending' || st === 'upcoming')
   const homeName = f.home_team?.name || f.slots?.home || t('committee.detail.tbd')
   const awayName = f.away_team?.name || f.slots?.away || t('committee.detail.tbd')
 
@@ -46,20 +49,33 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
         </span>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-4">
-        <TeamSide team={f.home_team} name={homeName} align="start" />
-        <div className="flex min-w-[92px] flex-col items-center">
-          {showScore ? (
-            <span className={`text-xl font-black tracking-tight ${live ? 'text-rose-600' : 'text-slate-900'}`}>
-              {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
-            </span>
-          ) : (
-            <span className="text-sm font-black text-slate-400">VS</span>
-          )}
-          {st === 'pending' && <span className="mt-0.5 text-[10px] font-semibold text-slate-400">{t('committee.detail.status.pending')}</span>}
+      {editableSlot ? (
+        <FixtureSlots
+          f={f}
+          isGroup={isGroupFixture}
+          busy={busy}
+          draft={draft}
+          teamById={teamById}
+          onStageSlot={onStageSlot}
+          slotErrors={slotErrors}
+          t={t}
+        />
+      ) : (
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-4">
+          <TeamSide team={f.home_team} name={homeName} align="start" />
+          <div className="flex min-w-[92px] flex-col items-center">
+            {showScore ? (
+              <span className={`text-xl font-black tracking-tight ${live ? 'text-rose-600' : 'text-slate-900'}`}>
+                {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
+              </span>
+            ) : (
+              <span className="text-sm font-black text-slate-400">VS</span>
+            )}
+            {st === 'pending' && <span className="mt-0.5 text-[10px] font-semibold text-slate-400">{t('committee.detail.status.pending')}</span>}
+          </div>
+          <TeamSide team={f.away_team} name={awayName} align="end" />
         </div>
-        <TeamSide team={f.away_team} name={awayName} align="end" />
-      </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-50 px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-500">
@@ -242,6 +258,119 @@ function TeamSide({ team, name, align }) {
       ) : (
         <span className={`min-w-0 truncate text-xs font-bold ${slot ? 'text-slate-400 italic' : 'text-slate-800'}`}>{name}</span>
       )}
+    </div>
+  )
+}
+
+function FixtureSlots({ f, isGroup, busy, draft, teamById, onStageSlot, slotErrors, t }) {
+  const isBye = f.slot_type === 'bye'
+  const slots = draft || {}
+
+  const at = (side, fallback) => {
+    const key = `${f.id}:${side}`
+    return key in slots ? slots[key] : fallback
+  }
+
+  if (isBye) {
+    return (
+      <div className="px-4 py-4">
+        <div className="mb-2 text-center text-[10px] font-black uppercase tracking-wide text-amber-600">
+          {t('committee.detail.byeSlotHint')}
+        </div>
+        <SlotZone
+          side="bye"
+          team={at('bye', f.bye_team || null)}
+          busy={busy}
+          error={slotErrors?.[`${f.id}:bye`]}
+          onDropTeam={(teamId) => onStageSlot(f, 'bye', teamById.get(teamId) || null)}
+          onClear={() => onStageSlot(f, 'bye', null)}
+          t={t}
+          accent="amber"
+        />
+      </div>
+    )
+  }
+
+  if (!isGroup && f.slot_type !== 'pair') return null
+
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-4">
+      <SlotZone
+        side="home"
+        team={at('home', f.home_team || null)}
+        busy={busy}
+        error={slotErrors?.[`${f.id}:home`]}
+        onDropTeam={(teamId) => onStageSlot(f, 'home', teamById.get(teamId) || null)}
+        onClear={() => onStageSlot(f, 'home', null)}
+        t={t}
+      />
+      <div className="flex flex-col items-center">
+        <span className="text-sm font-black text-slate-400">VS</span>
+        <span className="mt-0.5 text-[10px] font-semibold text-slate-400">{t('committee.detail.status.pending')}</span>
+      </div>
+      <SlotZone
+        side="away"
+        team={at('away', f.away_team || null)}
+        busy={busy}
+        error={slotErrors?.[`${f.id}:away`]}
+        onDropTeam={(teamId) => onStageSlot(f, 'away', teamById.get(teamId) || null)}
+        onClear={() => onStageSlot(f, 'away', null)}
+        t={t}
+      />
+    </div>
+  )
+}
+
+function SlotZone({ side, team, busy, onDropTeam, onClear, t, accent = 'green', error }) {
+  const [over, setOver] = useState(false)
+  const base = error ? 'border-rose-400 bg-rose-50/50' : `border-${accent}-200 bg-${accent}-50/40`
+  const joined = over ? (error ? base : `border-${accent}-400 bg-${accent}-50/70`) : base
+  const emptyText = team ? null : side === 'bye' ? t('committee.detail.dropTeamHere') : t('committee.detail.dropTeamHere')
+
+  return (
+    <div
+      role="button"
+      onDragOver={(e) => {
+        if (busy) return
+        e.preventDefault()
+        e.stopPropagation()
+        setOver(true)
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setOver(false)
+        if (busy) return
+        const raw =
+          e.dataTransfer.getData('application/x-footmanager-team') || e.dataTransfer.getData('text/plain')
+        const id = Number(raw)
+        if (!Number.isFinite(id) || !id) return
+        onDropTeam(id)
+      }}
+      className={`rounded-2xl border-2 border-dashed px-3 py-3 text-center transition-colors ${joined}`}
+    >
+      {team ? (
+        <div className="flex items-center justify-center gap-2">
+          <TeamAvatar team={team} className="size-7" />
+          <span className="min-w-0 truncate text-xs font-bold text-slate-800">{team.name}</span>
+          <button
+            type="button"
+            title={t('committee.detail.clearSlot')}
+            className="grid size-6 shrink-0 place-items-center rounded-full text-slate-400 transition-colors hover:bg-white hover:text-rose-500 disabled:opacity-40"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation()
+              onClear()
+            }}
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      ) : (
+        <span className="text-[11px] font-bold text-slate-500">{emptyText}</span>
+      )}
+      {error && <div className="mt-1.5 text-center text-[10px] font-bold leading-tight text-rose-600">{error}</div>}
     </div>
   )
 }

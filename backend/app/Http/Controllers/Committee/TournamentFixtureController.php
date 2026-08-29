@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Committee;
 
 use App\Domains\Competition\Enums\FixtureStatus;
+use App\Domains\Competition\Enums\RoundStage;
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Shared\Base\Controller;
@@ -12,8 +13,11 @@ use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Resources\TournamentFixtureResource;
 use App\Domains\Tournament\Services\TournamentFixtureService;
 use App\Domains\Tournament\Services\TournamentTerrainBookingService;
+use App\Domains\Tournament\Services\TournamentBracketService;
 use App\Http\Requests\Committee\GenerateFixturesRequest;
 use App\Http\Requests\Committee\RescheduleFixtureRequest;
+use App\Http\Requests\Committee\UpdateFixtureSlotRequest;
+use App\Http\Requests\Committee\UpdateFixtureSlotsRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -27,6 +31,7 @@ class TournamentFixtureController extends Controller
     public function __construct(
         private readonly TournamentFixtureService $fixtures,
         private readonly TournamentTerrainBookingService $bookings,
+        private readonly TournamentBracketService $bracket,
     ) {}
 
     /**
@@ -41,7 +46,7 @@ class TournamentFixtureController extends Controller
         $query = Fixture::query()
             ->where('competition_id', $tournament->competition_id)
             ->where('season_id', $tournament->season_id)
-            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match']);
+            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'byeTeam', 'stadium', 'match']);
 
         $matchday = $request->integer('matchday');
         $roundId = $request->integer('round_id');
@@ -57,7 +62,125 @@ class TournamentFixtureController extends Controller
             $query->whereNotNull('matchday')->orderBy('matchday')->orderBy('group_id')->orderBy('id');
         }
 
-        return TournamentFixtureResource::collection($query->get());
+        $fixtures = $query->get();
+
+        $this->decorateSlotTypes($tournament, $fixtures);
+
+        return TournamentFixtureResource::collection($fixtures);
+    }
+
+    /**
+     * Create the fixture LAYOUT (empty team slots) — the manual-draft
+     * counterpart of store()/auto-generation. The committee fills each slot
+     * afterwards through assignSlot().
+     */
+    public function storeLayout(GenerateFixturesRequest $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled()) {
+            throw new DomainException('لا يمكن إنشاء برنامج بعد انتهاء البطولة');
+        }
+
+        $data = $request->validated();
+        $stage = $data['stage'] ?? 'group';
+
+        if ($stage === 'knockout') {
+            $result = $this->fixtures->generateKnockoutLayout(
+                $tournament,
+                $data['starts_on'] ?? null,
+                $data['stadium_ids'] ?? null,
+                $data['default_time'] ?? '20:00',
+            );
+
+            return response()->json([
+                'data' => $result,
+                'message' => 'تم إنشاء هيكل الأدوار الإقصائية — ضع الفرق على المباريات يدوياً',
+            ], 201);
+        }
+
+        $this->assertDrawReadyForFixtures($tournament);
+
+        if ($request->boolean('regenerate')) {
+            $this->fixtures->deleteGroupFixtures($tournament);
+        } else {
+            $existing = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->whereNotNull('group_id')
+                ->count();
+
+            if ($existing > 0) {
+                throw new DomainException('هيكل دور المجموعات موجود مسبقاً، استخدم إعادة الإنشاء إذا أردت استبداله');
+            }
+        }
+
+        $result = $this->fixtures->generateGroupLayout(
+            $tournament,
+            $data['starts_on'] ?? null,
+            $data['stadium_ids'] ?? null,
+            $data['default_time'] ?? '20:00',
+            (bool) ($data['double_round_robin'] ?? false),
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => 'تم إنشاء هيكل دور المجموعات — ضع الفرق على المباريات يدوياً',
+        ], 201);
+    }
+
+    /**
+     * Assign (or clear) a team on a fixture slot. side = home | away | bye.
+     */
+    public function assignSlot(UpdateFixtureSlotRequest $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+        $this->assertBelongsToTournament($tournament, $fixture);
+
+        $data = $request->validated();
+
+        $fixture = $this->fixtures->assignSlot(
+            $tournament,
+            $fixture,
+            $data['side'],
+            $data['team_id'] ?? null,
+        )->load(['round', 'group', 'homeTeam', 'awayTeam', 'byeTeam', 'stadium', 'match']);
+
+        $this->decorateSlotTypes($tournament, collect([$fixture]));
+
+        $message = $data['team_id'] === null
+            ? 'تم إفراغ الموقع'
+            : 'تم تعيين الفريق على الموقع';
+
+        return response()->json([
+            'data' => new TournamentFixtureResource($fixture),
+            'message' => $message,
+        ]);
+    }
+
+    /**
+     * Persist several manual slot changes in one atomic request.
+     */
+    public function assignSlots(UpdateFixtureSlotsRequest $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $slots = $request->validated('slots');
+
+        $updated = $this->fixtures->assignSlots($tournament, $slots);
+
+        foreach ($updated as $fixture) {
+            $this->assertBelongsToTournament($tournament, $fixture);
+        }
+
+        $fixtures = $updated
+            ->map(fn (Fixture $f) => $f->load(['round', 'group', 'homeTeam', 'awayTeam', 'byeTeam', 'stadium', 'match']));
+        $this->decorateSlotTypes($tournament, $fixtures);
+
+        return response()->json([
+            'data' => TournamentFixtureResource::collection($fixtures),
+            'message' => 'تم حفظ تغييرات التعبئة',
+        ]);
     }
 
     public function matchRounds(Tournament $tournament): JsonResponse
@@ -211,6 +334,30 @@ class TournamentFixtureController extends Controller
         return response()->json(['message' => "تم حذف $deleted مباراة"]);
     }
 
+    /**
+     * Delete the knockout bracket only, as long as none of its matches have
+     * started (finished or live).
+     */
+    public function destroyKnockout(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $played = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->whereHas('round', fn ($q) => $q->where('stage', '!=', RoundStage::Group->value))
+            ->whereHas('match', fn ($q) => $q->whereIn('status', [MatchStatus::Finished->value, ...MatchStatus::live()]))
+            ->exists();
+
+        if ($played) {
+            throw new DomainException('لا يمكن حذف السلم بعد بدء مباريات الأدوار الإقصائية');
+        }
+
+        $deleted = $this->fixtures->deleteKnockoutFixtures($tournament);
+
+        return response()->json(['message' => "تم حذف $deleted مباراة من السلم"]);
+    }
+
     public function reschedule(RescheduleFixtureRequest $request, Tournament $tournament, Fixture $fixture): JsonResponse
     {
         $this->authorize('manage', $tournament);
@@ -350,6 +497,21 @@ class TournamentFixtureController extends Controller
     {
         if ($fixture->match?->status === MatchStatus::Finished) {
             throw new DomainException('لا يمكن تعديل مباراة انتهت');
+        }
+    }
+
+    /**
+     * Stamp the manual-layout slot type ('pair' | 'bye' | null) onto every
+     * knockout fixture so the resource can expose it in one place.
+     *
+     * @param  \Illuminate\Support\Collection<int, Fixture>|array<int, Fixture>  $fixtures
+     */
+    private function decorateSlotTypes(Tournament $tournament, $fixtures): void
+    {
+        foreach ($fixtures as $fixture) {
+            if (($fixture->round?->stage?->value) !== RoundStage::Group->value) {
+                $fixture->setAttribute('slot_type', $this->bracket->slotType($tournament, $fixture));
+            }
         }
     }
 }

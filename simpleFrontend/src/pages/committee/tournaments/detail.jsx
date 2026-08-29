@@ -60,7 +60,7 @@ export default function TournamentDetail() {
   )
 
   const bump = () => setRefresh((v) => v + 1)
-  const tabProps = { tournament: tour, refresh: bump, refreshKey: refresh }
+  const tabProps = { tournament: tour, refresh: bump, refreshKey: refresh, setActive }
 
   if (loading) {
     return (

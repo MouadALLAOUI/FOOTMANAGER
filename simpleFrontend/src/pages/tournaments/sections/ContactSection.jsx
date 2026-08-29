@@ -5,6 +5,7 @@ import { faFacebook, faInstagram, faTiktok, faWhatsapp, faYoutube } from '@forta
 import { Loader2, Mail, MapPin, MessageCircle, Phone, Send } from 'lucide-react'
 import api from '../../../api/client'
 import { inputClass } from '../../../components/dashboard/ui'
+import Collapsible from '../../../components/tournaments/Collapsible'
 
 const socials = [
   { key: 'facebook', icon: faFacebook, brand: '#1877F2' },
@@ -69,18 +70,13 @@ export default function ContactSection({ contact, tournamentKey }) {
   const hasInfo = Boolean(contact?.phone || contact?.email || contact?.whatsapp_link || contact?.location || visibleSocials.length > 0)
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-      <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 px-5 py-4">
-        <span className="grid size-9 place-items-center rounded-xl bg-green-50 text-green-600">
-          <MessageCircle className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <h4 className="text-sm font-black text-slate-900">{t('public.contact.title')}</h4>
-          <p className="text-[11px] font-semibold text-slate-400">{t('public.contact.subtitle')}</p>
-        </div>
-      </div>
-
-      <div className="grid gap-5 p-5 lg:grid-cols-[1fr_1.3fr]">
+    <Collapsible
+      icon={MessageCircle}
+      title={t('public.contact.title')}
+      subtitle={t('public.contact.subtitle')}
+      defaultOpen={false}
+    >
+      <div className="grid gap-5 lg:grid-cols-[1fr_1.3fr]">
         <div className="space-y-2.5">
           {hasInfo ? (
             <>
@@ -160,6 +156,6 @@ export default function ContactSection({ contact, tournamentKey }) {
           </button>
         </form>
       </div>
-    </div>
+    </Collapsible>
   )
 }

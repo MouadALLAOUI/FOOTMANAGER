@@ -5,10 +5,13 @@ namespace App\Domains\Tournament\Services;
 use App\Domains\Competition\Enums\FixtureStatus;
 use App\Domains\Competition\Enums\RoundStage;
 use App\Domains\Competition\Models\Fixture;
+use App\Domains\Competition\Models\Group;
 use App\Domains\Competition\Models\Round;
+use App\Domains\Competition\Models\Season;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use Illuminate\Support\Facades\DB;
@@ -17,15 +20,23 @@ class TournamentBracketService
 {
     public function __construct(
         private readonly TournamentSetupService $setup,
+        private readonly TournamentStandingsService $standings,
     ) {}
 
     /**
      * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
      */
-    public function generateBracket(Tournament $tournament): array
+    public function generateBracket(Tournament $tournament, ?string $mode = null): array
     {
-        return DB::transaction(function () use ($tournament) {
+        return DB::transaction(function () use ($tournament, $mode) {
             $this->setup->buildStructure($tournament);
+
+            $season = $tournament->season ?: Season::find($tournament->season_id);
+
+            $six = $this->isSixTeamBracket($tournament);
+            $effectiveMode = $six ? ($mode ?: (($tournament->plan ?? [])['knockout']['mode'] ?? 'byes')) : null;
+
+            $this->setup->ensureKnockoutRounds($tournament, $season, $effectiveMode);
 
             $rounds = Round::query()
                 ->where('competition_id', $tournament->competition_id)
@@ -42,11 +53,16 @@ class TournamentBracketService
                 );
             }
 
-            $teamCount = $this->setup->resolveKnockoutTeams($tournament);
+            $expectedCounts = match ($effectiveMode) {
+                'byes' => [4, 2, 1],
+                'groups6' => [2, 1],
+                default => $this->halvingCounts($this->setup->resolveKnockoutTeams($tournament)),
+            };
+
             $fixturesByRound = [];
 
-            foreach ($rounds as $round) {
-                $expected = intdiv($teamCount, 2);
+            foreach ($rounds as $index => $round) {
+                $expected = $expectedCounts[$index] ?? 0;
                 $existingCount = Fixture::query()->where('round_id', $round->id)->count();
 
                 for ($i = $existingCount; $i < $expected; $i++) {
@@ -67,11 +83,13 @@ class TournamentBracketService
                     ->pluck('id')
                     ->values()
                     ->all();
-
-                $teamCount = intdiv($teamCount, 2);
             }
 
             $this->wireBracketSources($rounds, $fixturesByRound);
+
+            if ($effectiveMode === 'byes') {
+                $this->wireSixByesSources($fixturesByRound);
+            }
 
             $plan = $tournament->plan ?? [];
             $plan['bracket'] = [
@@ -82,6 +100,11 @@ class TournamentBracketService
                     'order_index' => $round->order_index,
                 ])->all(),
             ];
+
+            if ($six) {
+                $plan['knockout'] = array_merge($plan['knockout'] ?? [], ['mode' => $effectiveMode]);
+            }
+
             $tournament->forceFill(['plan' => $plan])->save();
 
             return $this->bracket($tournament);
@@ -89,13 +112,67 @@ class TournamentBracketService
     }
 
     /**
-     * @param  array<int, int>  $qualified  team ids ordered by rank (1st, 2nd, ...)
+     * Build the Option B structure: seed the six registered teams into two
+     * mini-groups (A/B) so the committee generates round-robin fixtures for each
+     * and then populates the semis from the mini-group standings.
+     *
      * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
      */
-    public function populateKnockout(Tournament $tournament, array $qualified): array
+    public function generateGroups6(Tournament $tournament): array
     {
-        return DB::transaction(function () use ($tournament, $qualified) {
-            $this->generateBracket($tournament);
+        return DB::transaction(function () use ($tournament) {
+            if (! $this->isSixTeamBracket($tournament)) {
+                throw new DomainException('صيغة توليد الأدوار من مجموعات مصغرة غير متاحة لهذه البطولة');
+            }
+
+            $seeds = array_slice($this->qualifiedTeamIds($tournament), 0, 6);
+
+            $this->generateBracket($tournament, 'groups6');
+            $this->seedGroups6($tournament, $seeds);
+
+            return $this->bracket($tournament);
+        });
+    }
+
+    /**
+     * Populate the Option B semis from the mini-group standings: A1 vs B2 and
+     * B1 vs A2. Guarded so it only runs once the whole mini-group round-robin is
+     * finished.
+     *
+     * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
+     */
+    public function populateGroups6(Tournament $tournament): array
+    {
+        return DB::transaction(function () use ($tournament) {
+            $plan = $tournament->plan ?? [];
+            $groups6 = $plan['knockout']['groups'] ?? null;
+
+            if (! $groups6 || count($groups6) !== 2) {
+                throw new DomainException('لم تُنشأ المجموعات المصغرة بعد — أنشئ السلم أولاً من صفحة السلم');
+            }
+
+            if (! $this->setup->groupStageComplete($tournament)) {
+                throw new DomainException('أكمل جميع مباريات أدوار المجموعات المصغرة قبل تعبئة المتأهلين');
+            }
+
+            $standings = $this->standings->standingsInGroups($tournament, array_column($groups6, 'id'));
+            $byGroup = [];
+
+            foreach ($standings['groups'] as $group) {
+                $byGroup[$group['group_id']] = $group['rows'];
+            }
+
+            $a = $byGroup[(int) $groups6[0]['id']] ?? [];
+            $b = $byGroup[(int) $groups6[1]['id']] ?? [];
+
+            if (count($a) < 2 || count($b) < 2) {
+                throw new DomainException('لا تكفي الفرق المصنفة في المجموعات المصغرة للتأهل إلى الأدوار الإقصائية');
+            }
+
+            $pairs = [
+                ['home' => (int) $a[0]['team_id'], 'away' => (int) $b[1]['team_id']],
+                ['home' => (int) $b[0]['team_id'], 'away' => (int) $a[1]['team_id']],
+            ];
 
             $firstRound = Round::query()
                 ->where('competition_id', $tournament->competition_id)
@@ -112,6 +189,174 @@ class TournamentBracketService
                 ->where('round_id', $firstRound->id)
                 ->orderBy('id')
                 ->get();
+
+            foreach ($fixtures as $index => $fixture) {
+                $pair = $pairs[$index] ?? null;
+
+                if (! $pair) {
+                    break;
+                }
+
+                $fixture->forceFill([
+                    'home_team_id' => $pair['home'],
+                    'away_team_id' => $pair['away'],
+                    'bye_team_id' => null,
+                    'status' => FixtureStatus::Scheduled,
+                ])->save();
+
+                $this->ensureMatch($tournament, $fixture);
+            }
+
+            $this->rebuildBracket($tournament);
+
+            return $this->bracket($tournament);
+        });
+    }
+
+    /**
+     * Pre-generation gate used by the committee bracket page: tells the client
+     * exactly how many teams enter the knockout and, for the supported
+     * non-group formats, whether the count opens a choice (6-team) or is simply
+     * invalid for a straight bracket.
+     *
+     * @return array{count: int, status: string, options: array<int, string>}
+     */
+    public function knockoutValidation(Tournament $tournament): array
+    {
+        if ($tournament->tournament_format === 'groups_knockout') {
+            return [
+                'count' => $this->effectiveKnockoutCount($tournament),
+                'status' => 'ok',
+                'options' => [],
+            ];
+        }
+
+        if (in_array($tournament->tournament_format, ['groups_only', 'league'], true)) {
+            return [
+                'count' => 0,
+                'status' => 'ok',
+                'options' => [],
+            ];
+        }
+
+        $count = count($this->qualifiedTeamIds($tournament));
+        $expected = $this->effectiveKnockoutCount($tournament);
+
+        if ($count === $expected && in_array($count, [2, 4, 8, 16, 32], true)) {
+            return [
+                'count' => $count,
+                'status' => 'ok',
+                'options' => [],
+            ];
+        }
+
+        if ($count === 6 && $expected === 6) {
+            return [
+                'count' => 6,
+                'status' => 'choice',
+                'options' => ['standard_byes', 'groups6'],
+            ];
+        }
+
+        return [
+            'count' => $count,
+            'status' => 'invalid',
+            'options' => [],
+        ];
+    }
+
+    /**
+     * Registered teams ordered by their draw position (used as the knockout
+     * seed order for formats without a group stage).
+     *
+     * @return array<int, int>
+     */
+    public function qualifiedTeamIds(Tournament $tournament): array
+    {
+        return $this->knockoutTeamIds($tournament);
+    }
+
+    /**
+     * Size of the knockout stage as guaranteed by the tournament structure
+     * (drives round layout and the fixtures-tab expected count).
+     */
+    public function effectiveKnockoutCount(Tournament $tournament): int
+    {
+        return $this->setup->resolveKnockoutTeams($tournament);
+    }
+
+    /**
+     * Sidecar metadata for the bracket page: which 6-team generator was used
+     * and, for Option B, the mini-groups with their seeded teams.
+     *
+     * @return array{mode: string, groups: array<int, array<string, mixed>>|null}|null
+     */
+    public function bracketMeta(Tournament $tournament): ?array
+    {
+        $plan = $tournament->plan ?? [];
+        $knockout = $plan['knockout'] ?? null;
+
+        if (! $knockout || ! isset($knockout['mode'])) {
+            return null;
+        }
+
+        $groups = null;
+
+        if ($knockout['mode'] === 'groups6' && isset($knockout['groups'])) {
+            $teams = [];
+
+            foreach ($knockout['groups'] as $group) {
+                $ids = $group['team_ids'] ?? [];
+                $models = $ids ? Team::query()->withTrashed()->whereKey($ids)->get(['id', 'name', 'logo_path']) : collect();
+
+                $teams[] = [
+                    'id' => $group['id'],
+                    'name' => $group['name'],
+                    'teams' => $models->map(fn (Team $team) => [
+                        'id' => $team->id,
+                        'name' => $team->name,
+                        'logo_url' => $team->logo_url,
+                    ])->values()->all(),
+                ];
+            }
+
+            $groups = $teams;
+        }
+
+        return [
+            'mode' => $knockout['mode'],
+            'groups' => $groups,
+        ];
+    }
+
+    /**
+     * @param  array<int, int>  $qualified  team ids ordered by rank (1st, 2nd, ...)
+     * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
+     */
+    public function populateKnockout(Tournament $tournament, array $qualified, ?string $mode = null): array
+    {
+        return DB::transaction(function () use ($tournament, $qualified, $mode) {
+            $this->generateBracket($tournament, $mode);
+
+            $firstRound = Round::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->where('stage', '!=', RoundStage::Group)
+                ->orderBy('order_index')
+                ->first();
+
+            if (! $firstRound) {
+                throw new DomainException('لا توجد أدوار إقصائية في هذه البطولة');
+            }
+
+            $fixtures = Fixture::query()
+                ->where('round_id', $firstRound->id)
+                ->orderBy('id')
+                ->get();
+
+            if ($this->isSixTeamBracket($tournament)) {
+                return $this->populateSixByes($tournament, $fixtures, array_values($qualified));
+            }
 
             if (count($qualified) !== $fixtures->count() * 2) {
                 throw new DomainException('عدد الفرق المتأهلة لا يطابق حجم الدور الأول ('.($fixtures->count() * 2).')');
@@ -130,6 +375,43 @@ class TournamentBracketService
 
             return $this->bracket($tournament);
         });
+    }
+
+    /**
+     * Standard 6-team bracket: QF pairs top-3 vs bottom-1 (3-vs-6, 4-vs-5)
+     * plus two seeded byes (1st, 2nd) that enter the semis directly.
+     *
+     * @param  \Illuminate\Support\Collection<int, Fixture>  $fixtures
+     * @param  array<int, int>  $seeds
+     * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
+     */
+    private function populateSixByes(Tournament $tournament, $fixtures, array $seeds): array
+    {
+        $seeds = array_slice(array_values($seeds), 0, 6);
+
+        if (count($seeds) !== 6) {
+            throw new DomainException('عدد الفرق المتأهلة لا يطابق حجم السداسي (6)');
+        }
+
+        $order = collect($fixtures)->values();
+
+        [$qf1, $qf2, $bye1, $bye2] = [$order[0] ?? null, $order[1] ?? null, $order[2] ?? null, $order[3] ?? null];
+
+        if (! $qf1 || ! $qf2 || ! $bye1 || ! $bye2) {
+            throw new DomainException('بنية السداسي غير مكتملة — أعد إنشاء السلم');
+        }
+
+        $qf1->forceFill(['home_team_id' => $seeds[2], 'away_team_id' => $seeds[5], 'bye_team_id' => null, 'status' => FixtureStatus::Scheduled])->save();
+        $qf2->forceFill(['home_team_id' => $seeds[3], 'away_team_id' => $seeds[4], 'bye_team_id' => null, 'status' => FixtureStatus::Scheduled])->save();
+        $bye1->forceFill(['home_team_id' => null, 'away_team_id' => null, 'bye_team_id' => $seeds[0], 'status' => FixtureStatus::Bye])->save();
+        $bye2->forceFill(['home_team_id' => null, 'away_team_id' => null, 'bye_team_id' => $seeds[1], 'status' => FixtureStatus::Bye])->save();
+
+        $this->ensureMatch($tournament, $qf1);
+        $this->ensureMatch($tournament, $qf2);
+
+        $this->rebuildBracket($tournament);
+
+        return $this->bracket($tournament);
     }
 
     /**
@@ -211,8 +493,8 @@ class TournamentBracketService
                     ? ($previousById[$fixture->source_away_fixture_id] ?? null)
                     : ($previous[$index * 2 + 1] ?? null);
 
-                $homeWinner = $homeSource?->match?->winner_team_id;
-                $awayWinner = $awaySource?->match?->winner_team_id;
+                $homeWinner = $homeSource?->bye_team_id ?: $homeSource?->match?->winner_team_id;
+                $awayWinner = $awaySource?->bye_team_id ?: $awaySource?->match?->winner_team_id;
 
                 if (! $homeWinner && ! $awayWinner) {
                     continue;
@@ -320,6 +602,7 @@ class TournamentBracketService
                 ->with([
                     'homeTeam' => fn ($query) => $query->withTrashed(),
                     'awayTeam' => fn ($query) => $query->withTrashed(),
+                    'byeTeam' => fn ($query) => $query->withTrashed(),
                     'match',
                 ])
                 ->where('round_id', $round->id)
@@ -337,10 +620,12 @@ class TournamentBracketService
                     'match_id' => $fixture->match_id,
                     'home_team_id' => $fixture->home_team_id,
                     'away_team_id' => $fixture->away_team_id,
+                    'bye_team_id' => $fixture->bye_team_id,
                     'source_home_fixture_id' => $fixture->source_home_fixture_id,
                     'source_away_fixture_id' => $fixture->source_away_fixture_id,
                     'home_team' => $fixture->homeTeam ? ['id' => $fixture->homeTeam->id, 'name' => $fixture->homeTeam->name, 'logo_url' => $fixture->homeTeam->logo_url] : null,
                     'away_team' => $fixture->awayTeam ? ['id' => $fixture->awayTeam->id, 'name' => $fixture->awayTeam->name, 'logo_url' => $fixture->awayTeam->logo_url] : null,
+                    'bye_team' => $fixture->byeTeam ? ['id' => $fixture->byeTeam->id, 'name' => $fixture->byeTeam->name, 'logo_url' => $fixture->byeTeam->logo_url] : null,
                     'home_score' => $fixture->match?->home_score,
                     'away_score' => $fixture->match?->away_score,
                     'winner_team_id' => $fixture->match?->winner_team_id,
@@ -395,11 +680,127 @@ class TournamentBracketService
         return $this->setup->resolveKnockoutTeams($tournament);
     }
 
+    /**
+     * True when a non-group format is configured and registered for exactly 6
+     * teams — the only situation the 6-team generators (byes / mini-groups)
+     * target. group_knockout keeps its legacy halving behaviour.
+     */
+    public function isSixTeamBracket(Tournament $tournament): bool
+    {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_only', 'league'], true)) {
+            return false;
+        }
+
+        return $this->setup->resolveKnockoutTeams($tournament) === 6
+            && count($this->knockoutTeamIds($tournament)) === 6;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function halvingCounts(int $teamCount): array
+    {
+        $counts = [];
+
+        while ($teamCount > 1) {
+            $counts[] = intdiv($teamCount, 2);
+            $teamCount = intdiv($teamCount, 2);
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Override the standard halving wiring for the 6-team byes bracket: the two
+     * seeded byes (QF slots 3 & 4) become home feeds of the semis, and the two
+     * quarter-final winners (QF slots 1 & 2) become away feeds.
+     *
+     * @param  array<int, array<int, int>>  $fixturesByRound
+     */
+    private function wireSixByesSources(array $fixturesByRound): void
+    {
+        $ids = array_values($fixturesByRound);
+
+        if (count($ids) < 2) {
+            return;
+        }
+
+        [$qf, $sf] = [$ids[0], $ids[1]];
+
+        if (count($qf) < 4 || count($sf) < 2) {
+            return;
+        }
+
+        Fixture::query()->whereKey($sf[0])->update([
+            'source_home_fixture_id' => $qf[2],
+            'source_away_fixture_id' => $qf[0],
+        ]);
+
+        Fixture::query()->whereKey($sf[1])->update([
+            'source_home_fixture_id' => $qf[3],
+            'source_away_fixture_id' => $qf[1],
+        ]);
+    }
+
+    /**
+     * Materialize the two Option B mini-groups and assign the six seeds.
+     *
+     * @param  array<int, int>  $seeds
+     */
+    private function seedGroups6(Tournament $tournament, array $seeds): void
+    {
+        $season = $tournament->season ?: Season::find($tournament->season_id);
+        $groupRound = $this->setup->ensureGroupRound($tournament, $season);
+
+        $names = ['A', 'B'];
+        $groups = [];
+
+        foreach ($names as $name) {
+            $group = Group::query()->firstOrCreate(
+                [
+                    'competition_id' => $tournament->competition_id,
+                    'season_id' => $tournament->season_id,
+                    'round_id' => $groupRound->id,
+                    'name' => $name,
+                ],
+                [
+                    'competition_id' => $tournament->competition_id,
+                    'season_id' => $tournament->season_id,
+                    'round_id' => $groupRound->id,
+                    'name' => $name,
+                ]
+            );
+
+            $groups[] = $group;
+        }
+
+        foreach (array_slice(array_values($seeds), 0, 6) as $index => $teamId) {
+            $groupIndex = $index < 3 ? 0 : 1;
+            $position = ($index % 3) + 1;
+
+            TournamentTeam::query()
+                ->where('tournament_id', $tournament->id)
+                ->where('team_id', $teamId)
+                ->where('status', TournamentTeam::STATUS_REGISTERED)
+                ->update([
+                    'group_id' => $groups[$groupIndex]->id,
+                    'group_position' => $position,
+                ]);
+        }
+
+        $plan = $tournament->plan ?? [];
+        $plan['knockout']['groups'] = [
+            ['id' => $groups[0]->id, 'name' => 'A', 'team_ids' => array_slice($seeds, 0, 3)],
+            ['id' => $groups[1]->id, 'name' => 'B', 'team_ids' => array_slice($seeds, 3, 3)],
+        ];
+        $tournament->forceFill(['plan' => $plan])->save();
+    }
+
     private function roundStatus(Round $round): string
     {
         $fixtures = Fixture::query()
             ->where('round_id', $round->id)
-            ->get(['id', 'status', 'match_id']);
+            ->get(['id', 'status', 'match_id', 'bye_team_id']);
 
         if ($fixtures->isEmpty()) {
             return Round::STATUS_AVAILABLE;
@@ -415,6 +816,10 @@ class TournamentBracketService
         $anyFinished = false;
 
         foreach ($fixtures as $fixture) {
+            if ($fixture->bye_team_id) {
+                continue;
+            }
+
             if (in_array($fixture->status?->value, [FixtureStatus::Cancelled->value, FixtureStatus::Postponed->value], true)) {
                 continue;
             }

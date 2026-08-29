@@ -73,6 +73,16 @@ class TournamentDetailResource extends JsonResource
             'stadium' => $this->whenLoaded('stadium', fn () => $this->stadium ? [
                 'id' => $this->stadium->id,
                 'name' => $this->stadium->name,
+                'city' => $this->stadium->city,
+                'address' => $this->stadium->address,
+                'latitude' => $this->stadium->latitude !== null ? (float) $this->stadium->latitude : null,
+                'longitude' => $this->stadium->longitude !== null ? (float) $this->stadium->longitude : null,
+                'google_maps_url' => $this->stadium->google_maps_url,
+                'price_per_hour' => $this->stadium->price_per_hour !== null ? (float) $this->stadium->price_per_hour : null,
+                'price_per_team' => $this->stadium->price_per_team !== null ? (float) $this->stadium->price_per_team : null,
+                'total_price' => $this->stadium->total_price !== null ? (float) $this->stadium->total_price : null,
+                'price' => $this->stadiumPrice(),
+                'is_free' => $this->stadiumPrice() === null,
             ] : null),
             'organizer' => $this->whenLoaded('organizer', fn () => [
                 'id' => $this->organizer->id,
@@ -90,5 +100,21 @@ class TournamentDetailResource extends JsonResource
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Effective venue price for a tournament, preferring the full booking price.
+     */
+    private function stadiumPrice(): ?float
+    {
+        $stadium = $this->stadium;
+
+        if (! $stadium) {
+            return null;
+        }
+
+        $price = $stadium->total_price ?? $stadium->price_per_team ?? $stadium->price_per_hour;
+
+        return $price !== null && (float) $price > 0 ? (float) $price : null;
     }
 }

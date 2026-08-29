@@ -16,6 +16,31 @@ class TournamentStandingsService
      */
     public function standings(Tournament $tournament, ?int $groupId = null): array
     {
+        return $this->aggregate($tournament, $groupId > 0 ? [$groupId] : null);
+    }
+
+    public function rebuildGroup(Tournament $tournament, ?int $groupId = null): array
+    {
+        return $this->standings($tournament, $groupId);
+    }
+
+    /**
+     * Standings restricted to a explicit set of groups — used by the 6-team
+     * Option B flow to rank each mini-group independently before its qualifiers
+     * enter the knockout.
+     *
+     * @return array{competition_id: int|null, season_id: int|null, groups: array<int, array{group_id: int|null, name: string|null, rows: array<int, array<string, mixed>>}>, total: int}
+     */
+    public function standingsInGroups(Tournament $tournament, array $groupIds): array
+    {
+        return $this->aggregate($tournament, array_values(array_filter(array_map('intval', $groupIds))));
+    }
+
+    /**
+     * @return array{competition_id: int|null, season_id: int|null, groups: array<int, array{group_id: int|null, name: string|null, rows: array<int, array<string, mixed>>}>, total: int}
+     */
+    private function aggregate(Tournament $tournament, ?array $groupIds): array
+    {
         $pointsWin = (int) $tournament->points_for_win;
         $pointsDraw = (int) $tournament->points_for_draw;
         $pointsLoss = (int) $tournament->points_for_loss;
@@ -24,7 +49,7 @@ class TournamentStandingsService
             ->where('competition_id', $tournament->competition_id)
             ->where('season_id', $tournament->season_id)
             ->where('status', MatchStatus::Finished)
-            ->when($groupId, fn ($q) => $q->where('group_id', $groupId))
+            ->when($groupIds !== null, fn ($q) => $q->whereIn('group_id', $groupIds))
             ->get(['id', 'group_id', 'home_team_id', 'away_team_id', 'home_score', 'away_score']);
 
         $aggregates = [];
@@ -79,7 +104,7 @@ class TournamentStandingsService
         $pivots = TournamentTeam::query()
             ->where('tournament_id', $tournament->id)
             ->where('status', TournamentTeam::STATUS_REGISTERED)
-            ->when($groupId, fn ($q) => $q->where('group_id', $groupId))
+            ->when($groupIds !== null, fn ($q) => $q->whereIn('group_id', $groupIds))
             ->get(['team_id', 'group_id']);
 
         foreach ($pivots as $pivot) {
@@ -153,11 +178,6 @@ class TournamentStandingsService
             'groups' => $groups,
             'total' => count($rows),
         ];
-    }
-
-    public function rebuildGroup(Tournament $tournament, ?int $groupId = null): array
-    {
-        return $this->standings($tournament, $groupId);
     }
 
     private function groupName(mixed $groupId): ?string

@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Users } from 'lucide-react'
 import { logoThumb } from '../../../lib/thumb'
+import Collapsible from '../../../components/tournaments/Collapsible'
 
 function normalizeLink(link) {
   if (!link) return null
@@ -14,11 +15,7 @@ export default function PartnersSection({ partners }) {
   if (list.length === 0) return null
 
   return (
-    <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-      <div className="mb-4 flex items-center gap-2">
-        <span className="grid size-8 place-items-center rounded-xl bg-sky-50 text-sky-600"><Users className="size-4" /></span>
-        <h4 className="text-sm font-black text-slate-900">{t('public.partners.title')}</h4>
-      </div>
+    <Collapsible icon={Users} title={t('public.partners.title')} tone="bg-sky-50 text-sky-600">
       <div className="flex flex-wrap items-center justify-center gap-3">
         {list.map((p) => {
           const link = normalizeLink(p.link)
@@ -45,6 +42,6 @@ export default function PartnersSection({ partners }) {
           )
         })}
       </div>
-    </div>
+    </Collapsible>
   )
 }

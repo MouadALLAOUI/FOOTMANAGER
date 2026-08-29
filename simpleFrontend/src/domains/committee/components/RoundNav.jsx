@@ -1,6 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Trophy, Lock, Check, Play, Loader2 } from 'lucide-react'
+import { stageLabel } from '../lib/stages'
 
 const STATE_STYLES = {
   locked: { labelKey: 'committee.detail.roundState.locked', cls: 'bg-slate-100 text-slate-500', icon: Lock },
@@ -59,7 +60,7 @@ export default function RoundNav({ structure, active, onSelect }) {
                 onClick={() => onSelect({ type: 'knockout', round_id: s.round_id })}
                 status={s.status}
               >
-                {s.name}
+                {stageLabel(t, s.stage, s.name)}
               </RoundButton>
             ))}
           </div>

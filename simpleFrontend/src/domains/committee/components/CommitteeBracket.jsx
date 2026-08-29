@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { ArrowUpRight, CheckCircle2, Crown, Loader2, Lock, Play } from 'lucide-react'
 import { Card } from '../../../components/dashboard/ui'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
+import { stageLabel } from '../lib/stages'
 
 const STATE_META = {
   locked: { cls: 'bg-slate-100 text-slate-500', icon: Lock, key: 'committee.detail.roundState.locked' },
@@ -17,7 +18,7 @@ export default function CommitteeBracket({ rounds }) {
 
   const sourceMap = new Map()
   rounds.forEach((round) => {
-    ;(round.fixtures || []).forEach((f, i) => sourceMap.set(f.id, { name: round.name, number: i + 1 }))
+    ;(round.fixtures || []).forEach((f, i) => sourceMap.set(f.id, { name: stageLabel(t, round.stage, round.name), number: i + 1 }))
   })
 
   const renderSource = (id) => {
@@ -31,6 +32,21 @@ export default function CommitteeBracket({ rounds }) {
     )
   }
 
+  const renderBye = (f) => (
+    <div className="flex items-center justify-between gap-2 px-4 py-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <TeamAvatar team={f.bye_team} className="size-7" />
+        <div className="min-w-0">
+          <p className="truncate text-xs font-bold text-slate-900">{f.bye_team?.name}</p>
+          <p className="text-[10px] text-slate-400">{t('committee.detail.knockout6.byeAdvance')}</p>
+        </div>
+      </div>
+      <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
+        {t('committee.detail.knockout6.bye')}
+      </span>
+    </div>
+  )
+
   return (
     <div className="space-y-5">
       {rounds.map((round) => {
@@ -41,7 +57,7 @@ export default function CommitteeBracket({ rounds }) {
             key={round.round_id}
             title={
               <span className="flex flex-wrap items-center gap-2">
-                {round.name}
+                {stageLabel(t, round.stage, round.name)}
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${meta.cls}`}>
                   <StateIcon className={`size-3 ${round.status === 'in_progress' ? 'animate-spin' : ''}`} />
                   {t(meta.key)}
@@ -52,6 +68,14 @@ export default function CommitteeBracket({ rounds }) {
           >
             <div className={`grid gap-3 ${round.fixtures?.length > 1 ? 'sm:grid-cols-2' : ''}`}>
               {(round.fixtures || []).map((f) => {
+                if (f.bye_team) {
+                  return (
+                    <div key={f.id} className="overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50/60">
+                      {renderBye(f)}
+                    </div>
+                  )
+                }
+
                 const played = f.status === 'finished'
                 const winner = f.winner_team_id
                 return (

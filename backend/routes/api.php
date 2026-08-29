@@ -771,6 +771,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/standings', [TournamentStandingController::class, 'index']);
 
             Route::get('/bracket', [TournamentBracketController::class, 'index']);
+            Route::get('/bracket/validation', [TournamentBracketController::class, 'validation']);
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/bracket', [TournamentBracketController::class, 'store']);

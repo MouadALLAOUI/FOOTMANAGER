@@ -9,6 +9,7 @@ use App\Domains\Tournament\Services\TournamentBracketService;
 use App\Domains\Tournament\Services\TournamentStandingsService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TournamentBracketController extends Controller
 {
@@ -23,23 +24,54 @@ class TournamentBracketController extends Controller
     {
         $this->authorize('view', $tournament);
 
-        return response()->json(['data' => $this->bracket->bracket($tournament)]);
+        return response()->json([
+            'data' => $this->bracket->bracket($tournament),
+            'meta' => $this->bracket->bracketMeta($tournament),
+        ]);
     }
 
-    public function store(Tournament $tournament): JsonResponse
+    /**
+     * Pre-generation gate: how many teams enter the knockout and, for the
+     * non-group formats, whether that count is valid, needs a 6-team choice or
+     * is outright invalid.
+     */
+    public function validation(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('view', $tournament);
+
+        return response()->json(['data' => $this->bracket->knockoutValidation($tournament)]);
+    }
+
+    public function store(Request $request, Tournament $tournament): JsonResponse
     {
         $this->authorize('manage', $tournament);
 
-        return response()->json(['data' => $this->bracket->generateBracket($tournament)]);
+        $mode = $request->input('mode');
+
+        if ($mode !== null && ! in_array($mode, ['byes', 'groups6'], true)) {
+            throw new DomainException('صيغة توليد السلم غير صالحة');
+        }
+
+        if ($mode === 'groups6') {
+            return response()->json(['data' => $this->bracket->generateGroups6($tournament)], 201);
+        }
+
+        return response()->json(['data' => $this->bracket->generateBracket($tournament, $mode)], 201);
     }
 
     public function populate(Tournament $tournament): JsonResponse
     {
         $this->authorize('manage', $tournament);
 
+        $mode = ($tournament->plan ?? [])['knockout']['mode'] ?? null;
+
+        if ($mode === 'groups6') {
+            return response()->json(['data' => $this->bracket->populateGroups6($tournament)]);
+        }
+
         $qualified = $this->qualifiedTeams($tournament);
 
-        return response()->json(['data' => $this->bracket->populateKnockout($tournament, $qualified)]);
+        return response()->json(['data' => $this->bracket->populateKnockout($tournament, $qualified, $mode)]);
     }
 
     /**

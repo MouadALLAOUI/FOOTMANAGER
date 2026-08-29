@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { CalendarDays, MapPin, Plus, Trophy } from 'lucide-react'
+import { CalendarDays, Eye, EyeOff, MapPin, Plus, Trophy } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
@@ -39,7 +39,11 @@ export default function Tournaments() {
   const { toast } = useToast()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { data, loading, errorState, refetch } = useApi(() => api.get('/committee/tournaments').then((r) => r.data))
+  const [showHidden, setShowHidden] = useState(false)
+  const { data, loading, errorState, refetch } = useApi(
+    () => api.get('/committee/tournaments', { params: { visibility: showHidden ? 'hidden' : 'visible' } }).then((r) => r.data),
+    [showHidden],
+  )
 
   const tournaments = data?.data || []
 
@@ -133,7 +137,30 @@ export default function Tournaments() {
             {t('nav.committee.createTournament')}
           </Button>
         }
-      />
+/>
+
+      <div className="mb-4 flex w-fit gap-1.5 rounded-2xl bg-white p-1.5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/60">
+        <button
+          type="button"
+          onClick={() => setShowHidden(false)}
+          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
+            !showHidden ? 'bg-green-500 text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)]' : 'text-slate-500 hover:bg-slate-50'
+          }`}
+        >
+          <Eye className="size-4" />
+          {t('committee.tournaments.showVisible')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowHidden(true)}
+          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition-colors ${
+            showHidden ? 'bg-slate-800 text-white shadow-[0_8px_20px_rgba(15,23,42,0.3)]' : 'text-slate-500 hover:bg-slate-50'
+          }`}
+        >
+          <EyeOff className="size-4" />
+          {t('committee.tournaments.showHidden')}
+        </button>
+      </div>
 
       {errorState ? (
         <SectionError state={errorState} onRetry={refetch} />
@@ -183,6 +210,12 @@ export default function Tournaments() {
               <div className="mt-3 flex flex-wrap gap-1.5">
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">{t('committee.tournaments.teamsCount', { count: tour.teams_count })}</span>
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">{t(`committee.tournaments.formats.${tour.tournament_format}`)}</span>
+                {tour.is_hidden && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                    <EyeOff className="size-3" />
+                    {t('committee.tournaments.hidden')}
+                  </span>
+                )}
               </div>
             </button>
           ))}

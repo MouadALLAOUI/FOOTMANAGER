@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarClock, Check, ImagePlus, Lock, Palette, Save, ScrollText, ShieldAlert, SlidersHorizontal, Trophy, Unlock, Users } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CalendarClock, Check, Eye, EyeOff, ImagePlus, Lock, Palette, Save, ScrollText, ShieldAlert, SlidersHorizontal, Trash2, Trophy, Unlock, Users } from 'lucide-react'
 import api from '../../../api/client'
 import { Button, Card, Field, FieldRow, Toggle, inputClass, selectClass } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import { toastApiError } from '../../../lib/errors'
 
 const modes = [
@@ -47,6 +49,7 @@ function SectionHeader({ icon: Icon, title, desc }) {
 export default function SettingsTab({ tournament, refresh }) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const navigate = useNavigate()
   const editable = ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
   const registrationOpen = tournament.status === 'open_for_registration'
 
@@ -71,6 +74,9 @@ export default function SettingsTab({ tournament, refresh }) {
   const [busy, setBusy] = useState(false)
   const [toggleBusy, setToggleBusy] = useState(false)
   const [brandingBusy, setBrandingBusy] = useState(false)
+  const [hiddenBusy, setHiddenBusy] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const removeConfirm = useConfirm()
 
   const isGroupFormat = format === 'groups_knockout' || format === 'groups_only'
   const derivedGroups = isGroupFormat
@@ -145,8 +151,43 @@ export default function SettingsTab({ tournament, refresh }) {
     }
   }
 
+  const toggleHidden = async () => {
+    setHiddenBusy(true)
+    try {
+      const endpoint = tournament.is_hidden ? '/unhide' : '/hide'
+      await api.post(`/committee/tournaments/${tournament.id}${endpoint}`)
+      toast.success(t(tournament.is_hidden ? 'committee.detail.tournamentShown' : 'committee.detail.tournamentHidden'))
+      refresh()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setHiddenBusy(false)
+    }
+  }
+
+  const submitRemove = async () => {
+    setDeleteBusy(true)
+    try {
+      await api.delete(`/committee/tournaments/${tournament.id}`)
+      toast.success(t('committee.detail.tournamentDeleted'))
+      navigate('/committee/tournaments')
+    } catch (e) {
+      toastApiError(e, t)
+      return false
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {tournament.is_hidden && (
+        <p className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[11px] font-bold text-amber-700">
+          <EyeOff className="size-4 shrink-0" />
+          {t('committee.detail.tournamentHiddenNote')}
+        </p>
+      )}
+
       <Card title={t('committee.detail.settings')} subtitle={t('committee.detail.settingsDesc')}>
         {!editable && (
           <p className="mb-5 flex items-center gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-[11px] font-bold text-amber-700">
@@ -508,6 +549,55 @@ export default function SettingsTab({ tournament, refresh }) {
           {t('committee.detail.settingsSave')}
         </Button>
       </div>
+
+      <Card>
+        <SectionHeader
+          icon={Trash2}
+          title={t('committee.detail.settingsSectionDanger')}
+          desc={t('committee.detail.settingsSectionDangerDesc')}
+        />
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-extrabold text-slate-800">{t('committee.detail.settingsHideTitle')}</p>
+              <p className="text-[11px] font-semibold text-slate-400">{t('committee.detail.settingsHideDesc')}</p>
+            </div>
+            <Button variant={tournament.is_hidden ? 'soft' : 'outline'} size="sm" loading={hiddenBusy} onClick={toggleHidden}>
+              {tournament.is_hidden ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
+              {t(tournament.is_hidden ? 'committee.detail.settingsShow' : 'committee.detail.settingsHide')}
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-100 bg-rose-50/60 px-4 py-3.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-extrabold text-rose-700">{t('committee.detail.settingsRemoveTitle')}</p>
+              <p className="text-[11px] font-semibold text-rose-400">{t('committee.detail.settingsRemoveDesc')}</p>
+            </div>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() =>
+                removeConfirm.run(submitRemove, {
+                  title: t('committee.detail.settingsRemoveConfirmTitle', { name: tournament.name }),
+                  description: t('committee.detail.settingsRemoveConfirmDesc'),
+                  confirmLabel: t('committee.detail.settingsRemoveConfirm'),
+                  tone: 'danger',
+                })
+              }
+            >
+              <Trash2 className="size-3.5" />
+              {t('committee.detail.settingsRemove')}
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <ConfirmDialog
+        open={removeConfirm.open}
+        loading={removeConfirm.loading || deleteBusy}
+        onConfirm={removeConfirm.confirm}
+        onClose={removeConfirm.close}
+        {...removeConfirm.options}
+      />
     </div>
   )
 }

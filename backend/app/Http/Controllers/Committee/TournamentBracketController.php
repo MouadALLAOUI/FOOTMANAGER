@@ -48,7 +48,7 @@ class TournamentBracketController extends Controller
 
         $mode = $request->input('mode');
 
-        if ($mode !== null && ! in_array($mode, ['byes', 'groups6'], true)) {
+        if ($mode !== null && ! in_array($mode, ['byes', 'groups6', 'playin', 'bye_final'], true)) {
             throw new DomainException('صيغة توليد السلم غير صالحة');
         }
 

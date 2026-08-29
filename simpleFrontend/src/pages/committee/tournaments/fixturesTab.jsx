@@ -35,6 +35,7 @@ import RescheduleDrawer from '../../../domains/committee/components/RescheduleDr
 import RoundNav from '../../../domains/committee/components/RoundNav'
 import SummaryChips from '../../../domains/committee/components/SummaryChips'
 import KnockoutOptionModal from '../../../domains/committee/components/KnockoutOptionModal'
+import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
 
 
 function fixtureStatus(f) {
@@ -114,6 +115,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const [qualified, setQualified] = useState([])
   const qualifiedAutoFilled = useRef(false)
   const [koValidation, setKoValidation] = useState(null)
+  const [koOddOpen, setKoOddOpen] = useState(false)
   const [koOptionOpen, setKoOptionOpen] = useState(false)
 
   const hasKnockoutStage = tournament.tournament_format !== 'groups_only' && tournament.tournament_format !== 'league'
@@ -425,14 +427,18 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     return base
   }
 
-  const previewPlan = async () => {
+  const previewPlan = async (skipKoGate = false) => {
     if (form.stage === 'knockout') {
       if (!koStandingsReady) {
         toast.error(t('committee.detail.standingsNotReady'))
         return
       }
-      if (koValidation?.status === 'choice' && koData?.count === koData?.expected) {
-        setKoOptionOpen(true)
+      if (!skipKoGate && koValidation?.status === 'choice' && koData?.count === koData?.expected) {
+        if ((koValidation?.options || []).includes('bye_final') || (koValidation?.options || []).includes('playin')) {
+          setKoOddOpen(true)
+        } else {
+          setKoOptionOpen(true)
+        }
         return
       }
       if (koValidation?.status === 'invalid') {
@@ -474,9 +480,16 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         setForm((f) => ({ ...f, stage: 'group' }))
         refetchStructure()
         toast.success(t('committee.detail.knockout6.groupsReady'))
+      } else if (mode === 'playin' || mode === 'bye_final') {
+        await api.post(`/committee/tournaments/${tournament.id}/bracket`, { mode })
+        const v = await api.get(`/committee/tournaments/${tournament.id}/bracket/validation`)
+        setKoValidation(v.data?.data || null)
+        setKoOddOpen(false)
+        refetchStructure()
+        await previewPlan(true)
       } else {
         setKoOptionOpen(false)
-        await previewPlan()
+        await previewPlan(true)
       }
     } catch (e) {
       toastApiError(e, t)
@@ -687,6 +700,19 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           <span>
             {t('committee.detail.knockout6.invalidTeams', { count: koData.count })}
             <span className="mt-1 block font-medium">{t('committee.detail.knockout6.invalidTeamsDesc')}</span>
+          </span>
+        </div>
+      ) : koValidation?.status === 'choice' && (koValidation?.options || []).includes('bye_final') && koData.count === koData.expected ? (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] font-bold text-amber-700">
+          <AlertTriangle className="size-4 shrink-0" />
+          <span>{t('committee.detail.oddKo.banner', { count: koData.count })}</span>
+          <span className="flex flex-wrap items-center gap-1 font-black">
+            {(koValidation?.trail || [1]).map((step, i) => (
+              <span key={step} className="flex items-center gap-1">
+                {i > 0 && <span className="text-amber-400">←</span>}
+                <span className="rounded-lg bg-white px-1.5 py-0.5 ring-1 ring-amber-200">{step}</span>
+              </span>
+            ))}
           </span>
         </div>
       ) : koData.count < koData.expected ? (
@@ -921,6 +947,18 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       </Modal>
 
       <KnockoutOptionModal open={koOptionOpen} onClose={() => setKoOptionOpen(false)} onConfirm={confirmKoOption} busy={busy === 'ko-option'} />
+
+      <KnockoutOptionModal
+        open={koOddOpen}
+        options={ODD_KO_OPTIONS}
+        titleKey={ODD_KO_TITLE_KEYS.titleKey}
+        descKey={ODD_KO_TITLE_KEYS.descKey}
+        recommendedKey={ODD_KO_TITLE_KEYS.recommendedKey}
+        trail={koValidation?.trail}
+        onClose={() => setKoOddOpen(false)}
+        onConfirm={confirmKoOption}
+        busy={busy === 'ko-option'}
+      />
 
       {resultFixture && (
         <MatchControlRoom

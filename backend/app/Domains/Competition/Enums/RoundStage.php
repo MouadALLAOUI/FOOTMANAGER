@@ -5,6 +5,7 @@ namespace App\Domains\Competition\Enums;
 enum RoundStage: string
 {
     case Group = 'group';
+    case PlayIn = 'play_in';
     case RoundOf16 = 'round_of_16';
     case Quarterfinal = 'quarterfinal';
     case Semifinal = 'semifinal';

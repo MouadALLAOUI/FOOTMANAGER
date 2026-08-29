@@ -402,9 +402,10 @@ class TournamentFixtureService
             $seeds = array_values($teamIds);
 
             // Rebuild the bracket (idempotent; deletes existing knockout fixtures first).
+            $mode = $this->knockoutMode($tournament);
             $this->deleteKnockoutFixtures($tournament);
-            $this->bracket->generateBracket($tournament, $this->bracket->isSixTeamBracket($tournament) ? 'byes' : null);
-            $this->bracket->populateKnockout($tournament, $seeds, $this->bracket->isSixTeamBracket($tournament) ? 'byes' : null);
+            $this->bracket->generateBracket($tournament, $mode);
+            $this->bracket->populateKnockout($tournament, $seeds, $mode);
 
             $plan = $this->planKnockoutPairs($tournament, $this->knockoutPairs($tournament, $seeds), $startsOn, $stadiumIds, $defaultTime, $strategy);
 
@@ -556,6 +557,14 @@ class TournamentFixtureService
 
         if (count($teamIds) !== $expected) {
             throw new DomainException("عدد الفرق المتأهلة يجب أن يكون $expected");
+        }
+
+        $mode = ($tournament->plan['knockout']['mode'] ?? null);
+
+        if (! $this->bracket->isSixTeamBracket($tournament)
+            && ! in_array($mode, ['playin', 'bye_final'], true)
+            && ! $this->bracket->isPowerOfTwo($expected)) {
+            throw new DomainException('عدد الفرق لا يسمح بسلم إقصائي مباشر — اختر صيغة التوليد (دور تمهيدي أو استراحة للمتصدر)');
         }
 
         $unique = array_unique(array_map('intval', $teamIds));
@@ -783,15 +792,28 @@ class TournamentFixtureService
     }
 
     /**
-     * Knockout first-round pairings. For the standard 6-team byes bracket the
-     * two seeded byes do not get played — the quarter-finals are 3-vs-6 and
-     * 4-vs-5 only.
+     * Knockout first-round pairings following the chosen bracket mode. The
+     * standard 6-team byes bracket only plays 3-vs-6 and 4-vs-5. A play-in
+     * mode pairs the bottom seeds only; a balanced-byes mode skips the top
+     * ranked qualifier (its bye is the last slot of the round).
      *
      * @param  array<int, int>  $seeds
      * @return array<int, array{0: int, 1: int}>
      */
     private function knockoutPairs(Tournament $tournament, array $seeds): array
     {
+        $mode = $this->knockoutMode($tournament);
+
+        if ($mode === 'playin') {
+            $sizes = $this->setup->playInSizes(count($seeds));
+
+            return $this->pairsFromSeeds(array_slice($seeds, $sizes['byes'], $sizes['matches'] * 2));
+        }
+
+        if ($mode === 'bye_final') {
+            return $this->bracket->firstRoundPairsForByeFinal($seeds);
+        }
+
         if ($this->bracket->isSixTeamBracket($tournament)) {
             $seed = array_values(array_slice($seeds, 0, 6));
 
@@ -804,6 +826,16 @@ class TournamentFixtureService
         }
 
         return $this->pairsFromSeeds($seeds);
+    }
+
+    /**
+     * Effective knockout bracket mode: the persisted plan choice wins, falling
+     * back to the standard 6-team byes bracket for team-of-six tournaments.
+     */
+    private function knockoutMode(Tournament $tournament): ?string
+    {
+        return ($tournament->plan['knockout']['mode'] ?? null)
+            ?? ($this->bracket->isSixTeamBracket($tournament) ? 'byes' : null);
     }
 
     /**

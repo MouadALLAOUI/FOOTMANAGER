@@ -11,6 +11,7 @@ use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Resources\TournamentFixtureResource;
 use App\Domains\Tournament\Services\TournamentFixtureService;
+use App\Domains\Tournament\Services\TournamentTerrainBookingService;
 use App\Http\Requests\Committee\GenerateFixturesRequest;
 use App\Http\Requests\Committee\RescheduleFixtureRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -25,6 +26,7 @@ class TournamentFixtureController extends Controller
 
     public function __construct(
         private readonly TournamentFixtureService $fixtures,
+        private readonly TournamentTerrainBookingService $bookings,
     ) {}
 
     /**
@@ -238,6 +240,8 @@ class TournamentFixtureController extends Controller
             $fixture->match->forceFill(['status' => MatchStatus::Scheduled])->save();
         }
 
+        $this->bookings->syncFixture($tournament, $fixture);
+
         return response()->json([
             'data' => new TournamentFixtureResource($fixture->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),
             'message' => 'تمت إعادة جدولة المباراة',
@@ -257,6 +261,8 @@ class TournamentFixtureController extends Controller
             $fixture->match->forceFill(['status' => MatchStatus::Postponed])->save();
         }
 
+        $this->bookings->archiveForFixture($fixture);
+
         return response()->json(['message' => 'تم تأجيل المباراة']);
     }
 
@@ -272,6 +278,8 @@ class TournamentFixtureController extends Controller
         if ($fixture->match) {
             $fixture->match->forceFill(['status' => MatchStatus::Cancelled])->save();
         }
+
+        $this->bookings->archiveForFixture($fixture);
 
         return response()->json(['message' => 'تم إلغاء المباراة']);
     }
@@ -300,6 +308,8 @@ class TournamentFixtureController extends Controller
         if ($fixture->match) {
             $fixture->match->forceFill(['status' => MatchStatus::Scheduled])->save();
         }
+
+        $this->bookings->syncFixture($tournament, $fixture);
 
         return response()->json([
             'data' => new TournamentFixtureResource($fixture->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),

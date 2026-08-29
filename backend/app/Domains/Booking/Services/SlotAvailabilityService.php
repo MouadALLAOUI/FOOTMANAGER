@@ -42,6 +42,7 @@ class SlotAvailabilityService
         return TerrainBooking::query()
             ->where('terrain_id', $terrainId)
             ->whereIn('status', $statuses)
+            ->whereNull('archived_at')
             ->when($excludeId, fn (Builder $q) => $q->where('id', '!=', $excludeId))
             ->when($excludeManagerId, fn (Builder $q) => $q->where('manager_id', '!=', $excludeManagerId))
             ->where(function (Builder $q) use ($dow, $dateStr) {

@@ -10,6 +10,7 @@ use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Resources\TournamentDetailResource;
 use App\Domains\Tournament\Resources\TournamentResource;
 use App\Domains\Tournament\Services\TournamentSetupService;
+use App\Domains\Tournament\Services\TournamentTerrainBookingService;
 use App\Http\Requests\Committee\StoreTournamentRequest;
 use App\Http\Requests\Committee\UpdateTournamentRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -25,6 +26,7 @@ class TournamentController extends Controller
     public function __construct(
         private readonly TournamentSetupService $setup,
         private readonly SubscriptionService $subscription,
+        private readonly TournamentTerrainBookingService $bookings,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -313,6 +315,8 @@ class TournamentController extends Controller
         }
 
         $tournament->forceFill(['status' => Tournament::STATUS_CANCELLED])->save();
+
+        $this->bookings->archiveForTournament($tournament);
 
         return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
     }

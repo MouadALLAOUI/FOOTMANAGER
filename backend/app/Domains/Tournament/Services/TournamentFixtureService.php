@@ -36,10 +36,13 @@ class TournamentFixtureService
         self::STRATEGY_SKIP,
     ];
 
+    private ?array $activeTournamentCompetitionIdsCache = null;
+
     public function __construct(
         private readonly TournamentSetupService $setup,
         private readonly TournamentStandingsService $standings,
         private readonly TournamentBracketService $bracket,
+        private readonly TournamentTerrainBookingService $bookings,
     ) {}
 
     /**
@@ -264,8 +267,11 @@ class TournamentFixtureService
 
         $slot = Carbon::parse($date.' '.$time);
 
+        $activeCompetitionIds = $this->activeTournamentCompetitionIds();
+
         $fixtureConflictIds = $stadiums->isNotEmpty()
             ? Fixture::query()
+                ->whereIn('competition_id', $activeCompetitionIds)
                 ->whereIn('stadium_id', $stadiums->pluck('id')->all())
                 ->where('scheduled_at', '>', $slot->copy()->subHours(2))
                 ->where('scheduled_at', '<', $slot->copy()->addHours(2))
@@ -441,6 +447,8 @@ class TournamentFixtureService
                     ])->save();
                 }
 
+                $this->bookings->createForFixture($tournament, $fixture);
+
                 $created[] = $match;
             }
 
@@ -513,6 +521,7 @@ class TournamentFixtureService
         $count = $fixtures->count();
 
         if ($count > 0) {
+            $this->bookings->archiveForFixtures($fixtures->pluck('id'));
             Fixture::whereKey($fixtures->pluck('id')->all())->delete();
         }
 
@@ -890,6 +899,8 @@ class TournamentFixtureService
                 'status' => FixtureStatus::Scheduled,
             ]);
 
+            $this->bookings->createForFixture($tournament, $fixture);
+
             $created[] = [
                 'id' => $fixture->id,
                 'match_id' => $footballMatch->id,
@@ -1043,6 +1054,7 @@ class TournamentFixtureService
         $window = PlayerMatchGuard::MATCH_WINDOW_HOURS;
 
         return Fixture::query()
+            ->whereIn('competition_id', $this->activeTournamentCompetitionIds())
             ->where('stadium_id', $stadiumId)
             ->where('scheduled_at', '>', $datetime->copy()->subHours($window))
             ->where('scheduled_at', '<', $datetime->copy()->addHours($window))
@@ -1050,6 +1062,28 @@ class TournamentFixtureService
             ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Cancelled->value]))
             ->when($excludeMatchId, fn ($q) => $q->where('match_id', '!=', $excludeMatchId))
             ->exists();
+    }
+
+    /**
+     * Competition ids that currently hold active (non-finished, non-cancelled)
+     * tournaments. Fixtures of finished tournaments must not block terrains,
+     * ditto bookings are archived when the tournament completes.
+     *
+     * @return array<int, int>
+     */
+    private function activeTournamentCompetitionIds(): array
+    {
+        if ($this->activeTournamentCompetitionIdsCache !== null) {
+            return $this->activeTournamentCompetitionIdsCache;
+        }
+
+        return $this->activeTournamentCompetitionIdsCache = Tournament::query()
+            ->whereNotIn('status', [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED])
+            ->whereNotNull('competition_id')
+            ->pluck('competition_id')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

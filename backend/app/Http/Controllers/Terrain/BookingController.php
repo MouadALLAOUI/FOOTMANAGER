@@ -359,6 +359,7 @@ class BookingController extends Controller
         $singleBookings = TerrainBooking::where('terrain_id', $terrainId)
             ->where('reservation_type', 'single')
             ->whereIn('status', ['pending', 'approved'])
+            ->whereNull('archived_at')
             ->whereBetween('booking_date', [$startOfWeek->toDateString(), $rangeEnd->toDateString()])
             ->with(['manager.playerProfile', 'team', 'matchRequest'])
             ->get();
@@ -374,6 +375,7 @@ class BookingController extends Controller
             ->where('reservation_type', 'weekly_subscription')
             ->whereIn('day_of_week', $weekDays)
             ->whereIn('status', ['pending', 'approved'])
+            ->whereNull('archived_at')
             ->with(['manager.playerProfile', 'team'])
             ->get()
             ->filter(function ($sub) use ($startOfWeek, $rangeEnd) {
@@ -419,10 +421,12 @@ class BookingController extends Controller
         // Compute stats
         $totalBookings = TerrainBooking::where('terrain_id', $terrainId)
             ->whereIn('status', ['pending', 'approved'])
+            ->whereNull('archived_at')
             ->count();
         $activeSubscriptions = TerrainBooking::where('terrain_id', $terrainId)
             ->where('reservation_type', 'weekly_subscription')
             ->where('status', 'approved')
+            ->whereNull('archived_at')
             ->count();
         $emptySlots = 0;
 
@@ -834,6 +838,7 @@ class BookingController extends Controller
 
         $query = match ($filter) {
             'upcoming' => $query->whereIn('status', ['pending', 'approved'])
+                ->whereNull('archived_at')
                 ->where(function ($q) use ($today) {
                     $q->where('reservation_type', 'single')
                         ->whereDate('booking_date', '>=', $today)
@@ -859,7 +864,7 @@ class BookingController extends Controller
                 }),
             'cancelled' => $query->whereIn('status', ['cancelled', 'rejected']),
             'all' => $query->whereIn('status', ['pending', 'approved', 'completed', 'cancelled', 'rejected']),
-            default => $query->whereIn('status', ['pending', 'approved']),
+            default => $query->whereIn('status', ['pending', 'approved'])->whereNull('archived_at'),
         };
 
         $bookings = $query->orderBy('booking_date', 'desc')
@@ -934,6 +939,7 @@ class BookingController extends Controller
             ->whereNull('match_request_id');
 
         $upcoming = (clone $baseQuery)->whereIn('status', ['pending', 'approved'])
+            ->whereNull('archived_at')
             ->where(function ($q) use ($today) {
                 $q->where('reservation_type', 'single')
                     ->whereDate('booking_date', '>=', $today)
@@ -979,6 +985,7 @@ class BookingController extends Controller
         $bookings = TerrainBooking::where('terrain_id', $terrainId)
             ->where('manager_id', $user->id)
             ->whereNull('match_request_id')
+            ->whereNull('archived_at')
             ->whereIn('status', ['approved'])
             ->get();
 

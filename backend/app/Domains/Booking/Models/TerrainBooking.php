@@ -3,6 +3,7 @@
 namespace App\Domains\Booking\Models;
 
 use App\Domains\Booking\Services\SlotAvailabilityService;
+use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Stadium\Models\Stadium;
 use App\Domains\Team\Models\Team;
@@ -30,6 +31,8 @@ class TerrainBooking extends Model
         'end_date',
         'start_time',
         'end_time',
+        'fixture_id',
+        'archived_at',
         'price',
         'subtotal',
         'service_fee',
@@ -73,6 +76,7 @@ class TerrainBooking extends Model
             'expires_at' => 'datetime',
             'confirmed_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
     }
 
@@ -104,6 +108,16 @@ class TerrainBooking extends Model
     public function matchRequest(): BelongsTo
     {
         return $this->belongsTo(MatchRequest::class, 'match_request_id');
+    }
+
+    public function fixture(): BelongsTo
+    {
+        return $this->belongsTo(Fixture::class, 'fixture_id');
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 
     public function cancellationPolicy(): BelongsTo

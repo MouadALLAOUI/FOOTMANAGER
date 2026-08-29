@@ -22,6 +22,10 @@ use Illuminate\Support\Facades\DB;
 
 class TournamentSetupService
 {
+    public function __construct(
+        private readonly TournamentTerrainBookingService $bookings,
+    ) {}
+
     public function buildStructure(Tournament $tournament): Tournament
     {
         return DB::transaction(function () use ($tournament) {
@@ -265,6 +269,10 @@ class TournamentSetupService
                 FootballMatch::whereKey($matchIds->all())->delete();
             }
 
+            $this->bookings->archiveForFixtures(
+                Fixture::query()->whereIn('round_id', $roundIds)->pluck('id')
+            );
+
             Fixture::whereIn('round_id', $roundIds)->delete();
             Round::whereKey($roundIds)->delete();
         }
@@ -370,6 +378,8 @@ class TournamentSetupService
                 if ($matchIds->isNotEmpty()) {
                     FootballMatch::whereKey($matchIds->all())->delete();
                 }
+
+                $this->bookings->deleteForTournament($tournament);
 
                 Fixture::query()
                     ->where('competition_id', $tournament->competition_id)

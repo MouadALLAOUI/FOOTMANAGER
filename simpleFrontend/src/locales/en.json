@@ -1440,7 +1440,8 @@
         "groupsBanner": "Mini-groups mode selected — generate the group fixtures, then come back to populate the qualifiers.",
         "groupLabel": "Group {{group}}",
         "goToFixtures": "Generate group fixtures",
-        "populateHint": "After every mini-group match finishes, press Populate qualifiers."
+        "populateHint": "After every mini-group match finishes, press Populate qualifiers.",
+        "groupsReady": "Mini-groups are ready — pick stadiums and generate the group fixtures, then populate the qualifiers from the bracket page."
       },
       "noStats": "No statistics yet",
       "noStatsDesc": "Statistics appear once matches begin",

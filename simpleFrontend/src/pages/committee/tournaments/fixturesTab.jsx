@@ -34,6 +34,7 @@ import MatchDetailsModal from '../../../domains/committee/components/MatchDetail
 import RescheduleDrawer from '../../../domains/committee/components/RescheduleDrawer'
 import RoundNav from '../../../domains/committee/components/RoundNav'
 import SummaryChips from '../../../domains/committee/components/SummaryChips'
+import KnockoutOptionModal from '../../../domains/committee/components/KnockoutOptionModal'
 
 
 function fixtureStatus(f) {
@@ -112,6 +113,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const [koData, setKoData] = useState(null)
   const [qualified, setQualified] = useState([])
   const qualifiedAutoFilled = useRef(false)
+  const [koValidation, setKoValidation] = useState(null)
+  const [koOptionOpen, setKoOptionOpen] = useState(false)
 
   const hasKnockoutStage = tournament.tournament_format !== 'groups_only' && tournament.tournament_format !== 'league'
 
@@ -311,11 +314,18 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     let cancelled = false
     const load = async () => {
       try {
-        const r = await api.get(`/committee/tournaments/${tournament.id}/fixtures/knockout-qualified`)
+        const [k, v] = await Promise.all([
+          api.get(`/committee/tournaments/${tournament.id}/fixtures/knockout-qualified`),
+          api.get(`/committee/tournaments/${tournament.id}/bracket/validation`),
+        ])
         if (cancelled) return
-        setKoData(r.data?.data || null)
+        setKoData(k.data?.data || null)
+        setKoValidation(v.data?.data || null)
       } catch {
-        if (!cancelled) setKoData({ expected: 0, teams: [], count: 0 })
+        if (!cancelled) {
+          setKoData({ expected: 0, teams: [], count: 0 })
+          setKoValidation(null)
+        }
       }
     }
     load()
@@ -381,6 +391,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     setGenView('form')
     setConflictModal(false)
     setKoData(null)
+    setKoValidation(null)
+    setKoOptionOpen(false)
     setQualified([])
     qualifiedAutoFilled.current = false
     const nextStage = target === 'knockout' || target === 'group'
@@ -419,6 +431,14 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         toast.error(t('committee.detail.standingsNotReady'))
         return
       }
+      if (koValidation?.status === 'choice' && koData?.count === koData?.expected) {
+        setKoOptionOpen(true)
+        return
+      }
+      if (koValidation?.status === 'invalid') {
+        toast.error(t('committee.detail.knockout6.invalidTeams', { count: koData?.count || 0 }))
+        return
+      }
       if (!qualifiedComplete) {
         toast.error(t('committee.detail.fillAllSlots'))
         return
@@ -436,6 +456,27 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         toast.error(t('committee.detail.noMatchesForRound'))
       } else {
         setGenView('review')
+      }
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const confirmKoOption = async (mode) => {
+    if (busy) return
+    setBusy('ko-option')
+    try {
+      if (mode === 'groups6') {
+        await api.post(`/committee/tournaments/${tournament.id}/bracket`, { mode: 'groups6' })
+        setKoOptionOpen(false)
+        setForm((f) => ({ ...f, stage: 'group' }))
+        refetchStructure()
+        toast.success(t('committee.detail.knockout6.groupsReady'))
+      } else {
+        setKoOptionOpen(false)
+        await previewPlan()
       }
     } catch (e) {
       toastApiError(e, t)
@@ -639,6 +680,14 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-[11px] font-bold text-slate-500">
           <AlertTriangle className="size-4 shrink-0" />
           {t('committee.detail.noKnockoutInFormat')}
+        </div>
+      ) : koValidation?.status === 'invalid' && koData.count === koData.expected ? (
+        <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-3 text-[11px] font-bold text-red-700">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <span>
+            {t('committee.detail.knockout6.invalidTeams', { count: koData.count })}
+            <span className="mt-1 block font-medium">{t('committee.detail.knockout6.invalidTeamsDesc')}</span>
+          </span>
         </div>
       ) : koData.count < koData.expected ? (
         <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] font-bold text-amber-700">
@@ -870,6 +919,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           <Button variant="outline" className="w-full" onClick={() => setConflictModal(false)}>{t('common.cancel')}</Button>
         </div>
       </Modal>
+
+      <KnockoutOptionModal open={koOptionOpen} onClose={() => setKoOptionOpen(false)} onConfirm={confirmKoOption} busy={busy === 'ko-option'} />
 
       {resultFixture && (
         <MatchControlRoom

@@ -27,6 +27,7 @@ class TournamentResultService
         private readonly TournamentStandingsService $standings,
         private readonly TournamentSetupService $setup,
         private readonly TournamentSuspensionService $suspensions,
+        private readonly TournamentTerrainBookingService $bookings,
     ) {}
 
     /**
@@ -709,6 +710,8 @@ class TournamentResultService
             'plan' => $plan,
             'status' => Tournament::STATUS_COMPLETED,
         ])->save();
+
+        $this->bookings->archiveForTournament($tournament);
     }
 
     private function tournamentFor(Fixture $fixture): Tournament
@@ -854,6 +857,8 @@ class TournamentResultService
         ]);
 
         $fixture->forceFill(['match_id' => $match->id])->save();
+
+        $this->bookings->createForFixture($tournament, $fixture);
 
         return $match;
     }

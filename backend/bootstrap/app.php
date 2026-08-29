@@ -57,10 +57,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (DomainException $e) {
             $code = $e->getCode() >= 400 ? $e->getCode() : 422;
+            $errors = method_exists($e, 'getErrorPayload') ? $e->getErrorPayload() : [];
 
             return response()->json([
                 'message' => $e->getMessage(),
-                'errors' => [],
+                'errors' => $errors,
             ], $code);
         });
     })->create();

@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next'
 import { Check, Loader2 } from 'lucide-react'
 
-const STAGE_ORDER = ['group', 'round_of_16', 'quarterfinal', 'semifinal', 'final']
+const STAGE_ORDER = ['group', 'play_in', 'round_of_16', 'quarterfinal', 'semifinal', 'final']
 const STAGE_KEYS = {
   group: 'stages.group',
+  play_in: 'stages.playIn',
   round_of_16: 'stages.roundOf16',
   quarterfinal: 'stages.quarterfinal',
   semifinal: 'stages.semifinal',

@@ -34,7 +34,8 @@ class TournamentBracketService
             $season = $tournament->season ?: Season::find($tournament->season_id);
 
             $six = $this->isSixTeamBracket($tournament);
-            $effectiveMode = $six ? ($mode ?: (($tournament->plan ?? [])['knockout']['mode'] ?? 'byes')) : null;
+            $planMode = ($tournament->plan ?? [])['knockout']['mode'] ?? null;
+            $effectiveMode = $mode ?? $planMode ?? ($six ? 'byes' : null);
 
             $this->setup->ensureKnockoutRounds($tournament, $season, $effectiveMode);
 
@@ -53,10 +54,15 @@ class TournamentBracketService
                 );
             }
 
+            $knockoutTeams = $this->setup->resolveKnockoutTeams($tournament);
+            $playInTarget = $this->setup->playInSizes($knockoutTeams)['target'];
+
             $expectedCounts = match ($effectiveMode) {
                 'byes' => [4, 2, 1],
                 'groups6' => [2, 1],
-                default => $this->halvingCounts($this->setup->resolveKnockoutTeams($tournament)),
+                'playin' => array_merge([$playInTarget], $this->halvingCounts($playInTarget)),
+                'bye_final' => $this->setup->ceilHalvingWidths($knockoutTeams),
+                default => $this->halvingCounts($knockoutTeams),
             };
 
             $fixturesByRound = [];
@@ -91,6 +97,10 @@ class TournamentBracketService
                 $this->wireSixByesSources($fixturesByRound);
             }
 
+            if ($effectiveMode === 'bye_final') {
+                $this->wireOddByeFoldSources($rounds, $fixturesByRound);
+            }
+
             $plan = $tournament->plan ?? [];
             $plan['bracket'] = [
                 'rounds' => $rounds->map(fn (Round $round) => [
@@ -101,7 +111,7 @@ class TournamentBracketService
                 ])->all(),
             ];
 
-            if ($six) {
+            if ($effectiveMode !== null) {
                 $plan['knockout'] = array_merge($plan['knockout'] ?? [], ['mode' => $effectiveMode]);
             }
 
@@ -214,23 +224,16 @@ class TournamentBracketService
     }
 
     /**
-     * Pre-generation gate used by the committee bracket page: tells the client
-     * exactly how many teams enter the knockout and, for the supported
-     * non-group formats, whether the count opens a choice (6-team) or is simply
+     * Pre-generation gate used by the committee bracket page and the fixtures
+     * drawer: tells the client exactly how many teams enter the knockout and
+     * whether that count is valid, needs one of the 6-team choices, opens the
+     * unbalanced-knockout choice (play-in vs. balanced byes) or is simply
      * invalid for a straight bracket.
      *
-     * @return array{count: int, status: string, options: array<int, string>}
+     * @return array{count: int, status: string, options: array<int, string>, trail?: array<int, int>}
      */
     public function knockoutValidation(Tournament $tournament): array
     {
-        if ($tournament->tournament_format === 'groups_knockout') {
-            return [
-                'count' => $this->effectiveKnockoutCount($tournament),
-                'status' => 'ok',
-                'options' => [],
-            ];
-        }
-
         if (in_array($tournament->tournament_format, ['groups_only', 'league'], true)) {
             return [
                 'count' => 0,
@@ -239,30 +242,91 @@ class TournamentBracketService
             ];
         }
 
-        $count = count($this->qualifiedTeamIds($tournament));
-        $expected = $this->effectiveKnockoutCount($tournament);
+        $count = $this->effectiveKnockoutCount($tournament);
+        $mode = ($tournament->plan ?? [])['knockout']['mode'] ?? null;
 
-        if ($count === $expected && in_array($count, [2, 4, 8, 16, 32], true)) {
+        if ($tournament->tournament_format === 'groups_knockout') {
+            return $this->knockoutGateFor($count, $mode);
+        }
+
+        $registered = count($this->qualifiedTeamIds($tournament));
+
+        if ($registered !== $count) {
             return [
-                'count' => $count,
-                'status' => 'ok',
+                'count' => $registered,
+                'status' => 'invalid',
                 'options' => [],
             ];
         }
 
-        if ($count === 6 && $expected === 6) {
+        return $this->knockoutGateFor($count, $mode);
+    }
+
+    /**
+     * @return array{count: int, status: string, options: array<int, string>, trail?: array<int, int>, mode?: string|null}
+     */
+    private function knockoutGateFor(int $count, ?string $mode): array
+    {
+        if ($this->isPowerOfTwo($count)) {
             return [
-                'count' => 6,
-                'status' => 'choice',
-                'options' => ['standard_byes', 'groups6'],
+                'count' => $count,
+                'status' => 'ok',
+                'options' => [],
+                'mode' => $mode,
             ];
         }
 
+        if ($count === 6) {
+            $chosen = in_array($mode, ['byes', 'groups6'], true);
+
+            return [
+                'count' => 6,
+                'status' => $chosen ? 'ok' : 'choice',
+                'options' => ['standard_byes', 'groups6'],
+                'mode' => $mode,
+            ];
+        }
+
+        $chosen = in_array($mode, ['playin', 'bye_final'], true);
+
         return [
             'count' => $count,
-            'status' => 'invalid',
-            'options' => [],
+            'status' => $chosen ? 'ok' : 'choice',
+            'options' => ['playin', 'bye_final'],
+            'trail' => $this->survivorTrail($count),
+            'mode' => $mode,
         ];
+    }
+
+    public function isPowerOfTwo(int $n): bool
+    {
+        return $n >= 2 && ($n & ($n - 1)) === 0;
+    }
+
+    /**
+     * The halving survivor trail up to the point the bracket goes unbalanced,
+     * e.g. 12 teams -> [12, 6, 3, 1] (the orphaned round is the 3).
+     *
+     * @return array<int, int>
+     */
+    public function survivorTrail(int $count): array
+    {
+        $trail = [$count];
+
+        while (end($trail) > 2) {
+            $trail[] = intdiv(end($trail), 2);
+        }
+
+        return $trail;
+    }
+
+    /**
+     * True when the configured knockout size is a non power-of-2 (an
+     * unbalanced bracket that needs the play-in or balanced-byes generator).
+     */
+    public function isOddKnockout(Tournament $tournament): bool
+    {
+        return ! $this->isPowerOfTwo($this->setup->resolveKnockoutTeams($tournament));
     }
 
     /**
@@ -336,6 +400,8 @@ class TournamentBracketService
     public function populateKnockout(Tournament $tournament, array $qualified, ?string $mode = null): array
     {
         return DB::transaction(function () use ($tournament, $qualified, $mode) {
+            $mode = $mode ?? (($tournament->plan ?? [])['knockout']['mode'] ?? null);
+
             $this->generateBracket($tournament, $mode);
 
             $firstRound = Round::query()
@@ -353,6 +419,14 @@ class TournamentBracketService
                 ->where('round_id', $firstRound->id)
                 ->orderBy('id')
                 ->get();
+
+            if ($mode === 'playin') {
+                return $this->populatePlayIn($tournament, $fixtures, array_values($qualified));
+            }
+
+            if ($mode === 'bye_final') {
+                return $this->populateByeFinalFirstRound($tournament, $fixtures, array_values($qualified));
+            }
 
             if ($this->isSixTeamBracket($tournament)) {
                 return $this->populateSixByes($tournament, $fixtures, array_values($qualified));
@@ -375,6 +449,115 @@ class TournamentBracketService
 
             return $this->bracket($tournament);
         });
+    }
+
+    /**
+     * Populate the preliminary play-in round of an unbalanced knockout: the top
+     * seeds take the seeded byes and the bottom seeds play the |N - target|
+     * elimination matches. The winners join the byes into the balanced bracket.
+     *
+     * @param  \Illuminate\Support\Collection<int, Fixture>  $fixtures
+     * @param  array<int, int>  $seeds
+     * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
+     */
+    private function populatePlayIn(Tournament $tournament, $fixtures, array $seeds): array
+    {
+        $count = count($seeds);
+        $sizes = $this->setup->playInSizes($count);
+        [$matches, $byes, $target] = [$sizes['matches'], $sizes['byes'], $sizes['target']];
+
+        if ($matches < 1) {
+            throw new DomainException('لا حاجة لدور تمهيدي لهذا العدد من الفرق');
+        }
+
+        $order = collect($fixtures)->values();
+
+        if ($order->count() < $target) {
+            throw new DomainException('بنية الدور التمهيدي غير مكتملة — أعد إنشاء السلم');
+        }
+
+        $participants = array_slice($seeds, $byes, $matches * 2);
+        $pairs = $this->pairsFromSeeds($participants);
+
+        foreach ($order->take($matches)->values() as $index => $fixture) {
+            $pair = $pairs[$index];
+
+            $fixture->forceFill([
+                'home_team_id' => $pair[0],
+                'away_team_id' => $pair[1],
+                'bye_team_id' => null,
+                'status' => FixtureStatus::Scheduled,
+            ])->save();
+
+            $this->ensureMatch($tournament, $fixture);
+        }
+
+        for ($i = 0; $i < $byes; $i++) {
+            $order[$matches + $i]->forceFill([
+                'home_team_id' => null,
+                'away_team_id' => null,
+                'bye_team_id' => $seeds[$i],
+                'status' => FixtureStatus::Bye,
+            ])->save();
+        }
+
+        $this->rebuildBracket($tournament);
+
+        return $this->bracket($tournament);
+    }
+
+    /**
+     * Populate the first round of a balanced-byes bracket (`bye_final`): the
+     * first round is standard pairwise seeding when the field is even; an odd
+     * field gives the top-ranked qualifier a seeded bye in the last slot.
+     *
+     * @param  \Illuminate\Support\Collection<int, Fixture>  $fixtures
+     * @param  array<int, int>  $seeds
+     * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
+     */
+    private function populateByeFinalFirstRound(Tournament $tournament, $fixtures, array $seeds): array
+    {
+        $count = count($seeds);
+        $half = intdiv($count, 2);
+        $odd = $count % 2 === 1;
+
+        $order = collect($fixtures)->values();
+
+        if ($order->count() < $half + ($odd ? 1 : 0)) {
+            throw new DomainException('بنية الأدوار الإقصائية غير مكتملة — أعد إنشاء السلم');
+        }
+
+        if ($odd) {
+            $participants = array_slice($seeds, 1);
+
+            $order[$half]->forceFill([
+                'home_team_id' => null,
+                'away_team_id' => null,
+                'bye_team_id' => $seeds[0],
+                'status' => FixtureStatus::Bye,
+            ])->save();
+        } else {
+            $participants = $seeds;
+        }
+
+        $pairs = $this->pairsFromSeeds($participants);
+
+        foreach ($order->take($half)->values() as $index => $fixture) {
+            $pair = $pairs[$index];
+
+            $fixture->forceFill([
+                'home_team_id' => $pair[0],
+                'away_team_id' => $pair[1],
+                'bye_team_id' => null,
+                'status' => FixtureStatus::Scheduled,
+            ])->save();
+
+            $this->ensureMatch($tournament, $fixture);
+        }
+
+        $this->rebuildBracket($tournament);
+
+        return $this->bracket($tournament);
     }
 
     /**
@@ -428,13 +611,15 @@ class TournamentBracketService
         }
 
         $this->rebuildBracket($tournament);
+        $this->resolveOddFolds($tournament);
         $this->syncRoundStatuses($tournament);
     }
 
     /**
      * Full idempotent recovery pass: recompute every knockout slot from the
-     * finished state of its sources, then sync round states. Used by the
-     * explicit "sync" committee action (also covers refresh during progression).
+     * finished state of its sources, resolve any pending balanced-byes folds,
+     * then sync round states. Used by the explicit "sync" committee action
+     * (also covers refresh during progression).
      *
      * @return array<int, array{round_id: int, name: string, stage: string, status: string, fixtures: array<int, array<string, mixed>>}>
      */
@@ -442,6 +627,7 @@ class TournamentBracketService
     {
         return DB::transaction(function () use ($tournament) {
             $this->rebuildBracket($tournament);
+            $this->resolveOddFolds($tournament);
             $this->syncRoundStatuses($tournament);
 
             return $this->bracket($tournament);
@@ -485,7 +671,15 @@ class TournamentBracketService
 
             $previousById = $previous->keyBy('id');
 
+            $foldIndex = $previous->count() % 2 === 1
+                ? intdiv($previous->count(), 2)
+                : null;
+
             foreach ($current as $index => $fixture) {
+                if ($fixture->bye_team_id || ($foldIndex !== null && $index === $foldIndex)) {
+                    continue;
+                }
+
                 $homeSource = $fixture->source_home_fixture_id
                     ? ($previousById[$fixture->source_home_fixture_id] ?? null)
                     : ($previous[$index * 2] ?? null);
@@ -543,6 +737,211 @@ class TournamentBracketService
 
             $previous = $current;
         }
+    }
+
+    /**
+     * Resolve every balanced-byes fold slot (`bye_final` mode). A fold is a
+     * round fed by an odd number of advancers: the next round holds (w-1)/2 real
+     * matches plus one seeded bye. Whenever the previous round is fully closed
+     * the survivors are ranked by the tournament standings — the best qualifies
+     * into the bye slot straight and the rest are paired into the real matches.
+     * Stale (incomplete) folds are reset so undo stays consistent.
+     */
+    public function resolveOddFolds(Tournament $tournament): void
+    {
+        if (! $tournament->competition_id || ! $tournament->season_id) {
+            return;
+        }
+
+        $rounds = Round::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('stage', '!=', RoundStage::Group)
+            ->orderBy('order_index')
+            ->get()
+            ->values();
+
+        if ($rounds->count() < 2) {
+            return;
+        }
+
+        for ($i = 1; $i < $rounds->count(); $i++) {
+            $previous = Fixture::query()
+                ->with('match')
+                ->where('round_id', $rounds[$i - 1]->id)
+                ->orderBy('id')
+                ->get()
+                ->values();
+
+            if ($previous->count() % 2 === 0) {
+                continue;
+            }
+
+            $current = Fixture::query()
+                ->where('round_id', $rounds[$i]->id)
+                ->orderBy('id')
+                ->get()
+                ->values();
+
+            if ($current->isEmpty()) {
+                continue;
+            }
+
+            $track = $this->advancerTrack($previous);
+
+            if (! $track) {
+                $this->resetRound($rounds[$i]);
+                $this->rebuildBracket($tournament);
+
+                continue;
+            }
+
+            $fold = $current->last();
+
+            if ((bool) $fold->bye_team_id) {
+                continue;
+            }
+
+            $this->resetRound($rounds[$i]);
+
+            $ranked = $this->rankSurvivors($tournament, $track);
+            $top = array_shift($ranked);
+
+            $current = Fixture::query()
+                ->where('round_id', $rounds[$i]->id)
+                ->orderBy('id')
+                ->get()
+                ->values();
+
+            $fold = $current->last();
+
+            $fold->forceFill([
+                'home_team_id' => null,
+                'away_team_id' => null,
+                'bye_team_id' => $top,
+                'status' => FixtureStatus::Bye,
+            ])->save();
+
+            $pairs = $this->pairsFromSeeds($ranked);
+
+            foreach ($current->take(count($pairs))->values() as $index => $fixture) {
+                $pair = $pairs[$index];
+
+                $fixture->forceFill([
+                    'home_team_id' => $pair[0],
+                    'away_team_id' => $pair[1],
+                    'bye_team_id' => null,
+                    'status' => FixtureStatus::Scheduled,
+                ])->save();
+
+                $this->ensureMatch($tournament, $fixture);
+            }
+
+            $this->rebuildBracket($tournament);
+        }
+    }
+
+    /**
+     * Ordered list of advancers from a (fully closed) previous round: every
+     * bye contributes its seeded team, every real fixture its winner. Returns
+     * null while the round still has open slots.
+     *
+     * @param  \Illuminate\Support\Collection<int, Fixture>  $fixtures
+     * @return array<int, int>|null
+     */
+    private function advancerTrack($fixtures): ?array
+    {
+        $track = [];
+
+        foreach ($fixtures as $fixture) {
+            $team = $fixture->bye_team_id ?: $fixture->match?->winner_team_id;
+
+            if (! $team) {
+                return null;
+            }
+
+            $track[] = (int) $team;
+        }
+
+        return $track;
+    }
+
+    /**
+     * Rank the given survivor ids by the tournament standings (points, goal
+     * difference, goals for, then id) so the best-ranked survivor earns the bye.
+     *
+     * @param  array<int, int>  $teamIds
+     * @return array<int, int>
+     */
+    private function rankSurvivors(Tournament $tournament, array $teamIds): array
+    {
+        $byTeam = [];
+
+        foreach ($this->standings->standings($tournament)['groups'] as $group) {
+            foreach ($group['rows'] as $row) {
+                $byTeam[(int) $row['team_id']] = $row;
+            }
+        }
+
+        $list = array_map(
+            fn (int $id) => $byTeam[$id] ?? ['team_id' => $id, 'points' => 0, 'goal_difference' => 0, 'goals_for' => 0],
+            $teamIds,
+        );
+
+        usort($list, function (array $a, array $b) {
+            return (int) $b['points'] <=> (int) $a['points']
+                ?: (int) $b['goal_difference'] <=> (int) $a['goal_difference']
+                ?: (int) $b['goals_for'] <=> (int) $a['goals_for']
+                ?: (int) $a['team_id'] <=> (int) $b['team_id'];
+        });
+
+        return array_map(fn (array $row) => (int) $row['team_id'], $list);
+    }
+
+    /**
+     * Blank a whole knockout round back to unseeded scheduled fixtures so a
+     * fold can be re-seeded (or left empty while its source is incomplete).
+     */
+    private function resetRound(Round $round): void
+    {
+        $fixtures = Fixture::query()
+            ->where('round_id', $round->id)
+            ->get(['id', 'match_id']);
+
+        $matchIds = $fixtures->pluck('match_id')->filter()->values();
+
+        if ($matchIds->isNotEmpty()) {
+            FootballMatch::whereKey($matchIds->all())->delete();
+        }
+
+        Fixture::query()
+            ->where('round_id', $round->id)
+            ->update([
+                'home_team_id' => null,
+                'away_team_id' => null,
+                'bye_team_id' => null,
+                'match_id' => null,
+                'status' => FixtureStatus::Scheduled,
+            ]);
+    }
+
+    /**
+     * First-round pairings for a balanced-byes bracket: 1-vs-last, 2-vs-next,
+     * etc. Odd fields skip the top-ranked qualifier (its bye is the last slot
+     * of the round).
+     *
+     * @param  array<int, int>  $seeds
+     * @return array<int, array{0: int, 1: int}>
+     */
+    public function firstRoundPairsForByeFinal(array $seeds): array
+    {
+        $seeds = array_values($seeds);
+
+        if (count($seeds) % 2 === 1 && count($seeds) > 1) {
+            $seeds = array_slice($seeds, 1);
+        }
+
+        return $this->pairsFromSeeds($seeds);
     }
 
     /**
@@ -711,6 +1110,25 @@ class TournamentBracketService
     }
 
     /**
+     * First-round pairings in ranking order: 1-vs-last, 2-vs-next, ...
+     *
+     * @param  array<int, int>  $seeds
+     * @return array<int, array{0: int, 1: int}>
+     */
+    private function pairsFromSeeds(array $seeds): array
+    {
+        $seeds = array_values($seeds);
+        $count = count($seeds);
+        $pairs = [];
+
+        for ($i = 0; $i < $count / 2; $i++) {
+            $pairs[] = [$seeds[$i], $seeds[$count - 1 - $i]];
+        }
+
+        return $pairs;
+    }
+
+    /**
      * Override the standard halving wiring for the 6-team byes bracket: the two
      * seeded byes (QF slots 3 & 4) become home feeds of the semis, and the two
      * quarter-final winners (QF slots 1 & 2) become away feeds.
@@ -740,6 +1158,35 @@ class TournamentBracketService
             'source_home_fixture_id' => $qf[3],
             'source_away_fixture_id' => $qf[1],
         ]);
+    }
+
+    /**
+     * Balanced-byes wiring fix: when a round holds an odd number of fixtures the
+     * next round's last slot is a seeded bye fed by standings (not by the naive
+     * prev[2j]/prev[2j+1] pairing), so its explicit sources are detached.
+     *
+     * @param  \Illuminate\Support\Collection<int, Round>  $rounds
+     * @param  array<int, array<int, int>>  $fixturesByRound
+     */
+    private function wireOddByeFoldSources($rounds, array $fixturesByRound): void
+    {
+        $roundIds = $rounds->pluck('id')->values()->all();
+
+        for ($i = 1; $i < count($roundIds); $i++) {
+            $previous = $fixturesByRound[$roundIds[$i - 1]] ?? [];
+            $current = $fixturesByRound[$roundIds[$i]] ?? [];
+
+            if (count($previous) % 2 === 0 || $current === []) {
+                continue;
+            }
+
+            $foldId = (int) end($current);
+
+            Fixture::query()->whereKey($foldId)->update([
+                'source_home_fixture_id' => null,
+                'source_away_fixture_id' => null,
+            ]);
+        }
     }
 
     /**

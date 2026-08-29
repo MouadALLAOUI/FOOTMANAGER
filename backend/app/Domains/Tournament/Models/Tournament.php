@@ -98,6 +98,7 @@ class Tournament extends Model
         'instagram_url',
         'tiktok_url',
         'youtube_url',
+        'hidden_at',
     ];
 
     protected function casts(): array
@@ -124,6 +125,7 @@ class Tournament extends Model
             'plan' => 'array',
             'published_at' => 'datetime',
             'draw_confirmed_at' => 'datetime',
+            'hidden_at' => 'datetime',
         ];
     }
 
@@ -295,7 +297,27 @@ class Tournament extends Model
             self::STATUS_REGISTRATION_CLOSED,
             self::STATUS_IN_PROGRESS,
             self::STATUS_COMPLETED,
-        ], true);
+        ], true) && ! $this->isHidden();
+    }
+
+    public function isHidden(): bool
+    {
+        return $this->hidden_at !== null;
+    }
+
+    public function isAccessiblePublicly(): bool
+    {
+        return $this->isVisiblePublicly() && ! $this->isHidden();
+    }
+
+    public function scopeVisible($query)
+    {
+        return $query->whereNull('hidden_at');
+    }
+
+    public function scopeHidden($query)
+    {
+        return $query->whereNotNull('hidden_at');
     }
 
     public function registrationRequiresFee(): bool

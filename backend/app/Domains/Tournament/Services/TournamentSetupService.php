@@ -338,6 +338,12 @@ class TournamentSetupService
      * semi-finals (QF + SF + Final); `groups6` goes straight to SF + Final with
      * the four qualifiers coming from two mini-groups.
      *
+     * Tiers for an unbalanced (non power-of-2) knockout. `playin` runs a
+     * preliminary round that reduces the field to the nearest power of 2.
+     * `bye_final` keeps the raw halving trail but caps every unbalanced round
+     * with a seeded bye (advanced by standings) so the odd extra survivor is
+     * never orphaned.
+     *
      * @return RoundStage[]
      */
     public function knockoutTiersFor(int $teamCount, ?string $sixMode = null): array
@@ -350,6 +356,20 @@ class TournamentSetupService
             return [RoundStage::Semifinal, RoundStage::Final];
         }
 
+        if ($sixMode === 'playin') {
+            return array_merge(
+                [RoundStage::PlayIn],
+                $this->knockoutTiers($this->playInSizes($teamCount)['target']),
+            );
+        }
+
+        if ($sixMode === 'bye_final') {
+            return array_map(
+                fn (int $width) => $this->stageForWidth($width),
+                $this->ceilHalvingWidths($teamCount),
+            );
+        }
+
         return $this->knockoutTiers($teamCount);
     }
 
@@ -357,10 +377,63 @@ class TournamentSetupService
     {
         return match ($stage) {
             RoundStage::Group => 'دور المجموعات',
+            RoundStage::PlayIn => 'دور تمهيدي',
             RoundStage::RoundOf16 => 'دور الـ16',
             RoundStage::Quarterfinal => 'ربع النهائي',
             RoundStage::Semifinal => 'نصف النهائي',
             RoundStage::Final => 'النهائي',
+        };
+    }
+
+    /**
+     * Preliminary play-in sizes: the nearest power of 2 (target) plus how many
+     * real play-in matches and how many seeded byes the preliminary round holds.
+     *
+     * @return array{target: int, matches: int, byes: int}
+     */
+    public function playInSizes(int $teamCount): array
+    {
+        $target = $this->floorPowerOfTwo($teamCount);
+        $matches = $teamCount - $target;
+
+        return [
+            'target' => $target,
+            'matches' => $matches,
+            'byes' => $target - $matches,
+        ];
+    }
+
+    /**
+     * Fixture widths per round for a balanced-byes bracket (`bye_final`): every
+     * round holds ceil(incoming / 2) fixtures; an odd incoming count means one
+     * of them is a seeded bye. Always ends with the 1-fixture final.
+     *
+     * @return array<int, int>
+     */
+    public function ceilHalvingWidths(int $teamCount): array
+    {
+        $widths = [];
+
+        while ($teamCount > 1) {
+            $teamCount = intdiv($teamCount + 1, 2);
+            $widths[] = $teamCount;
+        }
+
+        return $widths;
+    }
+
+    /**
+     * Human-friendly stage for a round with the given fixture count.
+     *
+     * @return RoundStage
+     */
+    private function stageForWidth(int $width): RoundStage
+    {
+        return match (true) {
+            $width <= 1 => RoundStage::Final,
+            $width === 2 => RoundStage::Semifinal,
+            $width <= 4 => RoundStage::Quarterfinal,
+            default => RoundStage::RoundOf16,
         };
     }
 

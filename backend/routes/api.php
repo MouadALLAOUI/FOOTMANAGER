@@ -695,6 +695,8 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/start', [TournamentController::class, 'startTournament']);
                 Route::post('/cancel', [TournamentController::class, 'cancel']);
                 Route::post('/branding', [TournamentBrandingController::class, 'update']);
+                Route::post('/hide', [TournamentController::class, 'hide']);
+                Route::post('/unhide', [TournamentController::class, 'unhide']);
             });
 
             Route::get('/registrations', [TournamentTeamController::class, 'registrations']);

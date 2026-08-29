@@ -40,6 +40,7 @@ class PublicTournamentController extends Controller
     {
         $query = Tournament::query()
             ->with('organizer')
+            ->visible()
             ->whereIn('status', [
                 Tournament::STATUS_OPEN_FOR_REGISTRATION,
                 Tournament::STATUS_REGISTRATION_CLOSED,

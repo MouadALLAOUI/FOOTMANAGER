@@ -32,11 +32,18 @@ class TournamentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $status = $request->query('status');
+        $visibility = $request->query('visibility', 'visible');
 
         $query = Tournament::query()
             ->with('organizer')
             ->where('organizer_id', $request->user()->id)
             ->latest();
+
+        if ($visibility === 'hidden') {
+            $query->hidden();
+        } else {
+            $query->visible();
+        }
 
         if ($status && $status !== 'all') {
             $query->where('status', $status);
@@ -249,13 +256,27 @@ class TournamentController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status !== Tournament::STATUS_DRAFT) {
-            throw new DomainException('لا يمكن حذف بطولة بعد انطلاقها');
-        }
-
         $this->setup->teardown($tournament);
 
         return response()->noContent();
+    }
+
+    public function hide(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $tournament->forceFill(['hidden_at' => now()])->save();
+
+        return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
+    }
+
+    public function unhide(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $tournament->forceFill(['hidden_at' => null])->save();
+
+        return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
     }
 
     public function openRegistration(Tournament $tournament): JsonResponse

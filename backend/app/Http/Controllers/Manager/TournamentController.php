@@ -21,6 +21,7 @@ class TournamentController extends Controller
         $tournaments = Tournament::query()
             ->with(['organizer'])
             ->with('allRegistrations')
+            ->visible()
             ->whereIn('status', [
                 Tournament::STATUS_OPEN_FOR_REGISTRATION,
                 Tournament::STATUS_REGISTRATION_CLOSED,
@@ -39,6 +40,10 @@ class TournamentController extends Controller
 
         if (! $team) {
             throw new DomainException('يجب إنشاء ملف الفريق أولاً', 422);
+        }
+
+        if ($tournament->isHidden()) {
+            throw new DomainException('هذه البطولة غير متاحة حالياً', 422);
         }
 
         $this->registrationService->register($tournament, $team);

@@ -18,6 +18,7 @@
   },
   "stages": {
     "group": "Group stage",
+    "playIn": "Play-in",
     "roundOf16": "Round of 16",
     "quarterfinal": "Quarter-final",
     "semifinal": "Semi-final",
@@ -974,6 +975,9 @@
       "subtitle": "Create tournaments and manage teams and matches",
       "empty": "No tournaments yet",
       "emptyDesc": "Create your first tournament and start organizing teams and matches",
+      "showVisible": "Visible",
+      "showHidden": "Hidden",
+      "hidden": "Hidden",
       "teamsCount": "{{count}} teams",
       "groupsCount": "{{count}} groups",
       "formats": {
@@ -1244,6 +1248,22 @@
         "group": "Group stage only",
         "tournament": "Whole tournament"
       },
+      "settingsSectionDanger": "Danger zone",
+      "settingsSectionDangerDesc": "Visibility and deletion of this tournament",
+      "settingsHideTitle": "Hide tournament",
+      "settingsHideDesc": "Remove it from the committee list and all public pages",
+      "settingsHide": "Hide",
+      "settingsShow": "Show",
+      "settingsRemoveTitle": "Remove tournament",
+      "settingsRemoveDesc": "Permanently delete this tournament and all its data",
+      "settingsRemove": "Remove",
+      "settingsRemoveConfirmTitle": "Remove \"{{name}}\"?",
+      "settingsRemoveConfirmDesc": "This permanently deletes the tournament, its registrations, matches, bookings and content. This action cannot be undone.",
+      "settingsRemoveConfirm": "Yes, remove it",
+      "tournamentHidden": "Tournament hidden",
+      "tournamentShown": "Tournament is now visible",
+      "tournamentDeleted": "Tournament deleted",
+      "tournamentHiddenNote": "This tournament is hidden. It won't appear on committee or public lists until you show it again.",
       "teamsOverLimit": "Over the limit ({{max}})",
       "teamsOverLimitBanner": "{{count}} teams registered — the max is {{max}}. Remove extra teams or raise the number in settings",
       "selectTeams": "Select",
@@ -1442,6 +1462,28 @@
         "goToFixtures": "Generate group fixtures",
         "populateHint": "After every mini-group match finishes, press Populate qualifiers.",
         "groupsReady": "Mini-groups are ready — pick stadiums and generate the group fixtures, then populate the qualifiers from the bracket page."
+      },
+      "oddKo": {
+        "modalTitle": "Team count cannot build a straight knockout — pick a format",
+        "modalDesc": "The knockout path is unbalanced; choose how to carry it through to the final",
+        "recommended": "Recommended",
+        "trailLabel": "Round trail:",
+        "banner": "{{count}} teams cannot build a balanced knockout — press Create bracket and pick a format",
+        "options": {
+          "playin": {
+            "title": "Play-in round",
+            "desc": "The lower-ranked seeds play 1-3 preliminary matches while the top seeds rest, then the bracket balances."
+          },
+          "byefinal": {
+            "title": "Bye for the leader",
+            "desc": "The best-ranked survivor advances straight at every odd-numbered round while the rest play pairwise."
+          }
+        },
+        "activeHint": "A bye is granted automatically to the best-ranked team at every odd-numbered round",
+        "active": {
+          "playin": "Bracket running with a play-in round",
+          "bye_final": "Bracket running with a leader bye"
+        }
       },
       "noStats": "No statistics yet",
       "noStatsDesc": "Statistics appear once matches begin",

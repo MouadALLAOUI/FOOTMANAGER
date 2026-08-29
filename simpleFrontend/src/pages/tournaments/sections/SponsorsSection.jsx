@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Handshake } from 'lucide-react'
 import { logoThumb } from '../../../lib/thumb'
+import Collapsible from '../../../components/tournaments/Collapsible'
 
 function normalizeLink(link) {
   if (!link) return null
@@ -14,11 +15,7 @@ export default function SponsorsSection({ sponsors }) {
   if (list.length === 0) return null
 
   return (
-    <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-      <div className="mb-4 flex items-center gap-2">
-        <span className="grid size-8 place-items-center rounded-xl bg-emerald-50 text-emerald-600"><Handshake className="size-4" /></span>
-        <h4 className="text-sm font-black text-slate-900">{t('public.sponsors.title')}</h4>
-      </div>
+    <Collapsible icon={Handshake} title={t('public.sponsors.title')} tone="bg-emerald-50 text-emerald-600">
       <div className="flex flex-wrap items-center justify-center gap-3">
         {list.map((sp) => (
           <div
@@ -50,6 +47,6 @@ export default function SponsorsSection({ sponsors }) {
           </div>
         ))}
       </div>
-    </div>
+    </Collapsible>
   )
 }

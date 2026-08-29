@@ -11,7 +11,13 @@ class TeamProfileController extends Controller
     public function show(Team $team): JsonResponse
     {
         if ($team->visibility !== 'public') {
-            return response()->json(['message' => 'الفريق غير موجود'], 404);
+            return response()->json([
+                'team' => [
+                    'id' => $team->id,
+                    'name' => $team->name,
+                    'visibility' => $team->visibility,
+                ],
+            ]);
         }
 
         $team->load('manager');

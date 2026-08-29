@@ -45,7 +45,7 @@ export default function PublicTournamentDetail() {
   const fixturesActive = ['overview', 'matches', 'results'].includes(active)
   const standingsActive = ['overview', 'teams', 'standings'].includes(active)
   const isKnockout = ['groups_knockout', 'knockout_only'].includes(tour?.tournament_format)
-  const statsActive = active === 'scorers' || (Boolean(tour) && tour.status === 'completed' && active === 'overview')
+  const statsActive = active === 'scorers' || active === 'overview'
   const bracketActive = active === 'bracket' || (Boolean(tour) && isKnockout && active === 'overview')
 
   const fixturesQuery = useApi(
@@ -221,8 +221,9 @@ export default function PublicTournamentDetail() {
               fixtures={fixturesQuery.data}
               standings={standingsQuery.data}
               stats={statsQuery.data}
-              bracket={bracketQuery.data}
+              loading={{ fixtures: fixturesQuery.loading, standings: standingsQuery.loading, stats: statsQuery.loading }}
               onOpen={setOpenMatch}
+              onShowTab={handleSection}
             />
             <div className="mt-5 space-y-4">
               <SponsorsSection sponsors={sponsorsQuery.data} />

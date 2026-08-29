@@ -8,6 +8,7 @@ enum FixtureStatus: string
     case Postponed = 'postponed';
     case Cancelled = 'cancelled';
     case Played = 'played';
+    case Bye = 'bye';
 
     public static function allowed(): array
     {

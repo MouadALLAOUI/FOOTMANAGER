@@ -26,7 +26,9 @@ export default function Tournaments() {
   const { data, loading } = useApi(
     () => api.get('/v1/tournaments', { params: { per_page: 8 } }).then((r) => r.data),
   )
-  const tournaments = data?.data || []
+  const tournaments = (data?.data || []).filter(
+    (tour) => !['completed', 'cancelled'].includes(tour.status),
+  )
 
   return (
     <section id="tournaments" className="bg-[#f6f7fb] py-[100px] lg:py-[120px]">

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, ChevronLeft, Filter, Flag, MapPin, Swords, Trophy, Users } from 'lucide-react'
+import { CalendarDays, ChevronLeft, Filter, Flag, LayoutGrid, List, MapPin, Swords, Trophy, Users } from 'lucide-react'
 import { TeamAvatar } from '../shared'
 import { formatTime, matchDay } from '../../../lib/adapters'
 import { selectClass } from '../../../components/dashboard/ui'
@@ -103,8 +103,109 @@ function FilterSelect({ label, value, onChange, options }) {
   )
 }
 
+function ViewToggle({ view, onChange }) {
+  const { t } = useTranslation()
+  const base = 'grid size-9 place-items-center rounded-xl transition-colors'
+  return (
+    <div className="flex items-center gap-1 rounded-xl border border-slate-200/70 bg-white p-1 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
+      <button
+        type="button"
+        aria-pressed={view === 'grid'}
+        aria-label={t('public.tournamentPage.viewGrid')}
+        onClick={() => onChange('grid')}
+        className={`${base} ${view === 'grid' ? 'bg-green-500 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+      >
+        <LayoutGrid className="size-4" />
+      </button>
+      <button
+        type="button"
+        aria-pressed={view === 'list'}
+        aria-label={t('public.tournamentPage.viewList')}
+        onClick={() => onChange('list')}
+        className={`${base} ${view === 'list' ? 'bg-green-500 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+      >
+        <List className="size-4" />
+      </button>
+    </div>
+  )
+}
+
+function MatchGridCard({ f, onOpen }) {
+  const { t, i18n } = useTranslation()
+  const played = matchStatus(f) === 'finished'
+  const live = matchStatus(f) === 'live'
+  const winnerTeamId = played ? f.match?.winner_team_id : null
+  const clickable = Boolean(onOpen) && Boolean(f.match?.id ?? f.match_id)
+  const pens = played && f.match?.home_penalties != null ? `${f.match.home_penalties}-${f.match.away_penalties}` : null
+
+  return (
+    <button
+      type="button"
+      onClick={() => clickable && onOpen(f)}
+      disabled={!clickable}
+      className={`flex h-full w-full flex-col rounded-2xl border bg-white p-4 text-start shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all ${
+        clickable
+          ? 'border-slate-200/70 hover:border-green-200 hover:shadow-[0_14px_32px_-14px_rgba(16,185,129,0.4)]'
+          : 'border-slate-200/60'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        {f.round?.name && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-500">{f.round.name}</span>}
+        <span
+          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black ${
+            STATUS_STYLE[matchStatus(f)]
+          } ${live ? 'animate-pulse' : ''}`}
+        >
+          {live && <span className="size-1 rounded-full bg-current" />}
+          {t(`public.tournamentPage.matchStatus.${matchStatus(f)}`)}
+        </span>
+      </div>
+
+      <div className="mt-4 flex flex-1 flex-col justify-center gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <TeamAvatar team={f.home_team} className="size-10" />
+          <span className="min-w-0 flex-1 truncate text-sm font-extrabold text-slate-800">{f.home_team?.name || '—'}</span>
+          {winnerTeamId === f.home_team?.id && <Trophy className="size-3.5 shrink-0 text-amber-500" />}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-px flex-1 bg-slate-100" />
+          <span className={`text-sm font-black tabular-nums ${played ? 'text-slate-900' : 'text-slate-400'}`}>
+            {played ? `${f.match.home_score} - ${f.match.away_score}` : 'VS'}
+          </span>
+          {pens && <span className="text-[9px] font-black text-slate-400">({pens})</span>}
+          <span className="h-px flex-1 bg-slate-100" />
+        </div>
+        <div className="flex min-w-0 items-center justify-end gap-2.5">
+          {winnerTeamId === f.away_team?.id && <Trophy className="size-3.5 shrink-0 text-amber-500" />}
+          <span className="min-w-0 flex-1 truncate text-start text-sm font-extrabold text-slate-800">{f.away_team?.name || '—'}</span>
+          <TeamAvatar team={f.away_team} className="size-10" />
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-slate-50 pt-2.5 text-[10px] font-semibold text-slate-400">
+        {f.scheduled_at ? (
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays className="size-3" />
+            {matchDay(f.scheduled_at, i18n.language)} {formatTime(f.scheduled_at)}
+          </span>
+        ) : (
+          <span />
+        )}
+        {f.group?.name && <span>{f.group.name}</span>}
+        {f.stadium?.name && (
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="size-3" />
+            {f.stadium.name}
+          </span>
+        )}
+      </div>
+    </button>
+  )
+}
+
 export default function FixturesSection({ fixtures, mode = 'upcoming', onOpen }) {
   const { t } = useTranslation()
+  const [view, setView] = useState('grid')
   const [round, setRound] = useState('')
   const [group, setGroup] = useState('')
   const [status, setStatus] = useState('')
@@ -193,6 +294,16 @@ export default function FixturesSection({ fixtures, mode = 'upcoming', onOpen })
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5 text-sm font-black text-slate-900">
+          <span className="grid size-7 place-items-center rounded-lg bg-green-600/10 text-green-700">
+            {mode === 'upcoming' ? <Swords className="size-3.5" /> : <Flag className="size-3.5" />}
+          </span>
+          {mode === 'upcoming' ? t('public.detail.matches') : t('public.detail.results')}
+        </span>
+        <ViewToggle view={view} onChange={setView} />
+      </div>
+
       {showFilters && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200/70 bg-white px-4 py-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
           <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-slate-400">
@@ -222,11 +333,19 @@ export default function FixturesSection({ fixtures, mode = 'upcoming', onOpen })
           {grouped.map((section, i) => (
             <div key={i} className="space-y-2">
               <h4 className="text-xs font-black uppercase tracking-wide text-slate-400">{section.name}</h4>
-              <div className="space-y-2">
-                {section.list.map((f) => (
-                  <MatchRow key={f.id} f={f} onOpen={onOpen} />
-                ))}
-              </div>
+              {view === 'grid' ? (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {section.list.map((f) => (
+                    <MatchGridCard key={f.id} f={f} onOpen={onOpen} />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {section.list.map((f) => (
+                    <MatchRow key={f.id} f={f} onOpen={onOpen} />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
         </div>

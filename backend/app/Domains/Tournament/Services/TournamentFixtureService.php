@@ -364,7 +364,7 @@ class TournamentFixtureService
 
         return $this->planKnockoutPairs(
             $tournament,
-            $this->pairsFromSeeds(array_values($teamIds)),
+            $this->knockoutPairs($tournament, array_values($teamIds)),
             $startsOn,
             $stadiumIds,
             $defaultTime,
@@ -397,10 +397,10 @@ class TournamentFixtureService
 
             // Rebuild the bracket (idempotent; deletes existing knockout fixtures first).
             $this->deleteKnockoutFixtures($tournament);
-            $this->bracket->generateBracket($tournament);
-            $this->bracket->populateKnockout($tournament, $seeds);
+            $this->bracket->generateBracket($tournament, $this->bracket->isSixTeamBracket($tournament) ? 'byes' : null);
+            $this->bracket->populateKnockout($tournament, $seeds, $this->bracket->isSixTeamBracket($tournament) ? 'byes' : null);
 
-            $plan = $this->planKnockoutPairs($tournament, $this->pairsFromSeeds($seeds), $startsOn, $stadiumIds, $defaultTime, $strategy);
+            $plan = $this->planKnockoutPairs($tournament, $this->knockoutPairs($tournament, $seeds), $startsOn, $stadiumIds, $defaultTime, $strategy);
 
             if ($plan['conflicts'] > 0) {
                 throw new DomainException($this->conflictErrorMessage($plan));
@@ -524,6 +524,10 @@ class TournamentFixtureService
      */
     private function assertKnockoutReady(Tournament $tournament, array $teamIds): void
     {
+        if (($tournament->plan['knockout']['mode'] ?? null) === 'groups6') {
+            throw new DomainException('أنشئ الأدوار الإقصائية من صفحة السلم بعد اكتمال أدوار المجموعات المصغرة');
+        }
+
         $rounds = Round::query()
             ->where('competition_id', $tournament->competition_id)
             ->where('season_id', $tournament->season_id)
@@ -767,6 +771,30 @@ class TournamentFixtureService
         }
 
         return $pairs;
+    }
+
+    /**
+     * Knockout first-round pairings. For the standard 6-team byes bracket the
+     * two seeded byes do not get played — the quarter-finals are 3-vs-6 and
+     * 4-vs-5 only.
+     *
+     * @param  array<int, int>  $seeds
+     * @return array<int, array{0: int, 1: int}>
+     */
+    private function knockoutPairs(Tournament $tournament, array $seeds): array
+    {
+        if ($this->bracket->isSixTeamBracket($tournament)) {
+            $seed = array_values(array_slice($seeds, 0, 6));
+
+            if (count($seed) === 6) {
+                return [
+                    [$seed[2], $seed[5]],
+                    [$seed[3], $seed[4]],
+                ];
+            }
+        }
+
+        return $this->pairsFromSeeds($seeds);
     }
 
     /**

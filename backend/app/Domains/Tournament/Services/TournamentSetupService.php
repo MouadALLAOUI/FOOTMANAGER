@@ -213,7 +213,7 @@ class TournamentSetupService
     /**
      * @return Round[]
      */
-    public function ensureKnockoutRounds(Tournament $tournament, Season $season): array
+    public function ensureKnockoutRounds(Tournament $tournament, Season $season, ?string $sixMode = null): array
     {
         if ($tournament->tournament_format === 'groups_only' || $tournament->tournament_format === 'league') {
             return [];
@@ -222,7 +222,7 @@ class TournamentSetupService
         $competitionId = $this->ensureCompetition($tournament)->id;
 
         $knockoutTeams = $this->resolveKnockoutTeams($tournament);
-        $tiers = $this->knockoutTiers($knockoutTeams);
+        $tiers = $this->knockoutTiersFor($knockoutTeams, $sixMode);
 
         $existing = Round::query()
             ->where('competition_id', $competitionId)
@@ -323,6 +323,26 @@ class TournamentSetupService
         $tiers[] = RoundStage::Final;
 
         return $tiers;
+    }
+
+    /**
+     * Tiers for a 6-team knockout. `byes` enters two top seeds directly in the
+     * semi-finals (QF + SF + Final); `groups6` goes straight to SF + Final with
+     * the four qualifiers coming from two mini-groups.
+     *
+     * @return RoundStage[]
+     */
+    public function knockoutTiersFor(int $teamCount, ?string $sixMode = null): array
+    {
+        if ($sixMode === 'byes') {
+            return [RoundStage::Quarterfinal, RoundStage::Semifinal, RoundStage::Final];
+        }
+
+        if ($sixMode === 'groups6') {
+            return [RoundStage::Semifinal, RoundStage::Final];
+        }
+
+        return $this->knockoutTiers($teamCount);
     }
 
     public function stageLabel(RoundStage $stage): string

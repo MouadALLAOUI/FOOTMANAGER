@@ -23,6 +23,7 @@ class Fixture extends Model
         'stadium_id',
         'home_team_id',
         'away_team_id',
+        'bye_team_id',
         'source_home_fixture_id',
         'source_away_fixture_id',
         'scheduled_at',
@@ -90,5 +91,10 @@ class Fixture extends Model
     public function sourceAwayFixture(): BelongsTo
     {
         return $this->belongsTo(Fixture::class, 'source_away_fixture_id');
+    }
+
+    public function byeTeam(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'bye_team_id')->withTrashed();
     }
 }

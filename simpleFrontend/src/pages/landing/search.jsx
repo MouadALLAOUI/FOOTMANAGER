@@ -102,7 +102,6 @@ export default function Search({ city, onCityChange, onSubmit }) {
             label={t('landing.hero.time')}
             placeholder={t('landing.hero.timePlaceholder')}
             labels={{ ok: t('timePicker.ok'), cancel: t('timePicker.cancel') }}
-            minuteStep={5}
             className="lg:border-s lg:border-slate-100"
           />
 

@@ -35,6 +35,7 @@ class TournamentResource extends JsonResource
             'registration_open' => $this->canRegister(),
             'remaining_teams' => max(0, (int) $this->teams_count - $this->tournamentTeams()->count()),
             'tournament_format' => $this->tournament_format,
+            'terrain_reservation_mode' => $this->terrain_reservation_mode ?: 'independent',
             'teams_count' => $this->teams_count,
             'groups_count' => $this->groups_count,
             'teams_per_group' => $this->teams_per_group,

@@ -4,6 +4,7 @@ namespace App\Domains\Tournament\Services;
 
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Competition\Models\Fixture;
+use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Tournament\Models\Tournament;
 use Illuminate\Support\Str;
 
@@ -71,6 +72,15 @@ class TournamentTerrainBookingService
 
         $booking->save();
 
+        // Keep the owning match's reservation pointer + confirm flag in sync so
+        // the resource and the reservation flow agree on what is active.
+        if ($fixture->match) {
+            $fixture->match->forceFill([
+                'active_reservation_id' => $booking->id,
+                'is_confirmed' => true,
+            ])->save();
+        }
+
         return $booking;
     }
 
@@ -115,10 +125,18 @@ class TournamentTerrainBookingService
             return 0;
         }
 
-        return TerrainBooking::query()
+        $count = TerrainBooking::query()
             ->whereIn('fixture_id', $ids->all())
             ->whereNull('archived_at')
             ->update(['archived_at' => now()]);
+
+        // Detach the owning match from the released reservation so the resource
+        // advertises the slot as no longer actively claimed.
+        FootballMatch::query()
+            ->whereIn('id', Fixture::query()->whereIn('id', $ids->all())->pluck('match_id')->filter()->all())
+            ->update(['active_reservation_id' => null]);
+
+        return $count;
     }
 
     /**

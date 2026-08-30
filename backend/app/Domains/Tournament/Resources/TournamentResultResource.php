@@ -19,7 +19,7 @@ class TournamentResultResource extends JsonResource
             'match_id' => $this->match_id,
             'matchday' => $this->matchday,
             'status' => $this->status?->value,
-            'scheduled_at' => $this->scheduled_at?->toIso8601String(),
+            'scheduled_at' => $this->scheduled_at?->toDateTimeString(),
             'round' => $this->whenLoaded('round', fn () => $this->round ? [
                 'id' => $this->round->id,
                 'name' => $this->round->name,

@@ -1741,7 +1741,7 @@ class TournamentFixtureService
      * True when another tournament fixture already occupies the stadium within
      * the match window. Tournament schedules live on the fixtures table.
      */
-    private function stadiumHasFixtureConflict(int $stadiumId, Carbon $datetime, ?int $excludeMatchId = null): bool
+    public function stadiumHasFixtureConflict(int $stadiumId, Carbon $datetime, ?int $excludeMatchId = null): bool
     {
         $window = PlayerMatchGuard::MATCH_WINDOW_HOURS;
 

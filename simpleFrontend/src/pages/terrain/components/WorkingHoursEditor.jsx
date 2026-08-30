@@ -1,5 +1,8 @@
 import { Toggle } from '../../../components/dashboard/ui'
-import TimePicker from '../../../components/TimePicker'
+import TimeSlotPicker from '../../../components/TimeSlotPicker'
+import { buildTimeSlots } from '../../../lib/timeSlots'
+
+const SLOTS = buildTimeSlots('00:00', '23:59', 30)
 
 const DAYS = [
   { id: 0, label: 'الأحد', short: 'أحد' },
@@ -66,19 +69,19 @@ export default function WorkingHoursEditor({ value, onChange }) {
                 </p>
               </div>
               <div className={`transition-opacity ${d.is_active ? 'opacity-100' : 'pointer-events-none opacity-30'}`}>
-                <TimePicker
-                  value={d.open_time || '09:00'}
+                <TimeSlotPicker
+                  selectedTime={d.open_time}
                   onChange={(v) => set(d.day_of_week, { open_time: v })}
+                  availableSlots={SLOTS}
                   label="فتح"
-                  labels={{ ok: 'موافق', cancel: 'إلغاء' }}
                 />
               </div>
               <div className={`transition-opacity ${d.is_active ? 'opacity-100' : 'pointer-events-none opacity-30'}`}>
-                <TimePicker
-                  value={d.close_time || '23:00'}
+                <TimeSlotPicker
+                  selectedTime={d.close_time}
                   onChange={(v) => set(d.day_of_week, { close_time: v })}
+                  availableSlots={SLOTS}
                   label="إغلاق"
-                  labels={{ ok: 'موافق', cancel: 'إلغاء' }}
                 />
               </div>
               <div className="flex justify-center">
@@ -104,17 +107,17 @@ export default function WorkingHoursEditor({ value, onChange }) {
                 <Toggle checked={d.is_active} onChange={(v) => set(d.day_of_week, { is_active: v })} />
               </div>
               <div className={`grid grid-cols-2 gap-3 px-3.5 pb-3.5 transition-opacity ${d.is_active ? 'opacity-100' : 'pointer-events-none opacity-30'}`}>
-                <TimePicker
-                  value={d.open_time || '09:00'}
+                <TimeSlotPicker
+                  selectedTime={d.open_time}
                   onChange={(v) => set(d.day_of_week, { open_time: v })}
+                  availableSlots={SLOTS}
                   label="فتح"
-                  labels={{ ok: 'موافق', cancel: 'إلغاء' }}
                 />
-                <TimePicker
-                  value={d.close_time || '23:00'}
+                <TimeSlotPicker
+                  selectedTime={d.close_time}
                   onChange={(v) => set(d.day_of_week, { close_time: v })}
+                  availableSlots={SLOTS}
                   label="إغلاق"
-                  labels={{ ok: 'موافق', cancel: 'إلغاء' }}
                 />
               </div>
             </div>

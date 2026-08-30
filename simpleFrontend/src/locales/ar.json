@@ -1248,6 +1248,22 @@
         "group": "خلال دور المجموعات فقط",
         "tournament": "طوال البطولة"
       },
+      "settingsSectionReservation": "حجوزات الملاعب",
+      "settingsSectionReservationDesc": "كيف تُدار حجوزات الملعب لمباريات البطولة",
+      "settingsReservationMode": "نظام حجز الملعب",
+      "settingsReservationModeHint": "يمكن تغييره في أي وقت أثناء البطولة",
+      "reservationMode": {
+        "independent": {
+          "label": "تلقائي",
+          "desc": "يُحجز الملعب فوراً عند ضبط موعد المباراة، دون انتظار تأكيد.",
+          "saved": "تم تفعيل النظام التلقائي"
+        },
+        "integrated": {
+          "label": "بالتأكيد",
+          "desc": "حفظ تعديل الموعد يحفظه كمسودة دون حجز، ثم يؤكَّد ويُحجز الملعب عند التأكيد. عند التبديل إلى تلقائي تُحرَّر الحجوزات النشطة.",
+          "saved": "تم تفعيل نظام التأكيد"
+        }
+      },
       "settingsSectionDanger": "منطقة الخطر",
       "settingsSectionDangerDesc": "إظهار البطولة أو حذفها",
       "settingsHideTitle": "إخفاء البطولة",
@@ -2056,6 +2072,7 @@
         "postponed": "مؤجلة",
         "cancelled": "ملغاة"
       },
+      "matchDraftReservation": "حجز مسودة — لم يُشغَل الملعب بعد",
       "notFoundDesc": "قد تكون البطولة غير منشورة بعد أو أن الرابط غير صحيح"
     },
 

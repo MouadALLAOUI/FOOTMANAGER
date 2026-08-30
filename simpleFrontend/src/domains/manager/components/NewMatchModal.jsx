@@ -5,7 +5,9 @@ import { useToast } from '../../../components/ui/Toast';
 import { toastApiError } from '../../../lib/errors';
 import { useStadiums } from '../../../api/queries';
 import { Button, Field, Modal, inputClass, selectClass } from '../../../components/dashboard/ui';
-import TimePicker from '../../../components/TimePicker';
+import TimeSlotPicker from '../../../components/TimeSlotPicker';
+import useTerrainSlots from '../../../hooks/useTerrainSlots';
+import { buildTimeSlots } from '../../../lib/timeSlots';
 import NeedPlayersField from '../../../components/NeedPlayersField';
 
 export default function NewMatchModal({ open, onClose, onSaved }) {
@@ -19,6 +21,12 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
   const [busy, setBusy] = useState(false)
 
   const stadiums = stadiumsData?.data || []
+
+  const date = form.match_datetime ? form.match_datetime.slice(0, 10) : null
+  const hasStadium = mode === 'stadium' && form.stadium_id
+  const { availableStartTimes, disabledStartTimes, loading } = useTerrainSlots(hasStadium ? form.stadium_id : null, date)
+  const avail = hasStadium && availableStartTimes.length ? availableStartTimes : buildTimeSlots('08:00', '23:00', 30)
+  const dis = hasStadium ? disabledStartTimes : []
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -87,11 +95,14 @@ export default function NewMatchModal({ open, onClose, onSaved }) {
         </Field>
 
         <Field label={t('ov.newMatch.startTime')} required>
-          <TimePicker
-            value={form.start_time || ''}
+          <TimeSlotPicker
+            selectedTime={form.start_time || ''}
             onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
-            labels={{ ok: t('ov.newMatch.ok'), cancel: t('ov.newMatch.cancel') }}
-            className="h-11 rounded-xl border border-slate-200 bg-white"
+            availableSlots={avail}
+            disabledSlots={dis}
+            loading={loading}
+            label={t('ov.newMatch.startTime')}
+            required
           />
         </Field>
 

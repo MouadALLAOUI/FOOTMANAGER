@@ -38,6 +38,17 @@ class Tournament extends Model
 
     public const CARD_ACCUMULATION_TOURNAMENT = 'tournament';
 
+    /** Terrain reservation is auto-claimed immediately on scheduling (no draft). */
+    public const TERRAIN_RESERVATION_INDEPENDENT = 'independent';
+
+    /** Terrain reservation uses a draft/confirm flow tied to the owner calendar. */
+    public const TERRAIN_RESERVATION_INTEGRATED = 'integrated';
+
+    public const TERRAIN_RESERVATION_MODES = [
+        self::TERRAIN_RESERVATION_INDEPENDENT,
+        self::TERRAIN_RESERVATION_INTEGRATED,
+    ];
+
     /**
      * Statuses during which the draw and team list are still editable.
      *
@@ -88,6 +99,7 @@ class Tournament extends Model
         'qualification_rules',
         'tiebreaker_rules',
         'card_accumulation',
+        'terrain_reservation_mode',
         'published_at',
         'draw_confirmed_at',
         'plan',
@@ -357,5 +369,10 @@ class Tournament extends Model
     public function accumulatesAcrossGroupStageOnly(): bool
     {
         return $this->card_accumulation === self::CARD_ACCUMULATION_GROUP;
+    }
+
+    public function usesIntegratedTerrainReservations(): bool
+    {
+        return $this->terrain_reservation_mode === self::TERRAIN_RESERVATION_INTEGRATED;
     }
 }

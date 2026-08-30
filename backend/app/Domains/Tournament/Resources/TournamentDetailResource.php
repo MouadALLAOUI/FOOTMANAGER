@@ -56,6 +56,7 @@ class TournamentDetailResource extends JsonResource
             'requires_registration_fee' => $this->registrationRequiresFee(),
             'registration_open' => $this->canRegister(),
             'tournament_format' => $this->tournament_format,
+            'terrain_reservation_mode' => $this->terrain_reservation_mode ?: 'independent',
             'teams_count' => $this->teams_count,
             'groups_count' => $this->groups_count,
             'teams_per_group' => $this->teams_per_group,

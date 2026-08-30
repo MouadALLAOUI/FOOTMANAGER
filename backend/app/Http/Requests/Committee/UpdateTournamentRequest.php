@@ -43,6 +43,7 @@ class UpdateTournamentRequest extends FormRequest
             'points_for_draw' => 'sometimes|integer|min:0|max:10',
             'points_for_loss' => 'sometimes|integer|min:0|max:10',
             'card_accumulation' => 'sometimes|in:disabled,group,tournament',
+            'terrain_reservation_mode' => 'sometimes|in:independent,integrated',
         ];
     }
 

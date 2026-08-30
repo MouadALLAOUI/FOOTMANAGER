@@ -13,6 +13,7 @@ use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Resources\TournamentFixtureResource;
 use App\Domains\Tournament\Services\TournamentFixtureService;
 use App\Domains\Tournament\Services\TournamentTerrainBookingService;
+use App\Domains\Tournament\Services\TerrainReservationService;
 use App\Domains\Tournament\Services\TournamentBracketService;
 use App\Http\Requests\Committee\GenerateFixturesRequest;
 use App\Http\Requests\Committee\RescheduleFixtureRequest;
@@ -31,6 +32,7 @@ class TournamentFixtureController extends Controller
     public function __construct(
         private readonly TournamentFixtureService $fixtures,
         private readonly TournamentTerrainBookingService $bookings,
+        private readonly TerrainReservationService $reservations,
         private readonly TournamentBracketService $bracket,
     ) {}
 
@@ -369,29 +371,53 @@ class TournamentFixtureController extends Controller
 
         $data = $request->validated();
 
-        $this->fixtures->assertRescheduleAvailable(
-            $data['stadium_id'] ?? $fixture->stadium_id,
-            Carbon::parse($data['scheduled_at']),
-            (int) ($fixture->home_team_id ?? 0),
-            (int) ($fixture->away_team_id ?? 0),
-            $fixture->match_id,
-        );
-
-        $fixture->forceFill([
-            'scheduled_at' => $data['scheduled_at'],
-            'stadium_id' => $data['stadium_id'] ?? $fixture->stadium_id,
-            'status' => FixtureStatus::Scheduled,
-        ])->save();
-
-        if ($fixture->match) {
-            $fixture->match->forceFill(['status' => MatchStatus::Scheduled])->save();
+        // INDEPENDENT mode keeps the legacy behaviour: validate the slot and
+        // auto-claim. INTEGRATED mode saves a draft and releases the previous
+        // reservation so the owner calendar is never double-booked.
+        if (! $tournament->usesIntegratedTerrainReservations()) {
+            $this->fixtures->assertRescheduleAvailable(
+                $data['stadium_id'] ?? $fixture->stadium_id,
+                Carbon::parse($data['scheduled_at']),
+                (int) ($fixture->home_team_id ?? 0),
+                (int) ($fixture->away_team_id ?? 0),
+                $fixture->match_id,
+            );
         }
 
-        $this->bookings->syncFixture($tournament, $fixture);
+        $result = $this->reservations->saveSchedule(
+            $tournament,
+            $fixture,
+            Carbon::parse($data['scheduled_at']),
+            $data['stadium_id'] ?? $fixture->stadium_id,
+        );
 
         return response()->json([
-            'data' => new TournamentFixtureResource($fixture->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),
-            'message' => 'تمت إعادة جدولة المباراة',
+            'data' => new TournamentFixtureResource($result['fixture']->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),
+            'message' => $result['message'],
+            'reservation_outcome' => $result['outcome'],
+        ]);
+    }
+
+    /**
+     * Commit the draft slot in INTEGRATED mode: re-validates the slot atomically
+     * and claims the reservation, marking the match confirmed. Never double-books
+     * the Terrain Owner's calendar.
+     */
+    public function confirmReservation(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+        $this->assertBelongsToTournament($tournament, $fixture);
+
+        if (! $tournament->usesIntegratedTerrainReservations()) {
+            throw new DomainException('وضع الحجز المستقل لا يتطلب تأكيداً — الحجز مفعّل تلقائياً');
+        }
+
+        $result = $this->reservations->confirm($fixture);
+
+        return response()->json([
+            'data' => new TournamentFixtureResource($result['fixture']->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),
+            'message' => $result['message'],
+            'reservation_outcome' => $result['outcome'],
         ]);
     }
 
@@ -405,7 +431,11 @@ class TournamentFixtureController extends Controller
         $fixture->forceFill(['status' => FixtureStatus::Postponed])->save();
 
         if ($fixture->match) {
-            $fixture->match->forceFill(['status' => MatchStatus::Postponed])->save();
+            $fixture->match->forceFill([
+                'status' => MatchStatus::Postponed,
+                'is_confirmed' => false,
+                'active_reservation_id' => null,
+            ])->save();
         }
 
         $this->bookings->archiveForFixture($fixture);
@@ -423,7 +453,11 @@ class TournamentFixtureController extends Controller
         $fixture->forceFill(['status' => FixtureStatus::Cancelled])->save();
 
         if ($fixture->match) {
-            $fixture->match->forceFill(['status' => MatchStatus::Cancelled])->save();
+            $fixture->match->forceFill([
+                'status' => MatchStatus::Cancelled,
+                'is_confirmed' => false,
+                'active_reservation_id' => null,
+            ])->save();
         }
 
         $this->bookings->archiveForFixture($fixture);
@@ -452,11 +486,36 @@ class TournamentFixtureController extends Controller
 
         $fixture->forceFill(['status' => FixtureStatus::Scheduled])->save();
 
+        if ($tournament->usesIntegratedTerrainReservations()) {
+            if ($fixture->match) {
+                $fixture->match->forceFill([
+                    'status' => MatchStatus::Scheduled,
+                    'is_confirmed' => false,
+                    'active_reservation_id' => null,
+                ])->save();
+            }
+
+            $this->bookings->archiveForFixture($fixture);
+
+            return response()->json([
+                'data' => new TournamentFixtureResource($fixture->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),
+                'message' => 'تمت استعادة المباراة — أكّد الحجز لإشغال الملعب',
+                'reservation_outcome' => TerrainReservationService::OUTCOME_DRAFT,
+            ]);
+        }
+
         if ($fixture->match) {
             $fixture->match->forceFill(['status' => MatchStatus::Scheduled])->save();
         }
 
-        $this->bookings->syncFixture($tournament, $fixture);
+        $booking = $this->bookings->syncFixture($tournament, $fixture);
+
+        if ($fixture->match && $booking) {
+            $fixture->match->forceFill([
+                'is_confirmed' => true,
+                'active_reservation_id' => $booking->id,
+            ])->save();
+        }
 
         return response()->json([
             'data' => new TournamentFixtureResource($fixture->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),

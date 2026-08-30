@@ -77,6 +77,10 @@ class TournamentController extends Controller
         if (in_array($data['tournament_format'], ['groups_knockout', 'groups_only'], true)) {
             $data['teams_per_group'] = (int) ($data['teams_per_group'] ?? 4);
             $data['groups_count'] = $this->deriveGroupsCount($data);
+        } else {
+            $teamsCount = (int) $data['teams_count'];
+            $data['teams_per_group'] = $teamsCount;
+            $data['groups_count'] = 1;
         }
 
         $tournament = DB::transaction(function () use ($data, $request) {
@@ -180,8 +184,8 @@ class TournamentController extends Controller
 
                 $this->assertGroupLayoutFits($tournament, $data);
             } else {
-                $data['groups_count'] = null;
-                $data['teams_per_group'] = null;
+                $data['groups_count'] = 1;
+                $data['teams_per_group'] = (int) ($data['teams_count'] ?? $tournament->teams_count);
             }
         }
 

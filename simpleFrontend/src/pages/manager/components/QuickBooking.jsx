@@ -7,6 +7,8 @@ import Select from '../../../components/ui/Select'
 import { useCommandCenter } from '../components/CommandCenterContext'
 import { Section } from '../components/shared'
 import { coverThumb } from '../../../lib/thumb'
+import TimeSlotPicker from '../../../components/TimeSlotPicker'
+import { buildTimeSlots } from '../../../lib/timeSlots'
 
 function today() {
   return new Date().toISOString().slice(0, 10)
@@ -22,6 +24,7 @@ export default function QuickBooking() {
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
   const seq = useRef(0)
+  const available = buildTimeSlots('08:00', '23:00', 30)
 
   useEffect(() => {
     if (cities.length && !city) setCity(cities[0])
@@ -64,7 +67,7 @@ export default function QuickBooking() {
           <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label={t('ov.quick.timeOptional')}>
-          <input type="time" className={inputClass} value={time} onChange={(e) => setTime(e.target.value)} />
+          <TimeSlotPicker selectedTime={time} onChange={setTime} availableSlots={available} label={t('ov.quick.timeOptional')} />
         </Field>
         <div className="flex items-end">
           <Button className="w-full" onClick={search} disabled={loading}>

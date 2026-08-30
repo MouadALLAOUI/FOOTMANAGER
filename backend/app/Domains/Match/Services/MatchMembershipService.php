@@ -156,6 +156,7 @@ class MatchMembershipService
             ->where('scheduled_at', '<', $end)
             ->whereNotIn('status', [FixtureStatus::Postponed->value, FixtureStatus::Cancelled->value])
             ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Cancelled->value]))
+            ->when($excludeMatchId, fn ($q) => $q->where('match_id', '!=', $excludeMatchId))
             ->exists();
     }
 

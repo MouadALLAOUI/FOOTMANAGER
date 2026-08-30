@@ -74,6 +74,11 @@ function MatchRow({ f, onOpen }) {
             {matchDay(f.scheduled_at, i18n.language)} {formatTime(f.scheduled_at)}
           </span>
         )}
+        {f.is_confirmed === false && (
+          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 font-black text-amber-700">
+            {t('public.tournamentPage.matchDraftReservation')}
+          </span>
+        )}
         {f.round?.name && <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-500">{f.round.name}</span>}
         {f.group?.name && <span>{f.group.name}</span>}
         {f.stadium?.name && (

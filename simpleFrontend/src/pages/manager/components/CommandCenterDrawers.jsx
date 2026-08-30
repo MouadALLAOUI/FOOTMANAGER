@@ -19,7 +19,9 @@ import api from '../../../api/client'
 import { useStadiums } from '../../../api/queries'
 import Drawer from '../../../components/dashboard/Drawer'
 import { Button, Field, FieldRow, Toggle, inputClass, selectClass, StatusBadge } from '../../../components/dashboard/ui'
-import TimePicker from '../../../components/TimePicker'
+import TimeSlotPicker from '../../../components/TimeSlotPicker'
+import useTerrainSlots from '../../../hooks/useTerrainSlots'
+import { buildTimeSlots } from '../../../lib/timeSlots'
 import { ManagerContact } from '../../../components/dashboard/cards'
 import NeedPlayersField from '../../../components/NeedPlayersField'
 import { useCommandCenter } from './CommandCenterContext'
@@ -549,6 +551,10 @@ export function BookTerrainDrawer() {
     }
   }, [bookTerrain])
 
+  const { availableStartTimes, disabledStartTimes, loading } = useTerrainSlots(terrain?.id, date)
+  const endAvail = start ? availableStartTimes.filter((s) => s > start) : availableStartTimes
+  const endDisabled = start ? disabledStartTimes.filter((s) => s > start) : disabledStartTimes
+
   if (!terrain) return null
 
   const submit = async () => {
@@ -628,10 +634,26 @@ export function BookTerrainDrawer() {
         </Field>
         <FieldRow>
           <Field label={t('ov.drawers.startTime')} required>
-            <TimePicker value={start} onChange={setStart} size="sm" theme="light" />
+            <TimeSlotPicker
+              selectedTime={start}
+              onChange={setStart}
+              availableSlots={availableStartTimes}
+              disabledSlots={disabledStartTimes}
+              loading={loading}
+              label={t('ov.drawers.startTime')}
+              required
+            />
           </Field>
           <Field label={t('ov.drawers.endTime')} required>
-            <TimePicker value={end} onChange={setEnd} min={start || '00:00'} size="sm" theme="light" />
+            <TimeSlotPicker
+              selectedTime={end}
+              onChange={setEnd}
+              availableSlots={endAvail}
+              disabledSlots={endDisabled}
+              loading={loading}
+              label={t('ov.drawers.endTime')}
+              required
+            />
           </Field>
         </FieldRow>
         <Field label={t('ov.common.notes')}>
@@ -660,6 +682,12 @@ export function CreateMatchDrawer() {
   const [error, setError] = useState('')
 
   const stadiums = stadiumsData?.data || []
+
+  const matchDate = form.match_datetime ? form.match_datetime.slice(0, 10) : null
+  const hasStadium = mode === 'stadium' && form.stadium_id
+  const { availableStartTimes, disabledStartTimes, loading } = useTerrainSlots(hasStadium ? form.stadium_id : null, matchDate)
+  const avail = hasStadium && availableStartTimes.length ? availableStartTimes : buildTimeSlots('08:00', '23:00', 30)
+  const dis = hasStadium ? disabledStartTimes : []
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -729,11 +757,14 @@ export function CreateMatchDrawer() {
         </Field>
 
         <Field label={t('ov.drawers.startTime')} required>
-          <TimePicker
-            value={form.start_time || ''}
+          <TimeSlotPicker
+            selectedTime={form.start_time || ''}
             onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
-            labels={{ ok: t('ov.common.save'), cancel: t('ov.common.cancel') }}
-            className="h-11 rounded-xl border border-slate-200 bg-white"
+            availableSlots={avail}
+            disabledSlots={dis}
+            loading={loading}
+            label={t('ov.drawers.startTime')}
+            required
           />
         </Field>
 

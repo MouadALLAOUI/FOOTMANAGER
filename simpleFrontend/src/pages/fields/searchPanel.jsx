@@ -6,7 +6,8 @@ import {
   faLocationDot,
   faMagnifyingGlass,
 } from '@fortawesome/free-solid-svg-icons'
-import TimePicker from '../../components/TimePicker'
+import TimeSlotPicker from '../../components/TimeSlotPicker'
+import { buildTimeSlots } from '../../lib/timeSlots'
 import Select from '../../components/ui/Select'
 
 const today = new Date().toISOString().split('T')[0]
@@ -73,13 +74,11 @@ export default function FieldsSearchPanel({ values, onChange, onSearch, cities }
             </span>
           </label>
 
-          <TimePicker
-            value={values.time}
+          <TimeSlotPicker
+            selectedTime={values.time}
             onChange={(v) => onChange({ time: v })}
+            availableSlots={buildTimeSlots('08:00', '23:00', 30)}
             label={t('fieldsPage.search.timePlaceholder')}
-            placeholder={t('fieldsPage.search.timePlaceholder')}
-            labels={{ ok: t('timePicker.ok'), cancel: t('timePicker.cancel') }}
-            minuteStep={5}
           />
 
           <SelectColumn

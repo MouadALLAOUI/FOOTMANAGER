@@ -38,14 +38,23 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
   const editableSlot = !locked && layoutMode && (f.slot_type || isGroupFixture) && (st === 'pending' || st === 'upcoming')
   const homeName = f.home_team?.name || f.slots?.home || t('committee.detail.tbd')
   const awayName = f.away_team?.name || f.slots?.away || t('committee.detail.tbd')
+  const integratedRes = (tournament?.terrain_reservation_mode ?? 'independent') === 'integrated'
+  const isDraftReservation = integratedRes && f.is_confirmed === false
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
       <div className="flex items-center justify-between gap-3 border-b border-slate-50 px-4 py-2">
         <span className="text-[11px] font-black uppercase tracking-wide text-slate-400">{t('committee.detail.matchNumber', { n: number })}</span>
-        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black ring-1 ${PILL_STYLES[st]}`}>
-          {st === 'live' && <span className="me-1 size-1.5 animate-pulse rounded-full bg-rose-500" />}
-          {t(`committee.detail.status.${st}`)}
+        <span className="flex items-center gap-2">
+          {isDraftReservation && (
+            <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-black text-amber-700 ring-1 ring-amber-200">
+              مسودة حجز
+            </span>
+          )}
+          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-black ring-1 ${PILL_STYLES[st]}`}>
+            {st === 'live' && <span className="me-1 size-1.5 animate-pulse rounded-full bg-rose-500" />}
+            {t(`committee.detail.status.${st}`)}
+          </span>
         </span>
       </div>
 

@@ -52,8 +52,13 @@ class TournamentFixtureResource extends JsonResource
             'slots' => $roundStage !== null && $roundStage !== RoundStage::Group
                 ? $this->knockoutSlots()
                 : null,
-            'scheduled_at' => $this->scheduled_at?->toIso8601String(),
+            'scheduled_at' => $this->scheduled_at?->toDateTimeString(),
             'status' => $this->status?->value,
+            'is_confirmed' => $this->match ? (bool) $this->match->is_confirmed : true,
+            'reservation' => $this->whenLoaded('match', fn () => $this->match ? [
+                'active_reservation_id' => $this->match->active_reservation_id,
+                'confirmed' => (bool) $this->match->is_confirmed,
+            ] : null),
             'leg' => $this->leg(),
             'match' => $this->whenLoaded('match', fn () => $this->match ? [
                 'id' => $this->match->id,

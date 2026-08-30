@@ -11,6 +11,7 @@ use App\Domains\Tournament\Resources\TournamentDetailResource;
 use App\Domains\Tournament\Resources\TournamentResource;
 use App\Domains\Tournament\Services\TournamentSetupService;
 use App\Domains\Tournament\Services\TournamentTerrainBookingService;
+use App\Domains\Tournament\Services\TerrainReservationService;
 use App\Http\Requests\Committee\StoreTournamentRequest;
 use App\Http\Requests\Committee\UpdateTournamentRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -27,6 +28,7 @@ class TournamentController extends Controller
         private readonly TournamentSetupService $setup,
         private readonly SubscriptionService $subscription,
         private readonly TournamentTerrainBookingService $bookings,
+        private readonly TerrainReservationService $reservations,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -154,6 +156,10 @@ class TournamentController extends Controller
 
         $data = $request->validated();
 
+        if ($tournament->isCompleted() || $tournament->isInProgress() || $tournament->isCancelled()) {
+            throw new DomainException('لا يمكن تعديل البطولة بعد انطلاقها');
+        }
+
         $structural = [
             'teams_count',
             'groups_count',
@@ -214,6 +220,30 @@ class TournamentController extends Controller
         $tournament->update($data);
 
         return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
+    }
+
+    /**
+     * Change the terrain reservation mode independently of the structural
+     * settings. Unlike the general update, this is allowed at any point in a
+     * tournament's life (even after fixtures are generated or it has started),
+     * so the committee can always flip between auto and the confirmed flow.
+     */
+    public function setReservationMode(Request $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $mode = $request->input('terrain_reservation_mode');
+
+        if (! in_array($mode, Tournament::TERRAIN_RESERVATION_MODES, true)) {
+            throw new DomainException('نظام حجز الملعب غير صالح');
+        }
+
+        $released = $this->reservations->setMode($tournament, $mode);
+
+        return response()->json([
+            'data' => new TournamentDetailResource($tournament->load('organizer')),
+            'released_reservations' => $released,
+        ]);
     }
 
     /**

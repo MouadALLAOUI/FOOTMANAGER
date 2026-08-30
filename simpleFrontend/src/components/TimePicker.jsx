@@ -99,7 +99,7 @@ export default function TimePicker({
   onChange,
   min = '00:00',
   max = '23:59',
-  minuteStep = 5,
+  minuteStep = 30,
   placeholder = '--:--',
   labels = { ok: 'OK', cancel: 'Cancel' },
   label,

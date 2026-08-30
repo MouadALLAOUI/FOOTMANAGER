@@ -24,7 +24,8 @@ import {
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Empty, Field, FieldRow, Modal, SkeletonCards, Toggle, inputClass, selectClass } from '../../../components/dashboard/ui'
-import TimePicker from '../../../components/TimePicker'
+import TimeSlotPicker from '../../../components/TimeSlotPicker'
+import { buildTimeSlots } from '../../../lib/timeSlots'
 import MatchCard from '../../../domains/committee/components/MatchCard'
 import FixtureTeamPool from '../../../domains/committee/components/FixtureTeamPool'
 import FilterBar from '../../../domains/committee/components/FilterBar'
@@ -1044,10 +1045,11 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                       <input type="date" className={inputClass} value={form.starts_on} onChange={set('starts_on')} />
                     </Field>
                     <Field label={t('committee.detail.defaultTime')}>
-                      <TimePicker
-                        value={form.default_time}
+                      <TimeSlotPicker
+                        selectedTime={form.default_time}
                         onChange={(v) => setForm((f) => ({ ...f, default_time: v }))}
-                        labels={{ ok: t('common.save'), cancel: t('common.cancel') }}
+                        availableSlots={buildTimeSlots('08:00', '22:00', 30)}
+                        label={t('committee.detail.defaultTime')}
                       />
                     </Field>
                   </FieldRow>
@@ -1068,10 +1070,11 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                       <input type="date" className={inputClass} value={form.starts_on} onChange={set('starts_on')} />
                     </Field>
                     <Field label={t('committee.detail.defaultTime')}>
-                      <TimePicker
-                        value={form.default_time}
+                      <TimeSlotPicker
+                        selectedTime={form.default_time}
                         onChange={(v) => setForm((f) => ({ ...f, default_time: v }))}
-                        labels={{ ok: t('common.save'), cancel: t('common.cancel') }}
+                        availableSlots={buildTimeSlots('08:00', '22:00', 30)}
+                        label={t('committee.detail.defaultTime')}
                       />
                     </Field>
                   </FieldRow>
@@ -1199,6 +1202,10 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           stadiums={rescheduleTerrains?.terrains || []}
           onClose={() => setRescheduleFixture(null)}
           onSaved={() => {
+            setRescheduleFixture(null)
+            afterChange()
+          }}
+          onConfirmed={() => {
             setRescheduleFixture(null)
             afterChange()
           }}

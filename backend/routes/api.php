@@ -687,6 +687,8 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/', [TournamentController::class, 'show']);
             Route::get('/progress', [TournamentController::class, 'progress']);
 
+            Route::post('/reservation-mode', [TournamentController::class, 'setReservationMode']);
+
             Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::put('/', [TournamentController::class, 'update']);
                 Route::delete('/', [TournamentController::class, 'destroy']);
@@ -748,6 +750,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::delete('/fixtures/knockout', [TournamentFixtureController::class, 'destroyKnockout']);
                 Route::put('/fixtures/slots', [TournamentFixtureController::class, 'assignSlots']);
                 Route::put('/fixtures/{fixture}', [TournamentFixtureController::class, 'reschedule']);
+                Route::post('/fixtures/{fixture}/confirm-reservation', [TournamentFixtureController::class, 'confirmReservation']);
                 Route::put('/fixtures/{fixture}/slot', [TournamentFixtureController::class, 'assignSlot']);
                 Route::post('/fixtures/{fixture}/postpone', [TournamentFixtureController::class, 'postpone']);
                 Route::post('/fixtures/{fixture}/cancel', [TournamentFixtureController::class, 'cancel']);

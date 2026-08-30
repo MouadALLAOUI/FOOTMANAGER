@@ -33,6 +33,8 @@ import {
 import Drawer from '../../../components/dashboard/Drawer'
 import { BookingCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
+import TimeSlotPicker from '../../../components/TimeSlotPicker'
+import useTerrainSlots from '../../../hooks/useTerrainSlots'
 
 const typeLabels = { training: 'تدريب', private: 'حجز خاص', match: 'مباراة' }
 const dayLabels = { 0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت' }
@@ -73,10 +75,14 @@ function NewBookingModal({ open, onClose, onSaved }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
+  const { availableStartTimes, disabledStartTimes, loading, closed, closedReason } = useTerrainSlots(form.terrain_id, form.booking_date)
+
   const stadiums = stadiumsData?.data || []
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
   const isWeekly = form.reservation_type === 'weekly_subscription'
+  const endAvail = form.start_time ? availableStartTimes.filter((s) => s > form.start_time) : availableStartTimes
+  const endDisabled = form.start_time ? disabledStartTimes.filter((s) => s > form.start_time) : disabledStartTimes
 
   const submit = async () => {
     setBusy(true)
@@ -193,10 +199,27 @@ function NewBookingModal({ open, onClose, onSaved }) {
 
         <FieldRow>
           <Field label="وقت البداية" required>
-            <input type="time" className={inputClass} value={form.start_time} onChange={set('start_time')} />
+            <TimeSlotPicker
+              selectedTime={form.start_time}
+              onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
+              availableSlots={availableStartTimes}
+              disabledSlots={disabledStartTimes}
+              loading={loading}
+              label="وقت البداية"
+              required
+            />
           </Field>
           <Field label="وقت النهاية" required>
-            <input type="time" className={inputClass} value={form.end_time} onChange={set('end_time')} />
+            <TimeSlotPicker
+              selectedTime={form.end_time}
+              onChange={(v) => setForm((f) => ({ ...f, end_time: v }))}
+              availableSlots={endAvail}
+              disabledSlots={endDisabled}
+              loading={loading}
+              label="وقت النهاية"
+              required
+              emptyText={closed ? closedReason || 'الملعب مغلق' : undefined}
+            />
           </Field>
         </FieldRow>
 

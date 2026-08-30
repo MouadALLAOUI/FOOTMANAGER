@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { CalendarClock, Check, Eye, EyeOff, ImagePlus, Lock, Palette, Save, ScrollText, ShieldAlert, SlidersHorizontal, Trash2, Trophy, Unlock, Users } from 'lucide-react'
+import { CalendarClock, Check, Eye, EyeOff, ImagePlus, Lock, MapPin, Palette, Save, ScrollText, ShieldAlert, SlidersHorizontal, Trash2, Trophy, Unlock, Users } from 'lucide-react'
 import api from '../../../api/client'
 import { Button, Card, Field, FieldRow, Toggle, inputClass, selectClass } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
@@ -62,6 +62,8 @@ export default function SettingsTab({ tournament, refresh }) {
   const [groupMode, setGroupMode] = useState(tournament.group_mode ?? 'fixed')
   const [matchDuration, setMatchDuration] = useState(tournament.match_duration_minutes ?? 90)
   const [cardAccumulation, setCardAccumulation] = useState(tournament.card_accumulation ?? 'tournament')
+  const [reservationMode, setReservationMode] = useState(tournament.terrain_reservation_mode ?? 'independent')
+  const [reservationModeBusy, setReservationModeBusy] = useState(false)
   const [matchesPerDay, setMatchesPerDay] = useState(tournament.matches_per_day ?? '')
   const [regStart, setRegStart] = useState(toLocalInput(tournament.registration_start_at))
   const [regEnd, setRegEnd] = useState(toLocalInput(tournament.registration_end_at))
@@ -456,6 +458,58 @@ export default function SettingsTab({ tournament, refresh }) {
                 <option key={m} value={m}>{t(`committee.detail.cardAccumulation.${m}`)}</option>
               ))}
             </select>
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionHeader
+          icon={MapPin}
+          title={t('committee.detail.settingsSectionReservation')}
+          desc={t('committee.detail.settingsSectionReservationDesc')}
+        />
+        <div className="space-y-4">
+          <Field
+            label={t('committee.detail.settingsReservationMode')}
+            hint={t('committee.detail.settingsReservationModeHint')}
+          >
+            <div className="flex gap-2">
+              {(['independent', 'integrated']).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={async () => {
+                    if (m === reservationMode) return
+                    setReservationModeBusy(true)
+                    try {
+                      await api.post(`/committee/tournaments/${tournament.id}/reservation-mode`, {
+                        terrain_reservation_mode: m,
+                      })
+                      setReservationMode(m)
+                      toast.success(t(`committee.detail.reservationMode.${m}.saved`))
+                      refresh()
+                    } catch (e) {
+                      toastApiError(e, t)
+                    } finally {
+                      setReservationModeBusy(false)
+                    }
+                  }}
+                  disabled={reservationModeBusy}
+                  className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-semibold transition ${
+                    reservationMode === m
+                      ? 'border-[var(--c-primary)] bg-[var(--c-primary)]/10 text-[var(--c-primary)]'
+                      : 'border-zinc-200 text-zinc-600 hover:border-zinc-300'
+                  }`}
+                >
+                  {t(`committee.detail.reservationMode.${m}.label`)}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-zinc-500">
+              {reservationMode === 'integrated'
+                ? t('committee.detail.reservationMode.integrated.desc')
+                : t('committee.detail.reservationMode.independent.desc')}
+            </p>
           </Field>
         </div>
       </Card>

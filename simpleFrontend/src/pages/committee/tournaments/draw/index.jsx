@@ -49,9 +49,9 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
     }))
   const hasFixtures = (tournament.stats?.fixtures ?? 0) > 0
   const confirmed = Boolean(tournament.draw_confirmed_at)
-  const editableStatus = ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
-  const canEdit = editableStatus && !hasFixtures && !confirmed
-  const canUnlock = editableStatus && !hasFixtures && confirmed
+  const editableStatus = tournament.settings_editable ?? ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
+  const canEdit = editableStatus && !confirmed
+  const canUnlock = editableStatus && confirmed
   const freeMode = tournament.group_mode === 'free'
   const cap = freeMode ? Infinity : (tournament.teams_per_group || Infinity)
 

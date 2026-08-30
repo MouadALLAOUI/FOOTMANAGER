@@ -34,7 +34,7 @@ class UpdateTournamentRequest extends FormRequest
             'groups_count' => 'sometimes|integer|min:1|max:16',
             'teams_per_group' => 'sometimes|integer|min:2|max:16',
             'max_players_per_team' => 'nullable|integer|min:1|max:99',
-            'group_mode' => 'sometimes|in:free,fixed',
+            'group_mode' => 'nullable|in:free,fixed',
             'match_duration_minutes' => 'sometimes|integer|min:1|max:300',
             'matches_per_day' => 'nullable|integer|min:1|max:30',
             'knockout_teams' => 'nullable|integer|min:2|max:64',

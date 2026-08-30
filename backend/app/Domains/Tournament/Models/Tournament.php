@@ -7,6 +7,7 @@ use App\Domains\Competition\Models\Fixture;
 use App\Domains\Competition\Models\Group;
 use App\Domains\Competition\Models\Round;
 use App\Domains\Competition\Models\Season;
+use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Shared\Base\Model;
 use App\Domains\Stadium\Models\Stadium;
@@ -290,6 +291,23 @@ class Tournament extends Model
     public function isCompleted(): bool
     {
         return $this->status === self::STATUS_COMPLETED;
+    }
+
+    /**
+     * Whether any match in the tournament has a settled result (status finished).
+     * Once the first result is set the tournament settings become locked.
+     */
+    public function hasSettledResult(): bool
+    {
+        if (! $this->competition_id || ! $this->season_id) {
+            return false;
+        }
+
+        return FootballMatch::query()
+            ->where('competition_id', $this->competition_id)
+            ->where('season_id', $this->season_id)
+            ->where('status', MatchStatus::Finished)
+            ->exists();
     }
 
     public function isCancelled(): bool

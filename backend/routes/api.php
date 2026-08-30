@@ -719,6 +719,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/teams/free/bulk', [TournamentTeamController::class, 'storeBulkFree']);
                 Route::put('/teams/group', [TournamentTeamController::class, 'assignGroup']);
                 Route::delete('/teams/{teamId}', [TournamentTeamController::class, 'destroy']);
+                Route::put('/teams/{team}', [TournamentTeamController::class, 'updateFree']);
                 Route::put('/teams/{team}/squad/{playerId}', [TournamentSquadController::class, 'toggle']);
                 Route::post('/teams/{team}/squad', [TournamentSquadController::class, 'store']);
             });

@@ -87,31 +87,23 @@ class TournamentDrawController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if (! $tournament->isEditable()) {
-            throw new DomainException('لا يمكن تأكيد القرعة بعد انطلاق البطولة');
-        }
-
-        if ($tournament->fixtures()->count() > 0) {
-            throw new DomainException('لا يمكن تأكيد القرعة بعد إنشاء برنامج المباريات');
+        if ($tournament->isCompleted() || $tournament->isCancelled() || $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن تأكيد القرعة بعد تسجيل أول نتيجة');
         }
 
         return response()->json(['data' => $this->draw->confirmDraw($tournament)]);
     }
 
     /**
-     * Re-open the draw for editing. Only possible while the tournament is
-     * editable and no fixtures depend on the draw yet.
+     * Re-open the draw for editing. Only possible until the tournament locks
+     * (first settled result / completed / cancelled).
      */
     public function unconfirm(Tournament $tournament): Response
     {
         $this->authorize('manage', $tournament);
 
-        if (! $tournament->isEditable()) {
-            throw new DomainException('لا يمكن فتح القرعة بعد انطلاق البطولة');
-        }
-
-        if ($tournament->fixtures()->count() > 0) {
-            throw new DomainException('لا يمكن فتح القرعة بعد إنشاء برنامج المباريات');
+        if ($tournament->isCompleted() || $tournament->isCancelled() || $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن فتح القرعة بعد تسجيل أول نتيجة');
         }
 
         $this->draw->unconfirmDraw($tournament);
@@ -121,12 +113,8 @@ class TournamentDrawController extends Controller
 
     private function assertEditableDraw(Tournament $tournament): void
     {
-        if (! $tournament->isEditable()) {
-            throw new DomainException('لا يمكن تعديل القرعة بعد انطلاق البطولة');
-        }
-
-        if ($tournament->fixtures()->count() > 0) {
-            throw new DomainException('لا يمكن تعديل القرعة بعد إنشاء برنامج المباريات');
+        if ($tournament->isCompleted() || $tournament->isCancelled() || $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن تعديل القرعة بعد تسجيل أول نتيجة');
         }
 
         if ($tournament->draw_confirmed_at !== null) {

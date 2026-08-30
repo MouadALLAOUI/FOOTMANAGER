@@ -88,6 +88,7 @@ export default function TournamentDetail() {
   }
 
   const editableStatuses = ['draft', 'open_for_registration', 'registration_closed']
+  const settingsEditable = tour.settings_editable ?? editableStatuses.includes(tour.status)
 
   const gatedTabs = ['draw', 'fixtures', 'standings', 'bracket', 'statistics', 'analytics']
   const teamsComplete =
@@ -165,7 +166,7 @@ export default function TournamentDetail() {
         })}
       </div>
 
-      {active === 'overview' && <OverviewTab {...tabProps} editable={editableStatuses.includes(tour.status)} setActive={setActive} />}
+      {active === 'overview' && <OverviewTab {...tabProps} editable={settingsEditable} setActive={setActive} />}
       {active === 'settings' && <SettingsTab {...tabProps} />}
       {active === 'teams' && <TeamsTab {...tabProps} />}
       {renderStep('draw', DrawBoard)}

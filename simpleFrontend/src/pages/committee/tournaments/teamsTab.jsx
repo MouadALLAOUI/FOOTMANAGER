@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ListChecks, Plus, RotateCcw, Trash2, UserPlus, Wallet, X } from 'lucide-react'
+import { Check, ListChecks, Pencil, Plus, RotateCcw, Trash2, UserPlus, Wallet, X } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Empty, Field, Modal, Skeleton } from '../../../components/dashboard/ui'
@@ -9,6 +9,7 @@ import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import { TeamAvatar } from '../../tournaments/shared'
 import TeamSquadModal from './teamSquadModal'
+import EditFreeTeamModal from './editFreeTeamModal'
 
 export default function TeamsTab({ tournament, refresh, refreshKey }) {
   const { t } = useTranslation()
@@ -26,6 +27,8 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
   const [freeOpen, setFreeOpen] = useState(false)
   const [freeNames, setFreeNames] = useState('')
   const [freeBusy, setFreeBusy] = useState(false)
+
+  const [editFreeTeam, setEditFreeTeam] = useState(null)
 
   const { data: teams, loading } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/teams`).then((r) => r.data.data),
@@ -375,6 +378,17 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                         </button>
                       </span>
                     )}
+                    {p.team?.is_free && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setEditFreeTeam(p.team) }}
+                        className="grid size-9 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-green-50 hover:text-green-700"
+                        aria-label={t('committee.detail.editFreeTeam')}
+                        title={t('committee.detail.editFreeTeam')}
+                      >
+                        <Pencil className="size-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); removeTeam(p.team?.id) }}
@@ -514,6 +528,14 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
         tournamentId={tournament?.id}
         open={Boolean(squadTeam)}
         onClose={() => setSquadTeam(null)}
+      />
+
+      <EditFreeTeamModal
+        open={Boolean(editFreeTeam)}
+        onClose={() => setEditFreeTeam(null)}
+        team={editFreeTeam}
+        tournamentId={tournament?.id}
+        onSaved={refresh}
       />
     </div>
   )

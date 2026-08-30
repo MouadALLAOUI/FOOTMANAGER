@@ -1313,6 +1313,20 @@
       "playerPosition": "المركز",
       "playerAdded": "تمت إضافة اللاعب إلى الفريق",
       "freeTeamSquadHint": "أضف لاعبين لهذا الفريق الحر ليتمكنوا من اللعب في البطولة",
+
+          "editFreeTeam": "تعديل الفريق الحر",
+
+          "editFreeTeamDesc": "تعديل اسم الفريق والشعار ومدينة المنشأ",
+
+          "editFreeTeamLogo": "شعار الفريق",
+
+          "editFreeTeamChangeLogo": "تغيير الشعار",
+
+          "editFreeTeamCity": "مدينة المنشأ",
+
+          "editFreeTeamSaved": "تم حفظ بيانات الفريق الحر",
+
+          "editFreeTeamNameRequired": "اسم الفريق مطلوب",
       "drawPendingDesc": "اضغط على زر السحب لتوزيع الفرق على المجموعات",
       "noFixtures": "لا توجد مباريات بعد",
       "noFixturesDesc": "أنشئ برنامج المباريات بعد استكمال الفرق والقرعة",

@@ -35,7 +35,7 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
   const showScore = played || live
   const lang = i18n.language
   const isGroupFixture = Boolean(f.group)
-  const editableSlot = !locked && layoutMode && (f.slot_type || isGroupFixture) && (st === 'pending' || st === 'upcoming')
+  const editableSlot = layoutMode && (f.slot_type || isGroupFixture) && (st === 'pending' || st === 'upcoming') && (isGroupFixture || !locked)
   const homeName = f.home_team?.name || f.slots?.home || t('committee.detail.tbd')
   const awayName = f.away_team?.name || f.slots?.away || t('committee.detail.tbd')
   const integratedRes = (tournament?.terrain_reservation_mode ?? 'independent') === 'integrated'

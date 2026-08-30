@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Committee;
 
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
-use App\Domains\Competition\Models\Fixture;
 use App\Domains\Subscription\Services\SubscriptionService;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Resources\TournamentDetailResource;
@@ -150,15 +149,11 @@ class TournamentController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->isCompleted() || $tournament->isInProgress() || $tournament->isCancelled()) {
-            throw new DomainException('لا يمكن تعديل البطولة بعد انطلاقها');
+        if ($tournament->isCompleted() || $tournament->isCancelled() || $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن تعديل البطولة بعد تسجيل أول نتيجة');
         }
 
         $data = $request->validated();
-
-        if ($tournament->isCompleted() || $tournament->isInProgress() || $tournament->isCancelled()) {
-            throw new DomainException('لا يمكن تعديل البطولة بعد انطلاقها');
-        }
 
         $structural = [
             'teams_count',
@@ -173,16 +168,6 @@ class TournamentController extends Controller
         $changedStructural = array_intersect(array_keys($data), $structural);
 
         if ($changedStructural) {
-            $hasFixtures = $tournament->competition_id
-                && Fixture::query()
-                    ->where('competition_id', $tournament->competition_id)
-                    ->where('season_id', $tournament->season_id)
-                    ->exists();
-
-            if ($hasFixtures) {
-                throw new DomainException('لا يمكن تعديل بنية البطولة بعد توليد المباريات');
-            }
-
             if (isset($data['teams_count']) && $tournament->registeredTeamsCount() > (int) $data['teams_count']) {
                 throw new DomainException('لا يمكن تقليص عدد الفرق إلى أقل من الفرق المسجلة');
             }

@@ -80,8 +80,8 @@ class TournamentFixtureController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled()) {
-            throw new DomainException('لا يمكن إنشاء برنامج بعد انتهاء البطولة');
+        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled() || $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن إنشاء برنامج بعد تسجيل أول نتيجة');
         }
 
         $data = $request->validated();
@@ -221,8 +221,8 @@ class TournamentFixtureController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled()) {
-            throw new DomainException('لا يمكن إنشاء برنامج بعد انتهاء البطولة');
+        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled() || $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن إنشاء برنامج بعد تسجيل أول نتيجة');
         }
 
         $data = $request->validated();
@@ -251,8 +251,8 @@ class TournamentFixtureController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled()) {
-            throw new DomainException('لا يمكن إنشاء برنامج بعد انتهاء البطولة');
+        if ($tournament->status === Tournament::STATUS_COMPLETED || $tournament->isCancelled() || $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن إنشاء برنامج بعد تسجيل أول نتيجة');
         }
 
         $data = $request->validated();

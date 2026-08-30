@@ -50,7 +50,7 @@ export default function SettingsTab({ tournament, refresh }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const navigate = useNavigate()
-  const editable = ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
+  const editable = tournament.settings_editable ?? ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
   const registrationOpen = tournament.status === 'open_for_registration'
 
   const [name, setName] = useState(tournament.name ?? '')

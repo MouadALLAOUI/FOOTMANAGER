@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers\Committee;
 
-use App\Domains\Competition\Models\Fixture;
 use App\Domains\Competition\Models\Group;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Shared\Services\ImageThumbnailService;
+use App\Domains\Shared\Support\TeamCache;
 use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
@@ -15,10 +16,12 @@ use App\Http\Requests\Committee\AddTournamentTeamsRequest;
 use App\Http\Requests\Committee\BulkCreateFreeTeamsRequest;
 use App\Http\Requests\Committee\CreateFreeTeamRequest;
 use App\Http\Requests\Committee\MoveTournamentTeamsRequest;
+use App\Http\Requests\Committee\UpdateFreeTeamRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class TournamentTeamController extends Controller
 {
@@ -146,6 +149,72 @@ class TournamentTeamController extends Controller
         });
 
         return $this->teamCollection($tournament);
+    }
+
+    public function updateFree(UpdateFreeTeamRequest $request, Tournament $tournament, Team $team): AnonymousResourceCollection
+    {
+        $this->authorize('manage', $tournament);
+
+        $this->assertEditable($tournament);
+        $this->assertFreeTeamBelongsToTournament($tournament, $team);
+        $this->assertFreeTeam($team);
+
+        $data = $request->validated();
+
+        if (isset($data['name'])) {
+            $data['name'] = trim($data['name']);
+            $this->assertUniqueTeamNames($tournament, [$data['name']], $team->id);
+        }
+
+        if (isset($data['logo'])) {
+            $this->storeFreeTeamLogo($team, $data['logo']);
+            unset($data['logo']);
+        }
+
+        if ($data) {
+            $team->update($data);
+        }
+
+        TeamCache::flushTeam($team->id);
+
+        return $this->teamCollection($tournament);
+    }
+
+    private function assertFreeTeamBelongsToTournament(Tournament $tournament, Team $team): void
+    {
+        $exists = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('team_id', $team->id)
+            ->exists();
+
+        if (! $exists) {
+            throw new DomainException('الفريق غير مسجل في هذه البطولة', 404);
+        }
+    }
+
+    private function assertFreeTeam(Team $team): void
+    {
+        if (! $team->is_free) {
+            throw new DomainException('يمكن تعديل بيانات الفرق الحرة التي أنشأتها اللجنة فقط');
+        }
+    }
+
+    private function storeFreeTeamLogo(Team $team, $file): void
+    {
+        if ($team->logo_path && Storage::disk('public')->exists($team->logo_path)) {
+            Storage::disk('public')->delete($team->logo_path);
+        }
+
+        if ($team->logo_thumbnail_path && Storage::disk('public')->exists($team->logo_thumbnail_path)) {
+            Storage::disk('public')->delete($team->logo_thumbnail_path);
+        }
+
+        $result = app(ImageThumbnailService::class)->storeWithThumbnail($file, 'teams/logos');
+
+        $team->update([
+            'logo_path' => $result['path'],
+            'logo_thumbnail_path' => $result['thumbnail_path'],
+        ]);
     }
 
     public function approve(Tournament $tournament, $teamId): AnonymousResourceCollection
@@ -335,18 +404,8 @@ class TournamentTeamController extends Controller
 
     private function assertEditable(Tournament $tournament): void
     {
-        if (! $tournament->isEditable()) {
-            throw new DomainException('لا يمكن تعديل الفرق بعد انطلاق البطولة');
-        }
-
-        $groupFixtures = Fixture::query()
-            ->where('competition_id', $tournament->competition_id)
-            ->where('season_id', $tournament->season_id)
-            ->whereNotNull('group_id')
-            ->count();
-
-        if ($groupFixtures > 0) {
-            throw new DomainException('لا يمكن تعديل الفرق بعد إنشاء برنامج المباريات');
+        if ($tournament->isCompleted() || $tournament->isCancelled() || $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن تعديل الفرق بعد تسجيل أول نتيجة');
         }
     }
 
@@ -371,13 +430,14 @@ class TournamentTeamController extends Controller
      *
      * @param  list<string>  $names
      */
-    private function assertUniqueTeamNames(Tournament $tournament, array $names): void
+    private function assertUniqueTeamNames(Tournament $tournament, array $names, ?int $ignoreTeamId = null): void
     {
         $existing = TournamentTeam::query()
             ->where('tournament_id', $tournament->id)
             ->where('status', TournamentTeam::STATUS_REGISTERED)
             ->with('team:id,name')
             ->get()
+            ->filter(fn (TournamentTeam $pivot) => $ignoreTeamId === null || (int) $pivot->team_id !== $ignoreTeamId)
             ->map(fn (TournamentTeam $pivot) => $pivot->team ? mb_strtolower(trim($pivot->team->name)) : null)
             ->filter()
             ->values()

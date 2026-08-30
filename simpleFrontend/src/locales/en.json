@@ -1297,6 +1297,20 @@
       "playerPosition": "Position",
       "playerAdded": "Player added to the team",
       "freeTeamSquadHint": "Add players to this free team so they can play in the tournament",
+
+          "editFreeTeam": "Edit free team",
+
+          "editFreeTeamDesc": "Edit the team name, logo, and origin city",
+
+          "editFreeTeamLogo": "Team logo",
+
+          "editFreeTeamChangeLogo": "Change logo",
+
+          "editFreeTeamCity": "Origin city",
+
+          "editFreeTeamSaved": "Free team saved",
+
+          "editFreeTeamNameRequired": "Team name is required",
       "drawPendingDesc": "Hit the draw button to distribute teams into groups",
       "noFixtures": "No fixtures yet",
       "noFixturesDesc": "Generate the fixtures after teams and draw are ready",

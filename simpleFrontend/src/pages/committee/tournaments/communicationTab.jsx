@@ -36,7 +36,7 @@ const emptyContact = {
 export default function CommunicationTab({ tournament, refresh }) {
   const { t, i18n } = useTranslation()
   const { toast } = useToast()
-  const editable = ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
+  const editable = tournament.settings_editable ?? ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
   const [statusFilter, setStatusFilter] = useState('all')
   const [busy, setBusy] = useState(false)
   const [form, setForm] = useState(emptyContact)

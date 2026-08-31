@@ -91,6 +91,9 @@ class Tournament extends Model
         'max_players_per_team',
         'group_mode',
         'match_duration_minutes',
+        'half_duration_minutes',
+        'first_half_extra_minutes',
+        'second_half_extra_minutes',
         'matches_per_day',
         'knockout_teams',
         'qualify_per_group',
@@ -128,6 +131,9 @@ class Tournament extends Model
             'teams_per_group' => 'integer',
             'max_players_per_team' => 'integer',
             'match_duration_minutes' => 'integer',
+            'half_duration_minutes' => 'integer',
+            'first_half_extra_minutes' => 'integer',
+            'second_half_extra_minutes' => 'integer',
             'matches_per_day' => 'integer',
             'points_for_win' => 'integer',
             'points_for_draw' => 'integer',
@@ -392,5 +398,25 @@ class Tournament extends Model
     public function usesIntegratedTerrainReservations(): bool
     {
         return $this->terrain_reservation_mode === self::TERRAIN_RESERVATION_INTEGRATED;
+    }
+
+    /** Base length of a single half in minutes (defaults to half the full match). */
+    public function halfDurationMinutes(): int
+    {
+        if ($this->half_duration_minutes > 0) {
+            return (int) $this->half_duration_minutes;
+        }
+
+        return (int) round(($this->match_duration_minutes ?: 90) / 2);
+    }
+
+    /** Added (extra) minutes for the given half, capped at 30 per half. */
+    public function extraMinutesForHalf(string $half): int
+    {
+        $extra = $half === 'second'
+            ? $this->second_half_extra_minutes
+            : $this->first_half_extra_minutes;
+
+        return (int) min(30, max(0, $extra));
     }
 }

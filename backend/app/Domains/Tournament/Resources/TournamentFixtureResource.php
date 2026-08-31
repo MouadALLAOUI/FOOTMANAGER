@@ -5,6 +5,7 @@ namespace App\Domains\Tournament\Resources;
 use App\Domains\Competition\Enums\RoundStage;
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Competition\Models\Round;
+use App\Domains\Tournament\Models\Tournament;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -64,6 +65,7 @@ class TournamentFixtureResource extends JsonResource
                 'id' => $this->match->id,
                 'status' => $this->match->status?->value,
                 'current_period' => $this->match->current_period,
+                'current_half' => $this->match->currentHalf(),
                 'current_minute' => $this->match->current_minute,
                 'home_score' => $this->match->home_score,
                 'away_score' => $this->match->away_score,
@@ -72,6 +74,13 @@ class TournamentFixtureResource extends JsonResource
                 'extra_time' => (bool) $this->match->extra_time,
                 'notes' => $this->match->notes,
                 'winner_team_id' => $this->match->winner_team_id,
+                'match_duration_minutes' => (int) $this->match->match_duration_minutes,
+                'half_duration_minutes' => $this->tournament()?->halfDurationMinutes(),
+                'first_half_extra_minutes' => $this->tournament()?->first_half_extra_minutes ?? 0,
+                'second_half_extra_minutes' => $this->tournament()?->second_half_extra_minutes ?? 0,
+                'started_at' => $this->match->started_at?->toIso8601String(),
+                'kicked_off_at' => $this->match->kicked_off_at?->toIso8601String(),
+                'second_half_started_at' => $this->match->second_half_started_at?->toIso8601String(),
                 'ended_at' => $this->match->ended_at?->toIso8601String(),
             ] : null),
         ];
@@ -142,5 +151,23 @@ class TournamentFixtureResource extends JsonResource
             'home' => $this->home_team_id ? null : "winner_match_{$homeSource}",
             'away' => $this->away_team_id ? null : "winner_match_{$awaySource}",
         ];
+    }
+
+    private ?Tournament $resolvedTournament = null;
+
+    private function tournament(): ?Tournament
+    {
+        if ($this->resolvedTournament !== null) {
+            return $this->resolvedTournament;
+        }
+
+        if (! $this->competition_id || ! $this->season_id) {
+            return null;
+        }
+
+        return $this->resolvedTournament = Tournament::query()
+            ->where('competition_id', $this->competition_id)
+            ->where('season_id', $this->season_id)
+            ->first();
     }
 }

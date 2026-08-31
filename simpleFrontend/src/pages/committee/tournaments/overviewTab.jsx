@@ -19,6 +19,7 @@ import {
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Button, Card, Empty, Skeleton } from '../../../components/dashboard/ui'
+import LiveMatchActivity from '../../../components/LiveMatchActivity'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 
@@ -115,6 +116,11 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
           </div>
         ))}
       </div>
+
+      <LiveMatchActivity
+        load={() => api.get(`/committee/tournaments/${tournament.id}/live`).then((r) => r.data.data)}
+        deps={[tournament.id]}
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card

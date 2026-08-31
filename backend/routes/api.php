@@ -98,6 +98,7 @@ use App\Http\Controllers\Player\PlayerController as PlayerProfileController;
 use App\Http\Controllers\Public\LeaderboardController;
 use App\Http\Controllers\Public\PlayerLeaderboardController;
 use App\Http\Controllers\Public\PublicTournamentController;
+use App\Http\Controllers\Public\PublicTournamentLiveController;
 use App\Http\Controllers\Public\TournamentRegistrationController;
 use App\Http\Controllers\Public\PublicContactController;
 use App\Http\Controllers\Public\PublicManagerController;
@@ -135,6 +136,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/stadiums/{stadium}', [PublicStadiumController::class, 'show']);
     Route::get('/matches', [MatchController::class, 'index']);
     Route::get('/live-matches', [MatchController::class, 'live']);
+    Route::get('/live-tournament-matches', PublicTournamentLiveController::class);
     Route::get('/leaderboard', [PublicLeaderboardController::class, 'index']);
     Route::get('/stats', [StatsController::class, 'index']);
 
@@ -157,6 +159,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/tournaments', [PublicTournamentController::class, 'index']);
     Route::get('/tournaments/{tournament}', [PublicTournamentController::class, 'show']);
     Route::get('/tournaments/{tournament}/fixtures', [PublicTournamentController::class, 'fixtures']);
+    Route::get('/tournaments/{tournament}/live', [PublicTournamentController::class, 'live']);
     Route::get('/tournaments/{tournament}/teams', [PublicTournamentController::class, 'teams']);
     Route::get('/tournaments/{tournament}/draw', [PublicTournamentController::class, 'draw']);
     Route::get('/tournaments/{tournament}/standings', [PublicTournamentController::class, 'standings']);
@@ -761,8 +764,11 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/fixtures/terrains', [TournamentFixtureController::class, 'terrains']);
             Route::get('/fixtures/knockout-qualified', [TournamentFixtureController::class, 'knockoutQualified']);
             Route::get('/match-rounds', [TournamentFixtureController::class, 'matchRounds']);
+            Route::get('/live', [TournamentFixtureController::class, 'live']);
 
             Route::middleware('activity.not_locked')->group(function () {
+                Route::post('/fixtures/{fixture}/start', [TournamentResultController::class, 'start']);
+                Route::post('/fixtures/{fixture}/start-second-half', [TournamentResultController::class, 'startSecondHalf']);
                 Route::post('/fixtures/{fixture}/result', [TournamentResultController::class, 'store']);
                 Route::put('/fixtures/{fixture}/result', [TournamentResultController::class, 'update']);
                 Route::delete('/fixtures/{fixture}/result', [TournamentResultController::class, 'destroy']);

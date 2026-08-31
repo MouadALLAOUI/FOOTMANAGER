@@ -46,6 +46,33 @@ function computeScore(events, homeId, awayId) {
 
 // ScoreNumber helper removed (unused)
 
+// Derive the active half's timer configuration from the server match payload.
+// Each half runs relative to its own kick-off timestamp (1st = kicked_off_at,
+// 2nd = second_half_started_at). Returns activeHalf null when not in a half.
+const deriveTimerCfg = (m) => {
+  if (!m) return { activeHalf: null, halfStartMs: null, halfDurationMinutes: 45, extraMinutes: 0, firstExtra: 0, secondExtra: 0 }
+  const full = Number(m.match_duration_minutes) || 0
+  const hd = Number(m.half_duration_minutes) > 0 ? Number(m.half_duration_minutes) : Math.round(full / 2)
+  const first = Number(m.first_half_extra_minutes) || 0
+  const second = Number(m.second_half_extra_minutes) || 0
+  if (m.status === 'first_half') {
+    const ts = Date.parse(m.kicked_off_at || m.started_at)
+    return { activeHalf: 'first', halfStartMs: Number.isFinite(ts) ? ts : null, halfDurationMinutes: hd, extraMinutes: first, firstExtra: first, secondExtra: second }
+  }
+  if (m.status === 'second_half') {
+    const ts = Date.parse(m.second_half_started_at || m.kicked_off_at)
+    return { activeHalf: 'second', halfStartMs: Number.isFinite(ts) ? ts : null, halfDurationMinutes: hd, extraMinutes: second, firstExtra: first, secondExtra: second }
+  }
+  return { activeHalf: null, halfStartMs: null, halfDurationMinutes: hd, extraMinutes: 0, firstExtra: first, secondExtra: second }
+}
+
+const pad2 = (n) => String(n).padStart(2, '0')
+
+const formatClock = (totalSec) => {
+  const s = Math.max(0, totalSec)
+  return `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`
+}
+
 
 
 export default function MatchControlRoom({ fixture, tournament, onClose, onSaved }) {
@@ -59,11 +86,17 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const awayId = awayTeam?.id ?? null
   const homeName = homeTeam?.name || fixture.slots?.home || t('committee.detail.tbd')
   const awayName = awayTeam?.name || fixture.slots?.away || t('committee.detail.tbd')
-  const alreadyFinished = fixture.match?.status === 'finished'
-  const matchStatus = fixture.match?.status || 'scheduled'
-  const matchNotStarted = matchStatus === 'scheduled' || matchStatus === 'warmup'
+  const [curStatus, setCurStatus] = useState(fixture.match?.status || 'scheduled')
+  const LIVE_STATUSES = ['kickoff', 'first_half', 'halftime', 'second_half', 'extra_time', 'penalties']
+  const isLiveStatus = (s) => LIVE_STATUSES.includes(s)
+  const alreadyFinished = curStatus === 'finished'
+  const matchNotStarted = curStatus === 'scheduled' || curStatus === 'warmup'
+  const isLiveMatch = isLiveStatus(curStatus)
   const isKnockout = Boolean(fixture.round?.stage && fixture.round.stage !== 'group')
   const liveMinute = fixture.match?.current_minute ?? 0
+
+  const [timerCfg, setTimerCfg] = useState(() => deriveTimerCfg(fixture.match))
+  const [, setTick] = useState(0)
 
   const [status, setStatus] = useState('loading')
   const [events, setEvents] = useState([])
@@ -121,6 +154,31 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   }, [onClose, confirmOpen])
 
   useEffect(() => {
+    if (!timerCfg.activeHalf) return
+    const id = setInterval(() => setTick((v) => v + 1), 1000)
+    return () => clearInterval(id)
+  }, [timerCfg.activeHalf])
+
+  const elapsedSec = timerCfg.activeHalf && timerCfg.halfStartMs
+    ? Math.max(0, Math.floor((Date.now() - timerCfg.halfStartMs) / 1000))
+    : 0
+  const activeHalfMaxMinute = timerCfg.halfDurationMinutes + timerCfg.extraMinutes
+  const timerText = timerCfg.activeHalf
+    ? `${formatClock(elapsedSec)}${timerCfg.extraMinutes > 0 ? ` + ${timerCfg.extraMinutes}` : ''}`
+    : null
+  const currentLiveMinute = timerCfg.activeHalf
+    ? Math.min(activeHalfMaxMinute, Math.floor(elapsedSec / 60) + 1)
+    : (liveMinute || 0)
+  const halfForAbsMinute = (abs) => (Number(abs) > timerCfg.halfDurationMinutes ? 'second' : 'first')
+  const absToRelMinute = (abs, half) => Math.max(1, Number(abs) - (half === 'second' ? timerCfg.halfDurationMinutes : 0))
+  const halfExtra = (half) => (half === 'second' ? timerCfg.secondExtra : timerCfg.firstExtra)
+  const formHalf = halfForAbsMinute(Number(form?.minute) || 1)
+  const formMaxAbs = formHalf === 'second'
+    ? 2 * timerCfg.halfDurationMinutes + halfExtra('second')
+    : timerCfg.halfDurationMinutes + halfExtra('first')
+  const formMinAbs = (formHalf === 'second' ? timerCfg.halfDurationMinutes : 0) + (effectiveMinMinute || 0)
+
+  useEffect(() => {
     let cancelled = false
     const teamIds = [homeId, awayId].filter(Boolean)
     if (teamIds.length) {
@@ -166,10 +224,12 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         setSuspendedByTeam(mapped)
         if (m) {
           setStoredScore({ home: m.home_score ?? 0, away: m.away_score ?? 0 })
+          if (m.status) setCurStatus(m.status)
           if (m.home_penalties != null) setHomePen(m.home_penalties)
           if (m.away_penalties != null) setAwayPen(m.away_penalties)
           setExtraTime(Boolean(m.extra_time))
           if (m.notes) setNotes(m.notes)
+          setTimerCfg(deriveTimerCfg(m))
           setEvents((m.events || []).map(fromApi).sort((a, b) => a.minute - b.minute || a.added_time - b.added_time))
           const potm = m.player_of_the_match
           if (potm?.name) {
@@ -204,8 +264,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     setEditingKey(null)
     setValidation(null)
     setSaveError(null)
-    const lastMinute = events.length ? Math.max(...events.map((e) => Number(e.minute) || 0)) : 0
-    const defaultMinute = lastMinute > 0 ? lastMinute : (liveMinute > 0 ? liveMinute : 1)
+    const defaultRel = currentLiveMinute > 0 ? currentLiveMinute : 1
+    const defaultHalf = timerCfg.activeHalf || 'first'
+    const defaultMinute = defaultHalf === 'second' ? timerCfg.halfDurationMinutes + defaultRel : defaultRel
     setForm({
       team_id: type === 'other' ? '' : homeId ?? '',
       player_id: null,
@@ -214,6 +275,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       assist: '',
       noAssist: true,
       minute: defaultMinute,
+      half: defaultHalf,
       added_time: 0,
       goalType: 'regular',
       cardColor: type === 'red_card' ? 'red_card' : type === 'second_yellow' ? 'second_yellow' : 'yellow_card',
@@ -241,8 +303,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       assist_player_id: ev.assist_player_id ?? null,
       assist: ev.assist_player || '',
       noAssist: !ev.assist_player,
-      minute: ev.minute || 1,
+      minute: (ev.half === 'second' ? timerCfg.halfDurationMinutes : 0) + (ev.minute || 1),
       added_time: ev.added_time || 0,
+      half: ev.half === 'second' ? 'second' : 'first',
       goalType: ev.goalType || 'regular',
       cardColor: ev.type === 'red_card' ? 'red_card' : ev.type === 'second_yellow' ? 'second_yellow' : 'yellow_card',
       missed: ev.type === 'missed_penalty',
@@ -265,6 +328,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       assist_player: isSub ? (e.assist_player?.name || md.in || '') : (isNote ? '' : e.assist_player?.name || ''),
       minute: e.minute ?? 0,
       added_time: e.added_time ?? 0,
+      half: e.half ?? null,
       goalType: e.type === 'penalty_goal' ? 'penalty' : e.type === 'own_goal' ? 'ownGoal' : md.goalType || 'regular',
       reason: md.reason || '',
       note: isNote ? md.note || e.description || '' : '',
@@ -277,8 +341,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       type: e.type,
       team_id: e.team_id != null && e.team_id !== '' ? Number(e.team_id) : null,
       player_id: e.player_id || null,
-      minute: Math.min(Number(e.minute) || 0, 180),
-      added_time: Math.min(Number(e.added_time) || 0, 30),
+      minute: Math.max(1, Number(e.minute) || 0),
+      added_time: Number(e.added_time) || 0,
+      half: e.half === 'second' ? 'second' : 'first',
     }
     switch (e.type) {
       case 'substitution':
@@ -306,7 +371,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     return 'goal'
   }
 
-  const persist = async ({ events: evts = events, finish = false, notice }) => {
+  const persist = async ({ events: evts = events, finish = false, status: statusOverride, notice }) => {
     setSaving(true)
     setSaveError(null)
     const score = computeScore(evts, homeId, awayId)
@@ -345,11 +410,17 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       }
       if (finish) payload.status = 'finished'
       else if (alreadyFinished) payload.status = 'finished'
+      else if (statusOverride) payload.status = statusOverride
+      else if (isLiveMatch) payload.status = curStatus
       else payload.status = 'scheduled'
 
       const r = await api.put(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/result`, payload)
       const m = r.data?.data?.match
-      if (m) setStoredScore({ home: m.home_score ?? 0, away: m.away_score ?? 0 })
+      if (m) {
+        setStoredScore({ home: m.home_score ?? 0, away: m.away_score ?? 0 })
+        if (m.status && m.status !== curStatus) setCurStatus(m.status)
+        setTimerCfg(deriveTimerCfg(m))
+      }
 
       if (finish) {
         toast.success(t('committee.result.resultSaved'))
@@ -410,12 +481,23 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
 
   const submitEvent = async () => {
     const type = selectedType
+    const evAbsMinute = Number(form.minute) || 0
+    const evHalf = halfForAbsMinute(evAbsMinute)
+    const evRelMinute = absToRelMinute(evAbsMinute, evHalf)
     if (!form.minute || Number(form.minute) <= 0) {
       setValidation('needMinute')
       return
     }
-    if (Number(form.minute) < (effectiveMinMinute || 0)) {
+    if (Number(form.minute) < formMinAbs) {
       setValidation('minuteTooLow')
+      return
+    }
+    if (Number(form.minute) > formMaxAbs) {
+      setValidation('minuteTooHigh')
+      return
+    }
+    if (Number(form.added_time) > 30) {
+      setValidation('addedTimeHigh')
       return
     }
     if (type !== 'other') {
@@ -432,7 +514,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         setValidation('playerSuspended')
         return
       }
-      if (isPlayerRedCarded(form.player_id, form.minute)) {
+      if (isPlayerRedCarded(form.player_id, evRelMinute)) {
         setValidation('playerRedCarded')
         return
       }
@@ -451,7 +533,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         setValidation('playerSuspended')
         return
       }
-      if (isPlayerRedCarded(form.assist_player_id, form.minute)) {
+      if (isPlayerRedCarded(form.assist_player_id, evRelMinute)) {
         setValidation('playerRedCarded')
         return
       }
@@ -482,8 +564,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       assist_player: type === 'substitution'
         ? form.assist.trim()
         : (eventType === 'goal' && !form.noAssist) ? form.assist.trim() : '',
-      minute: Number(form.minute) || 0,
+      minute: evRelMinute,
       added_time: Number(form.added_time) || 0,
+      half: evHalf,
       goalType: form.goalType || 'regular',
       reason: form.reason?.trim() || '',
       note: form.note?.trim() || '',
@@ -524,6 +607,49 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     retryRef.current = () => persist({ finish: true })
     const ok = await persist({ finish: true })
     if (!ok) setConfirmOpen(false)
+  }
+
+  const runMatch = async () => {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const r = await api.post(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/start`)
+      setCurStatus('first_half')
+      setTimerCfg(deriveTimerCfg(r.data?.data?.match))
+      retryRef.current = () => persist({})
+      toast.success(t('committee.result.matchStarted'))
+    } catch (e) {
+      setSaveError(e.response?.data?.message || t('committee.result.startFailed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const goToHalftime = async () => {
+    retryRef.current = () => persist({ status: 'halftime', notice: t('committee.result.halftimeReached') })
+    return persist({ status: 'halftime', notice: t('committee.result.halftimeReached') })
+  }
+
+  const startSecondHalf = async () => {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const r = await api.post(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/start-second-half`)
+      setCurStatus('second_half')
+      setTimerCfg(deriveTimerCfg(r.data?.data?.match))
+      retryRef.current = () => persist({})
+      toast.success(t('committee.result.secondHalfStarted'))
+    } catch (e) {
+      setSaveError(e.response?.data?.message || t('committee.result.startFailed'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const postCurrentResult = async () => {
+    const live = isLiveStatus(curStatus) ? curStatus : 'first_half'
+    retryRef.current = () => persist({ status: live, notice: t('committee.result.livePosted') })
+    return persist({ status: live, notice: t('committee.result.livePosted') })
   }
 
   const counts = useMemo(() => {
@@ -600,7 +726,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     <ModalShell onClose={onClose}>
       <HeaderBlock t={t} homeName={homeName} awayName={awayName} tournament={tournament} fixture={fixture} onClose={onClose} />
 
-      <ScoreActions displayScore={displayScore} homeTeam={homeTeam} awayTeam={awayTeam} homeName={homeName} awayName={awayName} alreadyFinished={alreadyFinished} liveMinute={liveMinute} matchNotStarted={matchNotStarted} openForm={openForm} quickActions={QUICK_ACTIONS} t={t} />
+      <ScoreActions displayScore={displayScore} homeTeam={homeTeam} awayTeam={awayTeam} homeName={homeName} awayName={awayName} alreadyFinished={alreadyFinished} halftime={curStatus === 'halftime'} liveMinute={currentLiveMinute} timerText={timerText} activeHalf={timerCfg.activeHalf} matchNotStarted={matchNotStarted} openForm={openForm} quickActions={QUICK_ACTIONS} t={t} />
 
       {/* Body */}
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -682,7 +808,10 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                   validation={validation}
                   onSubmit={submitEvent}
                   suspendedIds={suspendedByTeam[form.team_id] || []}
-                  minMinute={effectiveMinMinute || 0}
+                  minMinute={formMinAbs}
+                  maxMinute={formMaxAbs}
+                  maxAddedTime={30}
+                  half={formHalf}
                 />
               ) : (
                 <div className="grid grid-cols-2 gap-2">
@@ -729,7 +858,24 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         </div>
       </div>
 
-      <FooterActions saveError={saveError} retryRef={retryRef} saving={saving} saveDraft={saveDraft} setConfirmOpen={setConfirmOpen} onClose={onClose} t={t} />
+      <FooterActions
+        saveError={saveError}
+        retryRef={retryRef}
+        saving={saving}
+        saveDraft={saveDraft}
+        setConfirmOpen={setConfirmOpen}
+        onClose={onClose}
+        matchNotStarted={matchNotStarted}
+        isLiveMatch={isLiveMatch}
+        alreadyFinished={alreadyFinished}
+        runMatch={runMatch}
+        postCurrentResult={postCurrentResult}
+        showHalftime={curStatus === 'first_half'}
+        showStartSecondHalf={curStatus === 'halftime'}
+        onHalftime={goToHalftime}
+        onStartSecondHalf={startSecondHalf}
+        t={t}
+      />
 
       {successTick && (
         <div className="pointer-events-none absolute end-4 top-16 z-20 flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-1.5 text-[11px] font-black text-white shadow-lg score-pop">

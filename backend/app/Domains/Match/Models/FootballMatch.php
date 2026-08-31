@@ -45,6 +45,7 @@ class FootballMatch extends Model
         'created_by',
         'started_at',
         'kicked_off_at',
+        'second_half_started_at',
         'ended_at',
     ];
 
@@ -65,6 +66,7 @@ class FootballMatch extends Model
             'attendance' => 'integer',
             'started_at' => 'datetime',
             'kicked_off_at' => 'datetime',
+            'second_half_started_at' => 'datetime',
             'ended_at' => 'datetime',
         ];
     }
@@ -187,5 +189,23 @@ class FootballMatch extends Model
     public function isFinished(): bool
     {
         return $this->status === MatchStatus::Finished;
+    }
+
+    /**
+     * The active half a live event's minute is relative to: `first` or
+     * `second`. Returns null when the match is not in a half period.
+     */
+    public function currentHalf(): ?string
+    {
+        return match ($this->status) {
+            MatchStatus::FirstHalf => 'first',
+            MatchStatus::SecondHalf => 'second',
+            default => null,
+        };
+    }
+
+    public function isHalftime(): bool
+    {
+        return $this->status === MatchStatus::Halftime;
     }
 }

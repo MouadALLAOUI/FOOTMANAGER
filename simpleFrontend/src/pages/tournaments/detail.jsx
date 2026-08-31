@@ -20,6 +20,7 @@ import SponsorsSection from './sections/SponsorsSection'
 import PartnersSection from './sections/PartnersSection'
 import ContactSection from './sections/ContactSection'
 import MatchDetailModal from './components/MatchDetailModal'
+import LiveMatchActivity from '../../components/LiveMatchActivity'
 
 const SECTION_ICONS = {
   overview: LayoutGrid,
@@ -226,6 +227,11 @@ export default function PublicTournamentDetail() {
               onShowTab={handleSection}
             />
             <div className="mt-5 space-y-4">
+              <LiveMatchActivity
+                load={() => api.get(`/v1/tournaments/${slug}/live`).then((r) => r.data.data)}
+                deps={[slug]}
+                enabled={Boolean(tour)}
+              />
               <SponsorsSection sponsors={sponsorsQuery.data} />
               <PartnersSection partners={partnersQuery.data} />
               <ContactSection contact={contactQuery.data} tournamentKey={slug} />
@@ -235,7 +241,18 @@ export default function PublicTournamentDetail() {
 
         {active === 'teams' && <TeamsSection teams={teamsQuery.data} standings={standingsQuery.data} />}
 
-        {active === 'matches' && <FixturesSection fixtures={fixturesQuery.data} mode="upcoming" onOpen={setOpenMatch} />}
+        {active === 'matches' && (
+          <>
+            <div className="mb-5">
+              <LiveMatchActivity
+                load={() => api.get(`/v1/tournaments/${slug}/live`).then((r) => r.data.data)}
+                deps={[slug]}
+                enabled={Boolean(tour)}
+              />
+            </div>
+            <FixturesSection fixtures={fixturesQuery.data} mode="upcoming" onOpen={setOpenMatch} />
+          </>
+        )}
 
         {active === 'results' && <FixturesSection fixtures={fixturesQuery.data} mode="finished" onOpen={setOpenMatch} />}
 

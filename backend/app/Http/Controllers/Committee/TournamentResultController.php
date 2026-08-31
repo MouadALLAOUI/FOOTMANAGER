@@ -14,6 +14,7 @@ use App\Http\Requests\Committee\StoreFixtureResultRequest;
 use App\Http\Requests\Committee\UpdateFixtureResultRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TournamentResultController extends Controller
 {
@@ -65,6 +66,34 @@ class TournamentResultController extends Controller
             'data' => (new TournamentResultResource($fixture))
                 ->additional(['suspended_players' => $this->suspensions->suspendedFor($fixture)]),
             'message' => 'تم تحديث النتيجة',
+        ]);
+    }
+
+    public function start(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $this->assertBelongsToTournament($tournament, $fixture);
+
+        $fixture = $this->results->start($fixture, $request->user()->id);
+
+        return response()->json([
+            'data' => new TournamentFixtureResource($fixture->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),
+            'message' => 'تم بدء المباراة',
+        ]);
+    }
+
+    public function startSecondHalf(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $this->assertBelongsToTournament($tournament, $fixture);
+
+        $fixture = $this->results->startSecondHalf($fixture, $request->user()->id);
+
+        return response()->json([
+            'data' => new TournamentFixtureResource($fixture->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),
+            'message' => 'تم بدء الشوط الثاني',
         ]);
     }
 

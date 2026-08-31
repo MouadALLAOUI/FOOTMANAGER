@@ -13,6 +13,7 @@ use App\Domains\Tournament\Models\TournamentGalleryImage;
 use App\Domains\Tournament\Models\TournamentNews;
 use App\Domains\Tournament\Resources\TournamentDetailResource;
 use App\Domains\Tournament\Resources\TournamentFixtureResource;
+use App\Domains\Tournament\Resources\TournamentLiveFixtureResource;
 use App\Domains\Tournament\Resources\TournamentGalleryImageResource;
 use App\Domains\Tournament\Resources\TournamentNewsResource;
 use App\Domains\Tournament\Resources\TournamentPartnerResource;
@@ -85,6 +86,26 @@ class PublicTournamentController extends Controller
             ->get();
 
         return TournamentFixtureResource::collection($fixtures);
+    }
+
+    public function live(Request $request, string $tournament): AnonymousResourceCollection
+    {
+        $tournament = $this->resolveTournament($tournament);
+
+        $fixtures = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->whereHas('match', fn ($q) => $q->whereIn('status', MatchStatus::live()))
+            ->with([
+                'round', 'group', 'homeTeam', 'awayTeam', 'stadium',
+                'match.events' => fn ($q) => $q->orderByDesc('created_at')->limit(15),
+                'match.events.team', 'match.events.player', 'match.events.assistPlayer',
+            ])
+            ->orderBy('scheduled_at')
+            ->orderBy('id')
+            ->get();
+
+        return TournamentLiveFixtureResource::collection($fixtures);
     }
 
     public function teams(Request $request, string $tournament): AnonymousResourceCollection

@@ -1,8 +1,8 @@
 import React from 'react'
-import { RefreshCw } from 'lucide-react'
+import { Flag, Play, RefreshCw, StepForward } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 
-export default function FooterActions({ saveError, retryRef, saving, saveDraft, setConfirmOpen, onClose, t }) {
+export default function FooterActions({ saveError, retryRef, saving, saveDraft, setConfirmOpen, onClose, matchNotStarted, isLiveMatch, alreadyFinished, runMatch, postCurrentResult, showHalftime, showStartSecondHalf, onHalftime, onStartSecondHalf, t }) {
   return (
     <footer className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 sm:px-6">
       {saveError && (
@@ -16,12 +16,39 @@ export default function FooterActions({ saveError, retryRef, saving, saveDraft, 
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" loading={saving} onClick={saveDraft}>
-            {t('committee.result.saveDraft')}
-          </Button>
-          <Button loading={saving} onClick={() => setConfirmOpen(true)}>
-            {t('committee.result.finishMatch')}
-          </Button>
+          {!alreadyFinished && (
+            <Button variant="outline" loading={saving} onClick={saveDraft}>
+              {t('committee.result.saveDraft')}
+            </Button>
+          )}
+          {matchNotStarted && !alreadyFinished && (
+            <Button loading={saving} onClick={runMatch}>
+              <Play className="size-4" />
+              {t('committee.result.runMatch')}
+            </Button>
+          )}
+          {isLiveMatch && !alreadyFinished && (
+            <>
+              {showHalftime && (
+                <Button variant="outline" loading={saving} onClick={onHalftime}>
+                  <Flag className="size-4" />
+                  {t('committee.result.toHalftime')}
+                </Button>
+              )}
+              {showStartSecondHalf && (
+                <Button loading={saving} onClick={onStartSecondHalf}>
+                  <StepForward className="size-4" />
+                  {t('committee.result.startSecondHalf')}
+                </Button>
+              )}
+              <Button variant="outline" loading={saving} onClick={postCurrentResult}>
+                {t('committee.result.postCurrentResult')}
+              </Button>
+              <Button loading={saving} onClick={() => setConfirmOpen(true)}>
+                {t('committee.result.finishMatch')}
+              </Button>
+            </>
+          )}
         </div>
         <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
       </div>

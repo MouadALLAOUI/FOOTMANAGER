@@ -297,6 +297,7 @@ class TournamentResultService
                 'winner_team_id' => $winner,
                 'status' => $status,
                 'current_period' => isset($data['current_period']) ? (string) $data['current_period'] : ($status === MatchStatus::Finished ? 'full_time' : $match->current_period),
+                'second_half_started_at' => $status === MatchStatus::SecondHalf && ! $match->second_half_started_at ? now() : $match->second_half_started_at,
                 'ended_at' => $status === MatchStatus::Finished ? ($match->ended_at ?? now()) : null,
             ])->save();
 
@@ -323,6 +324,71 @@ class TournamentResultService
             ]);
 
             $this->bracket->syncRoundStatuses($tournament);
+
+            return $fixture->fresh(['round', 'group', 'homeTeam', 'awayTeam', 'match']);
+        });
+    }
+
+    /**
+     * Kick a tournament match off: transition it from "not started"
+     * (scheduled / warmup) into the in-progress live state (first half) and
+     * stamp the kick-off timestamps. This is the committee "بدء المباراة"
+     * (Run Match) action. Finishing the match and posting live updates remain
+     * separate actions and are driven through updateResult().
+     */
+    public function start(Fixture $fixture, int $userId): Fixture
+    {
+        return DB::transaction(function () use ($fixture, $userId) {
+            $tournament = $this->tournamentFor($fixture);
+
+            if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
+                throw new DomainException('لا يمكن بدء المباراة بعد انتهاء البطولة');
+            }
+
+            $match = $this->matchFor($fixture);
+
+            if ($match->status->isLive() || $match->isFinished()) {
+                throw new DomainException('المباراة بدأت بالفعل');
+            }
+
+            $match->current_period = 'first_half';
+            $match->current_minute = $match->current_minute ?: 0;
+            $match->started_at ??= now();
+            $match->kicked_off_at ??= now();
+            $match->status = MatchStatus::FirstHalf;
+            $match->save();
+
+            $this->audit($match, $fixture, 'match_started', $userId, [
+                'status' => MatchStatus::FirstHalf->value,
+            ]);
+
+            return $fixture->fresh(['round', 'group', 'homeTeam', 'awayTeam', 'match']);
+        });
+    }
+
+    /**
+     * Transition a match from halftime into the second half, stamping the
+     * second-half kick-off timestamp used to drive that half's live timer.
+     */
+    public function startSecondHalf(Fixture $fixture, int $userId): Fixture
+    {
+        return DB::transaction(function () use ($fixture, $userId) {
+            $tournament = $this->tournamentFor($fixture);
+            $match = $this->matchFor($fixture);
+
+            if (! $match->isHalftime()) {
+                throw new DomainException('لا يمكن بدء الشوط الثاني إلا بعد انتهاء الشوط الأول');
+            }
+
+            $match->current_period = 'second_half';
+            $match->current_minute = $match->current_minute ?: 0;
+            $match->second_half_started_at = now();
+            $match->status = MatchStatus::SecondHalf;
+            $match->save();
+
+            $this->audit($match, $fixture, 'second_half_started', $userId, [
+                'status' => MatchStatus::SecondHalf->value,
+            ]);
 
             return $fixture->fresh(['round', 'group', 'homeTeam', 'awayTeam', 'match']);
         });
@@ -390,6 +456,7 @@ class TournamentResultService
                 'assist_player_id' => $event->assist_player_id,
                 'minute' => $event->minute,
                 'added_time' => $event->added_time,
+                'half' => $event->half,
                 'period' => $event->period,
                 'description' => $event->description,
                 'metadata' => $event->metadata,
@@ -507,6 +574,7 @@ class TournamentResultService
                 'assist_player_id' => $scorer['assist_player_id'] ?? null,
                 'type' => $type->value,
                 'minute' => (int) ($scorer['minute'] ?? 1),
+                'half' => $scorer['half'] ?? $scorer['period'] ?? null,
                 'period' => $scorer['period'] ?? null,
             ];
         }
@@ -523,6 +591,7 @@ class TournamentResultService
                 'player_id' => $card['player_id'] ?? null,
                 'type' => $type->value,
                 'minute' => (int) ($card['minute'] ?? 1),
+                'half' => $card['half'] ?? $card['period'] ?? null,
                 'period' => $card['period'] ?? null,
             ];
         }
@@ -550,6 +619,7 @@ class TournamentResultService
             'type' => $type ?? MatchEventType::Other,
             'minute' => (int) ($data['minute'] ?? 1),
             'added_time' => isset($data['added_time']) ? (int) $data['added_time'] : 0,
+            'half' => $this->normalizeHalf($data['half'] ?? null),
             'period' => $data['period'] ?? null,
             'description' => $data['description'] ?? null,
             'metadata' => isset($data['metadata']) && is_array($data['metadata']) ? $data['metadata'] : null,
@@ -853,6 +923,7 @@ class TournamentResultService
             'status' => MatchStatus::Scheduled,
             'current_period' => 'upcoming',
             'match_duration_minutes' => $tournament->match_duration_minutes ?: 90,
+            'current_minute' => 0,
             'created_by' => $tournament->organizer_id,
         ]);
 
@@ -1178,29 +1249,84 @@ class TournamentResultService
             return;
         }
 
+        $half = $this->resolveEventHalf($fixture, $data);
+
         $lastEvent = MatchEvent::query()
             ->where('match_id', $fixture->match_id)
+            ->where('half', $half)
             ->when($ignoredEventId, fn ($query) => $query->where('id', '!=', $ignoredEventId))
             ->orderByDesc('minute')
             ->orderByDesc('id')
             ->first();
 
         if ($lastEvent && $minute < (int) $lastEvent->minute) {
-            throw new DomainException("الدقيقة {$minute} أقل من ترتيب الأحداث الحالي ({$lastEvent->minute})");
+            throw new DomainException("الدقيقة {$minute} أقل من ترتيب الأحداث الحالي في الشوط ({$lastEvent->minute})");
         }
     }
 
     private function assertEventMinuteWithinLimits(Fixture $fixture, array $data): void
     {
         $minute = (int) ($data['minute'] ?? 0);
+        $addedTime = (int) ($data['added_time'] ?? 0);
+
+        if ($minute < 1) {
+            throw new DomainException('الدقيقة يجب أن تكون أكبر من صفر');
+        }
+
+        if ($addedTime > 30) {
+            throw new DomainException('الوقت بدل الضائع لا يمكن أن يتجاوز 30 دقيقة');
+        }
 
         $tournament = $this->tournamentFor($fixture);
-        $duration = $tournament->match_duration_minutes ?: 90;
-        $maxMinute = $duration + 30;
+
+        $half = $this->normalizeHalf($data['half'] ?? null);
+        $isLive = $fixture->match?->status instanceof MatchStatus && $fixture->match->status->isLive();
+
+        if ($half !== null || $isLive) {
+            // Per-half scale: minutes are relative to the recorded half, each
+            // half running 1..(half duration + that half's extra time).
+            $resolvedHalf = $half ?? $fixture->match->currentHalf() ?? 'first';
+            $maxMinute = $tournament->halfDurationMinutes() + $tournament->extraMinutesForHalf($resolvedHalf);
+
+            if ($minute > $maxMinute) {
+                throw new DomainException("الدقيقة {$minute} تتجاوز الحد الأقصى للشوط ({$maxMinute} دقيقة)");
+            }
+
+            return;
+        }
+
+        // Legacy whole-match scale for directly-entered final results that do
+        // not carry a per-half marker.
+        $maxMinute = ($tournament->match_duration_minutes ?: 90) + 30;
 
         if ($minute > $maxMinute) {
             throw new DomainException("الدقيقة {$minute} تتجاوز الحد الأقصى للمباراة ({$maxMinute} دقيقة)");
         }
+    }
+
+    /**
+     * Resolve the `half` for an event payload. Falls back to the match's
+     * current live phase so a live event during the second half is recorded
+     * against that half even when the client omits the field.
+     */
+    private function resolveEventHalf(Fixture $fixture, array $data): string
+    {
+        $half = $this->normalizeHalf($data['half'] ?? null);
+
+        if ($half) {
+            return $half;
+        }
+
+        $current = $fixture->match?->currentHalf() ?? 'first';
+
+        return $current ?? 'first';
+    }
+
+    private function normalizeHalf(mixed $half): ?string
+    {
+        $value = is_string($half) ? strtolower(trim($half)) : null;
+
+        return in_array($value, ['first', 'second'], true) ? $value : null;
     }
 
     private function playerRedCarded(Fixture $fixture, int $playerId, int $minute, ?int $ignoredEventId): bool

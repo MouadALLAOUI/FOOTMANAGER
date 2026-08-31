@@ -4,6 +4,7 @@ namespace App\Domains\Tournament\Resources;
 
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Models\MatchEvent;
+use App\Domains\Tournament\Models\Tournament;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -43,6 +44,7 @@ class TournamentResultResource extends JsonResource
                 'id' => $match->id,
                 'status' => $match->status?->value,
                 'current_period' => $match->current_period,
+                'current_half' => $match->currentHalf(),
                 'current_minute' => $match->current_minute,
                 'home_score' => $match->home_score,
                 'away_score' => $match->away_score,
@@ -51,6 +53,13 @@ class TournamentResultResource extends JsonResource
                 'extra_time' => (bool) $match->extra_time,
                 'notes' => $match->notes,
                 'winner_team_id' => $match->winner_team_id,
+                'match_duration_minutes' => (int) $match->match_duration_minutes,
+                'half_duration_minutes' => $this->tournament()?->halfDurationMinutes(),
+                'first_half_extra_minutes' => $this->tournament()?->first_half_extra_minutes ?? 0,
+                'second_half_extra_minutes' => $this->tournament()?->second_half_extra_minutes ?? 0,
+                'started_at' => $match->started_at?->toIso8601String(),
+                'kicked_off_at' => $match->kicked_off_at?->toIso8601String(),
+                'second_half_started_at' => $match->second_half_started_at?->toIso8601String(),
                 'ended_at' => $match->ended_at?->toIso8601String(),
                 'referees' => $match->referees->map(fn ($row) => [
                     'role' => $row->role,
@@ -63,6 +72,7 @@ class TournamentResultResource extends JsonResource
                     'icon' => $event->type?->icon(),
                     'minute' => $event->minute,
                     'added_time' => $event->added_time,
+                    'half' => $event->half,
                     'period' => $event->period,
                     'description' => $event->description,
                     'metadata' => $event->metadata,
@@ -114,5 +124,23 @@ class TournamentResultResource extends JsonResource
             ] : null,
             'suspended_players' => $this->additional['suspended_players'] ?? [],
         ];
+    }
+
+    private ?Tournament $resolvedTournament = null;
+
+    private function tournament(): ?Tournament
+    {
+        if ($this->resolvedTournament !== null) {
+            return $this->resolvedTournament;
+        }
+
+        if (! $this->competition_id || ! $this->season_id) {
+            return null;
+        }
+
+        return $this->resolvedTournament = Tournament::query()
+            ->where('competition_id', $this->competition_id)
+            ->where('season_id', $this->season_id)
+            ->first();
     }
 }

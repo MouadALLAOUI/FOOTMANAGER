@@ -109,9 +109,14 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
             </Button>
           )}
           {st === 'live' && (
-            <Button size="sm" variant="outline" disabled={busy} onClick={onDetails}>
-              {t('committee.detail.viewDetails')}
-            </Button>
+            <>
+              <Button size="sm" variant="soft" disabled={busy || locked} onClick={onResult}>
+                {t('committee.detail.enterResult')}
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={onDetails}>
+                {t('committee.detail.viewDetails')}
+              </Button>
+            </>
           )}
           {(st === 'pending' || st === 'upcoming') && (
             <>

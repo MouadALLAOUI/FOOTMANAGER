@@ -11,7 +11,7 @@ const GOAL_TYPES = [
   { value: 'ownGoal', labelKey: 'committee.result.goalTypes.ownGoal' },
 ]
 
-export default function EventForm({ type, form, setField, setForm, homeId, awayId, homeName, awayName, onSelectPlayer, onSelectAssist, t, onSubmit, validation, suspendedIds = [], minMinute = 0 }) {
+export default function EventForm({ type, form, setField, setForm, homeId, awayId, homeName, awayName, onSelectPlayer, onSelectAssist, t, onSubmit, validation, suspendedIds = [], minMinute = 0, maxMinute = 180, maxAddedTime = 30, half = 'first' }) {
   const [fieldMinute, fieldAdded] = [setField('minute'), setField('added_time')]
 
   const changeTeam = (e) => {
@@ -174,14 +174,20 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
       )}
 
       {type !== 'other' && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.half')}</span>
+            <div className={`${inputClass} flex items-center justify-center rounded-xl text-xs font-black text-slate-700`}>
+              {half === 'second' ? t('committee.result.halfSecond') : t('committee.result.halfFirst')}
+            </div>
+          </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.minute')}</span>
-            <input type="number" min={minMinute || 0} max="180" inputMode="numeric" className={inputClass} value={form.minute} onChange={fieldMinute} />
+            <input type="number" min={minMinute || 0} max={maxMinute} inputMode="numeric" className={inputClass} value={form.minute} onChange={fieldMinute} />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.addedTime')}</span>
-            <input type="number" min="0" max="30" inputMode="numeric" className={inputClass} value={form.added_time} onChange={fieldAdded} />
+            <input type="number" min="0" max={maxAddedTime} inputMode="numeric" className={inputClass} value={form.added_time} onChange={fieldAdded} />
           </label>
         </div>
       )}
@@ -195,7 +201,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
 
       {validation && (
         <p className="rounded-xl bg-rose-50 px-3 py-2 text-center text-xs font-bold text-rose-600">
-          {t(`committee.result.${validation}`, { min: minMinute })}
+          {t(`committee.result.${validation}`, { min: minMinute, max: maxMinute })}
         </p>
       )}
 

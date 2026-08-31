@@ -7,6 +7,7 @@ import MySection from './mySection'
 import AvailableFields from './availableFields'
 import Matches from './matches'
 import Tournaments from './tournaments'
+import LiveAndNext from './liveAndNext'
 import WhyUs from './whyUs'
 import SearchResultsSheet from './searchResults'
 
@@ -30,6 +31,7 @@ export default function Landing() {
         <AvailableFields />
         <Matches />
         <Tournaments />
+        <LiveAndNext />
         <WhyUs />
       </main>
       <SearchResultsSheet open={resultsOpen} city={city} onClose={() => setResultsOpen(false)} />

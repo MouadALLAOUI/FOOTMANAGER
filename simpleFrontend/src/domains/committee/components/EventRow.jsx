@@ -15,6 +15,7 @@ export default function EventRow({ ev, index, total, fresh, onEdit, onDelete }) 
       <div className="flex flex-col items-center">
         <span className={`mt-1 w-14 shrink-0 rounded-lg px-1 py-1 text-center text-[11px] font-black tabular-nums ${meta.tone} ring-1`}>
           {minuteText(ev.minute, ev.added_time)}
+          {ev.half && <span className="ms-0.5 text-[9px] font-black opacity-70">{ev.half === 'second' ? '2' : '1'}</span>}
         </span>
         {index < total - 1 && <span className="w-px flex-1 bg-slate-100" />}
       </div>

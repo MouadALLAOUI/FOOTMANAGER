@@ -23,6 +23,7 @@ class StoreMatchEventRequest extends FormRequest
             'assist_player_id' => 'nullable|integer|exists:players,id',
             'minute' => 'nullable|integer|min:0|max:180',
             'added_time' => 'nullable|integer|min:0|max:30',
+            'half' => 'nullable|in:first,second',
             'period' => 'nullable|string|max:20',
             'description' => 'nullable|string|max:500',
             'metadata' => 'nullable|array',

@@ -86,6 +86,7 @@ class TournamentMatchEventController extends Controller
             'icon' => $event->type?->icon(),
             'minute' => $event->minute,
             'added_time' => $event->added_time,
+            'half' => $event->half,
             'period' => $event->period,
             'description' => $event->description,
             'metadata' => $event->metadata,

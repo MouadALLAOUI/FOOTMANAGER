@@ -6,7 +6,7 @@ function ScoreNumber({ value }) {
   return <span key={value} className="score-pop inline-block tabular-nums">{value}</span>
 }
 
-export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeName, awayName, alreadyFinished, liveMinute, matchNotStarted, openForm, quickActions, t }) {
+export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeName, awayName, alreadyFinished, halftime, liveMinute, timerText, activeHalf, matchNotStarted, openForm, quickActions, t }) {
   return (
     <div className="shrink-0 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -27,11 +27,24 @@ export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeNam
               <Clock className="size-3.5" />
               {t('committee.result.statusNotStarted', 'لم تبدأ بعد')}
             </span>
+          ) : halftime ? (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-[11px] font-black text-sky-700 ring-1 ring-sky-200">
+              {t('committee.result.statusHalftime')}
+            </span>
           ) : (
             <span className="live-badge mt-2 inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-[11px] font-black text-rose-600 ring-1 ring-rose-200">
               <span className="size-1.5 animate-pulse rounded-full bg-rose-500" />
               {t('committee.result.statusLive')}
-              {liveMinute > 0 && <span className="tabular-nums">{liveMinute}'</span>}
+              {timerText ? (
+                <>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${activeHalf === 'second' ? 'bg-rose-600 text-white' : 'bg-slate-700 text-white'}`}>
+                    {activeHalf === 'second' ? t('committee.result.halfSecondShort') : t('committee.result.halfFirstShort')}
+                  </span>
+                  <span className="tabular-nums">{timerText}</span>
+                </>
+              ) : (
+                liveMinute > 0 && <span className="tabular-nums">{liveMinute}'</span>
+              )}
             </span>
           )}
         </div>

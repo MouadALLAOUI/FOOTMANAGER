@@ -21,6 +21,7 @@ class MatchEvent extends Model
         'type',
         'minute',
         'added_time',
+        'half',
         'period',
         'description',
         'metadata',

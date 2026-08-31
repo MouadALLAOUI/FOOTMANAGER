@@ -11,6 +11,7 @@ use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Resources\TournamentFixtureResource;
+use App\Domains\Tournament\Resources\TournamentLiveFixtureResource;
 use App\Domains\Tournament\Services\TournamentFixtureService;
 use App\Domains\Tournament\Services\TournamentTerrainBookingService;
 use App\Domains\Tournament\Services\TerrainReservationService;
@@ -69,6 +70,30 @@ class TournamentFixtureController extends Controller
         $this->decorateSlotTypes($tournament, $fixtures);
 
         return TournamentFixtureResource::collection($fixtures);
+    }
+
+    /**
+     * Live matches for this tournament, with a recent-events feed — used by the
+     * committee "live match + activity" section.
+     */
+    public function live(Tournament $tournament): AnonymousResourceCollection
+    {
+        $this->authorize('view', $tournament);
+
+        $fixtures = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->whereHas('match', fn ($q) => $q->whereIn('status', MatchStatus::live()))
+            ->with([
+                'round', 'group', 'homeTeam', 'awayTeam', 'stadium',
+                'match.events' => fn ($q) => $q->orderByDesc('created_at')->limit(15),
+                'match.events.team', 'match.events.player', 'match.events.assistPlayer',
+            ])
+            ->orderBy('scheduled_at')
+            ->orderBy('id')
+            ->get();
+
+        return TournamentLiveFixtureResource::collection($fixtures);
     }
 
     /**

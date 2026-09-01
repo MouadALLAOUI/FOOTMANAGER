@@ -725,6 +725,8 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::put('/teams/{team}', [TournamentTeamController::class, 'updateFree']);
                 Route::put('/teams/{team}/squad/{playerId}', [TournamentSquadController::class, 'toggle']);
                 Route::post('/teams/{team}/squad', [TournamentSquadController::class, 'store']);
+                Route::post('/teams/{team}/squad/bulk', [TournamentSquadController::class, 'storeBulk']);
+                Route::patch('/teams/{team}/squad/{playerId}', [TournamentSquadController::class, 'updatePlayer']);
             });
 
             Route::get('/stadiums', [TournamentStadiumController::class, 'index']);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Committee;
 
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Shared\Support\ArabicPlural;
 use App\Domains\Subscription\Services\SubscriptionService;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Resources\TournamentDetailResource;
@@ -200,11 +201,11 @@ class TournamentController extends Controller
                     ->where('tournament_id', $tournament->id)
                     ->selectRaw('team_id, COUNT(*) as cnt')
                     ->groupBy('team_id')
-                    ->orderByDesc('cnt')
-                    ->value('cnt');
+                    ->get()
+                    ->max('cnt');
 
-                if ($largestSquad && (int) $largestSquad > $newMax) {
-                    throw new DomainException("لا يمكن تقليص الحد الأقصى إلى أقل من عدد اللاعبين المسجلين حالياً (أكبر قائمة تضم {$largestSquad} لاعباً)");
+                if ($largestSquad !== null && (int) $largestSquad > $newMax) {
+                    throw new DomainException('لا يمكن تقليص الحد الأقصى إلى أقل من عدد اللاعبين المسجلين حالياً (أكبر قائمة تضم '.ArabicPlural::players((int) $largestSquad).')');
                 }
             }
         }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domains\Notification\Jobs\NotifyUserApprovalUpdatePush;
 use App\Domains\Shared\Base\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -42,7 +43,7 @@ class CommitteeApprovalController extends Controller
 
         return response()->json([
             'committees' => $paginator->getCollection()->map(
-                fn ($user) => $user->append('plan_name'),
+                fn ($user) => $user->makeVisible(['phone', 'email', 'is_whatsapp'])->append('plan_name'),
             ),
             'pagination' => [
                 'current_page' => $paginator->currentPage(),
@@ -72,6 +73,11 @@ class CommitteeApprovalController extends Controller
                 ->each(fn (User $user) => $user->revokeTokens());
         }
 
+        $newStatus = self::ACTIONS[$data['action']];
+        foreach ($data['ids'] as $userId) {
+            NotifyUserApprovalUpdatePush::dispatch((int) $userId, $newStatus);
+        }
+
         return response()->json([
             'message' => "تم تحديث {$count} حساب لجنة منظمة.",
             'updated' => $count,
@@ -85,7 +91,7 @@ class CommitteeApprovalController extends Controller
             ->where('id', $id)
             ->firstOrFail();
 
-        $committee->append('plan_name');
+        $committee->makeVisible(['phone', 'email', 'is_whatsapp'])->append('plan_name');
 
         return response()->json(['committee' => $committee]);
     }
@@ -94,6 +100,7 @@ class CommitteeApprovalController extends Controller
     {
         $user = User::where('id', $id)->where('role', 'committee')->firstOrFail();
         $user->update(['status' => 'approved']);
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'approved');
 
         return response()->json([
             'message' => 'تم قبول حساب اللجنة المنظمة وتفعيله بنجاح',
@@ -106,6 +113,7 @@ class CommitteeApprovalController extends Controller
         $user = User::where('id', $id)->where('role', 'committee')->firstOrFail();
         $user->update(['status' => 'rejected']);
         $user->revokeTokens();
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'rejected');
 
         return response()->json([
             'message' => 'تم رفض طلب اللجنة المنظمة',
@@ -118,6 +126,7 @@ class CommitteeApprovalController extends Controller
         $user = User::where('id', $id)->where('role', 'committee')->firstOrFail();
         $user->update(['status' => 'blocked']);
         $user->revokeTokens();
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'blocked');
 
         return response()->json([
             'message' => 'تم حظر حساب اللجنة المنظمة',
@@ -129,6 +138,7 @@ class CommitteeApprovalController extends Controller
     {
         $user = User::where('id', $id)->where('role', 'committee')->firstOrFail();
         $user->update(['status' => 'approved']);
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'unblocked');
 
         return response()->json([
             'message' => 'تم إلغاء الحظر وإعادة تفعيل حساب اللجنة المنظمة',

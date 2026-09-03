@@ -1,0 +1,15 @@
+"$schema" = "https://railway.app/railway.schema.json"
+
+# QUEUE WORKER service — consumes queued jobs (e.g. Web Push / in-app broadcasts).
+# IMPORTANT: In the Railway dashboard, set this service's ROOT DIRECTORY to `backend`
+# so it builds the backend app (Nixpacks), NOT this folder.
+# The `startCommand` becomes the process that never exits, keeping jobs drained.
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "composer install --no-dev --no-interaction --optimize-autoloader"
+
+[deploy]
+startCommand = "mkdir -p storage/logs && php artisan queue:work --tries=3 --timeout=90 --sleep=3"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3

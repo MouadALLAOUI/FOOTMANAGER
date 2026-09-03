@@ -9,6 +9,7 @@ use App\Domains\Leaderboard\Controllers\StatsController;
 use App\Domains\Match\Controllers\LiveMatchController;
 use App\Domains\Match\Controllers\MatchController;
 use App\Domains\Notification\Controllers\NotificationController;
+use App\Domains\Notification\Controllers\PushSubscriptionController;
 use App\Domains\Player\Controllers\AchievementController;
 use App\Domains\Player\Controllers\AvailabilityController;
 use App\Domains\Player\Controllers\CareerController;
@@ -129,6 +130,9 @@ Route::post('/forgot-password/validate-token', [\App\Http\Controllers\Auth\Passw
 Route::post('/reset-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'reset'])->middleware('throttle:password');
 
 Route::get('/health', \App\Http\Controllers\HealthController::class);
+
+// Public VAPID key for browser push subscription.
+Route::get('/push/public-key', [PushSubscriptionController::class, 'publicKey']);
 
 Route::prefix('v1')->group(function () {
     Route::get('/home', [HomeController::class, 'index']);
@@ -494,6 +498,15 @@ Route::middleware(['auth:sanctum', 'throttle:device'])->prefix('devices')->group
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/recovery/apply', [AccountController::class, 'applyRecovery'])->middleware('throttle:password');
+});
+
+// Web push subscriptions — available to any authenticated user, any role.
+Route::middleware(['auth:sanctum', 'throttle:device'])->prefix('push-subscriptions')->group(function () {
+    Route::get('/', [PushSubscriptionController::class, 'index']);
+    Route::post('/', [PushSubscriptionController::class, 'store']);
+    Route::post('/test', [PushSubscriptionController::class, 'test']);
+    Route::delete('/', [PushSubscriptionController::class, 'destroyByEndpoint']);
+    Route::delete('/{id}', [PushSubscriptionController::class, 'destroy']);
 });
 
 Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {

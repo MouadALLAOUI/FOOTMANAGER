@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import ActivityLockBanner from '../ui/ActivityLockBanner'
+import { PushEnableBanner } from '../notifications/EnablePushNotifications'
 import ProfileAvatar from '../profile/ProfileAvatar'
 import { cn } from './ui'
 import { useNotifications, useNotificationUnreadCount } from '../../api/queries'
@@ -338,6 +339,7 @@ export default function Shell({ groups, brand = 'admin.brand', homeUrl = '/', ch
         </header>
 
         <main id="main-content" key={location.pathname} className="page-enter mx-auto max-w-[1320px] px-4 py-7 sm:px-6">
+          <PushEnableBanner />
           <ActivityLockBanner />
           {children}
         </main>

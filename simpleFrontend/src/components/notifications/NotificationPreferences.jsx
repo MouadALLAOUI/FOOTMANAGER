@@ -8,6 +8,7 @@ import { Skeleton, Toggle } from '../dashboard/ui'
 import { useToast } from '../ui/Toast'
 import { toastApiError } from '../../lib/errors'
 import { categoryMeta } from './constants'
+import EnablePushNotifications from './EnablePushNotifications'
 
 const CATEGORY_ORDER = ['match', 'booking', 'tournament', 'recruitment', 'team', 'social', 'system']
 
@@ -131,6 +132,10 @@ export default function NotificationPreferences({ types, containerClassName = ''
           })}
         </div>
       )}
+
+      <div className="mt-6">
+        <EnablePushNotifications />
+      </div>
     </div>
   )
 }

@@ -10,7 +10,9 @@
         "ext-pdo_mysql": "*",
         "bacon/bacon-qr-code": "^3.1",
         "dompdf/dompdf": "^3.1",
+        "laravel-notification-channels/webpush": "^12.1",
         "laravel/framework": "^12.0",
+        "laravel/reverb": "^1.11",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
         "mpdf/mpdf": "^8.3"

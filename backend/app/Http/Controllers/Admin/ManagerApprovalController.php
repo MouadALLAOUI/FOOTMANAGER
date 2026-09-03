@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domains\Chat\Models\MatchChatMessage;
+use App\Domains\Notification\Jobs\NotifyUserApprovalUpdatePush;
 use App\Domains\Review\Models\PlayerReview;
 use App\Domains\Review\Models\StadiumReview;
 use App\Domains\Shared\Base\Controller;
@@ -86,6 +87,11 @@ class ManagerApprovalController extends Controller
                 ->each(fn (User $user) => $user->revokeTokens());
         }
 
+        $newStatus = self::ACTIONS[$data['action']];
+        foreach ($data['ids'] as $userId) {
+            NotifyUserApprovalUpdatePush::dispatch((int) $userId, $newStatus);
+        }
+
         return response()->json([
             'message' => "تم تحديث {$count} حساب مسير.",
             'updated' => $count,
@@ -112,6 +118,7 @@ class ManagerApprovalController extends Controller
             ->firstOrFail();
 
         $user->update(['status' => 'approved']);
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'approved');
 
         return response()->json([
             'message' => 'تم قبول حساب المسير وتفعيل حسابه بنجاح',
@@ -127,6 +134,7 @@ class ManagerApprovalController extends Controller
 
         $user->update(['status' => 'rejected']);
         $user->revokeTokens();
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'rejected');
 
         return response()->json([
             'message' => 'تم رفض طلب الانضمام',
@@ -142,6 +150,7 @@ class ManagerApprovalController extends Controller
 
         $user->update(['status' => 'blocked']);
         $user->revokeTokens();
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'blocked');
 
         return response()->json([
             'message' => 'تم حظر الحساب بنجاح',
@@ -156,6 +165,7 @@ class ManagerApprovalController extends Controller
             ->firstOrFail();
 
         $user->update(['status' => 'approved']);
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'unblocked');
 
         return response()->json([
             'message' => 'تم إلغاء الحظر وإعادة تفعيل الحساب',
@@ -265,6 +275,11 @@ class ManagerApprovalController extends Controller
                 ->each(fn (User $user) => $user->revokeTokens());
         }
 
+        $newStatus = self::ACTIONS[$data['action']];
+        foreach ($data['ids'] as $userId) {
+            NotifyUserApprovalUpdatePush::dispatch((int) $userId, $newStatus);
+        }
+
         return response()->json([
             'message' => "تم تحديث {$count} حساب صاحب تيران.",
             'updated' => $count,
@@ -288,6 +303,7 @@ class ManagerApprovalController extends Controller
     {
         $user = User::where('id', $id)->where('role', 'terrain_owner')->firstOrFail();
         $user->update(['status' => 'approved']);
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'approved');
 
         return response()->json([
             'message' => 'تم قبول حساب صاحب التيران وتفعيل حسابه بنجاح',
@@ -300,6 +316,7 @@ class ManagerApprovalController extends Controller
         $user = User::where('id', $id)->where('role', 'terrain_owner')->firstOrFail();
         $user->update(['status' => 'rejected']);
         $user->revokeTokens();
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'rejected');
 
         return response()->json([
             'message' => 'تم رفض طلب صاحب التيران',
@@ -312,6 +329,7 @@ class ManagerApprovalController extends Controller
         $user = User::where('id', $id)->where('role', 'terrain_owner')->firstOrFail();
         $user->update(['status' => 'blocked']);
         $user->revokeTokens();
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'blocked');
 
         return response()->json([
             'message' => 'تم حظر حساب صاحب التيران',
@@ -323,6 +341,7 @@ class ManagerApprovalController extends Controller
     {
         $user = User::where('id', $id)->where('role', 'terrain_owner')->firstOrFail();
         $user->update(['status' => 'approved']);
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'unblocked');
 
         return response()->json([
             'message' => 'تم إلغاء الحظر وإعادة تفعيل حساب صاحب التيران',

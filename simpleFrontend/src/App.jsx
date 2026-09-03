@@ -10,6 +10,7 @@ import PageMaintenanceGate from './components/system/PageMaintenanceGate'
 import ActivityLockBanner from './components/system/ActivityLockBanner'
 import PageSkeleton from './components/system/PageSkeleton'
 import { ProfileModalProvider } from './components/profile/ProfileModalContext'
+import { useRealtimeNotifications } from './hooks/useRealtimeNotifications'
 
 const Landing = lazy(() => import('./pages/landing'))
 const About = lazy(() => import('./pages/about'))
@@ -39,6 +40,8 @@ function RouteFallback() {
 
 function App() {
   const { i18n } = useTranslation()
+
+  useRealtimeNotifications()
 
   useEffect(() => {
     const dir = i18n.language.startsWith('ar') ? 'rtl' : 'ltr'

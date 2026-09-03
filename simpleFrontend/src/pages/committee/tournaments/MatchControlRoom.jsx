@@ -4,23 +4,26 @@ import {
   Check,
   Plus,
   RefreshCw,
-  Trophy,
 
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
 import { Button, Skeleton } from '../../../components/dashboard/ui'
 import SectionCard from '../../../components/ui/SectionCard'
-import TimelineColumn from '../../../domains/committee/components/TimelineColumn'
 import EventForm from '../../../domains/committee/components/EventForm'
-// RefereesCard and ShootoutCard moved to domain components when needed
 import ModalShell from '../../../domains/committee/components/ModalShell'
 import HeaderBlock from '../../../domains/committee/components/HeaderBlock'
 import ScoreActions from '../../../domains/committee/components/ScoreActions'
-import SummarySidebar from '../../../domains/committee/components/SummarySidebar'
 import FooterActions from '../../../domains/committee/components/FooterActions'
 import ConfirmResultModal from '../../../domains/committee/components/ConfirmResultModal'
-import { QUICK_ACTIONS, TYPE_OPTIONS, REFEREE_ROLES } from '../../../data/matchConstants'
+import EventTypePicker from '../../../domains/committee/components/EventTypePicker'
+import TabBar from '../../../domains/committee/components/TabBar'
+import TimelineTab from '../../../domains/committee/components/TimelineTab'
+import StatsFoulsTab from '../../../domains/committee/components/StatsFoulsTab'
+import NotesMvpTab from '../../../domains/committee/components/NotesMvpTab'
+import PlayersTab from '../../../domains/committee/components/PlayersTab'
+import PlayerSelector from '../../../domains/committee/components/PlayerSelector'
+import { QUICK_ACTIONS, REFEREE_ROLES } from '../../../data/matchConstants'
 import useScrollLock from '../../../components/useScrollLock'
 
 
@@ -100,6 +103,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
 
   const [status, setStatus] = useState('loading')
   const [events, setEvents] = useState([])
+  const [foulRefetchTick, setFoulRefetchTick] = useState(0)
   const [storedScore, setStoredScore] = useState({ home: fixture.match?.home_score ?? 0, away: fixture.match?.away_score ?? 0 })
   const [homePen, setHomePen] = useState(fixture.match?.home_penalties ?? '')
   const [awayPen, setAwayPen] = useState(fixture.match?.away_penalties ?? '')
@@ -126,11 +130,12 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [successTick, setSuccessTick] = useState(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [timelineDirty, setTimelineDirty] = useState(false)
-
-  const addMinMinute = useMemo(() => {
-    if (!events.length) return 0
-    return Math.max(...events.map((e) => Number(e.minute) || 0))
-  }, [events])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [quickPlayer, setQuickPlayer] = useState(null)
+  const [quickBusyId, setQuickBusyId] = useState(null)
+  const [activeTab, setActiveTab] = useState('timeline')
+  const [foulNotifCount, setFoulNotifCount] = useState(0)
+  const [convertTarget, setConvertTarget] = useState(null)
 
   const editMinMinute = useMemo(() => {
     if (!editingKey || !events.length) return 0
@@ -140,8 +145,20 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     return Number(sorted[idx - 1].minute) || 0
   }, [events, editingKey])
 
-  const effectiveMinMinute = editingKey ? editMinMinute : addMinMinute
-  const lastEventMinute = addMinMinute
+  const redCardedIds = useMemo(() => {
+    const map = {}
+    for (const e of events) {
+      const dismissed = e.type === 'red_card'
+        || e.type === 'second_yellow'
+        || (e.type === 'foul' && (e.punishment === 'red' || e.punishment === 'second_yellow'))
+      if (!dismissed || e.team_id == null || e.player_id == null) continue
+      if (!map[e.team_id]) map[e.team_id] = new Set()
+      map[e.team_id].add(e.player_id)
+    }
+    const out = {}
+    for (const teamId of Object.keys(map)) out[teamId] = Array.from(map[teamId])
+    return out
+  }, [events])
 
   const displayScore = (timelineDirty || events.length > 0) ? computeScore(events, homeId, awayId) : storedScore
 
@@ -162,9 +179,13 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const elapsedSec = timerCfg.activeHalf && timerCfg.halfStartMs
     ? Math.max(0, Math.floor((Date.now() - timerCfg.halfStartMs) / 1000))
     : 0
+  const halfDurationSec = Math.round(timerCfg.halfDurationMinutes * 60)
+  const displayClockSec = timerCfg.activeHalf === 'second'
+    ? elapsedSec + halfDurationSec
+    : (timerCfg.activeHalf === 'first' ? elapsedSec : 0)
   const activeHalfMaxMinute = timerCfg.halfDurationMinutes + timerCfg.extraMinutes
   const timerText = timerCfg.activeHalf
-    ? `${formatClock(elapsedSec)}${timerCfg.extraMinutes > 0 ? ` + ${timerCfg.extraMinutes}` : ''}`
+    ? `${formatClock(displayClockSec)}${timerCfg.extraMinutes > 0 ? ` + ${timerCfg.extraMinutes}` : ''}`
     : null
   const currentLiveMinute = timerCfg.activeHalf
     ? Math.min(activeHalfMaxMinute, Math.floor(elapsedSec / 60) + 1)
@@ -176,7 +197,12 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const formMaxAbs = formHalf === 'second'
     ? 2 * timerCfg.halfDurationMinutes + halfExtra('second')
     : timerCfg.halfDurationMinutes + halfExtra('first')
-  const formMinAbs = (formHalf === 'second' ? timerCfg.halfDurationMinutes : 0) + (effectiveMinMinute || 0)
+  // Latest relative minute recorded within the half the user is adding to, so a
+  // first-half event never inflates the second-half lower bound (and vice versa).
+  const lastRelInHalf = (half) => Math.max(0, ...events
+    .filter((e) => (e.half ?? 'first') === half)
+    .map((e) => Number(e.minute) || 0))
+  const formMinAbs = (formHalf === 'second' ? timerCfg.halfDurationMinutes : 0) + (editingKey ? editMinMinute : lastRelInHalf(formHalf))
 
   useEffect(() => {
     let cancelled = false
@@ -279,6 +305,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       added_time: 0,
       goalType: 'regular',
       cardColor: type === 'red_card' ? 'red_card' : type === 'second_yellow' ? 'second_yellow' : 'yellow_card',
+      punishment: type === 'foul' ? 'none' : '',
       missed: false,
       reason: '',
       note: '',
@@ -308,10 +335,92 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       half: ev.half === 'second' ? 'second' : 'first',
       goalType: ev.goalType || 'regular',
       cardColor: ev.type === 'red_card' ? 'red_card' : ev.type === 'second_yellow' ? 'second_yellow' : 'yellow_card',
+      punishment: ev.punishment || '',
       missed: ev.type === 'missed_penalty',
       reason: ev.reason || '',
       note: ev.note || '',
     })
+  }
+
+  const buildQuickForm = (player, teamId, type) => {
+    const defaultRel = currentLiveMinute > 0 ? currentLiveMinute : 1
+    const defaultHalf = timerCfg.activeHalf || 'first'
+    const defaultMinute = defaultHalf === 'second' ? timerCfg.halfDurationMinutes + defaultRel : defaultRel
+    return {
+      team_id: teamId,
+      player_id: player.id,
+      player: player.name,
+      assist_player_id: null,
+      assist: '',
+      noAssist: true,
+      minute: defaultMinute,
+      half: defaultHalf,
+      added_time: 0,
+      goalType: 'regular',
+      cardColor: 'yellow_card',
+      punishment: type === 'foul' ? 'none' : '',
+      missed: false,
+      reason: '',
+      note: '',
+    }
+  }
+
+  const tapPlayer = (player, teamId) => {
+    if (quickBusyId != null) return
+    const blocked = (suspendedByTeam[teamId] || []).includes(player.id) || (redCardedIds[teamId] || []).includes(player.id)
+    if (blocked) return
+    setQuickPlayer({ player, teamId })
+    setPickerOpen(true)
+  }
+
+  const openFromPlayer = (type) => {
+    const qp = quickPlayer
+    setPickerOpen(false)
+    setQuickPlayer(null)
+    if (!qp) return
+    setSelectedType(type)
+    setEditingKey(null)
+    setValidation(null)
+    setSaveError(null)
+    setForm(buildQuickForm(qp.player, qp.teamId, type))
+  }
+
+  const addPlayerToTeam = async (teamId, name) => {
+    const trimmed = (name || '').trim()
+    if (!trimmed) return
+    setQuickBusyId('__add__')
+    try {
+      const r = await api.post(`/committee/teams/${teamId}/players`, { name: trimmed })
+      const data = r.data
+      if (data?.created && data?.data?.id) {
+        const created = { id: data.data.id, name: data.data.name, number: data.data.number, position: data.data.position }
+        setRosters((prev) => ({
+          ...prev,
+          [teamId]: [...(prev[teamId] || []), created],
+        }))
+        toast.success(t('committee.result.playersAddSuccess'))
+        return true
+      } else if (data?.duplicates?.length) {
+        const existing = data.duplicates[0]
+        if (existing?.id) {
+          setRosters((prev) => ({
+            ...prev,
+            [teamId]: [...(prev[teamId] || []), { id: existing.id, name: existing.name, number: existing.number, position: existing.position }],
+          }))
+          toast.success(t('committee.result.playersAddSuccess'))
+          return true
+        }
+        toast.error(t('committee.result.playersAddFail'))
+        return false
+      }
+      toast.error(t('committee.result.playersAddFail'))
+      return false
+    } catch (e) {
+      toast.error(e.response?.data?.message || t('committee.result.playersAddFail'))
+      return false
+    } finally {
+      setQuickBusyId(null)
+    }
   }
 
   const fromApi = (e) => {
@@ -330,6 +439,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       added_time: e.added_time ?? 0,
       half: e.half ?? null,
       goalType: e.type === 'penalty_goal' ? 'penalty' : e.type === 'own_goal' ? 'ownGoal' : md.goalType || 'regular',
+      punishment: e.punishment || (e.type === 'red_card' ? 'red' : e.type === 'second_yellow' ? 'second_yellow' : e.type === 'yellow_card' ? 'yellow' : e.type === 'foul' ? md.punishment || 'none' : ''),
       reason: md.reason || '',
       note: isNote ? md.note || e.description || '' : '',
       description: e.description || '',
@@ -359,15 +469,16 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         return {
           ...base,
           assist_player_id: e.assist_player_id || null,
+          punishment: e.type === 'foul' ? (e.punishment || 'none') : undefined,
           description: e.player || e.description || null,
           metadata: (e.reason || (e.goalType && e.goalType !== 'regular')) ? { reason: e.reason || null, goalType: e.type === 'goal' ? e.goalType || null : null } : null,
         }
     }
   }
 
-  const goalEventType = () => {
-    if (form.goalType === 'penalty') return form.missed ? 'missed_penalty' : 'penalty_goal'
-    if (form.goalType === 'ownGoal') return 'own_goal'
+  const goalEventType = (f = form) => {
+    if (f.goalType === 'penalty') return f.missed ? 'missed_penalty' : 'penalty_goal'
+    if (f.goalType === 'ownGoal') return 'own_goal'
     return 'goal'
   }
 
@@ -415,6 +526,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       else payload.status = 'scheduled'
 
       const r = await api.put(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/result`, payload)
+      setFoulRefetchTick((v) => v + 1)
       const m = r.data?.data?.match
       if (m) {
         setStoredScore({ home: m.home_score ?? 0, away: m.away_score ?? 0 })
@@ -468,121 +580,161 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const isPlayerRedCarded = (playerId, minute) => {
     if (!playerId) return false
     const m = Number(minute) || 0
-    return events.some((e) => (e.type === 'red_card' || e.type === 'second_yellow') && e.player_id === playerId && (Number(e.minute) || 0) <= m)
+    return events.some((e) => {
+      const dismissed = e.type === 'red_card'
+        || e.type === 'second_yellow'
+        || (e.type === 'foul' && (e.punishment === 'red' || e.punishment === 'second_yellow'))
+      return dismissed && e.player_id === playerId && (Number(e.minute) || 0) <= m
+    })
   }
 
   useEffect(() => {
-    if (!['yellow_card', 'second_yellow', 'red_card'].includes(selectedType)) return
+    if (selectedType !== 'foul' && !['yellow_card', 'second_yellow', 'red_card'].includes(selectedType)) return
     const pid = form.player_id
-    if (!pid || form.cardColor !== 'yellow_card') return
-    const alreadyYellow = events.some((e) => e.type === 'yellow_card' && e.player_id === pid)
-    if (alreadyYellow) setForm((f) => ({ ...f, cardColor: 'second_yellow' }))
-  }, [selectedType, form.player_id, form.cardColor, events, setForm])
+    const isYellow = selectedType === 'foul' ? form.punishment === 'yellow' : form.cardColor === 'yellow_card'
+    if (!pid || !isYellow) return
+    const alreadyYellow = events.some((e) =>
+      e.player_id === pid && (
+        e.type === 'yellow_card'
+        || (e.type === 'foul' && e.punishment === 'yellow')
+      )
+    )
+    if (alreadyYellow) setForm((f) => ({ ...f, punishment: 'second_yellow' }))
+  }, [selectedType, form.player_id, form.punishment, form.cardColor, events, setForm])
 
-  const submitEvent = async () => {
-    const type = selectedType
-    const evAbsMinute = Number(form.minute) || 0
+  const submitEvent = async (overrides = {}) => {
+    // EventForm's submit button passes the DOM/SyntheticEvent to onSubmit
+    // (onClick={onSubmit}); a click event has a `type` of "click" that would
+    // otherwise shadow the real selectedType. Ignore anything with nativeEvent.
+    if (overrides && typeof overrides === 'object' && overrides.nativeEvent) overrides = {}
+    const type = overrides.type ?? selectedType
+    const f = overrides.form ?? form
+    const editing = overrides.editingKey ?? editingKey
+    const evAbsMinute = Number(f.minute) || 0
     const evHalf = halfForAbsMinute(evAbsMinute)
     const evRelMinute = absToRelMinute(evAbsMinute, evHalf)
-    if (!form.minute || Number(form.minute) <= 0) {
+    if (!f.minute || Number(f.minute) <= 0) {
+      if (overrides.form) return false
       setValidation('needMinute')
       return
     }
-    if (Number(form.minute) < formMinAbs) {
+    if (Number(f.minute) < formMinAbs) {
+      if (overrides.form) return false
       setValidation('minuteTooLow')
       return
     }
-    if (Number(form.minute) > formMaxAbs) {
+    if (Number(f.minute) > formMaxAbs) {
+      if (overrides.form) return false
       setValidation('minuteTooHigh')
       return
     }
-    if (Number(form.added_time) > 30) {
+    if (Number(f.added_time) > 30) {
+      if (overrides.form) return false
       setValidation('addedTimeHigh')
       return
     }
     if (type !== 'other') {
-      if (!form.team_id) {
+      if (!f.team_id) {
+        if (overrides.form) return false
         setValidation('needTeam')
         return
       }
-      if (!form.player_id) {
+      if (!f.player_id) {
+        if (overrides.form) return false
         setValidation('needPlayer')
         return
       }
-      const suspendedIds = suspendedByTeam[form.team_id] || []
-      if (suspendedIds.includes(form.player_id)) {
+      const suspendedIds = suspendedByTeam[f.team_id] || []
+      if (suspendedIds.includes(f.player_id)) {
+        if (overrides.form) return false
         setValidation('playerSuspended')
         return
       }
-      if (isPlayerRedCarded(form.player_id, evRelMinute)) {
+      if (isPlayerRedCarded(f.player_id, evRelMinute)) {
+        if (overrides.form) return false
         setValidation('playerRedCarded')
         return
       }
     }
     if (type === 'substitution') {
-      if (!form.assist_player_id) {
+      if (!f.assist_player_id) {
+        if (overrides.form) return false
         setValidation('needPlayer')
         return
       }
-      if (form.player_id === form.assist_player_id) {
+      if (f.player_id === f.assist_player_id) {
+        if (overrides.form) return false
         setValidation('invalidSubPlayers')
         return
       }
-      const suspendedIds = suspendedByTeam[form.team_id] || []
-      if (suspendedIds.includes(form.assist_player_id)) {
+      const suspendedIds = suspendedByTeam[f.team_id] || []
+      if (suspendedIds.includes(f.assist_player_id)) {
+        if (overrides.form) return false
         setValidation('playerSuspended')
         return
       }
-      if (isPlayerRedCarded(form.assist_player_id, evRelMinute)) {
+      if (isPlayerRedCarded(f.assist_player_id, evRelMinute)) {
+        if (overrides.form) return false
         setValidation('playerRedCarded')
         return
       }
     }
-    if (type === 'other' && !form.note?.trim()) {
+    if (type === 'other' && !f.note?.trim()) {
+      if (overrides.form) return false
       setValidation('needNote')
       return
     }
 
     setValidation(null)
     const eventType = type === 'goal'
-      ? goalEventType()
-      : type === 'penalty_goal' && form.missed
+      ? goalEventType(f)
+      : type === 'penalty_goal' && f.missed
         ? 'missed_penalty'
         : (type === 'yellow_card' || type === 'second_yellow' || type === 'red_card')
-          ? (form.cardColor || type)
+          ? (f.cardColor || type)
           : type
 
     const ev = {
-      _key: editingKey || uid(),
+      _key: editing || uid(),
       type: eventType,
-      team_id: form.team_id !== '' && form.team_id != null ? Number(form.team_id) : null,
-      player_id: type === 'other' ? null : form.player_id,
-      player: type === 'other' ? '' : form.player.trim(),
+      punishment: eventType === 'foul' ? (f.punishment || 'none') : '',
+      team_id: f.team_id !== '' && f.team_id != null ? Number(f.team_id) : null,
+      player_id: type === 'other' ? null : f.player_id,
+      player: type === 'other' ? '' : f.player.trim(),
       assist_player_id: type === 'substitution'
-        ? form.assist_player_id
-        : (eventType === 'goal' && !form.noAssist) ? form.assist_player_id : null,
+        ? f.assist_player_id
+        : (eventType === 'goal' && !f.noAssist) ? f.assist_player_id : null,
       assist_player: type === 'substitution'
-        ? form.assist.trim()
-        : (eventType === 'goal' && !form.noAssist) ? form.assist.trim() : '',
+        ? f.assist.trim()
+        : (eventType === 'goal' && !f.noAssist) ? f.assist.trim() : '',
       minute: evRelMinute,
-      added_time: Number(form.added_time) || 0,
+      added_time: Number(f.added_time) || 0,
       half: evHalf,
-      goalType: form.goalType || 'regular',
-      reason: form.reason?.trim() || '',
-      note: form.note?.trim() || '',
+      goalType: f.goalType || 'regular',
+      reason: f.reason?.trim() || '',
+      note: f.note?.trim() || '',
     }
 
-    const nextEvents = editingKey
-      ? events.map((e) => (e._key === editingKey ? ev : e))
+    const nextEvents = editing
+      ? events.map((e) => (e._key === editing ? ev : e))
       : [...events, ev].sort((a, b) => a.minute - b.minute || 0)
 
     setEvents(nextEvents)
     setTimelineDirty(true)
     setSelectedType(null)
     setEditingKey(null)
+    if (!overrides.form) setForm({})
     retryRef.current = () => persist({ events: nextEvents })
     const ok = await persist({ events: nextEvents })
-    if (ok) setSuccessTick(ev._key)
+    if (ok) {
+      setSuccessTick(ev._key)
+      toast.success(t('committee.result.eventResultLive'))
+      if (eventType === 'foul') {
+        setFoulNotifCount((c) => c + 1)
+        toast.success(t('committee.result.foulNotif'))
+      }
+    }
+    return ok
   }
 
   const deleteEvent = async (ev) => {
@@ -596,6 +748,46 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     }
     retryRef.current = () => persist({ events: next, notice: t('committee.result.eventDeleted') })
     await persist({ events: next, notice: t('committee.result.eventDeleted') })
+  }
+
+  const handleConvertPick = async (player) => {
+    const award = convertTarget
+    if (!award) return
+    const ev = {
+      _key: uid(),
+      type: 'penalty_goal',
+      goalType: 'penalty',
+      team_id: award.awarded_to_team_id != null ? Number(award.awarded_to_team_id) : null,
+      player_id: player?.id || null,
+      player: player?.name || '',
+      assist_player_id: null,
+      assist_player: '',
+      minute: Number(award.minute) || 1,
+      added_time: 0,
+      half: award.half === 'second' ? 'second' : 'first',
+      punishment: '',
+      reason: '',
+      note: '',
+    }
+    setConvertTarget(null)
+    const nextEvents = [...events, ev].sort((a, b) => a.minute - b.minute || 0)
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+    const ok = await persist({ events: nextEvents })
+    if (ok) {
+      setSuccessTick(ev._key)
+      toast.success(t('committee.result.eventResultLive'))
+    }
+    try {
+      await api.post(
+        `/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/penalties/award/${award.id}/resolve`,
+        { outcome: 'converted' },
+      )
+      setFoulRefetchTick((v) => v + 1)
+      toast.success(t('committee.result.penaltyConverted'))
+    } catch (e) {
+      toast.error(e.response?.data?.message || t('committee.result.saveFailed'))
+    }
   }
 
   const saveDraft = async () => {
@@ -660,9 +852,15 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     let pens = 0
     for (const e of events) {
       if (e.type === 'goal' || e.type === 'penalty_goal' || e.type === 'own_goal') goals += 1
-      if (e.type === 'yellow_card') yellows += 1
-      if (e.type === 'red_card') reds += 1
-      if (e.type === 'second_yellow') { yellows += 1; reds += 1 }
+      if (e.type === 'foul') {
+        if (e.punishment === 'red' || e.punishment === 'second_yellow') { yellows += e.punishment === 'second_yellow' ? 1 : 0; reds += 1 }
+        else if (e.punishment === 'yellow') yellows += 1
+        else if (e.punishment === 'penalty') pens += 1
+      } else {
+        if (e.type === 'yellow_card') yellows += 1
+        if (e.type === 'red_card') reds += 1
+        if (e.type === 'second_yellow') { yellows += 1; reds += 1 }
+      }
       if (e.type === 'substitution') subs += 1
       if (e.type === 'penalty_goal') pens += 1
     }
@@ -722,139 +920,171 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
 
   const showForm = selectedType != null
 
+  const openPickerFromButton = () => {
+    if (showForm) { cancelForm(); return }
+    setPickerOpen(true)
+  }
+
+  const openTab = (id) => {
+    // Opening a tab while the event form is open cancels the in-progress form.
+    if (showForm) cancelForm()
+    setActiveTab(id)
+    if (id === 'stats') setFoulNotifCount(0)
+  }
+
   return (
     <ModalShell onClose={onClose}>
       <HeaderBlock t={t} homeName={homeName} awayName={awayName} tournament={tournament} fixture={fixture} onClose={onClose} />
 
-      <ScoreActions displayScore={displayScore} homeTeam={homeTeam} awayTeam={awayTeam} homeName={homeName} awayName={awayName} alreadyFinished={alreadyFinished} halftime={curStatus === 'halftime'} liveMinute={currentLiveMinute} timerText={timerText} activeHalf={timerCfg.activeHalf} matchNotStarted={matchNotStarted} openForm={openForm} quickActions={QUICK_ACTIONS} t={t} />
+      <ScoreActions
+        displayScore={displayScore}
+        homeTeam={homeTeam}
+        awayTeam={awayTeam}
+        homeName={homeName}
+        awayName={awayName}
+        alreadyFinished={alreadyFinished}
+        halftime={curStatus === 'halftime'}
+        liveMinute={currentLiveMinute}
+        timerText={timerText}
+        activeHalf={timerCfg.activeHalf}
+        matchNotStarted={matchNotStarted}
+        onAddEvent={openPickerFromButton}
+        t={t}
+      />
 
       {/* Body */}
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_300px_320px] xl:items-start">
-          {/* Timeline */}
-          <section className="order-1 xl:order-2 min-w-0 space-y-3">
-            <SectionCard title={t('committee.result.events')} icon={Trophy}>
-              {events.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 py-10 text-center">
-                  <span className="grid size-12 place-items-center rounded-2xl bg-slate-50 text-xl">⏱</span>
-                  <div>
-                    <p className="text-sm font-bold text-slate-700">{t('committee.result.noEvents')}</p>
-                    <p className="mt-1 text-xs text-slate-400">{t('committee.result.noEventsDesc')}</p>
-                  </div>
-                  <Button size="sm" variant="soft" onClick={() => openForm('goal')}>
-                    <Plus className="size-4" />
-                    {t('committee.result.addFirstEvent')}
-                  </Button>
-                </div>
-              ) : (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <TimelineColumn
-                    team={{ id: homeId, name: homeName, team: homeTeam, score: scoreFor(homeId) }}
-                    events={homeEvents}
-                    freshKey={successTick}
-                    onEdit={startEdit}
-                    onDelete={deleteEvent}
-                    t={t}
-                  />
-                  <TimelineColumn
-                    team={{ id: awayId, name: awayName, team: awayTeam, score: scoreFor(awayId) }}
-                    events={awayEvents}
-                    freshKey={successTick}
-                    onEdit={startEdit}
-                    onDelete={deleteEvent}
-                    t={t}
-                  />
-                  {generalEvents.length > 0 && (
-                    <div className="lg:col-span-2">
-                      <TimelineColumn
-                        team={null}
-                        events={generalEvents}
-                        freshKey={successTick}
-                        onEdit={startEdit}
-                        onDelete={deleteEvent}
-                        t={t}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </SectionCard>
-          </section>
-
-          {/* Add event */}
-          <section className="order-2 xl:order-3 min-w-0">
+        <div className="mx-auto flex min-h-full max-w-5xl flex-col p-4 sm:p-5">
+          {showForm ? (
             <SectionCard
-              title={showForm ? (editingKey ? t('committee.result.editEventTitle') : t('committee.result.addEvent')) : t('committee.result.addEvent')}
+              title={editingKey ? t('committee.result.editEventTitle') : t('committee.result.addEvent')}
               icon={Plus}
-              action={showForm && (
-                <button type="button" onClick={cancelForm} className="text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600">
+              action={
+                <button type="button" onClick={() => { cancelForm(); setPickerOpen(true) }} className="rounded-lg px-2 py-1 text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600">
                   {t('committee.result.changeType')}
                 </button>
-              )}
+              }
+              bodyClassName="p-4"
             >
-              {showForm ? (
-                <EventForm
-                  type={selectedType}
-                  form={form}
-                  setForm={setForm}
-                  setField={setFormField}
-                  homeId={homeId}
-                  awayId={awayId}
-                  homeName={homeName}
-                  awayName={awayName}
-                  onSelectPlayer={(player) => setForm((f) => ({ ...f, player_id: player.id, player: player.name }))}
-                  onSelectAssist={(player) => setForm((f) => ({ ...f, assist_player_id: player.id, assist: player.name }))}
-                  t={t}
-                  validation={validation}
-                  onSubmit={submitEvent}
-                  suspendedIds={suspendedByTeam[form.team_id] || []}
-                  minMinute={formMinAbs}
-                  maxMinute={formMaxAbs}
-                  maxAddedTime={30}
-                  half={formHalf}
-                />
-              ) : (
-                <div className="grid grid-cols-2 gap-2">
-                  {TYPE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.type}
-                      type="button"
-                      onClick={() => openForm(opt.type)}
-                      className="flex flex-col items-center gap-2 rounded-xl border border-slate-200/80 bg-slate-50/60 px-2 py-4 text-center text-xs font-bold text-slate-700 transition-all hover:border-green-300 hover:bg-green-50 hover:text-green-700 active:scale-[0.97]"
-                    >
-                      <span className="text-xl leading-none">{opt.icon}</span>
-                      {t(opt.labelKey)}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <EventForm
+                type={selectedType}
+                form={form}
+                setForm={setForm}
+                setField={setFormField}
+                homeId={homeId}
+                awayId={awayId}
+                homeName={homeName}
+                awayName={awayName}
+                onSelectPlayer={(player) => setForm((f) => ({ ...f, player_id: player.id, player: player.name }))}
+                onSelectAssist={(player) => setForm((f) => ({ ...f, assist_player_id: player.id, assist: player.name }))}
+                t={t}
+                validation={validation}
+                onSubmit={submitEvent}
+                suspendedIds={suspendedByTeam[form.team_id] || []}
+                minMinute={formMinAbs}
+                maxMinute={formMaxAbs}
+                maxAddedTime={30}
+                half={formHalf}
+              />
             </SectionCard>
-          </section>
+          ) : (
+            <>
+              <TabBar
+                active={activeTab}
+                onChange={openTab}
+                t={t}
+                tabs={[
+                  { id: 'players', icon: '👥', labelKey: 'committee.result.players' },
+                  { id: 'timeline', icon: '⏱', labelKey: 'committee.result.events' },
+                  { id: 'stats', icon: '📊', labelKey: 'committee.result.summary', badge: foulNotifCount },
+                  { id: 'notes', icon: '📝', labelKey: 'committee.result.matchNotes' },
+                ]}
+              />
 
-          <SummarySidebar
-            displayScore={displayScore}
-            homeTeam={homeTeam}
-            awayTeam={awayTeam}
-            counts={counts}
-            mvp={mvp}
-            potmOptions={potmOptions}
-            mvpId={mvpId}
-            setMvpId={setMvpId}
-            setMvp={setMvp}
-            mvpRating={mvpRating}
-            setMvpRating={setMvpRating}
-            notes={notes}
-            setNotes={setNotes}
-            isKnockout={isKnockout}
-            homeName={homeName}
-            awayName={awayName}
-            homePen={homePen}
-            awayPen={awayPen}
-            setHomePen={setHomePen}
-            setAwayPen={setAwayPen}
-            refereesProps={{ referees, assigned, setAssigned, newRefName, setNewRefName, newRefPhone, setNewRefPhone, addingReferee, addReferee }}
-            t={t}
-          />
+              <div className="mt-4 flex-1 min-h-0">
+                {activeTab === 'timeline' && (
+                  <TimelineTab
+                    homeId={homeId}
+                    homeName={homeName}
+                    homeTeam={homeTeam}
+                    homeScore={scoreFor(homeId)}
+                    awayId={awayId}
+                    awayName={awayName}
+                    awayTeam={awayTeam}
+                    awayScore={scoreFor(awayId)}
+                    homeEvents={homeEvents}
+                    awayEvents={awayEvents}
+                    generalEvents={generalEvents}
+                    freshTick={successTick}
+                    onEdit={startEdit}
+                    onDelete={deleteEvent}
+                    eventsEmpty={events.length === 0}
+                    onAddFirst={() => { cancelForm(); setPickerOpen(true) }}
+                    halfDuration={timerCfg.halfDurationMinutes}
+                    t={t}
+                  />
+                )}
+
+                {activeTab === 'stats' && (
+                  <StatsFoulsTab
+                    displayScore={displayScore}
+                    counts={counts}
+                    isKnockout={isKnockout}
+                    homeName={homeName}
+                    awayName={awayName}
+                    homePen={homePen}
+                    awayPen={awayPen}
+                    setHomePen={setHomePen}
+                    setAwayPen={setAwayPen}
+                    homeTeam={homeTeam}
+                    awayTeam={awayTeam}
+                    tournamentId={tournament.id}
+                    fixtureId={fixture.id}
+                    homeId={homeId}
+                    awayId={awayId}
+                    foulRefetchTick={foulRefetchTick}
+                    onAwardConverted={setConvertTarget}
+                    t={t}
+                  />
+                )}
+
+                {activeTab === 'players' && (
+                  <PlayersTab
+                    homeId={homeId}
+                    homeName={homeName}
+                    homeTeam={homeTeam}
+                    awayId={awayId}
+                    awayName={awayName}
+                    awayTeam={awayTeam}
+                    homeRoster={rosters[homeId] || []}
+                    awayRoster={rosters[awayId] || []}
+                    suspendedByTeam={suspendedByTeam}
+                    redCardedIds={redCardedIds}
+                    busyId={quickBusyId}
+                    onTapPlayer={(player, teamId) => tapPlayer(player, teamId)}
+                    onAddPlayer={addPlayerToTeam}
+                    t={t}
+                  />
+                )}
+
+                {activeTab === 'notes' && (
+                  <NotesMvpTab
+                    potmOptions={potmOptions}
+                    mvp={mvp}
+                    mvpId={mvpId}
+                    setMvpId={setMvpId}
+                    setMvp={setMvp}
+                    mvpRating={mvpRating}
+                    setMvpRating={setMvpRating}
+                    notes={notes}
+                    setNotes={setNotes}
+                    refereesProps={{ referees, assigned, setAssigned, newRefName, setNewRefName, newRefPhone, setNewRefPhone, addingReferee, addReferee }}
+                    t={t}
+                  />
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -874,6 +1104,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         showStartSecondHalf={curStatus === 'halftime'}
         onHalftime={goToHalftime}
         onStartSecondHalf={startSecondHalf}
+        onQuickFinish={confirmFinish}
         t={t}
       />
 
@@ -900,8 +1131,61 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
           saving={saving}
           onConfirm={confirmFinish}
           onCancel={() => setConfirmOpen(false)}
+          halfDuration={timerCfg.halfDurationMinutes}
           t={t}
         />
+      )}
+
+      <EventTypePicker
+        open={pickerOpen}
+        options={QUICK_ACTIONS}
+        onPick={(type) => {
+          if (quickPlayer) {
+            openFromPlayer(type)
+          } else {
+            setPickerOpen(false)
+            openForm(type)
+          }
+        }}
+        onClose={() => {
+          setPickerOpen(false)
+          setQuickPlayer(null)
+        }}
+      />
+
+      {convertTarget && (
+        <div className="absolute inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center">
+          <div className="w-full max-w-md rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-2xl">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-sm font-black text-slate-800">{t('committee.result.penaltyShooter.title')}</p>
+              <button
+                type="button"
+                onClick={() => setConvertTarget(null)}
+                className="rounded-lg px-2 py-1 text-xs font-bold text-slate-400 transition-colors hover:text-slate-700"
+              >
+                {t('committee.result.penaltyShooter.cancel')}
+              </button>
+            </div>
+            <p className="mb-3 text-[11px] font-bold text-slate-500">
+              {t('committee.result.penaltyShooter.pickBy', { team: convertTarget.awarded_to_name || '' })}
+            </p>
+            <PlayerSelector
+              teamId={convertTarget.awarded_to_team_id}
+              value={null}
+              valueName={null}
+              onSelect={handleConvertPick}
+              label={t('committee.result.penaltyShooter.shooter')}
+              placeholder={t('committee.result.penaltyShooter.searchShooter')}
+              autoFocus
+              t={t}
+            />
+            <div className="mt-2 flex justify-end gap-2">
+              <Button size="sm" variant="outline" onClick={() => setConvertTarget(null)}>
+                {t('committee.result.penaltyShooter.cancel')}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </ModalShell>
   )

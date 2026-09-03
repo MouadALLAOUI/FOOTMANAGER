@@ -18,6 +18,7 @@ class UpdateMatchEventRequest extends FormRequest
 
         return [
             'type' => "nullable|in:{$types}",
+            'punishment' => 'nullable|in:none,yellow,second_yellow,red,penalty',
             'team_id' => 'nullable|integer|exists:teams,id',
             'player_id' => 'nullable|integer|exists:players,id',
             'assist_player_id' => 'nullable|integer|exists:players,id',

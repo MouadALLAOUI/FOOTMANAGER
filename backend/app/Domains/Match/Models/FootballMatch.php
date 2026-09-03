@@ -128,6 +128,16 @@ class FootballMatch extends Model
         return $this->hasMany(MatchStatistic::class, 'match_id');
     }
 
+    public function playerPenalties(): HasMany
+    {
+        return $this->hasMany(PlayerPenalty::class, 'match_id');
+    }
+
+    public function penaltyAwards(): HasMany
+    {
+        return $this->hasMany(PenaltyAward::class, 'match_id');
+    }
+
     public function lineups(): HasMany
     {
         return $this->hasMany(MatchLineup::class, 'match_id');

@@ -73,6 +73,7 @@ use App\Http\Controllers\Committee\TournamentDrawController;
 use App\Http\Controllers\Committee\TournamentFixtureController;
 use App\Http\Controllers\Committee\TournamentGalleryController;
 use App\Http\Controllers\Committee\TournamentMatchEventController;
+use App\Http\Controllers\Committee\TournamentPenaltyController;
 use App\Http\Controllers\Committee\TournamentNewsController;
 use App\Http\Controllers\Committee\TournamentPartnerController;
 use App\Http\Controllers\Committee\TournamentResultController;
@@ -780,10 +781,19 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
             Route::get('/fixtures/{fixture}/events', [TournamentMatchEventController::class, 'index']);
 
+            Route::get('/fixtures/{fixture}/penalties', [TournamentPenaltyController::class, 'status']);
+
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/fixtures/{fixture}/events', [TournamentMatchEventController::class, 'store']);
                 Route::put('/fixtures/{fixture}/events/{event}', [TournamentMatchEventController::class, 'update']);
                 Route::delete('/fixtures/{fixture}/events/{event}', [TournamentMatchEventController::class, 'destroy']);
+            });
+
+            Route::middleware('activity.not_locked')->group(function () {
+                Route::post('/fixtures/{fixture}/penalties/player', [TournamentPenaltyController::class, 'player']);
+                Route::post('/fixtures/{fixture}/penalties/award', [TournamentPenaltyController::class, 'award']);
+                Route::post('/fixtures/{fixture}/penalties/player/{penalty}/end', [TournamentPenaltyController::class, 'endPlayer']);
+                Route::post('/fixtures/{fixture}/penalties/award/{award}/resolve', [TournamentPenaltyController::class, 'resolveAward']);
             });
 
             Route::get('/standings', [TournamentStandingController::class, 'index']);

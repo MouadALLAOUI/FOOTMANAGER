@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, CheckCircle2, Lock, RefreshCw, RotateCcw, Undo2, Unlock, Users } from 'lucide-react'
 import api from '../../../../api/client'
@@ -6,7 +6,7 @@ import { useApi } from '../../../../hooks/useApi'
 import { Badge, Button, Card, Empty, Modal, Skeleton } from '../../../../components/dashboard/ui'
 import { useToast } from '../../../../components/ui/Toast'
 import { toastApiError } from '../../../../lib/errors'
-import { commitMove, membersOf } from './drawLogic'
+import { commitMove, deriveDisplayGroups, isNewGroup, membersOf } from './drawLogic'
 import TeamPool from './TeamPool'
 import GroupColumn from './GroupColumn'
 import { TeamAvatar } from '../../../tournaments/shared'
@@ -20,6 +20,8 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
   const [local, setLocal] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [wideGroups, setWideGroups] = useState(null)
+  const seqRef = useRef(0)
 
   const { data: serverTeams, loading } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/teams`).then((r) => r.data.data),
@@ -32,10 +34,11 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
   )
 
   useEffect(() => {
-    if (serverTeams) {
-      setLocal(serverTeams)
+    if (serverGroups) {
+      setWideGroups(serverGroups.map((g) => ({ id: g.group_id, name: g.name })))
     }
-  }, [serverTeams])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverGroups])
 
   const teams = local || serverTeams || []
   const pool = teams.filter((p) => !p.group)
@@ -47,6 +50,8 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
       group_id: p.group?.id ?? null,
       group_position: p.group_position ?? null,
     }))
+  const newGroupPayload = () =>
+    (wideGroups || []).filter(isNewGroup).map((g) => ({ key: g.id }))
   const hasFixtures = (tournament.stats?.fixtures ?? 0) > 0
   const confirmed = Boolean(tournament.draw_confirmed_at)
   const editableStatus = tournament.settings_editable ?? ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
@@ -55,7 +60,13 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
   const freeMode = tournament.group_mode === 'free'
   const cap = freeMode ? Infinity : (tournament.teams_per_group || Infinity)
 
-  const groups = (serverGroups || []).map((g) => ({ id: g.group_id, name: g.name }))
+  const baseGroups = (serverGroups || []).map((g) => ({ id: g.group_id, name: g.name }))
+  const currentGroups = wideGroups || baseGroups
+  const displayGroups = useMemo(
+    () => deriveDisplayGroups(teams, currentGroups, seqRef),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [teams, currentGroups],
+  )
   const allDrawn = total > 0 && assigned === total
 
   const handleDragStart = (e, pivot) => {
@@ -87,8 +98,9 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
     if (target.type === 'pool' && d.fromGroupId === null) return
     if (target.type === 'group' && d.fromGroupId === target.id && (target.position == null || target.position === d.fromPosition)) return
 
-    const result = commitMove(teams, d.pivotId, target, { groups, mode: tournament.group_mode, cap })
+    const result = commitMove(teams, d.pivotId, target, { groups: currentGroups, mode: tournament.group_mode, cap })
     setLocal(result.teams)
+    setWideGroups(deriveDisplayGroups(result.teams, currentGroups, seqRef))
     setDirty(true)
     if (result.redirectedTo) {
       toast.info(t('committee.detail.groupFullRedirect', { group: result.redirectedTo }))
@@ -100,6 +112,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
     try {
       await api.put(`/committee/tournaments/${tournament.id}/draw/teams`, {
         teams: drawPayload(),
+        groups: newGroupPayload(),
       })
       setDirty(false)
       toast.success(t('committee.detail.drawSaved'))
@@ -113,6 +126,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
 
   const discard = () => {
     setLocal(serverTeams)
+    setWideGroups(baseGroups)
     setDirty(false)
   }
 
@@ -136,6 +150,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
       if (dirty) {
         await api.put(`/committee/tournaments/${tournament.id}/draw/teams`, {
           teams: drawPayload(),
+          groups: newGroupPayload(),
         })
         setDirty(false)
       }
@@ -166,7 +181,9 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
 
   const unassignAll = () => {
     if (!window.confirm(t('committee.detail.unassignAllConfirm'))) return
-    setLocal(teams.map((p) => ({ ...p, group: null, group_position: null })))
+    const next = teams.map((p) => ({ ...p, group: null, group_position: null }))
+    setLocal(next)
+    setWideGroups(deriveDisplayGroups(next, currentGroups, seqRef))
     setDirty(true)
   }
 
@@ -265,7 +282,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
             />
 
             <div className="grid gap-4 md:grid-cols-2">
-              {groups.map((g) => (
+              {displayGroups.map((g) => (
                 <GroupColumn
                   key={g.id}
                   group={g}
@@ -295,7 +312,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
       >
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {groups.map((g) => {
+            {displayGroups.map((g) => {
               const members = membersOf(teams, g.id)
               return (
                 <div key={g.id} className="rounded-2xl border border-slate-200 bg-white p-4">

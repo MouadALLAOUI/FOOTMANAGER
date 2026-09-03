@@ -3,6 +3,7 @@
 namespace App\Domains\Match\Models;
 
 use App\Domains\Match\Enums\MatchEventType;
+use App\Domains\Match\Enums\MatchPunishment;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Base\Model;
 use App\Domains\Team\Models\Team;
@@ -19,6 +20,7 @@ class MatchEvent extends Model
         'player_id',
         'assist_player_id',
         'type',
+        'punishment',
         'minute',
         'added_time',
         'half',
@@ -34,6 +36,7 @@ class MatchEvent extends Model
         return [
             'uuid' => 'string',
             'type' => MatchEventType::class,
+            'punishment' => MatchPunishment::class,
             'minute' => 'integer',
             'added_time' => 'integer',
             'metadata' => 'array',
@@ -45,6 +48,24 @@ class MatchEvent extends Model
         static::creating(function (MatchEvent $event) {
             $event->uuid ??= (string) Str::uuid();
         });
+    }
+
+    /**
+     * Whether this event is a `foul` entry (source of truth for accumulation).
+     * Any punishment value qualifies; `none` is the plain case.
+     */
+    public function isFoul(): bool
+    {
+        return $this->type === MatchEventType::Foul;
+    }
+
+    /**
+     * Whether this event is a foul that implies a player dismissal
+     * (second yellow or straight red punishment).
+     */
+    public function isDismissal(): bool
+    {
+        return $this->isFoul() && $this->punishment?->isDismissal() === true;
     }
 
     public function match(): BelongsTo

@@ -103,6 +103,13 @@ class Tournament extends Model
         'qualification_rules',
         'tiebreaker_rules',
         'card_accumulation',
+        'foul_rules_enabled',
+        'player_foul_threshold',
+        'player_penalty_minutes',
+        'player_foul_repeat',
+        'team_foul_threshold',
+        'team_foul_repeat',
+        'foul_reset_scope',
         'terrain_reservation_mode',
         'published_at',
         'draw_confirmed_at',
@@ -139,6 +146,14 @@ class Tournament extends Model
             'points_for_draw' => 'integer',
             'points_for_loss' => 'integer',
             'qualify_per_group' => 'integer',
+            'card_accumulation' => 'string',
+            'foul_rules_enabled' => 'boolean',
+            'player_foul_threshold' => 'integer',
+            'player_penalty_minutes' => 'integer',
+            'player_foul_repeat' => 'boolean',
+            'team_foul_threshold' => 'integer',
+            'team_foul_repeat' => 'boolean',
+            'foul_reset_scope' => 'string',
             'qualification_rules' => 'array',
             'tiebreaker_rules' => 'array',
             'plan' => 'array',
@@ -393,6 +408,71 @@ class Tournament extends Model
     public function accumulatesAcrossGroupStageOnly(): bool
     {
         return $this->card_accumulation === self::CARD_ACCUMULATION_GROUP;
+    }
+
+    public const FOUL_RESET_SCOPE_HALF = 'half';
+
+    public const FOUL_RESET_SCOPE_MATCH = 'match';
+
+    public const FOUL_RESET_SCOPES = [
+        self::FOUL_RESET_SCOPE_HALF,
+        self::FOUL_RESET_SCOPE_MATCH,
+    ];
+
+    /** Whether the foul/fault penalty system is enabled and configured for this tournament. */
+    public function foulRulesEnabled(): bool
+    {
+        return (bool) $this->foul_rules_enabled;
+    }
+
+    public function playerFoulThreshold(): int
+    {
+        return (int) ($this->player_foul_threshold ?: 0);
+    }
+
+    public function playerPenaltyMinutes(): int
+    {
+        return (int) ($this->player_penalty_minutes ?: 0);
+    }
+
+    public function playerFoulRepeat(): bool
+    {
+        return (bool) $this->player_foul_repeat;
+    }
+
+    public function teamFoulThreshold(): int
+    {
+        return (int) ($this->team_foul_threshold ?: 0);
+    }
+
+    public function teamFoulRepeat(): bool
+    {
+        return (bool) $this->team_foul_repeat;
+    }
+
+    public function foulResetScope(): string
+    {
+        return in_array($this->foul_reset_scope, self::FOUL_RESET_SCOPES, true)
+            ? (string) $this->foul_reset_scope
+            : self::FOUL_RESET_SCOPE_HALF;
+    }
+
+    /** Foul counts reset at halftime when the scope is per-half. */
+    public function foulsResetPerHalf(): bool
+    {
+        return $this->foulResetScope() === self::FOUL_RESET_SCOPE_HALF;
+    }
+
+    /** Player time-penalty rule is configured. */
+    public function playerFoulRuleConfigured(): bool
+    {
+        return $this->playerFoulThreshold() > 0 && $this->playerPenaltyMinutes() > 0;
+    }
+
+    /** Team penalty-shot rule is configured. */
+    public function teamFoulRuleConfigured(): bool
+    {
+        return $this->teamFoulThreshold() > 0;
     }
 
     public function usesIntegratedTerrainReservations(): bool

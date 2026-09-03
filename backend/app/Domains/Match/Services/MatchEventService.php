@@ -3,6 +3,7 @@
 namespace App\Domains\Match\Services;
 
 use App\Domains\Match\Enums\MatchEventType;
+use App\Domains\Match\Enums\MatchPunishment;
 use App\Domains\Match\Events\CardGiven;
 use App\Domains\Match\Events\GoalScored;
 use App\Domains\Match\Events\SubstitutionMade;
@@ -34,6 +35,7 @@ class MatchEventService
         return DB::transaction(function () use ($match, $data, $type, $byUserId) {
             $event = $this->events->create($match->id, [
                 'type' => $type->value,
+                'punishment' => isset($data['punishment']) ? (string) $data['punishment'] : null,
                 'team_id' => $data['team_id'] ?? null,
                 'player_id' => $data['player_id'] ?? null,
                 'assist_player_id' => $data['assist_player_id'] ?? null,
@@ -55,9 +57,9 @@ class MatchEventService
                 event(new GoalScored($match, $event));
             }
 
-            if ($type === MatchEventType::YellowCard
-                || $type === MatchEventType::SecondYellow
-                || $type === MatchEventType::RedCard) {
+            if ($type === MatchEventType::Foul
+                && $data['punishment'] !== null
+                && $data['punishment'] !== MatchPunishment::None->value) {
                 event(new CardGiven($match, $event));
             }
 
@@ -86,6 +88,7 @@ class MatchEventService
 
             $event = $this->events->update($event, [
                 'type' => $data['type'] ?? $event->type->value,
+                'punishment' => array_key_exists('punishment', $data) ? (string) $data['punishment'] : $event->punishment,
                 'team_id' => $data['team_id'] ?? $event->team_id,
                 'player_id' => $data['player_id'] ?? $event->player_id,
                 'assist_player_id' => array_key_exists('assist_player_id', $data) ? $data['assist_player_id'] : $event->assist_player_id,
@@ -192,10 +195,32 @@ class MatchEventService
             MatchEventType::YellowCard => $statistics->increment($match, $event->team_id, 'yellow_cards'),
             MatchEventType::SecondYellow,
             MatchEventType::RedCard => $statistics->increment($match, $event->team_id, 'red_cards'),
+            MatchEventType::Foul => $this->updateFoulStatistic($statistics, $match, $event),
             MatchEventType::Goal,
             MatchEventType::PenaltyGoal,
             MatchEventType::OwnGoal => $statistics->increment($match, $event->team_id, 'shots_on_target'),
             default => null,
         };
+    }
+
+    /**
+     * For the merged `foul` entry point, cards are counted from the
+     * punishment value (dismissals => red, everything else => yellow).
+     */
+    private function updateFoulStatistic(MatchStatisticsService $statistics, FootballMatch $match, MatchEvent $event): void
+    {
+        $punishment = $event->punishment;
+
+        if ($punishment === null || $punishment === MatchPunishment::None) {
+            return;
+        }
+
+        if ($punishment->isDismissal() || $punishment === MatchPunishment::Red) {
+            $statistics->increment($match, $event->team_id, 'red_cards');
+
+            return;
+        }
+
+        $statistics->increment($match, $event->team_id, 'yellow_cards');
     }
 }

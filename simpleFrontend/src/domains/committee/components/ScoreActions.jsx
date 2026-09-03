@@ -1,16 +1,16 @@
 import React from 'react'
-import { Check, Clock } from 'lucide-react'
+import { Check, Clock, Plus } from 'lucide-react'
 import TeamScore from './TeamScore'
 
 function ScoreNumber({ value }) {
   return <span key={value} className="score-pop inline-block tabular-nums">{value}</span>
 }
 
-export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeName, awayName, alreadyFinished, halftime, liveMinute, timerText, activeHalf, matchNotStarted, openForm, quickActions, t }) {
+export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeName, awayName, alreadyFinished, halftime, liveMinute, timerText, activeHalf, matchNotStarted, onAddEvent, t }) {
   return (
     <div className="shrink-0 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-        <TeamScore side="home" team={homeTeam} name={homeName} score={displayScore.home} />
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
+        <TeamScore side="home" team={homeTeam} name={homeName} />
         <div className="flex flex-col items-center">
           <div className="flex items-end gap-1 text-5xl font-black tracking-tight text-slate-900 sm:text-6xl">
             <ScoreNumber value={displayScore.home} />
@@ -48,25 +48,17 @@ export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeNam
             </span>
           )}
         </div>
-        <TeamScore side="away" team={awayTeam} name={awayName} score={displayScore.away} />
+        <TeamScore side="away" team={awayTeam} name={awayName} />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {quickActions.map((qa) => (
-          <button
-            key={qa.type}
-            type="button"
-            onClick={() => openForm(qa.type)}
-            className={`inline-flex h-10 items-center gap-1.5 rounded-xl px-3.5 text-xs font-bold transition-all active:scale-[0.97] ${qa.primary
-              ? 'bg-green-500 text-white shadow-[0_6px_16px_rgba(22,163,74,0.28)] hover:bg-green-600'
-              : 'border border-slate-200/80 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-white'
-              }`}
-          >
-            <span className="text-sm leading-none">{qa.icon}</span>
-            {t(qa.labelKey)}
-          </button>
-        ))}
-      </div>
+      <button
+        type="button"
+        onClick={onAddEvent}
+        className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-green-500 px-4 text-sm font-black text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)] transition-all hover:bg-green-600 active:scale-[0.99]"
+      >
+        <Plus className="size-5" />
+        {t('committee.result.addEvent')}
+      </button>
     </div>
   )
 }

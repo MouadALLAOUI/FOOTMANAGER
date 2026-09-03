@@ -7,6 +7,7 @@ use App\Domains\Competition\Enums\RoundStage;
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Competition\Models\Round;
 use App\Domains\Match\Enums\MatchEventType;
+use App\Domains\Match\Enums\MatchPunishment;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchEvent;
@@ -28,6 +29,7 @@ class TournamentResultService
         private readonly TournamentSetupService $setup,
         private readonly TournamentSuspensionService $suspensions,
         private readonly TournamentTerrainBookingService $bookings,
+        private readonly TournamentFoulRuleService $foulRules,
     ) {}
 
     /**
@@ -98,6 +100,8 @@ class TournamentResultService
 
             if (isset($data['events'])) {
                 $this->recomputeScore($match);
+
+                $this->foulRules->reconcile($tournament, $match);
 
                 if (! ($data['force'] ?? false)
                     && ((int) $match->home_score !== $homeScore || (int) $match->away_score !== $awayScore)) {
@@ -247,6 +251,7 @@ class TournamentResultService
 
                 $this->replaceResultEvents($match, ['events' => $data['events']], $userId);
                 $this->recomputeScore($match);
+                $this->foulRules->reconcile($tournament, $match);
             }
 
             $homeScore = array_key_exists('home_score', $data) ? (int) $data['home_score'] : (int) $match->home_score;
@@ -416,6 +421,7 @@ class TournamentResultService
             $event = MatchEvent::create($this->buildEventRecord($match->id, $data, $userId));
 
             $this->recomputeScore($match);
+            $this->foulRules->reconcile($tournament, $match);
 
             if ($match->status === MatchStatus::Finished) {
                 $this->refreshMatchOutcome($match, $fixture);
@@ -469,6 +475,7 @@ class TournamentResultService
             $event->update($this->buildEventRecord($event->match_id, $data, $userId));
 
             $this->recomputeScore($match);
+            $this->foulRules->reconcile($tournament, $match);
 
             if ($match->status === MatchStatus::Finished) {
                 $this->refreshMatchOutcome($match, $fixture);
@@ -502,6 +509,7 @@ class TournamentResultService
             $event->delete();
 
             $this->recomputeScore($match);
+            $this->foulRules->reconcile($tournament, $match);
 
             if ($match->status === MatchStatus::Finished) {
                 $this->refreshMatchOutcome($match, $fixture);
@@ -611,12 +619,25 @@ class TournamentResultService
     {
         $type = isset($data['type']) ? MatchEventType::tryFrom((string) $data['type']) : null;
 
+        // Capture the legacy card kind (if any) before collapsing onto foul so
+        // the punishment can be derived when the payload predates the field.
+        if ($type === MatchEventType::YellowCard
+            || $type === MatchEventType::SecondYellow
+            || $type === MatchEventType::RedCard) {
+            $data['legacy_type'] ??= $type->value;
+        }
+
+        $type = $this->consolidateCardType($type);
+
+        [$type, $punishment] = $this->punishmentFor($type, $data);
+
         return [
             'match_id' => $matchId,
             'team_id' => isset($data['team_id']) ? (int) $data['team_id'] : null,
             'player_id' => isset($data['player_id']) ? (int) $data['player_id'] : null,
             'assist_player_id' => isset($data['assist_player_id']) ? (int) $data['assist_player_id'] : null,
             'type' => $type ?? MatchEventType::Other,
+            'punishment' => $punishment,
             'minute' => (int) ($data['minute'] ?? 1),
             'added_time' => isset($data['added_time']) ? (int) $data['added_time'] : 0,
             'half' => $this->normalizeHalf($data['half'] ?? null),
@@ -628,19 +649,74 @@ class TournamentResultService
         ];
     }
 
+    /**
+     * Collapse legacy card event types (`yellow_card`/`second_yellow`/`red_card`)
+     * onto the `foul` entry point so every persisted record is a foul.
+     */
+    private function consolidateCardType(?MatchEventType $type): ?MatchEventType
+    {
+        if ($type === MatchEventType::YellowCard || $type === MatchEventType::SecondYellow || $type === MatchEventType::RedCard) {
+            return MatchEventType::Foul;
+        }
+
+        return $type;
+    }
+
+    /**
+     * Resolve the punishment for a (possibly consolidated) foul event. The
+     * explicit `punishment` field wins; otherwise a legacy card type maps to
+     * its card punishment, and a plain foul resolves to `none`.
+     *
+     * @return array{0: ?MatchEventType, 1: string|null}
+     */
+    private function punishmentFor(?MatchEventType $type, array $data): array
+    {
+        if ($type !== MatchEventType::Foul) {
+            return [$type, isset($data['punishment']) ? (string) $data['punishment'] : null];
+        }
+
+        $explicit = $data['punishment'] ?? null;
+
+        if ($explicit !== null && (string) $explicit !== '') {
+            return [$type, (string) $explicit];
+        }
+
+        $legacy = $data['legacy_type'] ?? null;
+
+        $punishment = match ($legacy) {
+            'yellow_card' => MatchPunishment::Yellow,
+            'second_yellow' => MatchPunishment::SecondYellow,
+            'red_card' => MatchPunishment::Red,
+            default => MatchPunishment::None,
+        };
+
+        return [$type, $punishment->value];
+    }
+
     private function deleteResultEvents(FootballMatch $match): void
     {
         MatchEvent::query()
             ->where('match_id', $match->id)
-            ->whereIn('type', [
-                MatchEventType::Goal->value,
-                MatchEventType::OwnGoal->value,
-                MatchEventType::PenaltyGoal->value,
-                MatchEventType::Assist->value,
-                MatchEventType::YellowCard->value,
-                MatchEventType::SecondYellow->value,
-                MatchEventType::RedCard->value,
-            ])
+            ->where(function ($query) {
+                $query->whereIn('type', [
+                    MatchEventType::Goal->value,
+                    MatchEventType::OwnGoal->value,
+                    MatchEventType::PenaltyGoal->value,
+                    MatchEventType::Assist->value,
+                    MatchEventType::YellowCard->value,
+                    MatchEventType::SecondYellow->value,
+                    MatchEventType::RedCard->value,
+                ])->orWhere(function ($q) {
+                    // Card fouls (yellow / second yellow / red / penalty).
+                    $q->where('type', MatchEventType::Foul->value)
+                        ->whereIn('punishment', array_map(fn (MatchPunishment $p) => $p->value, [
+                            MatchPunishment::Yellow,
+                            MatchPunishment::SecondYellow,
+                            MatchPunishment::Red,
+                            MatchPunishment::Penalty,
+                        ]));
+                });
+            })
             ->delete();
     }
 
@@ -663,6 +739,10 @@ class TournamentResultService
      * match) into a `second_yellow` dismissal. Input events are re-ordered
      * chronologically to decide which yellow is the "second" one.
      *
+     * Two representations are handled:
+     *  - the new consolidated form: `type=foul` + `punishment=yellow`;
+     *  - the legacy form: `type=yellow_card`.
+     *
      * @param  array<int, array<string, mixed>>  $events
      * @return array<int, array<string, mixed>>
      */
@@ -676,11 +756,14 @@ class TournamentResultService
 
         foreach ($events as $index => $event) {
             $type = isset($event['type']) ? MatchEventType::tryFrom((string) $event['type']) : null;
+            $punishment = isset($event['punishment']) ? (string) $event['punishment'] : null;
 
             $indexed[] = [
                 'index' => $index,
                 'event' => $event,
                 'type' => $type,
+                'punishment' => $punishment,
+                'isYellow' => $this->isYellowCardEvent($type, $punishment),
                 'minute' => (int) ($event['minute'] ?? 0),
                 'added_time' => (int) ($event['added_time'] ?? 0),
             ];
@@ -693,14 +776,22 @@ class TournamentResultService
         foreach ($indexed as &$entry) {
             $event = &$entry['event'];
             $type = $entry['type'];
+            $punishment = $entry['punishment'];
 
-            if ($type === MatchEventType::YellowCard && isset($event['player_id'])) {
+            if ($entry['isYellow'] && isset($event['player_id'])) {
                 $playerId = (int) $event['player_id'];
 
                 if (isset($yellowByPlayer[$playerId])) {
-                    $event['type'] = MatchEventType::SecondYellow->value;
+                    $event['type'] = MatchEventType::Foul->value;
+                    $event['punishment'] = MatchPunishment::SecondYellow->value;
                 } else {
                     $yellowByPlayer[$playerId] = true;
+
+                    // Normalize legacy yellow to the consolidated foul form.
+                    if ($type === MatchEventType::YellowCard) {
+                        $event['type'] = MatchEventType::Foul->value;
+                        $event['punishment'] = MatchPunishment::Yellow->value;
+                    }
                 }
             }
         }
@@ -713,8 +804,22 @@ class TournamentResultService
     }
 
     /**
+     * Whether an event payload represents a yellow card in either the new
+     * (foul + punishment) or legacy (`type` = yellow_card) form.
+     */
+    private function isYellowCardEvent(?MatchEventType $type, ?string $punishment): bool
+    {
+        if ($type === MatchEventType::YellowCard) {
+            return true;
+        }
+
+        return $type === MatchEventType::Foul && $punishment === MatchPunishment::Yellow->value;
+    }
+
+    /**
      * For the single-event path: when recording a yellow card for a player
      * who already holds one in this match, save it as a second yellow.
+     * Yellows are modelled as `foul` + `punishment=yellow`.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
@@ -722,8 +827,12 @@ class TournamentResultService
     private function applySecondYellowConversion(Fixture $fixture, array $data, ?int $ignoredEventId = null): array
     {
         $type = isset($data['type']) ? MatchEventType::tryFrom((string) $data['type']) : null;
+        $punishment = isset($data['punishment']) ? (string) $data['punishment'] : null;
 
-        if ($type !== MatchEventType::YellowCard || ! isset($data['player_id']) || ! $fixture->match_id) {
+        $isYellow = $type === MatchEventType::YellowCard
+            || ($type === MatchEventType::Foul && $punishment === MatchPunishment::Yellow->value);
+
+        if (! $isYellow || ! isset($data['player_id']) || ! $fixture->match_id) {
             return $data;
         }
 
@@ -732,12 +841,19 @@ class TournamentResultService
         $hasYellow = MatchEvent::query()
             ->where('match_id', $fixture->match_id)
             ->where('player_id', $playerId)
-            ->where('type', MatchEventType::YellowCard->value)
+            ->where(function ($query) {
+                $query->where('type', MatchEventType::YellowCard->value)
+                    ->orWhere(function ($q) {
+                        $q->where('type', MatchEventType::Foul->value)
+                            ->where('punishment', MatchPunishment::Yellow->value);
+                    });
+            })
             ->when($ignoredEventId, fn ($query) => $query->where('id', '!=', $ignoredEventId))
             ->exists();
 
         if ($hasYellow) {
-            $data['type'] = MatchEventType::SecondYellow->value;
+            $data['type'] = MatchEventType::Foul->value;
+            $data['punishment'] = MatchPunishment::SecondYellow->value;
         }
 
         return $data;
@@ -796,6 +912,37 @@ class TournamentResultService
         }
 
         return $tournament;
+    }
+
+    private function allClosed(iterable $fixtures): bool
+    {
+        $fixtures = collect($fixtures);
+
+        if ($fixtures->isEmpty()) {
+            return true;
+        }
+
+        $matchIds = $fixtures->pluck('match_id')->filter()->values();
+        $matchStatuses = $matchIds->isNotEmpty()
+            ? FootballMatch::query()->whereKey($matchIds->all())->pluck('status', 'id')
+            : collect();
+
+        foreach ($fixtures as $fixture) {
+            if (in_array($fixture->status?->value, [FixtureStatus::Cancelled->value, FixtureStatus::Postponed->value], true)) {
+                continue;
+            }
+
+            $status = $matchStatuses->get($fixture->match_id);
+            $status = $status instanceof MatchStatus ? $status->value : $status;
+
+            if (in_array($status, [MatchStatus::Finished->value, MatchStatus::Cancelled->value, MatchStatus::Postponed->value], true)) {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     private function assertRoundUnlocked(Fixture $fixture, Tournament $tournament): void
@@ -873,38 +1020,7 @@ class TournamentResultService
         }
     }
 
-    private function allClosed(iterable $fixtures): bool
-    {
-        $fixtures = collect($fixtures);
-
-        if ($fixtures->isEmpty()) {
-            return true;
-        }
-
-        $matchIds = $fixtures->pluck('match_id')->filter()->values();
-        $matchStatuses = $matchIds->isNotEmpty()
-            ? FootballMatch::query()->whereKey($matchIds->all())->pluck('status', 'id')
-            : collect();
-
-        foreach ($fixtures as $fixture) {
-            if (in_array($fixture->status?->value, [FixtureStatus::Cancelled->value, FixtureStatus::Postponed->value], true)) {
-                continue;
-            }
-
-            $status = $matchStatuses->get($fixture->match_id);
-            $status = $status instanceof MatchStatus ? $status->value : $status;
-
-            if (in_array($status, [MatchStatus::Finished->value, MatchStatus::Cancelled->value, MatchStatus::Postponed->value], true)) {
-                continue;
-            }
-
-            return false;
-        }
-
-        return true;
-    }
-
-    private function matchFor(Fixture $fixture): FootballMatch
+    public function matchFor(Fixture $fixture): FootballMatch
     {
         if ($fixture->match) {
             return $fixture->match;
@@ -1338,8 +1454,17 @@ class TournamentResultService
         return MatchEvent::query()
             ->where('match_id', $fixture->match_id)
             ->where('player_id', $playerId)
-            ->whereIn('type', [MatchEventType::RedCard->value, MatchEventType::SecondYellow->value])
             ->where('minute', '<=', $minute)
+            ->where(function ($query) {
+                $query->whereIn('type', [MatchEventType::RedCard->value, MatchEventType::SecondYellow->value])
+                    ->orWhere(function ($q) {
+                        $q->where('type', MatchEventType::Foul->value)
+                            ->whereIn('punishment', [
+                                MatchPunishment::Red->value,
+                                MatchPunishment::SecondYellow->value,
+                            ]);
+                    });
+            })
             ->when($ignoredEventId, fn ($query) => $query->where('id', '!=', $ignoredEventId))
             ->exists();
     }

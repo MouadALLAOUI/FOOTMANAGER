@@ -6,6 +6,8 @@ use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchEvent;
+use App\Domains\Match\Models\PenaltyAward;
+use App\Domains\Match\Models\PlayerPenalty;
 use App\Domains\Match\Resources\EventResource;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Tournament\Models\Tournament;
@@ -175,6 +177,34 @@ class PublicTournamentController extends Controller
             ->orderBy('id')
             ->get();
 
+        $playerPenalties = $match->playerPenalties()
+            ->where('status', PlayerPenalty::STATUS_ACTIVE)
+            ->with(['player:id,name,number'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (PlayerPenalty $p) => [
+                'id' => $p->id,
+                'player' => $p->player ? ['id' => $p->player->id, 'name' => $p->player->name, 'number' => $p->player->number] : null,
+                'team_id' => $p->team_id,
+                'start_minute' => $p->start_minute,
+                'end_minute' => $p->end_minute,
+                'duration_minutes' => $p->duration_minutes,
+            ]);
+
+        $penaltyAwards = $match->penaltyAwards()
+            ->whereIn('status', [PenaltyAward::STATUS_CONVERTED, PenaltyAward::STATUS_MISSED, PenaltyAward::STATUS_SAVED])
+            ->with(['awardedToTeam:id,name'])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (PenaltyAward $a) => [
+                'id' => $a->id,
+                'team_id' => $a->awarded_to_team_id,
+                'team_name' => $a->awardedToTeam?->name,
+                'status' => $a->status,
+                'minute' => $a->minute,
+                'half' => $a->half,
+            ]);
+
         return response()->json(['data' => [
             'id' => $match->id,
             'status' => $match->status?->value,
@@ -215,6 +245,8 @@ class PublicTournamentController extends Controller
             'started_at' => $match->started_at?->toIso8601String(),
             'ended_at' => $match->ended_at?->toIso8601String(),
             'events' => EventResource::collection($events),
+            'player_penalties' => $playerPenalties,
+            'penalty_awards' => $penaltyAwards,
         ]]);
     }
 

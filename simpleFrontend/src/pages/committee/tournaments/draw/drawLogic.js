@@ -75,3 +75,48 @@ export function commitMove(teams, pivotId, target, { groups, mode, cap }) {
 
   return { teams: out, redirectedTo }
 }
+
+/**
+ * Free-mode group naming, mirrored from the backend
+ * (TournamentSetupService::groupLabel): A..Z then G27, G28, ...
+ */
+export const groupLabel = (index) => (index <= 26 ? String.fromCharCode(64 + index) : `G${index}`)
+
+/**
+ * Recommend the next free group label given the current set of group names.
+ */
+export function nextGroupLabel(groups) {
+  const used = new Set((groups || []).map((g) => g.name).filter(Boolean))
+  let index = (groups?.length || 0) + 1
+  while (used.has(groupLabel(index))) index++
+  return groupLabel(index)
+}
+
+/**
+ * Free-mode invariant, applied to the local board while manually editing,
+ * mirroring the backend `ensureFreeNextGroup`: exactly one empty container must
+ * always exist. Every group that holds members is kept, then a single empty one
+ * is kept (the first empty in board order); any additional empty groups are
+ * dropped. When no group is empty a fresh placeholder empty group is appended.
+ *
+ * @param teams    current board pivots
+ * @param groups   current displayed group list [{ id, name, isNew? }]
+ * @param seqRef   useRef counter used to mint stable placeholder ids
+ * @returns next displayed group list
+ */
+export function deriveDisplayGroups(teams, groups, seqRef) {
+  const memberIds = new Set((teams || []).filter((p) => p?.group).map((p) => p?.group?.id))
+  const withMembers = (groups || []).filter((g) => memberIds.has(g.id))
+  const empties = (groups || []).filter((g) => !memberIds.has(g.id))
+  const out = [...withMembers]
+  if (empties.length >= 1) {
+    out.push(empties[0])
+  } else {
+    seqRef.current += 1
+    out.push({ id: `__new__${seqRef.current}`, name: nextGroupLabel(groups || []), isNew: true })
+  }
+  return out
+}
+
+/** New (not yet persisted) placeholder groups are identified by a string id. */
+export const isNewGroup = (g) => typeof g?.id === 'string'

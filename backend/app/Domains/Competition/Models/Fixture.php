@@ -5,6 +5,8 @@ namespace App\Domains\Competition\Models;
 use App\Domains\Competition\Enums\FixtureStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchEvent;
+use App\Domains\Match\Models\PenaltyAward;
+use App\Domains\Match\Models\PlayerPenalty;
 use App\Domains\Shared\Base\Model;
 use App\Domains\Stadium\Models\Stadium;
 use App\Domains\Team\Models\Team;
@@ -66,6 +68,23 @@ class Fixture extends Model
     public function events(): HasMany
     {
         return $this->hasMany(MatchEvent::class, 'match_id', 'match_id');
+    }
+
+    /**
+     * Time penalties and penalty-shot awards for the fixture's match.
+     *
+     * These back Laravel's scoped implicit child route binding for the
+     * `penalties/player/{penalty}` and `penalties/award/{award}` routes, so the
+     * child record is resolved and scoped to this fixture's match.
+     */
+    public function penalties(): HasMany
+    {
+        return $this->hasMany(PlayerPenalty::class, 'match_id', 'match_id');
+    }
+
+    public function awards(): HasMany
+    {
+        return $this->hasMany(PenaltyAward::class, 'match_id', 'match_id');
     }
 
     public function stadium(): BelongsTo

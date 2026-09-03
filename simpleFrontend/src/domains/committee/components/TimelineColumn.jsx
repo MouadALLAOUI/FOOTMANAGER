@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import EventRow from './EventRow'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
 
-export default function TimelineColumn({ team, events, freshKey, onEdit, onDelete, t }) {
+export default function TimelineColumn({ team, events, freshKey, onEdit, onDelete, t, halfDuration }) {
   const sorted = useMemo(
     () => [...events].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0) || (Number(a.added_time) || 0) - (Number(b.added_time) || 0)),
     [events],
@@ -27,7 +27,7 @@ export default function TimelineColumn({ team, events, freshKey, onEdit, onDelet
       ) : (
         <div className="xl:max-h-[42vh] xl:overflow-y-auto xl:pe-1">
           {sorted.map((ev, i) => (
-            <EventRow key={ev._key} ev={ev} index={i} total={sorted.length} fresh={freshKey === ev._key} onEdit={() => onEdit(ev)} onDelete={() => onDelete(ev)} />
+            <EventRow key={ev._key} ev={ev} index={i} total={sorted.length} fresh={freshKey === ev._key} onEdit={() => onEdit(ev)} onDelete={() => onDelete(ev)} halfDuration={halfDuration} />
           ))}
         </div>
       )}

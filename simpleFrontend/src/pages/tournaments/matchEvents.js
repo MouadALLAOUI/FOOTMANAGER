@@ -36,5 +36,7 @@ export function sideOf(event, home, away) {
 }
 
 export function eventText(event) {
-  return event.description || [event.player_name, event.team_name].filter(Boolean).join(' • ') || ''
+  if (event.description) return event.description
+  if (event.type === 'foul') return ''
+  return [event.player_name, event.team_name].filter(Boolean).join(' • ') || ''
 }

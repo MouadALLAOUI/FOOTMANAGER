@@ -9,6 +9,7 @@ enum MatchEventType: string
     case PenaltyGoal = 'penalty_goal';
     case MissedPenalty = 'missed_penalty';
     case Assist = 'assist';
+    case Foul = 'foul';
     case YellowCard = 'yellow_card';
     case SecondYellow = 'second_yellow';
     case RedCard = 'red_card';
@@ -29,6 +30,7 @@ enum MatchEventType: string
             self::OwnGoal => 'own-goal',
             self::MissedPenalty => 'missed-penalty',
             self::Assist => 'assist',
+            self::Foul => 'foul',
             self::YellowCard => 'yellow-card',
             self::SecondYellow => 'second-yellow',
             self::RedCard => 'red-card',

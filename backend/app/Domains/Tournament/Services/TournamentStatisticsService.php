@@ -3,6 +3,7 @@
 namespace App\Domains\Tournament\Services;
 
 use App\Domains\Match\Enums\MatchEventType;
+use App\Domains\Match\Enums\MatchPunishment;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchEvent;
@@ -109,6 +110,14 @@ class TournamentStatisticsService
 
             if (in_array($event->type, [MatchEventType::RedCard, MatchEventType::SecondYellow], true) && $event->player_id) {
                 $redCards[$event->player_id] = ($redCards[$event->player_id] ?? 0) + 1;
+            }
+
+            if ($event->type === MatchEventType::Foul && $event->player_id && $event->punishment) {
+                if ($event->punishment->isDismissal() || $event->punishment === MatchPunishment::Red) {
+                    $redCards[$event->player_id] = ($redCards[$event->player_id] ?? 0) + 1;
+                } elseif ($event->punishment === MatchPunishment::Yellow) {
+                    $yellowCards[$event->player_id] = ($yellowCards[$event->player_id] ?? 0) + 1;
+                }
             }
         }
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { CalendarClock, Check, Eye, EyeOff, ImagePlus, Lock, MapPin, Palette, Save, ScrollText, ShieldAlert, SlidersHorizontal, Trash2, Trophy, Unlock, Users } from 'lucide-react'
+import { CalendarClock, Check, Eye, EyeOff, ImagePlus, Lock, MapPin, Palette, Save, ScrollText, ShieldAlert, SlidersHorizontal, Trash2, Trophy, Unlock, Users, AlertTriangle } from 'lucide-react'
 import api from '../../../api/client'
 import { Button, Card, Field, FieldRow, Toggle, inputClass, selectClass } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
@@ -63,6 +63,13 @@ export default function SettingsTab({ tournament, refresh }) {
   const [matchDuration, setMatchDuration] = useState(tournament.match_duration_minutes ?? 90)
   const [cardAccumulation, setCardAccumulation] = useState(tournament.card_accumulation ?? 'tournament')
   const [reservationMode, setReservationMode] = useState(tournament.terrain_reservation_mode ?? 'independent')
+  const [foulEnabled, setFoulEnabled] = useState(Boolean(tournament.foul_rules_enabled))
+  const [playerFoulThreshold, setPlayerFoulThreshold] = useState(tournament.player_foul_threshold ?? '')
+  const [playerPenaltyMinutes, setPlayerPenaltyMinutes] = useState(tournament.player_penalty_minutes ?? '')
+  const [playerFoulRepeat, setPlayerFoulRepeat] = useState(tournament.player_foul_repeat ?? true)
+  const [teamFoulThreshold, setTeamFoulThreshold] = useState(tournament.team_foul_threshold ?? '')
+  const [teamFoulRepeat, setTeamFoulRepeat] = useState(tournament.team_foul_repeat ?? true)
+  const [foulResetScope, setFoulResetScope] = useState(tournament.foul_reset_scope ?? 'half')
   const [reservationModeBusy, setReservationModeBusy] = useState(false)
   const [matchesPerDay, setMatchesPerDay] = useState(tournament.matches_per_day ?? '')
   const [regStart, setRegStart] = useState(toLocalInput(tournament.registration_start_at))
@@ -109,6 +116,13 @@ export default function SettingsTab({ tournament, refresh }) {
         registration_end_at: toIso(regEnd),
         registration_fee: regFee === '' ? 0 : regFee,
         rules: rules || null,
+        foul_rules_enabled: foulEnabled,
+        player_foul_threshold: playerFoulThreshold === '' || playerFoulThreshold === null ? null : Number(playerFoulThreshold),
+        player_penalty_minutes: playerPenaltyMinutes === '' || playerPenaltyMinutes === null ? null : Number(playerPenaltyMinutes),
+        player_foul_repeat: playerFoulRepeat,
+        team_foul_threshold: teamFoulThreshold === '' || teamFoulThreshold === null ? null : Number(teamFoulThreshold),
+        team_foul_repeat: teamFoulRepeat,
+        foul_reset_scope: foulResetScope,
       })
       toast.success(t('committee.detail.settingsSaved'))
       refresh()
@@ -511,6 +525,88 @@ export default function SettingsTab({ tournament, refresh }) {
                 : t('committee.detail.reservationMode.independent.desc')}
             </p>
           </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionHeader
+          icon={AlertTriangle}
+          title={t('committee.detail.settingsSectionFoul')}
+          desc={t('committee.detail.settingsSectionFoulDesc')}
+        />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3.5">
+            <div className="min-w-0">
+              <p className="text-sm font-extrabold text-slate-800">{t('committee.detail.settingsFoulEnabled')}</p>
+              <p className="text-[11px] font-semibold text-slate-400">{t('committee.detail.settingsFoulEnabledHint')}</p>
+            </div>
+            <Toggle checked={foulEnabled} disabled={!editable} onChange={setFoulEnabled} title={t('committee.detail.settingsFoulEnabled')} />
+          </div>
+
+          {foulEnabled && (
+            <>
+              <div className="rounded-2xl border border-slate-100 p-4">
+                <p className="mb-3 text-xs font-extrabold text-slate-700">{t('committee.detail.settingsFoulPlayerSection')}</p>
+                <FieldRow>
+                  <Field label={t('committee.detail.settingsFoulPThreshold')}>
+                    <input
+                      type="number"
+                      min="2"
+                      max="99"
+                      className={inputClass}
+                      value={playerFoulThreshold}
+                      onChange={(e) => setPlayerFoulThreshold(e.target.value)}
+                      placeholder="5"
+                      disabled={!editable}
+                    />
+                  </Field>
+                  <Field label={t('committee.detail.settingsFoulPMinutes')}>
+                    <input
+                      type="number"
+                      min="1"
+                      max="180"
+                      className={inputClass}
+                      value={playerPenaltyMinutes}
+                      onChange={(e) => setPlayerPenaltyMinutes(e.target.value)}
+                      placeholder="5"
+                      disabled={!editable}
+                    />
+                  </Field>
+                </FieldRow>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-bold text-slate-600">{t('committee.detail.settingsFoulRepeat')}</p>
+                  <Toggle checked={playerFoulRepeat} disabled={!editable} onChange={setPlayerFoulRepeat} />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 p-4">
+                <p className="mb-3 text-xs font-extrabold text-slate-700">{t('committee.detail.settingsFoulTeamSection')}</p>
+                <Field label={t('committee.detail.settingsFoulTThreshold')}>
+                  <input
+                    type="number"
+                    min="2"
+                    max="99"
+                    className={inputClass}
+                    value={teamFoulThreshold}
+                    onChange={(e) => setTeamFoulThreshold(e.target.value)}
+                    placeholder="10"
+                    disabled={!editable}
+                  />
+                </Field>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-bold text-slate-600">{t('committee.detail.settingsFoulRepeat')}</p>
+                  <Toggle checked={teamFoulRepeat} disabled={!editable} onChange={setTeamFoulRepeat} />
+                </div>
+              </div>
+
+              <Field label={t('committee.detail.settingsFoulResetScope')} hint={t('committee.detail.settingsFoulResetScopeHint')}>
+                <select className={selectClass} value={foulResetScope} onChange={(e) => setFoulResetScope(e.target.value)} disabled={!editable}>
+                  <option value="match">{t('committee.detail.settingsFoulResetScope.match')}</option>
+                  <option value="half">{t('committee.detail.settingsFoulResetScope.half')}</option>
+                </select>
+              </Field>
+            </>
+          )}
         </div>
       </Card>
 

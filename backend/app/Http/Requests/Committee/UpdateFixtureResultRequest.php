@@ -34,6 +34,7 @@ class UpdateFixtureResultRequest extends FormRequest
             'referees.*.referee_id' => 'required|integer|exists:referees,id',
             'events' => 'nullable|array|max:80',
             'events.*.type' => "required|in:{$eventTypes}",
+            'events.*.punishment' => 'nullable|in:none,yellow,second_yellow,red,penalty',
             'events.*.team_id' => 'nullable|integer|exists:teams,id',
             'events.*.player_id' => 'nullable|integer|exists:players,id',
             'events.*.assist_player_id' => 'nullable|integer|exists:players,id',

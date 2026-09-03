@@ -1,21 +1,25 @@
 export const QUICK_ACTIONS = [
   { type: 'goal', icon: '⚽', labelKey: 'committee.result.actions.goal', primary: true },
-  { type: 'yellow_card', icon: '🟨', labelKey: 'committee.result.actions.card' },
+  { type: 'foul', icon: '🚦', labelKey: 'committee.result.actions.foul' },
   { type: 'substitution', icon: '🔄', labelKey: 'committee.result.actions.substitution' },
-  { type: 'penalty_goal', icon: '🥅', labelKey: 'committee.result.actions.penalty' },
   { type: 'injury', icon: '🩹', labelKey: 'committee.result.actions.injury' },
   { type: 'other', icon: '📝', labelKey: 'committee.result.actions.note' },
 ]
 
 export const TYPE_OPTIONS = [
   { type: 'goal', icon: '⚽', labelKey: 'committee.result.ev.goal' },
-  { type: 'yellow_card', icon: '🟨', labelKey: 'committee.result.ev.yellowCard' },
-  { type: 'second_yellow', icon: '🟨🟥', labelKey: 'committee.result.ev.secondYellow' },
-  { type: 'red_card', icon: '🟥', labelKey: 'committee.result.ev.redCard' },
+  { type: 'foul', icon: '🚦', labelKey: 'committee.result.ev.foul' },
   { type: 'substitution', icon: '🔄', labelKey: 'committee.result.ev.substitution' },
-  { type: 'penalty_goal', icon: '🥅', labelKey: 'committee.result.ev.penaltyGoal' },
   { type: 'injury', icon: '🩹', labelKey: 'committee.result.ev.injury' },
   { type: 'other', icon: '📝', labelKey: 'committee.result.ev.note' },
+]
+
+export const PUNISHMENTS = [
+  { value: 'none', icon: '🚦', labelKey: 'committee.result.punishments.none' },
+  { value: 'yellow', icon: '🟨', labelKey: 'committee.result.punishments.yellow' },
+  { value: 'second_yellow', icon: '🟨🟥', labelKey: 'committee.result.punishments.secondYellow' },
+  { value: 'red', icon: '🟥', labelKey: 'committee.result.punishments.red' },
+  { value: 'penalty', icon: '⚽', labelKey: 'committee.result.punishments.penalty' },
 ]
 
 export const GOAL_TYPES = [
@@ -35,6 +39,7 @@ export const SUBMIT_KEYS = {
   penalty_goal: 'committee.result.addPenaltyBtn',
   missed_penalty: 'committee.result.addPenaltyBtn',
   injury: 'committee.result.addInjuryBtn',
+  foul: 'committee.result.addFoulBtn',
   other: 'committee.result.addNoteBtn',
 }
 

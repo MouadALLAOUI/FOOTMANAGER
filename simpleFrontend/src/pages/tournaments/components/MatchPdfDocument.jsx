@@ -18,11 +18,22 @@ Font.register({
   ],
 })
 
-const t = (key, opts) => i18n.t(key, opts)
+function safeT(key, opts) {
+  const val = i18n.t(key, { ...opts, defaultValue: undefined })
+  if (val === key || val === undefined) {
+    return key.split('.').pop()
+  }
+  return val
+}
+
+const t = safeT
 
 function currentLang() {
   return (i18n.resolvedLanguage || i18n.language || 'ar').startsWith('en') ? 'en' : 'ar'
 }
+
+const isAr = () => currentLang() === 'ar'
+const locale = () => (isAr() ? 'ar-MA' : 'en-GB')
 
 function parseDate(value) {
   if (!value) return null
@@ -33,67 +44,72 @@ function parseDate(value) {
 function fmtDateTime(value) {
   const date = parseDate(value)
   if (!date) return ''
-  const lang = currentLang()
-  const datePart = new Intl.DateTimeFormat(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', {
+  const datePart = new Intl.DateTimeFormat(locale(), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(date)
-  const timePart = date.toLocaleTimeString(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', {
+  const timePart = date.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
   })
-  return `${datePart} — ${timePart}`
+  return `${datePart} \u2014 ${timePart}`
 }
 
-function eventTypeKey(type) {
+function eventTypeKey(type, punishment) {
+  if (type === 'foul') {
+    return punishment === 'yellow' ? 'yellow'
+      : punishment === 'second_yellow' ? 'secondYellow'
+        : punishment === 'red' ? 'red'
+          : punishment === 'penalty' ? 'penalty'
+            : 'foul'
+  }
   switch (type) {
-    case 'goal':
-      return 'goal'
-    case 'own_goal':
-      return 'ownGoal'
-    case 'penalty_goal':
-      return 'penalty'
-    case 'missed_penalty':
-      return 'missedPenalty'
-    case 'assist':
-      return 'assist'
+    case 'goal': return 'goal'
+    case 'own_goal': return 'ownGoal'
+    case 'penalty_goal': return 'penalty'
+    case 'missed_penalty': return 'missedPenalty'
+    case 'assist': return 'assist'
     case 'yellow_card':
-    case 'second_yellow':
-      return 'yellow'
-    case 'red_card':
-      return 'red'
-    case 'substitution':
-      return 'substitution'
-    case 'injury':
-      return 'injury'
-    case 'timeout':
-      return 'timeout'
-    case 'half_time':
-      return 'halfTime'
-    case 'second_half':
-      return 'secondHalf'
-    case 'kickoff':
-      return 'kickoff'
-    case 'match_end':
-      return 'matchEnd'
-    case 'var':
-      return 'var'
-    default:
-      return 'other'
+    case 'second_yellow': return 'yellow'
+    case 'red_card': return 'red'
+    case 'substitution': return 'substitution'
+    case 'injury': return 'injury'
+    case 'timeout': return 'timeout'
+    case 'foul': return 'foul'
+    case 'half_time': return 'halfTime'
+    case 'second_half': return 'secondHalf'
+    case 'kickoff': return 'kickoff'
+    case 'match_end': return 'matchEnd'
+    case 'var': return 'var'
+    default: return 'other'
   }
 }
 
-function eventLabel(type) {
-  const key = eventTypeKey(type)
+function eventLabel(type, punishment) {
+  const key = eventTypeKey(type, punishment)
   const exportKey = `committee.export.event.${key}`
   const ownKey = `public.matchDetail.type.${key}`
   const fromExport = i18n.exists(exportKey) ? i18n.t(exportKey) : null
   return fromExport || i18n.t(ownKey, { defaultValue: type })
 }
 
+function halfLabel(period) {
+  if (!period) return ''
+  if (period === 'first_half') return isAr() ? '1ش' : '1H'
+  if (period === 'second_half') return isAr() ? '2ش' : '2H'
+  if (period === 'extra_time') return isAr() ? 'إضافي' : 'ET'
+  if (period === 'penalties') return isAr() ? 'ترجيح' : 'Pen'
+  return ''
+}
+
 function eventTextPdf(e) {
-  return eventText(e) || eventLabel(e.type)
+  if (e.type === 'foul') {
+    const name = e.description || [e.player_name, e.team_name].filter(Boolean).join(' • ')
+    const label = eventLabel(e.type, e.punishment)
+    return name ? `${name} — ${label}` : label
+  }
+  return eventText(e) || eventLabel(e.type, e.punishment)
 }
 
 const C = {
@@ -107,6 +123,20 @@ const C = {
   chipBg: '#f8fafc',
   amber: '#d97706',
   rose: '#e11d48',
+}
+
+const MATCH_STATUS_KEYS = {
+  finished: 'public.tournamentPage.matchStatus.finished',
+  live: 'public.tournamentPage.matchStatus.live',
+  scheduled: 'public.tournamentPage.matchStatus.scheduled',
+  postponed: 'public.tournamentPage.matchStatus.postponed',
+  cancelled: 'public.tournamentPage.matchStatus.cancelled',
+}
+
+const STATUS_COLORS = {
+  finished: { bg: '#dcfce7', fg: '#16a34a' },
+  live: { bg: '#fee2e2', fg: '#e11d48' },
+  scheduled: { bg: '#e0f2fe', fg: '#0284c7' },
 }
 
 const styles = StyleSheet.create({
@@ -156,7 +186,14 @@ const styles = StyleSheet.create({
   scoreBox: { width: 130, alignItems: 'center' },
   score: { fontSize: 22, fontWeight: 800, color: C.ink },
   penalties: { fontSize: 8.5, fontWeight: 700, color: C.muted, marginTop: 1 },
-  statusChip: { fontSize: 7, fontWeight: 700, borderRadius: 99, paddingVertical: 2, paddingHorizontal: 8, marginTop: 4 },
+  statusChip: {
+    fontSize: 7,
+    fontWeight: 700,
+    borderRadius: 99,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginTop: 4,
+  },
   winnerRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 5 },
 
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -3, marginBottom: 5 },
@@ -169,7 +206,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1.5,
-    borderBottomColor: C.line,
+    borderBottomColor: C.green,
     paddingBottom: 4,
     marginBottom: 7,
     marginTop: 10,
@@ -193,8 +230,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2.5,
     marginBottom: 3,
   },
-  eventMinute: { fontSize: 7, fontWeight: 800, color: C.green, marginLeft: 4 },
-  eventType: { fontSize: 6.8, fontWeight: 700, color: C.muted, marginLeft: 4 },
+  eventMinute: { fontSize: 7, fontWeight: 800, color: C.green, marginLeft: 4, minWidth: 28 },
+  eventHalf: { fontSize: 6, fontWeight: 700, color: C.muted, marginLeft: 2, minWidth: 18 },
+  eventType: { fontSize: 6.8, fontWeight: 700, color: C.subtle, marginLeft: 4 },
   eventText: { fontSize: 7.8, fontWeight: 600 },
 
   empty: {
@@ -208,14 +246,22 @@ const styles = StyleSheet.create({
   },
 
   footer: {
-    marginTop: 18,
-    paddingTop: 8,
+    position: 'absolute',
+    left: 30,
+    right: 30,
+    bottom: 20,
+    paddingTop: 6,
     borderTopWidth: 1.5,
     borderTopColor: C.line,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     fontSize: 7,
     color: C.muted,
+  },
+  footerApp: { fontWeight: 700, color: C.green },
+  pageContent: {
+    paddingBottom: 40,
   },
 })
 
@@ -224,7 +270,7 @@ function TeamAvatarPdf({ team, images }) {
   if (url && images?.has(url)) return <Image src={url} style={styles.teamLogo} />
   return (
     <View style={styles.teamLogoFallback}>
-      <Text style={styles.teamLogoChar}>{(team?.name || '؟').charAt(0)}</Text>
+      <Text style={styles.teamLogoChar}>{(team?.name || '\u0643').charAt(0)}</Text>
     </View>
   )
 }
@@ -240,7 +286,7 @@ function MetaItem({ label, value }) {
     <View style={styles.metaItem}>
       <View style={styles.metaBox}>
         <Text style={styles.metaLabel}>{label}</Text>
-        <Text style={styles.metaValue}>{value || '—'}</Text>
+        <Text style={styles.metaValue}>{value || '\u2014'}</Text>
       </View>
     </View>
   )
@@ -250,9 +296,10 @@ function EventRowPdf({ event, images, homeTeam, awayTeam }) {
   const side = sideOf(event, homeTeam?.id, awayTeam?.id)
   const anchor = side === 'home' ? homeTeam : side === 'away' ? awayTeam : null
   return (
-    <View style={styles.event}>
+    <View style={styles.event} wrap={false}>
       <Text style={styles.eventMinute}>{minuteText(event)}</Text>
-      <Text style={styles.eventType}>{eventLabel(event.type)}</Text>
+      <Text style={styles.eventHalf}>{halfLabel(event.period)}</Text>
+      <Text style={styles.eventType}>{eventLabel(event.type, event.punishment)}</Text>
       <Text style={styles.eventText}>{eventTextPdf(event)}</Text>
       {anchor && <SmallLogo team={anchor} images={images} />}
     </View>
@@ -274,7 +321,7 @@ function EventsBlock({ title, events, images, homeTeam, awayTeam }) {
   )
 }
 
-export default function MatchPdfDocument({ match, images }) {
+export default function MatchPdfDocument({ match, images, appName }) {
   const m = match || {}
   const lang = currentLang()
   const homeId = m.home_team?.id
@@ -292,7 +339,10 @@ export default function MatchPdfDocument({ match, images }) {
         : ''
     : ''
   const stageName = m.round?.name || m.group?.name
-  const now = new Intl.DateTimeFormat(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', {
+  const status = m.is_finished ? 'finished' : m.is_live ? 'live' : 'scheduled'
+  const statusColor = STATUS_COLORS[status] || STATUS_COLORS.scheduled
+  const statusText = i18n.t(MATCH_STATUS_KEYS[status], { defaultValue: status })
+  const now = new Intl.DateTimeFormat(locale(), {
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(new Date())
@@ -300,15 +350,16 @@ export default function MatchPdfDocument({ match, images }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <View style={styles.pageContent}>
         <View style={styles.header}>
           <View style={styles.headerTitleBox}>
             <Text style={styles.headerTitle}>
-              {m.home_team?.name || '—'} - {m.away_team?.name || '—'}
+              {m.home_team?.name || '\u2014'} - {m.away_team?.name || '\u2014'}
             </Text>
             <Text style={styles.headerSub}>
               {fmtDateTime(m.scheduled_at)}
-              {m.stadium?.name ? ` • ${m.stadium.name}` : ''}
-              {stageName ? ` • ${stageName}` : ''}
+              {m.stadium?.name ? ` \u2022 ${m.stadium.name}` : ''}
+              {stageName ? ` \u2022 ${stageName}` : ''}
             </Text>
           </View>
         </View>
@@ -316,7 +367,7 @@ export default function MatchPdfDocument({ match, images }) {
         <View style={styles.scoreCard}>
           <View style={styles.teamBox}>
             <TeamAvatarPdf team={m.home_team} images={images} />
-            <Text style={styles.teamName}>{m.home_team?.name || '—'}</Text>
+            <Text style={styles.teamName}>{m.home_team?.name || '\u2014'}</Text>
           </View>
           <View style={styles.scoreBox}>
             <Text style={styles.score}>
@@ -327,15 +378,15 @@ export default function MatchPdfDocument({ match, images }) {
                 ({m.home_penalties} - {m.away_penalties})
               </Text>
             )}
-            <Text style={[styles.statusChip, { backgroundColor: m.is_finished ? C.greenLight : C.chipBg, color: m.is_finished ? C.green : C.muted }]}>
-              {m.is_finished
-                ? i18n.t('public.tournamentPage.matchStatus.finished', { defaultValue: 'Finished' })
-                : i18n.t('public.tournamentPage.matchStatus.scheduled', { defaultValue: 'Scheduled' })}
-            </Text>
+            <View style={[styles.statusChip, { backgroundColor: statusColor.bg }]}>
+              <Text style={{ fontSize: 7, fontWeight: 700, color: statusColor.fg }}>
+                {statusText}
+              </Text>
+            </View>
           </View>
           <View style={styles.teamBox}>
             <TeamAvatarPdf team={m.away_team} images={images} />
-            <Text style={styles.teamName}>{m.away_team?.name || '—'}</Text>
+            <Text style={styles.teamName}>{m.away_team?.name || '\u2014'}</Text>
           </View>
         </View>
 
@@ -362,15 +413,41 @@ export default function MatchPdfDocument({ match, images }) {
           <Text style={styles.empty}>{t('public.matchDetail.noEvents')}</Text>
         )}
 
-        <EventsBlock title={m.home_team?.name || '—'} events={homeEvents} images={images} homeTeam={m.home_team} awayTeam={m.away_team} />
-        <EventsBlock title={m.away_team?.name || '—'} events={awayEvents} images={images} homeTeam={m.home_team} awayTeam={m.away_team} />
-        <EventsBlock title={i18n.t('public.matchDetail.type.other', { defaultValue: 'Other' })} events={neutralEvents} images={images} homeTeam={m.home_team} awayTeam={m.away_team} />
+        <EventsBlock title={m.home_team?.name || '\u2014'} events={homeEvents} images={images} homeTeam={m.home_team} awayTeam={m.away_team} />
+        <EventsBlock title={m.away_team?.name || '\u2014'} events={awayEvents} images={images} homeTeam={m.home_team} awayTeam={m.away_team} />
+        {neutralEvents.length > 0 && (
+          <EventsBlock title={i18n.t('public.matchDetail.type.other', { defaultValue: 'Other' })} events={neutralEvents} images={images} homeTeam={m.home_team} awayTeam={m.away_team} />
+        )}
 
-        <View style={styles.footer}>
-          <Text>Aji Nkassrou</Text>
+        {(m.player_penalties?.length > 0 || m.penalty_awards?.length > 0) && (
+          <View wrap={false}>
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>{t('public.matchDetail.penalties')}</Text>
+            </View>
+            {(m.penalty_awards || []).map((a) => (
+              <View key={a.id} style={styles.event}>
+                <Text style={styles.eventMinute}>{minuteText({ minute: a.minute })}</Text>
+                <Text style={styles.eventType}>{t('public.matchDetail.penaltyAwardShort')}</Text>
+                <Text style={styles.eventText}>{a.team_name || '\u2014'} \u2022 {t(`public.matchDetail.penaltyOutcome.${a.status}`)}</Text>
+              </View>
+            ))}
+            {(m.player_penalties || []).map((p) => (
+              <View key={p.id} style={styles.event}>
+                <Text style={styles.eventMinute}>{minuteText({ minute: p.start_minute })}</Text>
+                <Text style={styles.eventType}>{t('public.matchDetail.playerPenaltyShort')}</Text>
+                <Text style={styles.eventText}>{p.player?.name || '\u2014'} #{p.player?.number || '\u2014'}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        </View>
+
+        <View style={styles.footer} fixed>
+          <Text style={styles.footerApp}>{appName || t('common.appName')}</Text>
           <Text>
             {t('committee.export.generatedOn')}: {now}
           </Text>
+          <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>
     </Document>

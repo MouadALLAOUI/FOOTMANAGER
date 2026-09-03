@@ -47,6 +47,13 @@ class UpdateTournamentRequest extends FormRequest
             'points_for_loss' => 'sometimes|integer|min:0|max:10',
             'card_accumulation' => 'sometimes|in:disabled,group,tournament',
             'terrain_reservation_mode' => 'sometimes|in:independent,integrated',
+            'foul_rules_enabled' => 'sometimes|boolean',
+            'player_foul_threshold' => 'nullable|integer|min:2|max:99',
+            'player_penalty_minutes' => 'nullable|integer|min:1|max:180',
+            'player_foul_repeat' => 'sometimes|boolean',
+            'team_foul_threshold' => 'nullable|integer|min:2|max:99',
+            'team_foul_repeat' => 'sometimes|boolean',
+            'foul_reset_scope' => 'sometimes|in:half,match',
         ];
     }
 

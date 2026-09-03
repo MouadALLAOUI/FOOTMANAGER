@@ -19,11 +19,24 @@ Font.register({
   ],
 })
 
-const t = (key, opts) => i18n.t(key, opts)
+function safeT(key, opts) {
+  const val = i18n.t(key, { ...opts, defaultValue: undefined })
+  if (val === key || val === undefined) {
+    const fb = key.split('.').pop()
+    if (opts?.n != null) return `${fb} ${opts.n}`
+    return fb
+  }
+  return val
+}
+
+const t = safeT
 
 function currentLang() {
   return (i18n.resolvedLanguage || i18n.language || 'ar').startsWith('en') ? 'en' : 'ar'
 }
+
+const isAr = () => currentLang() === 'ar'
+const locale = () => (isAr() ? 'ar-MA' : 'en-GB')
 
 function parseDate(value) {
   if (!value) return null
@@ -38,8 +51,7 @@ function parseDate(value) {
 function fmtDate(value) {
   const date = parseDate(value)
   if (!date) return ''
-  const lang = currentLang()
-  return new Intl.DateTimeFormat(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', {
+  return new Intl.DateTimeFormat(locale(), {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -49,17 +61,16 @@ function fmtDate(value) {
 function fmtDateTime(value) {
   const date = parseDate(value)
   if (!date) return ''
-  const lang = currentLang()
-  const datePart = new Intl.DateTimeFormat(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', {
+  const datePart = new Intl.DateTimeFormat(locale(), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   }).format(date)
-  const timePart = date.toLocaleTimeString(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', {
+  const timePart = date.toLocaleTimeString(locale(), {
     hour: '2-digit',
     minute: '2-digit',
   })
-  return `${datePart} — ${timePart}`
+  return `${datePart} \u2014 ${timePart}`
 }
 
 function fixtureStatus(f) {
@@ -69,6 +80,27 @@ function fixtureStatus(f) {
   if (m?.status === 'finished') return 'finished'
   if (m && LIVE_STATUSES.has(m.status)) return 'live'
   return 'scheduled'
+}
+
+const MATCH_STATUS_KEYS = {
+  finished: 'public.tournamentPage.matchStatus.finished',
+  live: 'public.tournamentPage.matchStatus.live',
+  scheduled: 'public.tournamentPage.matchStatus.scheduled',
+  postponed: 'public.tournamentPage.matchStatus.postponed',
+  cancelled: 'public.tournamentPage.matchStatus.cancelled',
+}
+
+function matchStatusText(status) {
+  const key = MATCH_STATUS_KEYS[status]
+  return key ? t(key) : status
+}
+
+const STATUS_COLORS = {
+  finished: { bg: '#dcfce7', fg: '#16a34a' },
+  live: { bg: '#fee2e2', fg: '#e11d48' },
+  scheduled: { bg: '#e0f2fe', fg: '#0284c7' },
+  postponed: { bg: '#ffedd5', fg: '#ea580c' },
+  cancelled: { bg: '#f1f5f9', fg: '#64748b' },
 }
 
 function matchWinner(f) {
@@ -97,13 +129,29 @@ function scoreLine(f) {
   return line
 }
 
-function eventTypeKey(type) {
+function eventTypeKey(type, punishment) {
+  if (type === 'foul') {
+    return punishment === 'yellow' ? 'yellow'
+      : punishment === 'second_yellow' ? 'secondYellow'
+        : punishment === 'red' ? 'red'
+          : punishment === 'penalty' ? 'penalty'
+            : null
+  }
   if (type === 'own_goal') return 'ownGoal'
   if (type === 'yellow_card' || type === 'second_yellow') return 'yellow'
   if (type === 'red_card') return 'red'
   if (type === 'assist') return 'assist'
   if (type === 'goal' || type === 'penalty_goal') return 'goal'
   return null
+}
+
+function halfLabel(period) {
+  if (!period) return ''
+  if (period === 'first_half') return isAr() ? 'الشوط الأول' : '1H'
+  if (period === 'second_half') return isAr() ? 'الشوط الثاني' : '2H'
+  if (period === 'extra_time') return isAr() ? 'وقت إضافي' : 'ET'
+  if (period === 'penalties') return isAr() ? 'ترجيح' : 'Pen'
+  return ''
 }
 
 function img(images, url) {
@@ -161,21 +209,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1.5,
-    borderBottomColor: C.line,
+    borderBottomColor: C.green,
     paddingBottom: 5,
     marginBottom: 8,
   },
-  sectionIcon: {
-    width: 18,
-    height: 18,
+  sectionIconBox: {
+    width: 20,
+    height: 20,
     borderRadius: 5,
     backgroundColor: C.greenLight,
-    color: C.green,
-    textAlign: 'center',
-    lineHeight: 18,
-    fontSize: 9,
-    fontWeight: 800,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginLeft: 6,
+  },
+  sectionIcon: {
+    fontSize: 10,
+    fontWeight: 800,
+    color: C.green,
   },
   sectionTitle: { fontSize: 12, fontWeight: 800, color: C.ink },
   subTitle: { fontSize: 10, fontWeight: 700, color: C.green, marginTop: 8, marginBottom: 4 },
@@ -224,6 +274,16 @@ const styles = StyleSheet.create({
 
   teamCell: { flexDirection: 'row', alignItems: 'center' },
 
+  statusChip: {
+    fontSize: 6,
+    fontWeight: 700,
+    borderRadius: 10,
+    paddingVertical: 1.5,
+    paddingHorizontal: 5,
+    textAlign: 'center',
+    overflow: 'hidden',
+  },
+
   empty: {
     backgroundColor: C.chipBg,
     borderRadius: 6,
@@ -248,27 +308,30 @@ const styles = StyleSheet.create({
   resultTeam: { flex: 1, fontSize: 9, fontWeight: 800 },
   resultNum: { fontSize: 10, fontWeight: 800, paddingHorizontal: 8, paddingVertical: 1, backgroundColor: C.headBg, borderRadius: 4 },
   resultMeta: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 3, fontSize: 7.5, color: C.subtle },
-  resultEvents: { borderTopWidth: 1, borderTopColor: C.line, paddingTop: 4, marginTop: 5, flexDirection: 'row', flexWrap: 'wrap' },
-  eventsLabel: { fontSize: 6.8, fontWeight: 700, color: C.muted, marginLeft: 6 },
-  event: {
+
+  eventRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 0.5,
     borderColor: C.line,
     borderRadius: 4,
     backgroundColor: C.chipBg,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    marginRight: 0,
-    marginLeft: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 2.5,
     marginBottom: 3,
   },
-  eventMinute: { fontSize: 6.5, fontWeight: 800, color: C.green, marginLeft: 3 },
-  eventLabel: { fontSize: 6.5, color: C.muted },
-  eventPlayer: { fontSize: 6.8, fontWeight: 700, marginLeft: 3 },
+  eventMinute: { fontSize: 7, fontWeight: 800, color: C.green, marginLeft: 4, minWidth: 28 },
+  eventHalf: { fontSize: 6, fontWeight: 700, color: C.muted, marginLeft: 2, minWidth: 20 },
+  eventType: { fontSize: 6.8, fontWeight: 700, color: C.subtle, marginLeft: 4 },
+  eventText: { fontSize: 7.8, fontWeight: 600, marginLeft: 3 },
+  eventTeamLogo: { width: 8, height: 8, borderRadius: 4, marginLeft: 4 },
+
+  eventsSection: { marginTop: 6, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 4 },
+  eventsLabel: { fontSize: 7, fontWeight: 700, color: C.muted, marginBottom: 3 },
+  eventTeamHeader: { fontSize: 8, fontWeight: 800, color: C.green, marginTop: 4, marginBottom: 2 },
 
   newsItem: { flexDirection: 'row', borderWidth: 1, borderColor: C.line, borderRadius: 6, padding: 7, marginBottom: 6 },
-  newsImg: { width: 54, height: 40, borderRadius: 5, marginRight: 8 },
+  newsImg: { width: 54, height: 40, borderRadius: 5, marginLeft: 8 },
   newsBody: { flex: 1 },
   newsTitle: { fontSize: 9, fontWeight: 800, color: C.ink },
   newsDate: { fontSize: 7, color: C.muted, marginTop: 1 },
@@ -286,21 +349,29 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   partnerBox: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 6, padding: 7 },
-  partnerLogo: { width: 26, height: 26, borderRadius: 5, marginRight: 7, objectFit: 'contain', borderWidth: 0.5, borderColor: '#eef2f7', backgroundColor: '#f8fafc' },
+  partnerLogo: { width: 26, height: 26, borderRadius: 5, marginLeft: 7, objectFit: 'contain', borderWidth: 0.5, borderColor: '#eef2f7', backgroundColor: '#f8fafc' },
   partnerBody: { flex: 1 },
   partnerName: { fontSize: 8.5, fontWeight: 700 },
   partnerLevel: { fontSize: 7, color: C.green, fontWeight: 600, marginTop: 1 },
   partnerLink: { fontSize: 7, color: C.muted, marginTop: 1 },
 
   footer: {
-    marginTop: 18,
-    paddingTop: 8,
+    position: 'absolute',
+    left: 30,
+    right: 30,
+    bottom: 20,
+    paddingTop: 6,
     borderTopWidth: 1.5,
     borderTopColor: C.line,
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     fontSize: 7,
     color: C.muted,
+  },
+  footerApp: { fontWeight: 700, color: C.green },
+  pageContent: {
+    paddingBottom: 40,
   },
 })
 
@@ -309,7 +380,7 @@ function InfoItem({ label, value }) {
     <View style={styles.infoItem}>
       <View style={styles.infoBox}>
         <Text style={styles.infoLabel}>{t(label)}</Text>
-        <Text style={styles.infoValue}>{value || '—'}</Text>
+        <Text style={styles.infoValue}>{value || '\u2014'}</Text>
       </View>
     </View>
   )
@@ -319,8 +390,8 @@ function Section({ icon, title, children, style }) {
   return (
     <View style={[styles.section, style]} wrap={false}>
       <View style={styles.sectionHead}>
-        <View style={styles.sectionIcon}>
-          <Text>{icon}</Text>
+        <View style={styles.sectionIconBox}>
+          <Text style={styles.sectionIcon}>{icon}</Text>
         </View>
         <Text style={styles.sectionTitle}>{t(title)}</Text>
       </View>
@@ -337,12 +408,28 @@ function Empty({ label }) {
   return <Text style={styles.empty}>{t(label)}</Text>
 }
 
+function StatusBadge({ status }) {
+  const colors = STATUS_COLORS[status] || STATUS_COLORS.scheduled
+  return (
+    <View
+      style={[
+        styles.statusChip,
+        { backgroundColor: colors.bg, color: colors.fg },
+      ]}
+    >
+      <Text style={{ fontSize: 6, fontWeight: 700, color: colors.fg }}>
+        {matchStatusText(status)}
+      </Text>
+    </View>
+  )
+}
+
 function DetailsSection({ tournament }) {
   const start = fmtDate(tournament.start_date)
   const end = fmtDate(tournament.end_date)
   const statusKey = statusLabels[tournament.status] ? t(statusLabels[tournament.status]) : tournament.status
   return (
-    <Section icon="ℹ" title="committee.export.section.details">
+    <Section icon={'\u2022'} title="committee.export.section.details">
       <View style={styles.grid}>
         <InfoItem label="committee.export.organizer" value={tournament.organizer?.name} />
         <InfoItem label="committee.export.location" value={tournament.location} />
@@ -357,7 +444,7 @@ function DetailsSection({ tournament }) {
           label="committee.export.registrationFee"
           value={tournament.requires_registration_fee ? `${tournament.registration_fee} DH` : t('committee.detail.feeFree')}
         />
-        <InfoItem label="committee.export.capacity" value={tournament.teams_count || '—'} />
+        <InfoItem label="committee.export.capacity" value={tournament.teams_count || '\u2014'} />
         <InfoItem
           label="committee.export.points"
           value={`${tournament.points_for_win} / ${tournament.points_for_draw} / ${tournament.points_for_loss}`}
@@ -373,7 +460,7 @@ function TeamsSection({ teams, images }) {
   const list = teams || []
   if (list.length === 0) return null
   return (
-    <Section icon="ƒ" title="committee.export.section.teams">
+    <Section icon={'\u00BB'} title="committee.export.section.teams">
       <View style={styles.table}>
         <View style={[styles.tr, { borderBottomWidth: 2, borderBottomColor: C.line }]}>
           <Text style={[styles.th, styles.thCenter, { width: '10%' }]}>{t('committee.export.position')}</Text>
@@ -382,13 +469,13 @@ function TeamsSection({ teams, images }) {
           <Text style={[styles.th, { width: '15%' }]}>{t('committee.export.group')}</Text>
         </View>
         {list.map((p, i) => (
-          <View key={p.id ?? i} style={styles.tr}>
+          <View key={p.id ?? i} style={styles.tr} wrap={false}>
             <Text style={[styles.td, styles.tdCenter, { width: '10%' }]}>{i + 1}</Text>
             <View style={[styles.teamCell, { width: '45%' }]}>
               {img(images, logoThumb(p.team)) && <Image src={img(images, logoThumb(p.team))} style={styles.teamLogo} />}
-              <Text style={styles.rowTeam}>{p.team?.name || '—'}</Text>
+              <Text style={styles.rowTeam}>{p.team?.name || '\u2014'}</Text>
             </View>
-            <Text style={[styles.td, { width: '30%' }]}>{p.team?.city || '—'}</Text>
+            <Text style={[styles.td, { width: '30%' }]}>{p.team?.city || '\u2014'}</Text>
             <Text style={[styles.td, { width: '15%' }]}>{p.group?.name || t('committee.export.noGroup')}</Text>
           </View>
         ))}
@@ -424,7 +511,7 @@ function buildFixtureSections(fixtures) {
   }
   const koRounds = [...koMap.entries()].map(([key, items]) => ({
     key,
-    name: items[0]?.round?.name || '—',
+    name: items[0]?.round?.name || '\u2014',
     items: items.sort((a, b) => a.id - b.id),
   }))
   return { groupRounds, koRounds }
@@ -434,29 +521,34 @@ function FixturesTable({ items, showGroup, showRound }) {
   return (
     <View style={styles.table}>
       <View style={[styles.tr, { borderBottomWidth: 2, borderBottomColor: C.line }]}>
-        <Text style={[styles.th, styles.thCenter, { width: '8%' }]}>{t('committee.export.matchNumber')}</Text>
-        {showGroup && <Text style={[styles.th, { width: '12%' }]}>{t('committee.export.group')}</Text>}
-        {showRound && <Text style={[styles.th, { width: '14%' }]}>{t('committee.export.round')}</Text>}
-        <Text style={[styles.th, { width: '22%' }]}>{t('committee.export.home')}</Text>
+        <Text style={[styles.th, styles.thCenter, { width: '7%' }]}>{t('committee.export.matchNumber')}</Text>
+        {showGroup && <Text style={[styles.th, { width: '10%' }]}>{t('committee.export.group')}</Text>}
+        {showRound && <Text style={[styles.th, { width: '10%' }]}>{t('committee.export.round')}</Text>}
+        <Text style={[styles.th, { width: '18%' }]}>{t('committee.export.home')}</Text>
         <Text style={[styles.th, styles.thCenter, { width: '12%' }]}>{t('committee.export.score')}</Text>
-        <Text style={[styles.th, { width: '22%' }]}>{t('committee.export.away')}</Text>
-        <Text style={[styles.th, { width: '16%' }]}>{t('committee.export.date')}</Text>
-        {!showGroup && !showRound && <Text style={[styles.th, { width: '14%' }]}>{t('committee.export.terrain')}</Text>}
-        <Text style={[styles.th, { width: '10%' }]}>{t('committee.export.status')}</Text>
+        <Text style={[styles.th, { width: '18%' }]}>{t('committee.export.away')}</Text>
+        <Text style={[styles.th, { width: '12%' }]}>{t('committee.export.date')}</Text>
+        {!showGroup && !showRound && <Text style={[styles.th, { width: '11%' }]}>{t('committee.export.terrain')}</Text>}
+        <Text style={[styles.th, { width: '9%' }]}>{t('committee.export.status')}</Text>
       </View>
-      {items.map((f, i) => (
-        <View key={f.id ?? i} style={styles.tr}>
-          <Text style={[styles.td, styles.tdCenter, { width: '8%' }]}>{i + 1}</Text>
-          {showGroup && <Text style={[styles.td, { width: '12%' }]}>{f.group?.name || '—'}</Text>}
-          {showRound && <Text style={[styles.td, { width: '14%' }]}>{f.round?.name || '—'}</Text>}
-          <Text style={[styles.td, { width: '22%' }]}>{f.home_team?.name || '—'}</Text>
-          <Text style={[styles.td, styles.tdCenter, { width: '12%', fontWeight: 800 }]}>{scoreLine(f)}</Text>
-          <Text style={[styles.td, { width: '22%' }]}>{f.away_team?.name || '—'}</Text>
-          <Text style={[styles.td, { width: '16%' }]}>{fmtDateTime(f.scheduled_at)}</Text>
-          {!showGroup && !showRound && <Text style={[styles.td, { width: '14%' }]}>{f.stadium?.name || '—'}</Text>}
-          <Text style={[styles.td, { width: '10%' }]}>{t(`committee.detail.matchStatus.${fixtureStatus(f)}`)}</Text>
-        </View>
-      ))}
+      {items.map((f, i) => {
+        const status = fixtureStatus(f)
+        return (
+          <View key={f.id ?? i} style={styles.tr} wrap={false}>
+            <Text style={[styles.td, styles.tdCenter, { width: '7%' }]}>{i + 1}</Text>
+            {showGroup && <Text style={[styles.td, { width: '10%' }]}>{f.group?.name || '\u2014'}</Text>}
+            {showRound && <Text style={[styles.td, { width: '10%' }]}>{f.round?.name || '\u2014'}</Text>}
+            <Text style={[styles.td, { width: '18%' }]}>{f.home_team?.name || '\u2014'}</Text>
+            <Text style={[styles.td, styles.tdCenter, { width: '12%', fontWeight: 800 }]}>{scoreLine(f)}</Text>
+            <Text style={[styles.td, { width: '18%' }]}>{f.away_team?.name || '\u2014'}</Text>
+            <Text style={[styles.td, { width: '12%' }]}>{fmtDateTime(f.scheduled_at)}</Text>
+            {!showGroup && !showRound && <Text style={[styles.td, { width: '11%' }]}>{f.stadium?.name || '\u2014'}</Text>}
+            <View style={[styles.td, { width: '9%', alignItems: 'center', justifyContent: 'center' }]}>
+              <StatusBadge status={status} />
+            </View>
+          </View>
+        )
+      })}
     </View>
   )
 }
@@ -465,19 +557,19 @@ function FixturesSection({ fixtures }) {
   if ((fixtures || []).length === 0) return null
   const { groupRounds, koRounds } = buildFixtureSections(fixtures)
   return (
-    <Section icon="Š" title="committee.export.section.fixtures">
+    <Section icon={'\u00AB'} title="committee.export.section.fixtures">
       {groupRounds.length === 0 && koRounds.length === 0 ? (
         <Empty label="committee.export.noFixtures" />
       ) : (
         <>
           {groupRounds.map((r) => (
-            <View key={r.key}>
+            <View key={r.key} wrap={false}>
               <SubTitle>{t('committee.detail.round', { n: r.matchday })}</SubTitle>
               <FixturesTable items={r.items} showGroup />
             </View>
           ))}
           {koRounds.map((r) => (
-            <View key={r.key}>
+            <View key={r.key} wrap={false}>
               <SubTitle>{r.name}</SubTitle>
               <FixturesTable items={r.items} showRound />
             </View>
@@ -488,20 +580,29 @@ function FixturesSection({ fixtures }) {
   )
 }
 
-function EventChip({ event }) {
-  const type = eventTypeKey(event.type)
+function EventRow({ event, homeTeam, awayTeam, images }) {
+  const type = eventTypeKey(event.type, event.punishment)
   if (!type) return null
+  const teamId = event.team_id
+  const isHome = teamId === homeTeam?.id
+  const isAway = teamId === awayTeam?.id
+  const anchor = isHome ? homeTeam : isAway ? awayTeam : null
   return (
-    <View style={styles.event}>
+    <View style={styles.eventRow} wrap={false}>
       {event.minute != null && (
         <Text style={styles.eventMinute}>
-          {event.minute}
-          {event.added_time ? `+${event.added_time}` : ''}'
+          {event.minute}{event.added_time ? `+${event.added_time}` : ''}'
         </Text>
       )}
-      <Text style={styles.eventLabel}>{t(`committee.export.event.${type}`)}</Text>
-      <Text style={styles.eventPlayer}>{event.player?.name || event.description || ''}</Text>
-      {event.assist_player?.name && <Text style={styles.eventPlayer}>({event.assist_player.name})</Text>}
+      <Text style={styles.eventHalf}>{halfLabel(event.period)}</Text>
+      <Text style={styles.eventType}>{t(`committee.export.event.${type}`)}</Text>
+      <Text style={styles.eventText}>{event.player?.name || event.description || ''}</Text>
+      {event.assist_player?.name && (
+        <Text style={styles.eventText}> ({event.assist_player.name})</Text>
+      )}
+      {anchor && img(images, logoThumb(anchor)) && (
+        <Image src={img(images, logoThumb(anchor))} style={styles.eventTeamLogo} />
+      )}
     </View>
   )
 }
@@ -510,42 +611,69 @@ function ResultsSection({ fixtures, eventsMap }) {
   const finished = (fixtures || [])
     .filter((f) => f.match?.status === 'finished')
     .sort((a, b) => new Date(a.scheduled_at || 0) - new Date(b.scheduled_at || 0))
-  if (finished.length === 0) return null
   return (
-    <Section icon="Ó" title="committee.export.section.results">
-      {finished.map((f) => {
-        const events = eventsMap.get(f.id) || []
-        const winner = matchWinner(f)
-        return (
-          <View key={f.id} style={styles.result} wrap={false}>
-            <View style={styles.resultHead}>
-              <Text style={styles.resultRound}>
-                {f.round?.name || (f.group?.name ? `${t('committee.export.group')} ${f.group.name}` : t('committee.detail.round', { n: f.matchday }))}
-              </Text>
-              <Text style={styles.resultDate}>{fmtDateTime(f.scheduled_at)}</Text>
-            </View>
-            <View style={styles.resultScore}>
-              <Text style={[styles.resultTeam, { justifyContent: 'flex-start' }]}>{f.home_team?.name || '—'}</Text>
-              <Text style={styles.resultNum}>{scoreLine(f)}</Text>
-              <Text style={[styles.resultTeam, { justifyContent: 'flex-end', textAlign: 'left' }]}>{f.away_team?.name || '—'}</Text>
-            </View>
-            <View style={styles.resultMeta}>
-              <Text>
-                {t('committee.export.winner')}: <Text style={{ fontWeight: 800 }}>{winner || '—'}</Text>
-              </Text>
-              {f.stadium?.name && <Text>{f.stadium.name}</Text>}
-            </View>
-            {events.length > 0 && (
-              <View style={styles.resultEvents}>
-                <Text style={styles.eventsLabel}>{t('committee.export.events')}:</Text>
-                {events.map((ev, i) => (
-                  <EventChip key={ev.id ?? i} event={ev} />
-                ))}
+    <Section icon={'\u00D7'} title="committee.export.section.results">
+      {finished.length === 0 ? (
+        <Empty label="committee.export.noResults" />
+      ) : (
+        finished.map((f) => {
+          const events = eventsMap.get(f.id) || []
+          const winner = matchWinner(f)
+          const homeEvents = events.filter((e) => e.team_id === f.home_team?.id)
+          const awayEvents = events.filter((e) => e.team_id === f.away_team?.id)
+          const neutralEvents = events.filter((e) => e.team_id !== f.home_team?.id && e.team_id !== f.away_team?.id)
+          return (
+            <View key={f.id} style={styles.result} wrap={false}>
+              <View style={styles.resultHead}>
+                <Text style={styles.resultRound}>
+                  {f.round?.name || (f.group?.name ? `${t('committee.export.group')} ${f.group.name}` : t('committee.detail.round', { n: f.matchday }))}
+                </Text>
+                <Text style={styles.resultDate}>{fmtDateTime(f.scheduled_at)}</Text>
               </View>
-            )}
-          </View>
-        )
-      })}
+              <View style={styles.resultScore}>
+                <Text style={[styles.resultTeam, { textAlign: 'right' }]}>{f.home_team?.name || '\u2014'}</Text>
+                <Text style={styles.resultNum}>{scoreLine(f)}</Text>
+                <Text style={[styles.resultTeam, { textAlign: 'left' }]}>{f.away_team?.name || '\u2014'}</Text>
+              </View>
+              <View style={styles.resultMeta}>
+                <Text>
+                  {t('committee.export.winner')}: <Text style={{ fontWeight: 800 }}>{winner || '\u2014'}</Text>
+                </Text>
+                {f.stadium?.name && <Text>{f.stadium.name}</Text>}
+              </View>
+              {events.length > 0 && (
+                <View style={styles.eventsSection}>
+                  <Text style={styles.eventsLabel}>{t('committee.export.events')}:</Text>
+                  {homeEvents.length > 0 && (
+                    <>
+                      <Text style={styles.eventTeamHeader}>{f.home_team?.name}</Text>
+                      {homeEvents.map((ev, i) => (
+                        <EventRow key={ev.id ?? i} event={ev} homeTeam={f.home_team} awayTeam={f.away_team} images={undefined} />
+                      ))}
+                    </>
+                  )}
+                  {awayEvents.length > 0 && (
+                    <>
+                      <Text style={styles.eventTeamHeader}>{f.away_team?.name}</Text>
+                      {awayEvents.map((ev, i) => (
+                        <EventRow key={ev.id ?? i} event={ev} homeTeam={f.home_team} awayTeam={f.away_team} images={undefined} />
+                      ))}
+                    </>
+                  )}
+                  {neutralEvents.length > 0 && (
+                    <>
+                      <Text style={styles.eventTeamHeader}>{t('committee.export.events')}</Text>
+                      {neutralEvents.map((ev, i) => (
+                        <EventRow key={ev.id ?? i} event={ev} homeTeam={f.home_team} awayTeam={f.away_team} images={undefined} />
+                      ))}
+                    </>
+                  )}
+                </View>
+              )}
+            </View>
+          )
+        })
+      )}
     </Section>
   )
 }
@@ -564,9 +692,10 @@ function StandingsSection({ standings, images }) {
     { key: 'points', label: t('committee.detail.col.points'), width: '8%' },
   ]
   let statW = cols.reduce((a, c) => a + parseFloat(c.width), 0)
-  const teamW = `${100 - statW}%`
+  const posW = 6
+  const teamW = `${100 - posW - statW}%`
   return (
-    <Section icon="‡" title="committee.export.section.standings">
+    <Section icon={'\u00F7'} title="committee.export.section.standings">
       {groups.map((group) => (
         <View key={group.group_id ?? 'unassigned'}>
           <SubTitle>{group.name || t('committee.export.allTeams')}</SubTitle>
@@ -581,11 +710,11 @@ function StandingsSection({ standings, images }) {
               ))}
             </View>
             {(group.rows || []).map((row, i) => (
-              <View key={row.team_id ?? i} style={styles.tr}>
+              <View key={row.team_id ?? i} style={styles.tr} wrap={false}>
                 <Text style={[styles.td, styles.tdCenter, { width: '6%' }]}>{i + 1}</Text>
                 <View style={[styles.teamCell, { width: teamW }]}>
                   {img(images, logoThumb(row.team)) && <Image src={img(images, logoThumb(row.team))} style={styles.teamLogo} />}
-                  <Text style={styles.rowTeam}>{row.team?.name || '—'}</Text>
+                  <Text style={styles.rowTeam}>{row.team?.name || '\u2014'}</Text>
                 </View>
                 <Text style={[styles.td, styles.tdCenter, { width: '9%' }]}>{row.played}</Text>
                 <Text style={[styles.td, styles.tdCenter, { width: '8%' }]}>{row.wins}</Text>
@@ -604,7 +733,7 @@ function StandingsSection({ standings, images }) {
   )
 }
 
-function RankTable({ titleKey, items, emptyKey }) {
+function RankTable({ titleKey, items, emptyKey, countLabel }) {
   const list = items || []
   return (
     <View>
@@ -614,27 +743,23 @@ function RankTable({ titleKey, items, emptyKey }) {
       ) : (
         <View style={styles.table}>
           <View style={[styles.tr, { borderBottomWidth: 2, borderBottomColor: C.line }]}>
-            <Text style={[styles.th, styles.thCenter, { width: '12%' }]}>{t('committee.export.position')}</Text>
-            <Text style={[styles.th, { width: '46%' }]}>{t('committee.export.player')}</Text>
-            <Text style={[styles.th, { width: '30%' }]}>{t('committee.export.team')}</Text>
-            <Text style={[styles.th, styles.thCenter, { width: '12%' }]}>{t('committee.export.goals')}</Text>
+            <Text style={[styles.th, styles.thCenter, { width: '10%' }]}>{t('committee.export.position')}</Text>
+            <Text style={[styles.th, { width: '40%' }]}>{t('committee.export.player')}</Text>
+            <Text style={[styles.th, { width: '35%' }]}>{t('committee.export.team')}</Text>
+            <Text style={[styles.th, styles.thCenter, { width: '15%' }]}>{countLabel || t('committee.export.goals')}</Text>
           </View>
           {list.map((row, i) => (
-            <View key={row.player_id ?? i} style={styles.tr}>
-              <Text style={[styles.td, styles.tdCenter, { width: '12%' }]}>{i + 1}</Text>
-              <Text style={[styles.td, { width: '46%' }]}>{row.name || '—'}</Text>
-              <Text style={[styles.td, { width: '30%' }]}>{row.team_name || '—'}</Text>
-              <Text style={[styles.td, styles.tdCenter, { width: '12%' }]}>{row.count}</Text>
+            <View key={row.player_id ?? i} style={styles.tr} wrap={false}>
+              <Text style={[styles.td, styles.tdCenter, { width: '10%' }]}>{i + 1}</Text>
+              <Text style={[styles.td, { width: '40%' }]}>{row.name || '\u2014'}</Text>
+              <Text style={[styles.td, { width: '35%' }]}>{row.team_name || '\u2014'}</Text>
+              <Text style={[styles.td, styles.tdCenter, { width: '15%' }]}>{row.count}</Text>
             </View>
           ))}
         </View>
       )}
     </View>
   )
-}
-
-function CardTable({ titleKey, items, emptyKey }) {
-  return <RankTable titleKey={titleKey} items={items} emptyKey={emptyKey} />
 }
 
 function Highlights({ statistics }) {
@@ -664,12 +789,12 @@ function ScorersSection({ statistics }) {
   const hasData = (s.summary?.matches_played ?? 0) > 0 || (s.top_scorers || []).length > 0
   if (!hasData) return null
   return (
-    <Section icon="ß" title="committee.export.section.scorers">
+    <Section icon={'\u00B7'} title="committee.export.section.scorers">
       <Highlights statistics={s} />
-      <RankTable titleKey="committee.export.goals" items={s.top_scorers} emptyKey="committee.export.noScorers" />
-      <RankTable titleKey="committee.export.assists" items={s.top_assists} emptyKey="committee.export.noScorers" />
-      <CardTable titleKey="committee.export.yellowCards" items={s.yellow_cards} emptyKey="committee.export.noScorers" />
-      <CardTable titleKey="committee.export.redCards" items={s.red_cards} emptyKey="committee.export.noScorers" />
+      <RankTable titleKey="committee.export.goals" items={s.top_scorers} emptyKey="committee.export.noScorers" countLabel={t('committee.export.goals')} />
+      <RankTable titleKey="committee.export.assists" items={s.top_assists} emptyKey="committee.export.noScorers" countLabel={t('committee.export.goals')} />
+      <RankTable titleKey="committee.export.yellowCards" items={s.yellow_cards} emptyKey="committee.export.noScorers" countLabel={t('committee.export.goals')} />
+      <RankTable titleKey="committee.export.redCards" items={s.red_cards} emptyKey="committee.export.noScorers" countLabel={t('committee.export.goals')} />
     </Section>
   )
 }
@@ -678,21 +803,17 @@ function NewsSection({ news, images }) {
   const list = news || []
   if (list.length === 0) return null
   return (
-    <Section icon="„" title="committee.export.section.news">
-      {list.length === 0 ? (
-        <Empty label="committee.export.noNews" />
-      ) : (
-        list.map((item) => (
-          <View key={item.id} style={styles.newsItem} wrap={false}>
-            {img(images, coverThumb(item)) && <Image src={img(images, coverThumb(item))} style={styles.newsImg} />}
-            <View style={styles.newsBody}>
-              <Text style={styles.newsTitle}>{item.title || '—'}</Text>
-              <Text style={styles.newsDate}>{fmtDateTime(item.published_at)}</Text>
-              <Text style={styles.newsContent}>{item.content || ''}</Text>
-            </View>
+    <Section icon={'\u00A7'} title="committee.export.section.news">
+      {list.map((item) => (
+        <View key={item.id} style={styles.newsItem} wrap={false}>
+          {img(images, coverThumb(item)) && <Image src={img(images, coverThumb(item))} style={styles.newsImg} />}
+          <View style={styles.newsBody}>
+            <Text style={styles.newsTitle}>{item.title || '\u2014'}</Text>
+            <Text style={styles.newsDate}>{fmtDateTime(item.published_at)}</Text>
+            <Text style={styles.newsContent}>{item.content || ''}</Text>
           </View>
-        ))
-      )}
+        </View>
+      ))}
     </Section>
   )
 }
@@ -701,22 +822,18 @@ function GallerySection({ gallery, images }) {
   const list = gallery || []
   if (list.length === 0) return null
   return (
-    <Section icon="≈" title="committee.export.section.gallery">
-      {list.length === 0 ? (
-        <Empty label="committee.export.noGallery" />
-      ) : (
-        <View style={styles.galleryRow}>
-          {list.map((imgSrc) => {
-            const src = img(images, imgSrc.thumbnail_url || imgSrc.image_url)
-            return src ? (
-              <View key={imgSrc.id} style={styles.galleryItem}>
-                <Image src={src} style={styles.galleryImg} />
-                {imgSrc.caption && <Text style={styles.galleryCaption}>{imgSrc.caption}</Text>}
-              </View>
-            ) : null
-          })}
-        </View>
-      )}
+    <Section icon={'\u00B0'} title="committee.export.section.gallery">
+      <View style={styles.galleryRow}>
+        {list.map((imgSrc) => {
+          const src = img(images, imgSrc.thumbnail_url || imgSrc.image_url)
+          return src ? (
+            <View key={imgSrc.id} style={styles.galleryItem} wrap={false}>
+              <Image src={src} style={styles.galleryImg} />
+              {imgSrc.caption && <Text style={styles.galleryCaption}>{imgSrc.caption}</Text>}
+            </View>
+          ) : null
+        })}
+      </View>
     </Section>
   )
 }
@@ -727,7 +844,7 @@ function LogoRow({ name, logoUrl, level, link, images }) {
       <View style={styles.partnerBox}>
         {img(images, logoUrl) && <Image src={img(images, logoUrl)} style={styles.partnerLogo} />}
         <View style={styles.partnerBody}>
-          <Text style={styles.partnerName}>{name || '—'}</Text>
+          <Text style={styles.partnerName}>{name || '\u2014'}</Text>
           {level && <Text style={styles.partnerLevel}>{level}</Text>}
           {link && <Text style={styles.partnerLink}>{link}</Text>}
         </View>
@@ -741,7 +858,7 @@ function PartnersSection({ sponsors, partners, images }) {
   const p = partners || []
   if (s.length === 0 && p.length === 0) return null
   return (
-    <Section icon="¶" title="committee.export.section.sponsors">
+    <Section icon={'\u00A9'} title="committee.export.section.sponsors">
       {s.length === 0 && p.length === 0 ? (
         <Empty label="committee.export.noSponsors" />
       ) : (
@@ -775,32 +892,30 @@ function ContactSection({ contact }) {
   const hasRows = rows.some((r) => r.value)
   if (!hasRows && socials.length === 0) return null
   return (
-    <Section icon="≈" title="committee.export.section.contact">
-      {!hasRows && socials.length === 0 ? (
-        <Empty label="committee.export.noContact" />
-      ) : (
-        <View style={styles.grid}>
-          {rows.map((row) => (
-            <InfoItem key={row.key} label={`committee.export.${row.key}`} value={row.value} />
-          ))}
-          {socials.map((s) => (
-            <InfoItem key={s.key} label={s.key} value={s.value} />
-          ))}
-        </View>
-      )}
+    <Section icon={'\u00AE'} title="committee.export.section.contact">
+      <View style={styles.grid}>
+        {rows.map((row) => (
+          <InfoItem key={row.key} label={`committee.export.${row.key}`} value={row.value} />
+        ))}
+        {socials.map((s) => (
+          <InfoItem key={s.key} label={s.key} value={s.value} />
+        ))}
+      </View>
     </Section>
   )
 }
 
-export default function TournamentPdfDocument({ data, images }) {
+export default function TournamentPdfDocument({ data, images, appName }) {
   const lang = currentLang()
   const { tournament, teams, fixtures, standings, statistics, news, gallery, sponsors, partners, contact, eventsMap } = data || {}
 
   if (!tournament) return null
 
+  const brand = appName || t('common.appName')
+
   const logo = img(images, tournament.logo_url)
   const statusKey = statusLabels[tournament.status] ? t(statusLabels[tournament.status]) : tournament.status
-  const now = new Intl.DateTimeFormat(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', {
+  const now = new Intl.DateTimeFormat(locale(), {
     dateStyle: 'long',
     timeStyle: 'short',
   }).format(new Date())
@@ -808,17 +923,18 @@ export default function TournamentPdfDocument({ data, images }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <View style={styles.pageContent}>
         <View style={styles.header}>
           <View style={styles.headerTitle}>
             <Text style={styles.headerH1}>{tournament.name}</Text>
             <Text style={styles.headerSub}>
-              {[tournament.edition, tournament.category].filter(Boolean).join(' — ')}
-              {tournament.organizer?.name ? ` • ${tournament.organizer.name}` : ''}
+              {[tournament.edition, tournament.category].filter(Boolean).join(' \u2014 ')}
+              {tournament.organizer?.name ? ` \u2022 ${tournament.organizer.name}` : ''}
             </Text>
             <Text style={styles.headerSub2}>
-              {tournament.location ? `${tournament.location} • ` : ''}
+              {tournament.location ? `${tournament.location} \u2022 ` : ''}
               {fmtDate(tournament.start_date)}
-              {tournament.end_date ? ` — ${fmtDate(tournament.end_date)}` : ''} • {statusKey}
+              {tournament.end_date ? ` \u2014 ${fmtDate(tournament.end_date)}` : ''} \u2022 {statusKey}
             </Text>
           </View>
           {logo ? (
@@ -840,12 +956,14 @@ export default function TournamentPdfDocument({ data, images }) {
         <GallerySection gallery={gallery} images={images} />
         <PartnersSection sponsors={sponsors} partners={partners} images={images} />
         <ContactSection contact={contact} />
+        </View>
 
-        <View style={styles.footer}>
-          <Text>Aji Nkassrou</Text>
+        <View style={styles.footer} fixed>
+          <Text style={styles.footerApp}>{brand}</Text>
           <Text>
             {t('committee.export.generatedOn')}: {now}
           </Text>
+          <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
       </Page>
     </Document>

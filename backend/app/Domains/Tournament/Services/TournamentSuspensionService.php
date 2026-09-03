@@ -6,6 +6,7 @@ use App\Domains\Competition\Enums\FixtureStatus;
 use App\Domains\Competition\Enums\RoundStage;
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Enums\MatchEventType;
+use App\Domains\Match\Enums\MatchPunishment;
 use App\Domains\Match\Models\MatchEvent;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Exceptions\DomainException;
@@ -137,23 +138,21 @@ class TournamentSuspensionService
 
                 $playerEvents = $matchEvents->where('player_id', $playerId);
 
-                $dismissed = $playerEvents->contains(function (MatchEvent $event) {
-                    return in_array($event->type, [MatchEventType::SecondYellow, MatchEventType::RedCard], true);
-                });
+                $dismissed = $playerEvents->contains(fn (MatchEvent $event) => $this->isDismissal($event));
 
                 if ($dismissed) {
-                    $dismissal = $playerEvents->first(function (MatchEvent $event) {
-                        return in_array($event->type, [MatchEventType::SecondYellow, MatchEventType::RedCard], true);
-                    });
+                    $dismissal = $playerEvents->first(fn (MatchEvent $event) => $this->isDismissal($event));
 
                     $playerState = [
                         'yellows' => 0,
-                        'pending' => $dismissal?->type === MatchEventType::SecondYellow
+                        'pending' => $this->isSecondYellow($dismissal)
                             ? MatchEventType::SecondYellow->value
                             : MatchEventType::RedCard->value,
                     ];
                 } else {
-                    $playerState['yellows'] += $playerEvents->where('type', MatchEventType::YellowCard)->count();
+                    $playerState['yellows'] += $playerEvents
+                        ->filter(fn (MatchEvent $event) => $this->isYellow($event))
+                        ->count();
 
                     if ($playerState['yellows'] >= 2 && $playerState['pending'] === null) {
                         $playerState['pending'] = 'two_yellows';
@@ -211,11 +210,20 @@ class TournamentSuspensionService
         return MatchEvent::query()
             ->whereIn('match_id', $matchIds->all())
             ->where('team_id', $teamId)
-            ->whereIn('type', [
-                MatchEventType::YellowCard->value,
-                MatchEventType::SecondYellow->value,
-                MatchEventType::RedCard->value,
-            ])
+            ->where(function ($query) {
+                $query->whereIn('type', [
+                    MatchEventType::YellowCard->value,
+                    MatchEventType::SecondYellow->value,
+                    MatchEventType::RedCard->value,
+                ])->orWhere(function ($q) {
+                    $q->where('type', MatchEventType::Foul->value)
+                        ->whereIn('punishment', [
+                            MatchPunishment::Yellow->value,
+                            MatchPunishment::SecondYellow->value,
+                            MatchPunishment::Red->value,
+                        ]);
+                });
+            })
             ->orderBy('minute')
             ->orderBy('id')
             ->get()
@@ -227,6 +235,53 @@ class TournamentSuspensionService
         return $fixture->round_id === null
             || ! $fixture->round
             || $fixture->round->stage === RoundStage::Group;
+    }
+
+    /**
+     * Whether an event dismisses the player. Covers the legacy standalone
+     * dismissal types and the consolidated foul-with-dismissal punishment.
+     */
+    private function isDismissal(MatchEvent $event): bool
+    {
+        if (in_array($event->type, [MatchEventType::SecondYellow, MatchEventType::RedCard], true)) {
+            return true;
+        }
+
+        return $event->type === MatchEventType::Foul
+            && $event->punishment !== null
+            && $event->punishment->isDismissal();
+    }
+
+    /**
+     * Whether an event is a second-yellow dismissal (legacy type or foul
+     * punishment), used to decide the recorded suspension reason.
+     */
+    private function isSecondYellow(?MatchEvent $event): bool
+    {
+        if (! $event) {
+            return false;
+        }
+
+        if ($event->type === MatchEventType::SecondYellow) {
+            return true;
+        }
+
+        return $event->type === MatchEventType::Foul
+            && $event->punishment === MatchPunishment::SecondYellow;
+    }
+
+    /**
+     * Whether an event counts as a single yellow card (legacy type or a foul
+     * with a plain yellow punishment).
+     */
+    private function isYellow(MatchEvent $event): bool
+    {
+        if ($event->type === MatchEventType::YellowCard) {
+            return true;
+        }
+
+        return $event->type === MatchEventType::Foul
+            && $event->punishment === MatchPunishment::Yellow;
     }
 
     private function tournamentFor(Fixture $fixture): Tournament

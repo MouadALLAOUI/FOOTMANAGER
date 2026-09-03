@@ -9,6 +9,7 @@ import { collectImageUrls, validateImages } from './collectImages'
 import TournamentExportSheet from './exportSheet'
 import TournamentPdfDocument from './TournamentPdfDocument'
 import useScrollLock from '../../../../components/useScrollLock'
+import { usePublicSettings } from '../../../../api/queries'
 import './print.css'
 
 export default function TournamentExport({ tournament, onClose }) {
@@ -16,6 +17,8 @@ export default function TournamentExport({ tournament, onClose }) {
   const { toast } = useToast()
   const { data, loading, error, reload } = useTournamentExportData(tournament?.id)
   const [pdfBusy, setPdfBusy] = useState(false)
+  const settingsQuery = usePublicSettings()
+  const appName = settingsQuery.data?.settings?.platform_name
 
   useScrollLock(true)
 
@@ -35,7 +38,7 @@ export default function TournamentExport({ tournament, onClose }) {
     try {
       const urls = collectImageUrls(data)
       const images = await validateImages(urls)
-      const blob = await pdf(<TournamentPdfDocument data={data} images={images} />).toBlob()
+      const blob = await pdf(<TournamentPdfDocument data={data} images={images} appName={appName} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -122,7 +125,7 @@ export default function TournamentExport({ tournament, onClose }) {
             </div>
           )}
 
-          {!loading && !error && data && <TournamentExportSheet data={data} />}
+          {!loading && !error && data && <TournamentExportSheet data={data} appName={appName} />}
         </div>
       </div>
     </div>,

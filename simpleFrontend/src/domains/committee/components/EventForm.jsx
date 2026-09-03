@@ -1,6 +1,7 @@
 import React from 'react'
 import { ArrowDown, ArrowUp, ChevronDown } from 'lucide-react'
 import { inputClass, selectClass } from '../../../components/dashboard/ui'
+import { PUNISHMENTS } from '../../../data/matchConstants'
 import PlayerSelector from './PlayerSelector'
 
 const GOAL_TYPES = [
@@ -92,6 +93,25 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
             >
               🟥 {t('committee.result.red')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {type === 'foul' && (
+        <div>
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.punishment')}</span>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {PUNISHMENTS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, punishment: p.value }))}
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-2 py-2 text-xs font-bold transition-colors ${form.punishment === p.value ? 'border-green-300 bg-green-50 text-green-700' : 'border-slate-200 text-slate-500'}`}
+              >
+                <span className="text-sm leading-none">{p.icon}</span>
+                {t(p.labelKey)}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -192,9 +212,9 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
         </div>
       )}
 
-      {(type === 'yellow_card' || type === 'second_yellow' || type === 'red_card') && (
+      {(type === 'yellow_card' || type === 'second_yellow' || type === 'red_card' || type === 'foul') && (
         <label className="block">
-          <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.cardReason')}</span>
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">{type === 'foul' ? t('committee.result.foulReason') : t('committee.result.cardReason')}</span>
           <input value={form.reason} onChange={setField('reason')} className={inputClass} />
         </label>
       )}

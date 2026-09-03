@@ -555,6 +555,55 @@
   font-size: 10px;
 }
 
+.tm-print-event-half {
+  font-weight: 700;
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+.tm-print-event-team {
+  width: 100%;
+  font-weight: 800;
+  font-size: 10px;
+  color: #16a34a;
+  margin-top: 4px;
+  margin-bottom: 2px;
+}
+
+.tm-print-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tm-print-status-finished {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.tm-print-status-live {
+  background: #fee2e2;
+  color: #e11d48;
+}
+
+.tm-print-status-scheduled {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.tm-print-status-postponed {
+  background: #ffedd5;
+  color: #ea580c;
+}
+
+.tm-print-status-cancelled {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
 /* News */
 
 .tm-print-news {

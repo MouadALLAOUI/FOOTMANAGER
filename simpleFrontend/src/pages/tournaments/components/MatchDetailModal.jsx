@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeftRight,
@@ -6,6 +6,7 @@ import {
   CircleDot,
   CircleX,
   Crown,
+  Download,
   Flag,
   Hand,
   HeartPulse,
@@ -25,6 +26,7 @@ import {
 import { pdf } from '@react-pdf/renderer'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
+import { usePublicSettings } from '../../../api/queries'
 import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import { TeamAvatar } from '../shared'
 import { logoThumb } from '../../../lib/thumb'
@@ -44,6 +46,12 @@ const EVENT_STYLE = {
   substitution: 'bg-slate-100 text-slate-500',
   injury: 'bg-amber-50 text-amber-600',
   timeout: 'bg-amber-50 text-amber-600',
+  foul: 'bg-rose-50 text-rose-600',
+  foul_yellow: 'bg-amber-50 text-amber-500',
+  foul_second_yellow: 'bg-rose-50 text-amber-600',
+  foul_red: 'bg-rose-50 text-rose-600',
+  foul_penalty: 'bg-violet-50 text-violet-600',
+  foul_none: 'bg-rose-50 text-rose-600',
   half_time: 'bg-slate-100 text-slate-500',
   second_half: 'bg-sky-50 text-sky-600',
   kickoff: 'bg-emerald-50 text-emerald-600',
@@ -63,6 +71,12 @@ const EVENT_ICON = {
   substitution: ArrowLeftRight,
   injury: HeartPulse,
   timeout: Timer,
+  foul: CircleX,
+  foul_yellow: RectangleHorizontal,
+  foul_second_yellow: RectangleHorizontal,
+  foul_red: Square,
+  foul_penalty: CircleDot,
+  foul_none: CircleX,
   half_time: Pause,
   second_half: Play,
   kickoff: Play,
@@ -70,12 +84,17 @@ const EVENT_ICON = {
   var: Monitor,
 }
 
-function eventMeta(type) {
-  const Icon = EVENT_ICON[type] || Info
-  return { Icon, className: EVENT_STYLE[type] || 'bg-slate-100 text-slate-400' }
+function eventMeta(event) {
+  const effType = event.type === 'foul' ? `foul_${event.punishment || 'none'}` : event.type
+  const Icon = EVENT_ICON[effType] || (event.type === 'foul' ? EVENT_ICON.foul : EVENT_ICON[event.type] || Info)
+  return { Icon, className: EVENT_STYLE[effType] || EVENT_STYLE[event.type] || (event.type === 'foul' ? 'bg-rose-50 text-rose-600' : 'bg-slate-100 text-slate-400') }
 }
 
-function typeLabelKey(type) {
+function typeLabelKey(type, punishment) {
+  if (type === 'foul') {
+    const key = punishment && punishment !== 'none' ? punishment : 'none'
+    return `committee.result.punishments.${key}`
+  }
   switch (type) {
     case 'goal':
       return 'committee.export.event.goal'
@@ -98,6 +117,8 @@ function typeLabelKey(type) {
       return 'public.matchDetail.type.injury'
     case 'timeout':
       return 'public.matchDetail.type.timeout'
+    case 'foul':
+      return 'public.matchDetail.type.foul'
     case 'half_time':
       return 'public.matchDetail.type.halfTime'
     case 'second_half':
@@ -158,7 +179,7 @@ function TeamSide({ team, winner, isLive, onOpen }) {
 
 function TimelineRow({ event, side, homeTeam, awayTeam }) {
   const { t } = useTranslation()
-  const { Icon, className } = eventMeta(event.type)
+  const { Icon, className } = eventMeta(event)
   const text = eventText(event)
 
   const crest =
@@ -172,7 +193,12 @@ function TimelineRow({ event, side, homeTeam, awayTeam }) {
     </span>
   )
 
-  const body = text ? (
+  const body = event.type === 'foul' ? (
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-xs font-bold text-slate-700">{event.player?.name || event.description || ''}</p>
+      <p className="truncate text-[10px] font-bold text-slate-400">{t(typeLabelKey(event.type, event.punishment))}</p>
+    </div>
+  ) : text ? (
     <p className="min-w-0 flex-1 truncate text-xs font-bold text-slate-700">{text}</p>
   ) : (
     <p className="min-w-0 flex-1 truncate text-[11px] font-bold text-slate-400">{t(typeLabelKey(event.type))}</p>
@@ -217,6 +243,9 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
   const { t } = useTranslation()
   const { openTeam } = useProfileModal()
   const [pdfBusy, setPdfBusy] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const settingsQuery = usePublicSettings()
+  const appName = settingsQuery.data?.settings?.platform_name
   const matchId = fixture?.match?.id ?? fixture?.match_id
   const enabled = open && Boolean(tournamentKey) && Boolean(matchId)
 
@@ -225,6 +254,13 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
     [tournamentKey, matchId],
     { enabled, staleTime: 30 * 1000 },
   )
+
+  useEffect(() => {
+    if (!open && previewUrl) {
+      URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(null)
+    }
+  }, [open, previewUrl])
 
   if (!open) return null
 
@@ -248,20 +284,29 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
     try {
       const urls = [logoThumb(m.home_team), logoThumb(m.away_team)].filter(Boolean)
       const images = await validateImages(urls)
-      const blob = await pdf(<MatchPdfDocument match={m} images={images} />).toBlob()
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = matchFileName(m)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
+      const blob = await pdf(<MatchPdfDocument match={m} images={images} appName={appName} />).toBlob()
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(URL.createObjectURL(blob))
     } catch {
-      /* swallow — a toast would be nice but this matches existing export behaviour */
+      setPreviewUrl(null)
     } finally {
       setPdfBusy(false)
     }
+  }
+
+  const handleDownload = () => {
+    if (!previewUrl) return
+    const link = document.createElement('a')
+    link.href = previewUrl
+    link.download = matchFileName(m)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  }
+
+  const closePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
   }
 
   return (
@@ -368,7 +413,31 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
                 )}
               </div>
 
-              {isFinished && (
+              {(m.player_penalties?.length > 0 || m.penalty_awards?.length > 0) && (
+                <div>
+                  <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-slate-400">{t('public.matchDetail.penalties')}</p>
+                  <div className="flex flex-col gap-1.5">
+                    {(m.player_penalties || []).map((p) => (
+                      <div key={p.id} className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                        <Timer className="size-3.5 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">
+                          {p.player?.name || '—'} <span className="text-rose-400">#{p.player?.number || '—'}</span>
+                        </span>
+                        <span className="shrink-0 text-[10px] font-black text-rose-500">{minuteText({ minute: p.start_minute })} → {minuteText({ minute: p.end_minute })}</span>
+                      </div>
+                    ))}
+                    {(m.penalty_awards || []).map((a) => (
+                      <div key={a.id} className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
+                        <span className="shrink-0 text-sm">⚽</span>
+                        <span className="min-w-0 flex-1 truncate">{a.team_name || '—'}</span>
+                        <span className="shrink-0 text-[10px] font-black text-amber-500">{minuteText({ minute: a.minute })} • {t(`public.matchDetail.penaltyOutcome.${a.status}`)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isFinished && !previewUrl && (
                 <button
                   type="button"
                   onClick={handlePdf}
@@ -376,8 +445,39 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
                   className="flex w-full items-center justify-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {pdfBusy ? <Loader2 className="size-4 animate-spin" /> : <Flag className="size-4" />}
-                  {pdfBusy ? t('public.matchDetail.generatingPdf') : t('public.matchDetail.downloadPdf')}
+                  {pdfBusy ? t('public.matchDetail.generatingPdf') : t('public.matchDetail.previewPdf')}
                 </button>
+              )}
+
+              {previewUrl && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200">
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-[11px] font-black text-slate-500">{t('public.matchDetail.previewTitle')}</p>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleDownload}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-green-700"
+                      >
+                        <Download className="size-3.5" />
+                        {t('public.matchDetail.downloadPdf')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={closePreview}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-100"
+                      >
+                        <X className="size-3.5" />
+                        {t('public.matchDetail.closePreview')}
+                      </button>
+                    </div>
+                  </div>
+                  <iframe
+                    title={t('public.matchDetail.previewTitle')}
+                    src={previewUrl}
+                    className="h-[420px] w-full bg-white"
+                  />
+                </div>
               )}
             </div>
           )}

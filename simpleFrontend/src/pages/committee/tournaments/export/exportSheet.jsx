@@ -1,4 +1,4 @@
-﻿import { useTranslation } from 'react-i18next'
+import { useTranslation } from 'react-i18next'
 import i18n from '../../../../i18n'
 import { logoThumb, coverThumb } from '../../../../lib/thumb'
 import { LIVE_STATUSES } from '../../../../data/fixtures'
@@ -40,7 +40,7 @@ function fmtDateTime(value, lang) {
     hour: '2-digit',
     minute: '2-digit',
   })
-  return `${datePart} â€” ${timePart}`
+  return `${datePart} — ${timePart}`
 }
 
 function fixtureStatus(f) {
@@ -50,6 +50,27 @@ function fixtureStatus(f) {
   if (m?.status === 'finished') return 'finished'
   if (m && LIVE_STATUSES.has(m.status)) return 'live'
   return 'scheduled'
+}
+
+const MATCH_STATUS_KEYS = {
+  finished: 'public.tournamentPage.matchStatus.finished',
+  live: 'public.tournamentPage.matchStatus.live',
+  scheduled: 'public.tournamentPage.matchStatus.scheduled',
+  postponed: 'public.tournamentPage.matchStatus.postponed',
+  cancelled: 'public.tournamentPage.matchStatus.cancelled',
+}
+
+function matchStatusText(status, t) {
+  const key = MATCH_STATUS_KEYS[status]
+  return key ? t(key) : status
+}
+
+const STATUS_COLORS = {
+  finished: 'tm-print-status-finished',
+  live: 'tm-print-status-live',
+  scheduled: 'tm-print-status-scheduled',
+  postponed: 'tm-print-status-postponed',
+  cancelled: 'tm-print-status-cancelled',
 }
 
 function matchWinner(f) {
@@ -78,7 +99,14 @@ function scoreLine(f) {
   return line
 }
 
-function eventTypeKey(type) {
+function eventTypeKey(type, punishment) {
+  if (type === 'foul') {
+    return punishment === 'yellow' ? 'yellow'
+      : punishment === 'second_yellow' ? 'secondYellow'
+        : punishment === 'red' ? 'red'
+          : punishment === 'penalty' ? 'penalty'
+            : null
+  }
   if (type === 'own_goal') return 'ownGoal'
   if (type === 'yellow_card' || type === 'second_yellow') return 'yellow'
   if (type === 'red_card') return 'red'
@@ -107,7 +135,7 @@ function InfoItem({ label, value }) {
   return (
     <div className="tm-print-info-item">
       <span className="tm-print-info-label">{t(label)}</span>
-      <span className="tm-print-info-value">{value || `â€”`}</span>
+      <span className="tm-print-info-value">{value || `—`}</span>
     </div>
   )
 }
@@ -119,7 +147,7 @@ function DetailsSection({ tournament }) {
   const statusKey = statusLabels[tournament.status] ? t(statusLabels[tournament.status]) : tournament.status
   return (
     <section className="tm-print-section">
-      <SectionHeading title="committee.export.section.details" icon="â„¹" />
+      <SectionHeading title="committee.export.section.details" icon="ℹ" />
       <div className="tm-print-grid">
         <InfoItem label="committee.export.organizer" value={tournament.organizer?.name} />
         <InfoItem label="committee.export.location" value={tournament.location} />
@@ -134,7 +162,7 @@ function DetailsSection({ tournament }) {
           label="committee.export.registrationFee"
           value={tournament.requires_registration_fee ? `${tournament.registration_fee} DH` : t('committee.detail.feeFree')}
         />
-        <InfoItem label="committee.export.capacity" value={tournament.teams_count || 'â€”'} />
+        <InfoItem label="committee.export.capacity" value={tournament.teams_count || '—'} />
         <InfoItem
           label="committee.export.points"
           value={`${tournament.points_for_win} / ${tournament.points_for_draw} / ${tournament.points_for_loss}`}
@@ -154,7 +182,7 @@ function TeamsSection({ teams }) {
   if (list.length === 0) return null
   return (
     <section className="tm-print-section">
-      <SectionHeading title="committee.export.section.teams" icon="Æ’" />
+      <SectionHeading title="committee.export.section.teams" icon="♜" />
       <table className="tm-print-table">
         <thead>
           <tr>
@@ -171,10 +199,10 @@ function TeamsSection({ teams }) {
               <td>
                 <span className="tm-print-team">
                   {p.team?.logo_url && <img src={logoThumb(p.team)} alt="" className="tm-print-logo-sm" />}
-                  <span>{p.team?.name || 'â€”'}</span>
+                  <span>{p.team?.name || '—'}</span>
                 </span>
               </td>
-              <td>{p.team?.city || 'â€”'}</td>
+              <td>{p.team?.city || '—'}</td>
               <td>{p.group?.name || t('committee.export.noGroup')}</td>
             </tr>
           ))}
@@ -211,7 +239,7 @@ function buildFixtureSections(fixtures) {
   }
   const koRounds = [...koMap.entries()].map(([key, items]) => ({
     key,
-    name: items[0]?.round?.name || 'â€”',
+    name: items[0]?.round?.name || '—',
     items: items.sort((a, b) => a.id - b.id),
   }))
   return { groupRounds, koRounds }
@@ -239,14 +267,18 @@ function FixturesTable({ items, showGroup, showRound }) {
         {items.map((f, i) => (
           <tr key={f.id ?? i}>
             <td className="tm-print-td-center">{i + 1}</td>
-            {showGroup && <td>{f.group?.name || 'â€”'}</td>}
-            {showRound && <td>{f.round?.name || 'â€”'}</td>}
-            <td>{f.home_team?.name || 'â€”'}</td>
+            {showGroup && <td>{f.group?.name || '—'}</td>}
+            {showRound && <td>{f.round?.name || '—'}</td>}
+            <td>{f.home_team?.name || '—'}</td>
             <td className="tm-print-td-score">{scoreLine(f)}</td>
-            <td>{f.away_team?.name || 'â€”'}</td>
+            <td>{f.away_team?.name || '—'}</td>
             <td>{fmtDateTime(f.scheduled_at, lang)}</td>
-            <td>{f.stadium?.name || 'â€”'}</td>
-            <td>{t(`committee.detail.matchStatus.${fixtureStatus(f)}`)}</td>
+            <td>{f.stadium?.name || '—'}</td>
+            <td>
+              <span className={`tm-print-status ${STATUS_COLORS[fixtureStatus(f)] || ''}`}>
+                {matchStatusText(fixtureStatus(f), t)}
+              </span>
+            </td>
           </tr>
         ))}
       </tbody>
@@ -260,7 +292,7 @@ function FixturesSection({ fixtures }) {
   const { groupRounds, koRounds } = buildFixtureSections(fixtures)
   return (
     <section className="tm-print-section tm-print-break">
-      <SectionHeading title="committee.export.section.fixtures" icon="Å " />
+      <SectionHeading title="committee.export.section.fixtures" icon="Š" />
       {groupRounds.length === 0 && koRounds.length === 0 ? (
         <EmptyRow label="committee.export.noFixtures" />
       ) : (
@@ -283,13 +315,24 @@ function FixturesSection({ fixtures }) {
   )
 }
 
+function halfLabel(period) {
+  const lang = currentLang()
+  if (!period) return ''
+  if (period === 'first_half') return lang.startsWith('ar') ? '1ش' : '1H'
+  if (period === 'second_half') return lang.startsWith('ar') ? '2ش' : '2H'
+  if (period === 'extra_time') return lang.startsWith('ar') ? 'إضافي' : 'ET'
+  if (period === 'penalties') return lang.startsWith('ar') ? 'ترجيح' : 'Pen'
+  return ''
+}
+
 function EventChip({ event }) {
   const { t } = useTranslation()
-  const type = eventTypeKey(event.type)
+  const type = eventTypeKey(event.type, event.punishment)
   if (!type) return null
   return (
     <span className={`tm-print-event tm-print-event-${type}`}>
       {event.minute != null && <span className="tm-print-event-minute">{event.minute}{event.added_time ? `+${event.added_time}` : ''}'</span>}
+      <span className="tm-print-event-half">{halfLabel(event.period)}</span>
       <span className="tm-print-event-label">{t(`committee.export.event.${type}`)}</span>
       <span className="tm-print-event-player">{event.player?.name || event.description || ''}</span>
       {event.assist_player?.name && <span className="tm-print-event-assist">({event.assist_player.name})</span>}
@@ -303,14 +346,19 @@ function ResultsSection({ fixtures, eventsMap }) {
   const finished = (fixtures || [])
     .filter((f) => f.match?.status === 'finished')
     .sort((a, b) => new Date(a.scheduled_at || 0) - new Date(b.scheduled_at || 0))
-  if (finished.length === 0) return null
   return (
     <section className="tm-print-section tm-print-break">
-      <SectionHeading title="committee.export.section.results" icon="Ã“" />
+      <SectionHeading title="committee.export.section.results" icon="✓" />
+      {finished.length === 0 ? (
+        <EmptyRow label="committee.export.noResults" />
+      ) : (
       <div className="tm-print-results">
         {finished.map((f) => {
           const events = eventsMap.get(f.id) || []
           const winner = matchWinner(f)
+          const homeEvents = events.filter((e) => e.team_id === f.home_team?.id)
+          const awayEvents = events.filter((e) => e.team_id === f.away_team?.id)
+          const neutralEvents = events.filter((e) => e.team_id !== f.home_team?.id && e.team_id !== f.away_team?.id)
           return (
             <div key={f.id} className="tm-print-result">
               <div className="tm-print-result-head">
@@ -320,19 +368,34 @@ function ResultsSection({ fixtures, eventsMap }) {
                 <span className="tm-print-result-date">{fmtDateTime(f.scheduled_at, lang)}</span>
               </div>
               <div className="tm-print-result-score">
-                <span className="tm-print-result-team">{f.home_team?.name || 'â€”'}</span>
+                <span className="tm-print-result-team">{f.home_team?.name || '—'}</span>
                 <span className="tm-print-result-num">{scoreLine(f)}</span>
-                <span className="tm-print-result-team">{f.away_team?.name || 'â€”'}</span>
+                <span className="tm-print-result-team">{f.away_team?.name || '—'}</span>
               </div>
               <div className="tm-print-result-meta">
-                <span className="tm-print-result-winner">{t('committee.export.winner')}: <b>{winner || 'â€”'}</b></span>
+                <span className="tm-print-result-winner">{t('committee.export.winner')}: <b>{winner || '—'}</b></span>
                 {f.stadium?.name && <span className="tm-print-result-stadium">{f.stadium.name}</span>}
               </div>
               {events.length > 0 && (
                 <div className="tm-print-result-events">
-                  <span className="tm-print-result-events-label">{t('committee.export.events')}:</span>
                   <div className="tm-print-result-events-list">
-                    {events.map((ev, i) => (
+                    {homeEvents.length > 0 && (
+                      <>
+                        <div className="tm-print-event-team">{f.home_team?.name}</div>
+                        {homeEvents.map((ev, i) => (
+                          <EventChip key={ev.id ?? i} event={ev} />
+                        ))}
+                      </>
+                    )}
+                    {awayEvents.length > 0 && (
+                      <>
+                        <div className="tm-print-event-team">{f.away_team?.name}</div>
+                        {awayEvents.map((ev, i) => (
+                          <EventChip key={ev.id ?? i} event={ev} />
+                        ))}
+                      </>
+                    )}
+                    {neutralEvents.length > 0 && neutralEvents.map((ev, i) => (
                       <EventChip key={ev.id ?? i} event={ev} />
                     ))}
                   </div>
@@ -342,6 +405,7 @@ function ResultsSection({ fixtures, eventsMap }) {
           )
         })}
       </div>
+      )}
     </section>
   )
 }
@@ -353,7 +417,7 @@ function StandingsSection({ standings }) {
   const cols = ['played', 'wins', 'draws', 'losses', 'gf', 'ga', 'gd', 'points']
   return (
     <section className="tm-print-section tm-print-break">
-      <SectionHeading title="committee.export.section.standings" icon="â€¡" />
+      <SectionHeading title="committee.export.section.standings" icon="★" />
       {groups.map((group) => (
         <div key={group.group_id ?? 'unassigned'} className="tm-print-subsection">
           <h3>{group.name || t('committee.export.allTeams')}</h3>
@@ -374,7 +438,7 @@ function StandingsSection({ standings }) {
                   <td>
                     <span className="tm-print-team">
                       {row.team?.logo_url && <img src={logoThumb(row.team)} alt="" className="tm-print-logo-sm" />}
-                      <span>{row.team?.name || 'â€”'}</span>
+                      <span>{row.team?.name || '—'}</span>
                     </span>
                   </td>
                   <td className="tm-print-td-center">{row.played}</td>
@@ -417,8 +481,8 @@ function RankTable({ titleKey, items, emptyKey }) {
             {list.map((row, i) => (
               <tr key={row.player_id ?? i}>
                 <td className="tm-print-td-center">{i + 1}</td>
-                <td>{row.name || 'â€”'}</td>
-                <td>{row.team_name || 'â€”'}</td>
+                <td>{row.name || '—'}</td>
+                <td>{row.team_name || '—'}</td>
                 <td className="tm-print-td-center">{row.count}</td>
               </tr>
             ))}
@@ -451,8 +515,8 @@ function CardTable({ titleKey, items, emptyKey }) {
             {list.map((row, i) => (
               <tr key={row.player_id ?? i}>
                 <td className="tm-print-td-center">{i + 1}</td>
-                <td>{row.name || 'â€”'}</td>
-                <td>{row.team_name || 'â€”'}</td>
+                <td>{row.name || '—'}</td>
+                <td>{row.team_name || '—'}</td>
                 <td className="tm-print-td-center">{row.count}</td>
               </tr>
             ))}
@@ -495,7 +559,7 @@ function ScorersSection({ statistics }) {
   if (!hasData) return null
   return (
     <section className="tm-print-section tm-print-break">
-      <SectionHeading title="committee.export.section.scorers" icon="ÃŸ" />
+      <SectionHeading title="committee.export.section.scorers" icon="✦" />
       <Highlights statistics={s} />
       <RankTable titleKey="committee.export.goals" items={s.top_scorers} emptyKey="committee.export.noScorers" />
       <RankTable titleKey="committee.export.assists" items={s.top_assists} emptyKey="committee.export.noScorers" />
@@ -511,7 +575,7 @@ function NewsSection({ news }) {
   if (list.length === 0) return null
   return (
     <section className="tm-print-section tm-print-break">
-      <SectionHeading title="committee.export.section.news" icon="â€ž" />
+      <SectionHeading title="committee.export.section.news" icon="■" />
       {list.length === 0 ? (
         <EmptyRow label="committee.export.noNews" />
       ) : (
@@ -520,7 +584,7 @@ function NewsSection({ news }) {
             <article key={item.id} className="tm-print-news-item">
               {item.cover_thumbnail_url && <img src={coverThumb(item)} alt="" className="tm-print-news-img" />}
               <div>
-                <h3>{item.title || 'â€”'}</h3>
+                <h3>{item.title || '—'}</h3>
                 <p className="tm-print-news-date">{fmtDateTime(item.published_at, lang)}</p>
                 <p className="tm-print-news-content">{item.content || ''}</p>
               </div>
@@ -537,7 +601,7 @@ function GallerySection({ gallery }) {
   if (list.length === 0) return null
   return (
     <section className="tm-print-section">
-      <SectionHeading title="committee.export.section.gallery" icon="â‰ˆ" />
+      <SectionHeading title="committee.export.section.gallery" icon="▦" />
       {list.length === 0 ? (
         <EmptyRow label="committee.export.noGallery" />
       ) : (
@@ -559,7 +623,7 @@ function LogoRow({ name, logoUrl, level, link }) {
     <div className="tm-print-partner">
       {logoUrl && <img src={logoUrl} alt="" className="tm-print-partner-logo" />}
       <div>
-        <p className="tm-print-partner-name">{name || 'â€”'}</p>
+        <p className="tm-print-partner-name">{name || '—'}</p>
         {level && <p className="tm-print-partner-level">{level}</p>}
         {link && <p className="tm-print-partner-link">{link}</p>}
       </div>
@@ -573,7 +637,7 @@ function PartnersSection({ sponsors, partners }) {
   if (s.length === 0 && p.length === 0) return null
   return (
     <section className="tm-print-section">
-      <SectionHeading title="committee.export.section.sponsors" icon="Â¶" />
+      <SectionHeading title="committee.export.section.sponsors" icon="©" />
       {s.length === 0 && p.length === 0 ? (
         <EmptyRow label="committee.export.noSponsors" />
       ) : (
@@ -608,7 +672,7 @@ function ContactSection({ contact }) {
   if (!hasRows && socials.length === 0) return null
   return (
     <section className="tm-print-section">
-      <SectionHeading title="committee.export.section.contact" icon="â‰ˆ" />
+      <SectionHeading title="committee.export.section.contact" icon="▦" />
       {!hasRows && socials.length === 0 ? (
         <EmptyRow label="committee.export.noContact" />
       ) : (
@@ -625,12 +689,14 @@ function ContactSection({ contact }) {
   )
 }
 
-export default function TournamentExportSheet({ data }) {
+export default function TournamentExportSheet({ data, appName }) {
   const { t } = useTranslation()
   const lang = currentLang()
   const { tournament, teams, fixtures, standings, statistics, news, gallery, sponsors, partners, contact, eventsMap } = data || {}
 
   if (!tournament) return null
+
+  const brand = appName || t('common.appName')
 
   const logo = tournament.logo_url
   const statusKey = statusLabels[tournament.status] ? t(statusLabels[tournament.status]) : tournament.status
@@ -652,12 +718,12 @@ export default function TournamentExportSheet({ data }) {
         <div className="tm-print-header-title">
           <h1>{tournament.name}</h1>
           <p>
-            {[tournament.edition, tournament.category].filter(Boolean).join(' â€” ')}
-            {tournament.organizer?.name ? ` â€¢ ${tournament.organizer.name}` : ''}
+            {[tournament.edition, tournament.category].filter(Boolean).join(' — ')}
+            {tournament.organizer?.name ? ` • ${tournament.organizer.name}` : ''}
           </p>
           <p className="tm-print-header-sub">
-            {tournament.location ? `${tournament.location} â€¢ ` : ''}
-            {fmtDate(tournament.start_date, lang)}{tournament.end_date ? ` â€” ${fmtDate(tournament.end_date, lang)}` : ''} â€¢ {statusKey}
+            {tournament.location ? `${tournament.location} • ` : ''}
+            {fmtDate(tournament.start_date, lang)}{tournament.end_date ? ` — ${fmtDate(tournament.end_date, lang)}` : ''} • {statusKey}
           </p>
         </div>
       </header>
@@ -674,7 +740,7 @@ export default function TournamentExportSheet({ data }) {
       <ContactSection contact={contact} />
 
       <footer className="tm-print-footer">
-        <span>Aji Nkassrou</span>
+        <span>{brand}</span>
         <span>{t('committee.export.generatedOn')}: {now}</span>
       </footer>
     </div>

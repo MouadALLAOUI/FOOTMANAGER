@@ -48,6 +48,7 @@ export const q = {
   publicCommitteeProfile: (id) => ['public', 'committee-members', id, 'profile'],
   cities: () => ['cities'],
   citiesSelect: () => ['cities', 'select'],
+  publicSettings: () => ['public', 'settings'],
 }
 
 function useTypedQuery(key, fetcher, options) {
@@ -132,6 +133,12 @@ export const useCities = (options) =>
   useTypedQuery(q.cities(), () => get('/cities', { active_only: true }), options)
 export const useCitiesSelect = (options) =>
   useTypedQuery(q.citiesSelect(), () => get('/cities/select', { active_only: true }), options)
+
+export const usePublicSettings = (options) =>
+  useTypedQuery(q.publicSettings(), () => get('/settings/public'), {
+    staleTime: 5 * 60 * 1000,
+    ...options,
+  })
 
 export function prefetchQuery(key, fetcher) {
   return queryClient.prefetchQuery({ queryKey: key, queryFn: fetcher, ...DEFAULTS })

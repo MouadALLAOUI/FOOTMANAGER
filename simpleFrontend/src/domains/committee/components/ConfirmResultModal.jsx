@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Check, X } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
-import { EVENT_META, minuteText } from '../constants'
+import { EVENT_META, absoluteMinute, minuteText } from '../constants'
 import { REFEREE_ROLES } from '../../../data/matchConstants'
 
 function SectionCard({ icon, title, children }) {
@@ -79,6 +79,7 @@ export default function ConfirmResultModal({
   onConfirm,
   onCancel,
   t,
+  halfDuration,
 }) {
   const teamNameOf = (teamId) => {
     const id = Number(teamId)
@@ -86,6 +87,7 @@ export default function ConfirmResultModal({
     if (id === Number(awayId)) return awayName
     return t('committee.result.selectTeam')
   }
+  const evMinute = (ev) => minuteText(absoluteMinute(ev.minute, ev.half, halfDuration), ev.added_time)
 
   const goals = useMemo(
     () => events.filter((e) => e.type === 'goal' || e.type === 'penalty_goal' || e.type === 'own_goal'),
@@ -164,10 +166,10 @@ export default function ConfirmResultModal({
                     <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{homeName}</p>
                   )}
                   {homeGoals.map((ev) => (
-                    <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own={ev.type === 'own_goal'} minute={minuteText(ev.minute, ev.added_time)} t={t} />
+                    <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own={ev.type === 'own_goal'} minute={evMinute(ev)} t={t} />
                   ))}
                   {ownGoalAway.length > 0 && ownGoalAway.map((ev) => (
-                    <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own minute={minuteText(ev.minute, ev.added_time)} t={t} />
+                    <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own minute={evMinute(ev)} t={t} />
                   ))}
                 </div>
                 <div className="space-y-1.5">
@@ -175,10 +177,10 @@ export default function ConfirmResultModal({
                     <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{awayName}</p>
                   )}
                   {awayGoals.map((ev) => (
-                    <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own={ev.type === 'own_goal'} minute={minuteText(ev.minute, ev.added_time)} t={t} />
+                    <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own={ev.type === 'own_goal'} minute={evMinute(ev)} t={t} />
                   ))}
                   {ownGoalHome.length > 0 && ownGoalHome.map((ev) => (
-                    <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own minute={minuteText(ev.minute, ev.added_time)} t={t} />
+                    <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own minute={evMinute(ev)} t={t} />
                   ))}
                 </div>
               </div>
@@ -189,7 +191,7 @@ export default function ConfirmResultModal({
             <SectionCard icon="🟨" title={t('committee.result.reviewCards')}>
               <ul className="space-y-1.5">
                 {cards.map((ev) => (
-                  <CardRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} minute={minuteText(ev.minute, ev.added_time)} t={t} />
+                  <CardRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} minute={evMinute(ev)} t={t} />
                 ))}
               </ul>
             </SectionCard>
@@ -199,7 +201,7 @@ export default function ConfirmResultModal({
             <SectionCard icon="🔄" title={t('committee.result.substitutions')}>
               <ul className="space-y-1.5">
                 {subs.map((ev) => (
-                  <SubRow key={ev._key} ev={ev} minute={minuteText(ev.minute, ev.added_time)} t={t} />
+                  <SubRow key={ev._key} ev={ev} minute={evMinute(ev)} t={t} />
                 ))}
               </ul>
             </SectionCard>

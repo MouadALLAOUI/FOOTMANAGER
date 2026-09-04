@@ -15,4 +15,4 @@ php artisan queue:work --tries=3 --timeout=90 --sleep=3 &
 php artisan reverb:start --host=0.0.0.0 --port=${REVERB_SERVER_PORT:-8080} &
 
 # 6. Start web server (foreground — keeps the container alive)
-php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
+php artisan serve --host=0.0.0.0 --port=$PORT

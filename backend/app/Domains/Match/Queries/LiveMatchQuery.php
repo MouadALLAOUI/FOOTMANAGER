@@ -19,7 +19,7 @@ class LiveMatchQuery
             ->where('status', 'accepted')
             ->whereNull('host_score')
             ->where('match_datetime', '<=', $now)
-            ->where('match_datetime', '>=', $now->copy()->subHours(2))
+            ->where('match_datetime', '>=', $now->copy()->subHours(3))
             ->orderBy('match_datetime', 'asc');
     }
 }

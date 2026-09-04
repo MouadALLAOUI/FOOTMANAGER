@@ -152,6 +152,16 @@ class NotificationService
                     'is_pinned' => $pinned,
                     'is_important' => $important,
                 ]);
+
+                try {
+                    \App\Domains\Notification\Events\NotificationBroadcast::dispatch($model);
+                } catch (\Throwable $e) {
+                    Log::warning('Notification broadcast failed', [
+                        'user_id' => $userId,
+                        'type' => $type,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
 
             if ($service->channelEnabled($userId, $type, 'push')) {

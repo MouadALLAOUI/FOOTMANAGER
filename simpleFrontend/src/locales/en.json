@@ -344,6 +344,26 @@
       "saving": "Saving...",
       "saved": "Notification preferences saved",
       "failed": "Failed to save"
+    },
+    "push": {
+      "title": "Browser notifications",
+      "desc": "Get push notifications even when you're away",
+      "toggle": "Enable browser notifications",
+      "enable": "Enable",
+      "enabled": "Notifications enabled successfully",
+      "disabled": "Notifications disabled",
+      "denied": "You previously blocked notifications. Allow them in your browser settings",
+      "unsupported": "Your browser doesn't support push notifications",
+      "error": "Couldn't enable notifications:",
+      "test": "Send test notification",
+      "testSent": "Test notification sent successfully",
+      "testNotSubscribed": "Enable notifications first before sending a test",
+      "testFailed": "Couldn't send the test notification",
+      "nudgeTitle": "Enable notifications",
+      "nudgeBody": "We'll reach you as soon as match results or new approval requests arrive",
+      "testHint": "Press the button to send a test notification and confirm notifications are working",
+      "iosTitle": "iOS notifications require installation",
+      "iosBody": "To keep receiving notifications on iPhone or iPad, first add the app to your home screen (Share → Add to Home Screen), then enable notifications from inside the app."
     }
   },
   "manager": {

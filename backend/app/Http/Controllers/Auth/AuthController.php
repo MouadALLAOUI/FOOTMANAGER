@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domains\Notification\Jobs\NotifyAdminsNewSignupPush;
 use App\Domains\Player\Models\PlayerProfile;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Services\ImageThumbnailService;
@@ -405,6 +406,17 @@ class AuthController extends Controller
 
     private function notifyAdminOfNewRegistration(array $data): void
     {
+        try {
+            NotifyAdminsNewSignupPush::dispatch(
+                $data['type'],
+                $data['name'],
+                $data['email'] ?? null,
+                $data['phone'] ?? null,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         try {
             $recipients = User::where('role', 'admin')->pluck('email')->filter();
             $adminEmail = config('mail.admin_email');

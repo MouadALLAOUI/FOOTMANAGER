@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domains\Notification\Jobs\NotifyUserApprovalUpdatePush;
 use App\Domains\Shared\Base\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -75,6 +76,11 @@ class PlayerApprovalController extends Controller
                 ->each(fn (User $user) => $user->revokeTokens());
         }
 
+        $newStatus = self::ACTIONS[$data['action']];
+        foreach ($data['ids'] as $userId) {
+            NotifyUserApprovalUpdatePush::dispatch((int) $userId, $newStatus);
+        }
+
         return response()->json([
             'message' => "تم تحديث {$count} حساب لاعب.",
             'updated' => $count,
@@ -98,6 +104,7 @@ class PlayerApprovalController extends Controller
     {
         $user = User::where('id', $id)->where('role', 'player')->firstOrFail();
         $user->update(['status' => 'approved']);
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'approved');
 
         return response()->json([
             'message' => 'تم قبول حساب اللاعب وتفعيل حسابه بنجاح',
@@ -110,6 +117,7 @@ class PlayerApprovalController extends Controller
         $user = User::where('id', $id)->where('role', 'player')->firstOrFail();
         $user->update(['status' => 'rejected']);
         $user->revokeTokens();
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'rejected');
 
         return response()->json([
             'message' => 'تم رفض طلب اللاعب',
@@ -122,6 +130,7 @@ class PlayerApprovalController extends Controller
         $user = User::where('id', $id)->where('role', 'player')->firstOrFail();
         $user->update(['status' => 'blocked']);
         $user->revokeTokens();
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'blocked');
 
         return response()->json([
             'message' => 'تم حظر حساب اللاعب',
@@ -133,6 +142,7 @@ class PlayerApprovalController extends Controller
     {
         $user = User::where('id', $id)->where('role', 'player')->firstOrFail();
         $user->update(['status' => 'approved']);
+        NotifyUserApprovalUpdatePush::dispatch($user->id, 'unblocked');
 
         return response()->json([
             'message' => 'تم إلغاء الحظر وإعادة تفعيل حساب اللاعب',

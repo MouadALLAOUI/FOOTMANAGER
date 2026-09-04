@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import ActivityLockBanner from '../ui/ActivityLockBanner'
+import { PushEnableBanner } from '../notifications/EnablePushNotifications'
 import ProfileAvatar from '../profile/ProfileAvatar'
 import ItemIcon from './ItemIcon'
 import { useNotifications, useNotificationUnreadCount } from '../../api/queries'
@@ -422,6 +423,7 @@ export default function Shell({
         </header>
 
         <div key={location.pathname} className="page-enter mx-auto max-w-[1400px] px-5 py-7 lg:px-8">
+          <PushEnableBanner />
           <ActivityLockBanner />
           {children}
         </div>

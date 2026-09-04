@@ -15,7 +15,7 @@ class LiveMatchResource extends JsonResource
             'id' => $this->id,
             'type' => $this->type ?? 'public_request',
             'status' => 'live',
-            'minute' => max(0, min(120, $elapsed)),
+            'minute' => max(0, min(180, $elapsed)),
             'started_at' => $this->match_datetime?->toIso8601String(),
             'host_team' => $this->whenLoaded('hostTeam', fn () => new TeamResource($this->hostTeam)),
             'opponent_team' => $this->whenLoaded('opponentTeam', fn () => new TeamResource($this->opponentTeam)),

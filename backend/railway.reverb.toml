@@ -1,0 +1,7 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "php artisan reverb:start --host=0.0.0.0 --port=$PORT"
+restartPolicyType = "ON_FAILURE"

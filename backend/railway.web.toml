@@ -1,0 +1,6 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "php artisan storage:link --force && php artisan config:cache && php artisan serve --host=0.0.0.0 --port=$PORT"
+restartPolicyType = "ON_FAILURE"

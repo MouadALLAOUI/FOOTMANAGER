@@ -1,0 +1,6 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "php artisan queue:work --tries=3 --timeout=90"
+restartPolicyType = "ON_FAILURE"

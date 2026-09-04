@@ -7,8 +7,6 @@ mkdir -p storage/app/public storage/framework/cache storage/framework/sessions s
 # 2. Create storage symlink
 php artisan storage:link --force 2>/dev/null || true
 
-# 3. Run pending migrations
-php artisan migrate --force --no-interaction
 
 # 4. Start queue worker in background
 php artisan queue:work --tries=3 --timeout=90 --sleep=3 &

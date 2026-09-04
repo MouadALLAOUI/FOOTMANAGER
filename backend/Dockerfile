@@ -8,7 +8,7 @@ FROM php:8.2-cli AS base
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git unzip libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
-        libxml2-dev libonig-dev libcurl4-openssl-dev libsodium-dev \
+        libxml2-dev libonig-dev libcurl4-openssl-dev libsodium-dev libicu-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install \
         pcntl sockets bcmath zip pdo pdo_mysql \

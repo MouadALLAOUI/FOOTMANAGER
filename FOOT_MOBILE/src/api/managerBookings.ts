@@ -123,3 +123,107 @@ export function useConvertBookingToMatch() {
     },
   });
 }
+
+/* ── Terrain discovery & booking (core mobile flow) ─────────────────────── */
+
+export interface TerrainSlot {
+  start: string;
+  end: string;
+  status?: string | null;
+}
+
+export interface TerrainSlotsResponse {
+  terrain?: {
+    id: number;
+    name?: string | null;
+    type?: string | null;
+    player_format?: string | null;
+    price_per_team?: number | null;
+    is_open?: boolean;
+    closure_reason?: string | null;
+  } | null;
+  slots?: TerrainSlot[];
+  terrain_closed?: boolean;
+  closure_reason?: string | null;
+  message?: string | null;
+}
+
+export interface CreateManagerBookingPayload {
+  terrain_id: number | string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  booking_type?: string;
+  notes?: string;
+}
+
+export interface CreateManagerBookingResponse {
+  message?: string;
+  booking?: ManagerBooking;
+  [key: string]: unknown;
+}
+
+/** Public availability endpoint — returns the schedule slots for one day,
+ *  already marked busy where bookings/closures/fixtures overlap. */
+export function getTerrainSlots(terrainId: number | string, date: string): Promise<TerrainSlotsResponse> {
+  return get<TerrainSlotsResponse>(`/terrains/${terrainId}/slots`, {
+    params: { date },
+  });
+}
+
+export function createManagerTrainingBooking(
+  payload: CreateManagerBookingPayload,
+): Promise<CreateManagerBookingResponse> {
+  return post<CreateManagerBookingResponse>('/manager/bookings/training', payload);
+}
+
+export function useTerrainSlots(terrainId: number | string | undefined, date: string | undefined) {
+  return useQuery({
+    queryKey: ['terrain', 'slots', String(terrainId), date],
+    queryFn: () => getTerrainSlots(terrainId as number | string, date as string),
+    enabled: Boolean(terrainId && date),
+  });
+}
+
+export function useCreateManagerBooking() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateManagerBookingPayload) => createManagerTrainingBooking(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['manager', 'bookings'] });
+      void queryClient.invalidateQueries({ queryKey: ['terrain', 'slots'] });
+    },
+  });
+}
+
+export interface TerrainCatalogItem {
+  id: number;
+  name: string;
+  slug?: string | null;
+  type?: string | null;
+  city?: string | null;
+  address?: string | null;
+  player_format?: string | null;
+  price_per_hour?: number | null;
+  price_per_team?: number | null;
+  is_available?: boolean;
+}
+
+export interface TerrainCatalogResponse {
+  stadiums: TerrainCatalogItem[];
+}
+
+/** Public terrain catalog used by the mobile booking flow. */
+export function getTerrainCatalog(): Promise<TerrainCatalogResponse> {
+  return get<TerrainCatalogResponse>('/stadiums', {
+    params: { per_page: 100 },
+  });
+}
+
+export function useTerrainCatalog() {
+  return useQuery({
+    queryKey: ['terrain', 'catalog'],
+    queryFn: getTerrainCatalog,
+    staleTime: 5 * 60 * 1000,
+  });
+}

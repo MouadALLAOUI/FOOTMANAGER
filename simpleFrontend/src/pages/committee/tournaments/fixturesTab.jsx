@@ -1194,7 +1194,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         />
       )}
 
-      {detailsFixture && <MatchDetailsModal fixture={detailsFixture} onClose={() => setDetailsFixture(null)} />}
+      {detailsFixture && <MatchDetailsModal fixture={detailsFixture} tournament={tournament} onClose={() => setDetailsFixture(null)} />}
       {rescheduleFixture && (
         <RescheduleDrawer
           fixture={rescheduleFixture}

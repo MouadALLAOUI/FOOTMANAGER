@@ -5,6 +5,7 @@ import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
 import { Card, SectionTitle, Button, Field, inputClass, Toggle, SkeletonCards } from '../../../components/dashboard/ui'
 import ProfileImageUploader from '../../../components/profile/ProfileImageUploader'
+import ProfileAppearance from '../../../components/profile/ProfileAppearance'
 import { useAuth } from '../../../context/AuthContext'
 
 export default function Profile() {
@@ -84,6 +85,8 @@ export default function Profile() {
       {msg && (
         <div className="mb-4 rounded-xl bg-green-50 px-4 py-3 text-sm font-semibold text-green-700 ring-1 ring-green-200">{msg}</div>
       )}
+
+      <ProfileAppearance />
 
       <Card noPadding>
         <div className="space-y-5 p-6">

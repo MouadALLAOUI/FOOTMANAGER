@@ -31,7 +31,7 @@ function ManagerCard({ card }) {
           </span>
         </div>
 
-        <h3 className="mt-4 text-2xl font-black">{card.team}</h3>
+        <h3 className="bidi-plaintext mt-4 truncate text-2xl font-black">{card.team}</h3>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-semibold text-white/90">
           <span className="flex items-center gap-1.5">
@@ -39,13 +39,13 @@ function ManagerCard({ card }) {
             {[matchDay(card.day, i18n.language), card.time].filter(Boolean).join(' • ')}
           </span>
           <span className="flex items-center gap-1.5">
-            <FontAwesomeIcon icon={faMapPin} className="size-4 text-white/60" />
-            {card.city}
+            <FontAwesomeIcon icon={faMapPin} className="size-4 shrink-0 text-white/60" />
+            <span className="bidi-plaintext min-w-0 truncate">{card.city}</span>
           </span>
           {card.stadium && (
-            <span className="flex items-center gap-1.5">
-              <FontAwesomeIcon icon={faFutbol} className="size-4 text-white/60" />
-              {card.stadium}
+            <span className="flex min-w-0 items-center gap-1.5">
+              <FontAwesomeIcon icon={faFutbol} className="size-4 shrink-0 text-white/60" />
+              <span className="bidi-plaintext min-w-0 truncate">{card.stadium}</span>
             </span>
           )}
         </div>
@@ -67,7 +67,7 @@ function OwnerCard({ card, terrain }) {
     ''
 
   return (
-    <div className="relative w-[320px] shrink-0 snap-start overflow-hidden rounded-[28px] bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-7 text-white shadow-[0_18px_45px_rgba(245,158,11,0.35)]">
+    <div className="relative w-[82%] max-w-[320px] shrink-0 snap-start overflow-hidden rounded-[28px] bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500 p-7 text-white shadow-[0_18px_45px_rgba(245,158,11,0.35)]">
       {thumb ? (
         <>
           <img
@@ -87,18 +87,20 @@ function OwnerCard({ card, terrain }) {
           <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-bold backdrop-blur">
             {card.isOpen ? t('landing.fields.openNow') : t('landing.fields.closed')}
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur">
-            <FontAwesomeIcon icon={faStar} className="size-3 text-amber-200" />
-            {card.rating}
-          </span>
+          {card.rating != null && (
+            <span className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold backdrop-blur">
+              <FontAwesomeIcon icon={faStar} className="size-3 shrink-0 text-amber-200" />
+              {card.rating}
+            </span>
+          )}
         </div>
 
         <h3 className="mt-4 text-2xl font-black">{card.name}</h3>
 
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-semibold text-white/90">
           <span className="flex items-center gap-1.5">
-            <FontAwesomeIcon icon={faMapPin} className="size-4 text-white/60" />
-            {card.city}
+            <FontAwesomeIcon icon={faMapPin} className="size-4 shrink-0 text-white/60" />
+            <span className="bidi-plaintext min-w-0 truncate">{card.city}</span>
           </span>
           <span className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs backdrop-blur">
             <FontAwesomeIcon icon={faClock} className="size-3 text-white/70" />
@@ -161,7 +163,7 @@ export default function MySection() {
           ) : isManager && match ? (
             <ManagerCard card={toMatchCard(match)} />
           ) : isOwner && terrains.length > 0 ? (
-            <Carousel>
+            <Carousel showDots>
               {terrains.map((terrain) => (
                 <OwnerCard key={terrain.id} card={toStadiumCard(terrain)} terrain={terrain} />
               ))}

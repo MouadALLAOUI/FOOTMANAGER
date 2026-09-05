@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ClipboardList, EyeOff, Eye, CheckCircle2 } from 'lucide-react'
@@ -10,24 +11,24 @@ import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import { toastApiError } from '../../../lib/errors'
 
 const typeLabels = {
-  comment: 'تعليق',
-  chat_message: 'رسالة دردشة',
-  player_review: 'تقييم لاعب',
-  stadium_review: 'تقييم ملعب',
-  team: 'فريق',
-  player: 'لاعب',
-  stadium: 'ملعب',
-  match: 'مباراة',
-  announcement: 'إعلان',
-  activity: 'نشاط',
-  booking: 'حجز',
+  get comment() { return i18n.t('dash.comment') },
+  get chat_message() { return i18n.t('dash.chatMessage') },
+  get player_review() { return i18n.t('dash.playerReview') },
+  get stadium_review() { return i18n.t('dash.fieldReview') },
+  get team() { return i18n.t('dash.team') },
+  get player() { return i18n.t('dash.player') },
+  get stadium() { return i18n.t('dash.field3') },
+  get match() { return i18n.t('dash.match') },
+  get announcement() { return i18n.t('dash.announcement') },
+  get activity() { return i18n.t('dash.activity') },
+  get booking() { return i18n.t('dash.booking') },
 }
 
 const reportStatusMeta = {
-  pending: 'بانتظار المراجعة',
-  reviewed: 'تمت المراجعة',
-  resolved: 'تم الحل',
-  dismissed: 'مهمل',
+  get pending() { return i18n.t('dash.pendingReview') },
+  get reviewed() { return i18n.t('dash.reviewed') },
+  get resolved() { return i18n.t('dash.resolved') },
+  get dismissed() { return i18n.t('dash.dismissed') },
 }
 
 export default function Moderation() {
@@ -52,7 +53,7 @@ export default function Moderation() {
     setBusyId(`r-${id}`)
     try {
       const res = await api.put(`/admin/moderation/reports/${id}`, { status })
-      toast.success(res.data.message || 'تم تحديث حالة البلاغ')
+      toast.success(res.data.message || t('dash.reportStatusUpdated'))
       refetchReports()
     } catch (e) {
       toastApiError(e, t)
@@ -68,7 +69,7 @@ export default function Moderation() {
         await api.post(`/admin/moderation/hide/${report.reportable.type}/${report.reportable.id}`)
       }
       await api.put(`/admin/moderation/reports/${report.id}`, { status: 'resolved' })
-      toast.success('تم إخفاء المحتوى وحل البلاغ')
+      toast.success(t('dash.contentHiddenAndReportResolved'))
       refetchReports()
       refetchHidden()
       return true
@@ -84,9 +85,9 @@ export default function Moderation() {
   const confirmHide = (report) => {
     if (!report) return
     confirm.run(() => hideAndResolve(report), {
-      title: 'إخفاء المحتوى وحل البلاغ؟',
-      description: 'سيتم إخفاء المحتوى المُبلّغ عنه عن الجميع وسيُحل البلاغ.',
-      confirmLabel: 'إخفاء وحل',
+      title: t('dash.hideContentAndResolveReport'),
+      description: t('dash.theReportedContentWillBeHiddenFromEveryoneAndTheReportResolved'),
+      confirmLabel: t('dash.hideResolve'),
     })
   }
 
@@ -94,7 +95,7 @@ export default function Moderation() {
     setBusyId(`h-${item.id}-${item.type}`)
     try {
       const res = await api.post(`/admin/moderation/unhide/${item.type}/${item.id}`)
-      toast.success(res.data.message || 'تم إظهار المحتوى')
+      toast.success(res.data.message || t('dash.contentIsVisibleAgain'))
       refetchHidden()
     } catch (e) {
       toastApiError(e, t)
@@ -111,7 +112,7 @@ export default function Moderation() {
   const reportColumns = [
     {
       key: 'reason',
-      label: 'سبب البلاغ',
+      label: t('dash.reportReason'),
       render: (r) => (
         <div className="min-w-0">
           <p className="text-sm font-bold text-slate-900">{r.reason}</p>
@@ -121,7 +122,7 @@ export default function Moderation() {
     },
     {
       key: 'reportable',
-      label: 'المحتوى',
+      label: t('dash.content'),
       render: (r) => (
         <div className="min-w-0">
           {r.reportable ? (
@@ -130,14 +131,14 @@ export default function Moderation() {
               <p className="mt-1 max-w-[220px] truncate text-xs text-slate-500">{r.reportable.summary || '—'}</p>
             </>
           ) : (
-            <span className="text-xs text-slate-400">المحتوى محذوف</span>
+            <span className="text-xs text-slate-400">{t('dash.contentDeleted')}</span>
           )}
         </div>
       ),
     },
     {
       key: 'reporter',
-      label: 'المبلغ',
+      label: t('dash.reportedBy'),
       render: (r) => (
         <div className="flex items-center gap-2">
           <div className="grid size-8 place-items-center rounded-full bg-slate-100 text-xs font-black text-slate-500">
@@ -149,7 +150,7 @@ export default function Moderation() {
     },
     {
       key: 'created_at',
-      label: 'التاريخ',
+      label: t('dash.date'),
       render: (r) => (
         <span className="text-[13px] text-slate-500">
           {r.created_at ? new Date(r.created_at).toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' }) : '—'}
@@ -158,7 +159,7 @@ export default function Moderation() {
     },
     {
       key: 'actions',
-      label: 'إجراءات',
+      label: t('dash.actions'),
       className: 'text-end',
       render: (r) => (
         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -166,25 +167,25 @@ export default function Moderation() {
             <>
                 <Button size="sm" variant="soft" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => confirmHide(r)}>
                 <EyeOff className="size-3.5" />
-                إخفاء وحل
+                {t('dash.hideResolve')}
               </Button>
               <Button size="sm" variant="primary" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => resolve(r.id, 'resolved')}>
                 <CheckCircle2 className="size-3.5" />
-                حل
+                {t('dash.resolve')}
               </Button>
               <Button size="sm" variant="softAmber" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => resolve(r.id, 'dismissed')}>
-                إهمال
+                {t('dash.dismiss')}
               </Button>
             </>
           ) : (
             <>
               <Button size="sm" variant="ghost" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => resolve(r.id, 'reviewed')}>
-                مراجعة
+                {t('dash.review')}
               </Button>
               {r.reportable && (
               <Button size="sm" variant="soft" loading={busyId === `r-${r.id}`} disabled={busyId !== null} onClick={() => confirmHide(r)}>
                   <EyeOff className="size-3.5" />
-                  إخفاء
+                  {t('dash.hide')}
                 </Button>
               )}
             </>
@@ -197,17 +198,17 @@ export default function Moderation() {
   const hiddenColumns = [
     {
       key: 'summary',
-      label: 'المحتوى المخفي',
+      label: t('dash.hiddenContent'),
       render: (it) => (
         <div className="min-w-0">
-          <p className="max-w-xs truncate text-sm font-bold text-slate-900">{it.summary || 'بدون نص'}</p>
+          <p className="max-w-xs truncate text-sm font-bold text-slate-900">{it.summary || t('dash.noText')}</p>
           <Badge tone="violet" className="mt-1">{typeLabels[it.type] || it.type}</Badge>
         </div>
       ),
     },
     {
       key: 'author',
-      label: 'صاحب المحتوى',
+      label: t('dash.contentOwner'),
       render: (it) => (
         <div className="flex items-center gap-2">
           <div className="grid size-8 place-items-center rounded-full bg-slate-100 text-xs font-black text-slate-500">
@@ -219,7 +220,7 @@ export default function Moderation() {
     },
     {
       key: 'hidden_at',
-      label: 'تاريخ الإخفاء',
+      label: t('dash.hiddenOn'),
       render: (it) => (
         <span className="text-[13px] text-slate-500">
           {it.hidden_at ? new Date(it.hidden_at).toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' }) : '—'}
@@ -228,13 +229,13 @@ export default function Moderation() {
     },
     {
       key: 'actions',
-      label: 'إجراءات',
+      label: t('dash.actions'),
       className: 'text-end',
       render: (it) => (
         <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
           <Button size="sm" variant="soft" loading={busyId === `h-${it.id}-${it.type}`} disabled={busyId !== null} onClick={() => unhide(it)}>
             <Eye className="size-3.5" />
-            إظهار
+            {t('dash.show')}
           </Button>
         </div>
       ),
@@ -244,15 +245,15 @@ export default function Moderation() {
   return (
     <div>
       <PageHeader
-        title="الإشراف والبلاغات"
-        subtitle="مراجعة البلاغات وإدارة المحتوى المخفي"
+        title={t('dash.moderationReports')}
+        subtitle={t('dash.reviewReportsAndManageHiddenContent')}
         actions={
           <Tabs
             value={tab}
             onChange={(v) => setTab(v)}
             items={[
-              { value: 'reports', label: 'البلاغات', icon: ClipboardList },
-              { value: 'hidden', label: 'المحتوى المخفي', icon: EyeOff },
+              { value: 'reports', label: t('dash.reports'), icon: ClipboardList },
+              { value: 'hidden', label: t('dash.hiddenContent'), icon: EyeOff },
             ]}
           />
         }
@@ -272,8 +273,8 @@ export default function Moderation() {
           total={reportMeta.total || 0}
           perPage={reportMeta.per_page || 15}
           onPageChange={setReportPage}
-          emptyTitle="لا توجد بلاغات في هذه الحالة"
-          emptyDescription="عندما يبلّغ المستخدمون عن محتوى، ستظهر البلاغات هنا."
+          emptyTitle={t('dash.noReportsInThisState')}
+          emptyDescription={t('dash.whenUsersReportContentTheReportsAppearHere')}
         />
       ) : (
         <DataTable
@@ -286,8 +287,8 @@ export default function Moderation() {
           total={hiddenMeta.total || 0}
           perPage={hiddenMeta.per_page || 15}
           onPageChange={setHiddenPage}
-          emptyTitle="لا يوجد محتوى مخفي"
-          emptyDescription="كل المحتوى مرئي حالياً."
+          emptyTitle={t('dash.noHiddenContent')}
+          emptyDescription={t('dash.allContentIsCurrentlyVisible')}
         />
       )}
 

@@ -429,3 +429,85 @@ export function useTournamentFixtureEvents(
     enabled: tournamentId != null && fixtureId != null,
   });
 }
+/* ── Match events (goals, cards, own goals…) — mirrors the web control room ── */
+
+export interface StoreMatchEventPayload {
+  type: string;
+  team_id?: number | string;
+  player_id?: number | string;
+  minute?: number;
+  description?: string;
+}
+
+export interface CommitteeTeamPlayer {
+  id: number;
+  name: string;
+  number?: number | null;
+  position?: string | null;
+  is_essential?: boolean;
+}
+
+export function storeFixtureEvent(
+  tournamentId: number | string,
+  fixtureId: number | string,
+  payload: StoreMatchEventPayload,
+): Promise<{ data: MatchEventPayload; message?: string }> {
+  return post<{ data: MatchEventPayload; message?: string }>(
+    `/committee/tournaments/${tournamentId}/fixtures/${fixtureId}/events`,
+    payload,
+  );
+}
+
+export function deleteFixtureEvent(
+  tournamentId: number | string,
+  fixtureId: number | string,
+  eventId: number | string,
+): Promise<{ message?: string }> {
+  return del<{ message?: string }>(
+    `/committee/tournaments/${tournamentId}/fixtures/${fixtureId}/events/${eventId}`,
+  );
+}
+
+export function useTournamentStoreEvent(tournamentId: number | string, fixtureId: number | string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: StoreMatchEventPayload) => storeFixtureEvent(tournamentId, fixtureId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['committee', 'tournaments', String(tournamentId), 'fixtures', String(fixtureId), 'events'],
+      });
+      void queryClient.invalidateQueries({ queryKey: q.committeeTournament(String(tournamentId)) });
+    },
+  });
+}
+
+export function useTournamentDeleteEvent(tournamentId: number | string, fixtureId: number | string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (eventId: number | string) => deleteFixtureEvent(tournamentId, fixtureId, eventId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: ['committee', 'tournaments', String(tournamentId), 'fixtures', String(fixtureId), 'events'],
+      });
+      void queryClient.invalidateQueries({ queryKey: q.committeeTournament(String(tournamentId)) });
+    },
+  });
+}
+
+
+export function getCommitteeTeamPlayers(
+  teamId: number | string,
+  search?: string,
+): Promise<{ data: CommitteeTeamPlayer[] }> {
+  return get<{ data: CommitteeTeamPlayer[] }>(`/committee/teams/${teamId}/players`, {
+    params: { search },
+  });
+}
+
+export function useCommitteeTeamPlayers(teamId: number | string | undefined, search?: string) {
+  return useQuery({
+    queryKey: ['committee', 'team-players', String(teamId ?? ''), search ?? ''],
+    queryFn: () => getCommitteeTeamPlayers(teamId as number | string, search),
+    enabled: teamId != null && teamId !== '',
+  });
+}

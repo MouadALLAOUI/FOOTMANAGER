@@ -109,7 +109,7 @@ export function Stat({ icon: Icon, label, value, delta, accent = 'green', suffix
           </span>
         )}
       </div>
-      <p className="mt-4 text-2xl font-black tracking-tight text-slate-900">
+      <p className="mt-4 text-2xl font-black tracking-tight tabular-nums text-slate-900">
         {typeof value === 'number' ? count : typeof value === 'string' || typeof value === 'number' ? value : '—'}
         {suffix && <span className="ms-1 text-sm font-bold text-slate-500">{suffix}</span>}
       </p>

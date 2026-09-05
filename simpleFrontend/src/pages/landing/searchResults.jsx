@@ -85,16 +85,18 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-lg font-extrabold text-slate-900">{card.name}</h3>
-          <span className="flex items-center gap-1 text-sm font-bold text-slate-700">
-            <FontAwesomeIcon icon={faStar} className="size-4 text-amber-400" />
-            {card.rating}
-            <span className="font-medium text-slate-400">({formatCount(card.reviews, i18n.language)})</span>
-          </span>
+          <h3 className="bidi-plaintext min-w-0 truncate text-lg font-extrabold text-slate-900">{card.name}</h3>
+          {card.rating != null && (
+            <span className="flex shrink-0 items-center gap-1 text-sm font-bold text-slate-700">
+              <FontAwesomeIcon icon={faStar} className="size-4 text-amber-400" />
+              {card.rating}
+              <span className="font-medium text-slate-400">({formatCount(card.reviews, i18n.language)})</span>
+            </span>
+          )}
         </div>
         <p className="flex items-center gap-1.5 text-sm text-slate-500">
-          <FontAwesomeIcon icon={faMapPin} className="size-4 text-slate-400" />
-          {card.location}
+          <FontAwesomeIcon icon={faMapPin} className="size-4 shrink-0 text-slate-400" />
+          <span className="bidi-plaintext min-w-0 truncate">{card.location}</span>
         </p>
         <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
           <FontAwesomeIcon icon={faClock} className="size-4 text-slate-400" />
@@ -148,16 +150,16 @@ function MatchCard({ card, accent, onChallenge }) {
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-lg font-extrabold text-slate-900">{card.team}</h3>
+          <h3 className="bidi-plaintext min-w-0 truncate text-lg font-extrabold text-slate-900">{card.team}</h3>
           <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
             <FontAwesomeIcon icon={faTrophy} className="size-3.5 text-slate-400" />
             {t(`landing.matches.levels.${card.level}`)}
           </span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-          <span className="flex items-center gap-1.5">
-            <FontAwesomeIcon icon={faMapPin} className="size-3.5 text-slate-400" />
-            {card.city}
+          <span className="flex min-w-0 items-center gap-1.5">
+            <FontAwesomeIcon icon={faMapPin} className="size-3.5 shrink-0 text-slate-400" />
+            <span className="bidi-plaintext truncate">{card.city}</span>
           </span>
           <span className="flex items-center gap-1.5">
             <FontAwesomeIcon icon={faClock} className="size-3.5 text-slate-400" />

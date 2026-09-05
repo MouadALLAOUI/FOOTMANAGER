@@ -22,6 +22,11 @@ export function eventMeta(ev) {
   if (ev.type === 'foul') {
     return CARD_EVENT_META[ev.punishment || 'none'] || CARD_EVENT_META.none
   }
+  // Historical rows recorded before the foul consolidation keep their own
+  // card types; render them with the same card visuals as foul punishments.
+  if (ev.type === 'yellow_card') return CARD_EVENT_META.yellow
+  if (ev.type === 'second_yellow') return CARD_EVENT_META.second_yellow
+  if (ev.type === 'red_card') return CARD_EVENT_META.red
   return EVENT_META[ev.type] || EVENT_META.other
 }
 

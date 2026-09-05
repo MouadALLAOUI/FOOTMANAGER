@@ -63,7 +63,7 @@ export default function CreateMatchScreen(): React.JSX.Element {
   const [playersNeeded, setPlayersNeeded] = useState('');
 
   const stadiumsQuery = useStadiums();
-  const stadiums = useMemo(() => stadiumsQuery.data?.data ?? [], [stadiumsQuery.data]);
+  const stadiums = useMemo(() => stadiumsQuery.data?.stadiums ?? [], [stadiumsQuery.data]);
   const createMutation = useCreateMatchRequest();
 
   const endTimeValue = endTime || addHour(startTime);

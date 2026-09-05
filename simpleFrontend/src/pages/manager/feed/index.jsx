@@ -1,3 +1,5 @@
+import i18n from '../../../i18n'
+import { useTranslation } from 'react-i18next'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
@@ -20,10 +22,11 @@ import { ManagerContact, MatchCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
 import NeedPlayersField from '../../../components/NeedPlayersField'
 
-const categoryLabels = { adult: 'كبار', teenager: 'شباب', children: 'أطفال' }
-const levelLabels = { beginner: 'مبتدئ', amateur: 'هواة', semi_pro: 'نصف محترف', pro: 'محترف' }
+const categoryLabels = { get adult() { return i18n.t('dash.adults') }, get teenager() { return i18n.t('dash.teens') }, get children() { return i18n.t('dash.children') } }
+const levelLabels = { get beginner() { return i18n.t('dash.beginner') }, get amateur() { return i18n.t('dash.amateur') }, get semi_pro() { return i18n.t('dash.semiPro') }, get pro() { return i18n.t('dash.pro') } }
 
 function FilterBar({ onApply }) {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [expanded, setExpanded] = useState(false)
   const [search, setSearch] = useState(searchParams.get('search') || '')
@@ -59,15 +62,15 @@ function FilterBar({ onApply }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث عن فريق أو ملعب…"
-            aria-label="ابحث عن فريق أو ملعب"
+            placeholder={t('dash.searchTeamOrField')}
+            aria-label={t('dash.searchTeamOrField2')}
             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pe-4 ps-10 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
           />
           {search && (
             <button
               type="button"
               onClick={() => setSearch('')}
-              aria-label="مسح البحث"
+              aria-label={t('dash.clearSearch')}
               className="absolute end-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-slate-200 text-slate-500"
             >
               <X className="size-3" />
@@ -82,23 +85,23 @@ function FilterBar({ onApply }) {
           }`}
         >
           <SlidersHorizontal className="size-4" />
-          تصفية
+          {t('dash.filters')}
         </button>
       </div>
 
       {expanded && (
         <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="المدينة">
+          <Field label={t('dash.city')}>
             <Select
               value={searchParams.get('city') || ''}
               onChange={(v) => setParam('city', v)}
               options={meta.cities.map((c) => ({ value: c, label: c }))}
-              placeholder="كل المدن"
+              placeholder={t('dash.allCities')}
             />
           </Field>
-          <Field label="الفئة">
+          <Field label={t('dash.category')}>
             <select className={selectClass} value={searchParams.get('category') || ''} onChange={(e) => setParam('category', e.target.value)}>
-              <option value="">كل الفئات</option>
+              <option value="">{t('dash.allCategories')}</option>
               {Object.entries(categoryLabels).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
@@ -106,9 +109,9 @@ function FilterBar({ onApply }) {
               ))}
             </select>
           </Field>
-          <Field label="المستوى">
+          <Field label={t('dash.level')}>
             <select className={selectClass} value={searchParams.get('level') || ''} onChange={(e) => setParam('level', e.target.value)}>
-              <option value="">كل المستويات</option>
+              <option value="">{t('dash.allLevels')}</option>
               {Object.entries(levelLabels).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
@@ -116,9 +119,9 @@ function FilterBar({ onApply }) {
               ))}
             </select>
           </Field>
-          <Field label="الملعب">
+          <Field label={t('dash.field')}>
             <select className={selectClass} value={searchParams.get('stadium_id') || ''} onChange={(e) => setParam('stadium_id', e.target.value)}>
-              <option value="">كل الملاعب</option>
+              <option value="">{t('dash.allFields')}</option>
               {meta.stadiums.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -126,9 +129,9 @@ function FilterBar({ onApply }) {
               ))}
             </select>
           </Field>
-          <Field label="شكل اللعب">
+          <Field label={t('dash.playFormat')}>
             <select className={selectClass} value={searchParams.get('player_format') || ''} onChange={(e) => setParam('player_format', e.target.value)}>
-              <option value="">الكل</option>
+              <option value="">{t('dash.all')}</option>
               {meta.formats.map((f) => (
                 <option key={f} value={f}>
                   {f}
@@ -136,7 +139,7 @@ function FilterBar({ onApply }) {
               ))}
             </select>
           </Field>
-          <Field label="التاريخ">
+          <Field label={t('dash.date')}>
             <input
               type="date"
               className={selectClass}
@@ -144,19 +147,19 @@ function FilterBar({ onApply }) {
               onChange={(e) => setParam('date', e.target.value)}
             />
           </Field>
-          <Field label="الترتيب">
+          <Field label={t('dash.sort')}>
             <select
               className={selectClass}
               value={searchParams.get('sort') || ''}
               onChange={(e) => setParam('sort', e.target.value === 'newest' ? 'newest' : '')}
             >
-              <option value="">الأقرب موعدًا</option>
-              <option value="newest">الأحدث</option>
+              <option value="">{t('dash.soonest')}</option>
+              <option value="newest">{t('dash.newest')}</option>
             </select>
           </Field>
           <div className="flex items-end">
             <Button variant="ghost" className="w-full border border-slate-200" onClick={() => setSearchParams({})}>
-              مسح الكل
+              {t('dash.clearAll')}
             </Button>
           </div>
         </div>
@@ -166,6 +169,7 @@ function FilterBar({ onApply }) {
 }
 
 function AcceptModal({ match, onClose, onDone }) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
@@ -182,9 +186,9 @@ function AcceptModal({ match, onClose, onDone }) {
         players_needed: needsPlayers ? Number(playersNeeded) : undefined,
       })
       setResult(res.data)
-      toast.success('تم قبول المباراة بنجاح')
+      toast.success(t('dash.matchAcceptedSuccessfully'))
     } catch (e) {
-      setError(e.response?.data?.message || 'تعذر قبول المباراة')
+      setError(e.response?.data?.message || t('dash.couldNotAcceptTheMatch'))
     } finally {
       setBusy(false)
     }
@@ -196,8 +200,8 @@ function AcceptModal({ match, onClose, onDone }) {
     <Modal
       open
       onClose={onClose}
-      title={result ? 'تم تأكيد المباراة 🎉' : 'قبول المباراة'}
-      subtitle={result ? 'تواصل مع الفريق المنظم للاتفاق على التفاصيل' : `مباراة ضد ${match?.host_team?.name}`}
+      title={result ? 'تم تأكيد المباراة 🎉' : t('dash.acceptMatch')}
+      subtitle={result ? t('dash.contactTheHostTeamToAgreeOnTheDetails') : t('dash.matchAgainst', { name: match?.host_team?.name })}
     >
       {result ? (
         <div className="space-y-5">
@@ -205,21 +209,21 @@ function AcceptModal({ match, onClose, onDone }) {
             <div className="flex items-center justify-center gap-6">
               <div className="flex flex-col items-center gap-2">
                 <span className="text-2xl font-black">{result.match_request?.host_team?.name}</span>
-                <span className="text-[10px] font-bold text-white/40">الفريق المنظم</span>
+                <span className="text-[10px] font-bold text-white/40">{t('dash.hostTeam')}</span>
               </div>
               <span className="grid size-10 place-items-center rounded-full bg-white/10 text-green-400">
                 <Swords className="size-4" />
               </span>
               <div className="flex flex-col items-center gap-2">
-                <span className="text-2xl font-black">فريقك</span>
-                <span className="text-[10px] font-bold text-white/40">المنافس</span>
+                <span className="text-2xl font-black">{t('dash.yourTeam')}</span>
+                <span className="text-[10px] font-bold text-white/40">{t('dash.opponent')}</span>
               </div>
             </div>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-2xl border border-green-100 bg-green-50/60 px-4 py-3">
               <div>
-                <p className="text-[10px] font-bold text-green-600/70">مسير الفريق المنظم</p>
+                <p className="text-[10px] font-bold text-green-600/70">{t('dash.hostTeamManager')}</p>
                 <p className="text-sm font-extrabold text-slate-800">{result.host_manager?.name}</p>
               </div>
               <ManagerContact
@@ -231,7 +235,7 @@ function AcceptModal({ match, onClose, onDone }) {
                 <CalendarDays className="size-4" />
               </span>
               <div>
-                <p className="text-[10px] font-bold text-slate-400">الموعد</p>
+                <p className="text-[10px] font-bold text-slate-400">{t('dash.dateTime')}</p>
                 <p className="text-sm font-bold text-slate-800">
                   {datetime ? new Intl.DateTimeFormat('ar-MA', { dateStyle: 'full', timeStyle: 'short' }).format(datetime) : '—'}
                 </p>
@@ -240,10 +244,10 @@ function AcceptModal({ match, onClose, onDone }) {
           </div>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={onClose}>
-              إغلاق
+              {t('dash.close')}
             </Button>
             <Button className="flex-1" onClick={onDone}>
-              مبارياتي
+              {t('dash.myMatches')}
               <ArrowLeft className="size-4 rtl:rotate-180" />
             </Button>
           </div>
@@ -252,25 +256,25 @@ function AcceptModal({ match, onClose, onDone }) {
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-center">
             <p className="text-sm font-extrabold text-slate-800">
-              {match?.host_team?.name} <span className="mx-1 text-slate-300">ضد</span> فريقك
+              {match?.host_team?.name} <span className="mx-1 text-slate-300">{t('dash.vs')}</span> {t('dash.yourTeam')}
             </p>
             <p className="mt-1 text-xs font-semibold text-slate-400">
               {datetime
                 ? new Intl.DateTimeFormat('ar-MA', { dateStyle: 'full', timeStyle: 'short' }).format(datetime)
                 : '—'}
               {' • '}
-              {match?.stadium?.name || match?.custom_terrain_name || 'ملعب غير محدد'}
+              {match?.stadium?.name || match?.custom_terrain_name || t('dash.unspecifiedField')}
             </p>
           </div>
           {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
           <NeedPlayersField enabled={needsPlayers} count={playersNeeded} onEnabled={setNeedsPlayers} onCount={setPlayersNeeded} />
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={onClose} disabled={busy}>
-              إلغاء
+              {t('dash.cancel')}
             </Button>
             <Button className="flex-1" disabled={busy} onClick={accept}>
               <CheckCircle2 className="size-4" />
-              {busy ? 'جارٍ التأكيد…' : 'تأكيد المباراة'}
+              {busy ? 'جارٍ التأكيد…' : t('dash.confirmMatch')}
             </Button>
           </div>
         </div>
@@ -280,6 +284,7 @@ function AcceptModal({ match, onClose, onDone }) {
 }
 
 export default function Feed() {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data, loading, errorState, refetch } = useApi(() => {
     const params = new URLSearchParams(searchParams)
@@ -303,7 +308,7 @@ export default function Feed() {
 
   return (
     <div>
-      <SectionTitle title="ابحث عن خصم" subtitle="فرق تبحث عن مباريات ودية — اختر خصمك المقبل" />
+      <SectionTitle title={t('dash.findAnOpponent')} subtitle={t('dash.teamsLookingForFriendlyMatchesPickYourNextOpponent')} />
 
       <FilterBar
         onApply={(f) => {
@@ -316,7 +321,7 @@ export default function Feed() {
       <div className="mt-5 flex items-center justify-between">
         <p className="flex items-center gap-2 text-xs font-bold text-slate-400">
           <Radar className="size-3.5 text-green-500" />
-          {total} طلب مباراة متاح
+          {t('dash.matchRequestsAvailable', { count: total })}
         </p>
       </div>
 
@@ -332,11 +337,11 @@ export default function Feed() {
         <div className="mt-5">
           <Empty
             icon={Radar}
-            title="لا توجد مباريات متاحة"
-            description="عدّل الفلاتر أو عد لاحقًا — يمكنك أيضًا نشر طلب مباراة بنفسك"
+            title={t('dash.noMatchesAvailable')}
+            description={t('dash.adjustTheFiltersOrComeBackLaterYouCanAlsoPostYourOwnMatchRequest')}
             action={
               <Button size="sm" onClick={() => window.location.assign('/dashboard/matches?new=1')}>
-                انشر طلب مباراة
+                {t('dash.postAMatchRequest')}
               </Button>
             }
           />
@@ -351,7 +356,7 @@ export default function Feed() {
                 actions={
                   <Button className="flex-1" size="sm" onClick={() => setAcceptMatch(m)}>
                     <Swords className="size-3.5" />
-                    قبول المباراة
+                    {t('dash.acceptMatch')}
                   </Button>
                 }
               />

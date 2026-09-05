@@ -23,7 +23,8 @@ import GoToSite from '../../../components/ui/GoToSite'
 import { faStar, faFutbol, faMedal, faPercent } from '@fortawesome/free-solid-svg-icons'
 import { toast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
-import { photoThumb, logoThumb } from '../../../lib/thumb'
+import { photoThumb } from '../../../lib/thumb'
+import TeamLogo from '../../../components/profile/TeamLogo'
 
 const quickLinks = [
   { to: '/player/feed', label: 'player.overview.quick.findMatch', icon: Search },
@@ -303,13 +304,7 @@ export default function Overview() {
         <Card title={t('player.overview.teamState.hasTeam')}>
           {team ? (
             <div className="flex items-center gap-4">
-              {logoThumb(team) ? (
-                <img loading="lazy" decoding="async" src={logoThumb(team)} alt="" className="size-14 shrink-0 rounded-2xl object-cover" />
-              ) : (
-                <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-lg font-black text-slate-500">
-                  {team.name.slice(0, 1)}
-                </span>
-              )}
+              <TeamLogo team={team} className="size-14" rounded="rounded-2xl" fontSize="text-lg" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-base font-extrabold text-slate-900">{team.name}</p>
                 <p className="text-xs text-slate-500">{[team.city, team.category, team.level].filter(Boolean).join(' • ') || '—'}</p>

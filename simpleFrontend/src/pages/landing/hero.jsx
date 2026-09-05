@@ -21,7 +21,7 @@ export default function Hero({ children }) {
         <h1 className="text-4xl leading-snug font-black text-white drop-shadow-lg sm:text-5xl md:text-6xl lg:text-7xl">
           {t('landing.hero.titleLine1')}
           <br />
-          <span className="text-green-500">{t('landing.hero.titleLine2')}</span>
+          {t('landing.hero.titleLine2')}
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-white/85 sm:text-lg">
           {t('landing.hero.subtitle')}

@@ -1,16 +1,18 @@
+import { useTranslation } from 'react-i18next'
 import { UserRound } from 'lucide-react'
 import { SectionTitle } from '../../../components/dashboard/ui'
 import NotificationPreferences from '../../../components/notifications/NotificationPreferences'
 import { useAuth } from '../../../context/AuthContext'
 
 export default function Settings() {
+  const { t } = useTranslation()
   const { user } = useAuth()
 
   return (
     <div className="mx-auto max-w-3xl">
       <SectionTitle
-        title="الإعدادات"
-        subtitle="تفضيلات الإشعارات ومعلومات حسابك"
+        title={t('dash.settings')}
+        subtitle={t('dash.notificationPreferencesAndYourAccountInfo')}
       />
 
       <NotificationPreferences />
@@ -21,18 +23,18 @@ export default function Settings() {
             <UserRound className="size-4" />
           </span>
           <div>
-            <h3 className="text-sm font-extrabold text-slate-900">معلومات الحساب</h3>
-            <p className="text-[11px] font-semibold text-slate-400">بيانات الدخول لحسابك</p>
+            <h3 className="text-sm font-extrabold text-slate-900">{t('dash.accountInformation')}</h3>
+            <p className="text-[11px] font-semibold text-slate-400">{t('dash.yourLoginDetails')}</p>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { label: 'الاسم', value: user?.name || '—' },
-            { label: 'البريد الإلكتروني', value: user?.email || '—' },
-            { label: 'الهاتف', value: user?.phone || '—' },
+            { label: t('dash.name'), value: user?.name || '—' },
+            { label: t('dash.email'), value: user?.email || '—' },
+            { label: t('dash.phone'), value: user?.phone || '—' },
             {
-              label: 'الحالة',
-              value: user?.status === 'approved' ? 'حساب مفعّل' : user?.status || '—',
+              label: t('dash.status'),
+              value: user?.status === 'approved' ? t('dash.accountActive') : user?.status || '—',
             },
           ].map((f) => (
             <div key={f.label} className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">

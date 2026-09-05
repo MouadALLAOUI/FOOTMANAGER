@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -36,28 +37,29 @@ import { useToast } from '../../../components/ui/Toast'
 import TimeSlotPicker from '../../../components/TimeSlotPicker'
 import useTerrainSlots from '../../../hooks/useTerrainSlots'
 
-const typeLabels = { training: 'تدريب', private: 'حجز خاص', match: 'مباراة' }
-const dayLabels = { 0: 'الأحد', 1: 'الإثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس', 5: 'الجمعة', 6: 'السبت' }
-const categoryTabs = [
-  { key: 'upcoming', label: 'القادمة' },
-  { key: 'past', label: 'السابقة' },
-  { key: 'cancelled', label: 'الملغاة' },
-  { key: 'all', label: 'الكل' },
+const typeLabels = { get training() { return i18n.t('dash.training') }, get private() { return i18n.t('dash.privateBooking') }, get match() { return i18n.t('dash.match') } }
+const dayLabels = { get 0() { return i18n.t('dash.sunday') }, get 1() { return i18n.t('dash.monday') }, get 2() { return i18n.t('dash.tuesday') }, get 3() { return i18n.t('dash.wednesday') }, get 4() { return i18n.t('dash.thursday') }, get 5() { return i18n.t('dash.friday') }, get 6() { return i18n.t('dash.saturday') } }
+const categoryTabs = () => [
+  { key: 'upcoming', label: i18n.t('dash.upcoming') },
+  { key: 'past', label: i18n.t('dash.past') },
+  { key: 'cancelled', label: i18n.t('dash.cancelled2') },
+  { key: 'all', label: i18n.t('dash.all') },
 ]
-const typeTabs = [
-  { key: 'all', label: 'الكل' },
-  { key: 'training', label: 'تدريب' },
-  { key: 'private', label: 'حجز خاص' },
-  { key: 'weekly', label: 'أبونمان أسبوعي' },
+const typeTabs = () => [
+  { key: 'all', label: i18n.t('dash.all') },
+  { key: 'training', label: i18n.t('dash.training') },
+  { key: 'private', label: i18n.t('dash.privateBooking') },
+  { key: 'weekly', label: i18n.t('dash.weeklySubscription') },
 ]
 const subscriptionStatusLabels = {
-  active: 'نشط',
-  expired: 'منتهي',
-  inactive: 'غير نشط',
+  get active() { return i18n.t('dash.active') },
+  get expired() { return i18n.t('dash.ended') },
+  get inactive() { return i18n.t('dash.inactive') },
   not_subscription: '',
 }
 
 function NewBookingModal({ open, onClose, onSaved }) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const { data: stadiumsData } = useStadiums({ per_page: 50 }, { enabled: open })
   const [form, setForm] = useState({
@@ -100,38 +102,38 @@ function NewBookingModal({ open, onClose, onSaved }) {
           : { booking_date: form.booking_date }),
       }
       const res = await api.post('/manager/bookings/training', payload)
-      toast.success(res.data.message || 'تم إرسال طلب الحجز')
+      toast.success(res.data.message || t('dash.bookingRequestSent'))
       onSaved()
       onClose()
     } catch (e) {
       setError(e.response?.data?.errors
         ? Object.values(e.response.data.errors).flat()[0]
-        : e.response?.data?.message || 'تعذر إنشاء الحجز')
+        : e.response?.data?.message || t('dash.couldNotCreateTheBooking'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="حجز جديد" subtitle="احجز ملعبًا لتدريب أو مباراة فريقك" size="lg">
+    <Modal open={open} onClose={onClose} title={t('dash.newBooking')} subtitle={t('dash.bookAFieldForYourTeamTrainingOrMatch')} size="lg">
       <div className="space-y-4">
-        <Field label="الملعب" required>
+        <Field label={t('dash.field')} required>
           <select className={selectClass} value={form.terrain_id} onChange={set('terrain_id')}>
-            <option value="">اختر ملعبًا…</option>
+            <option value="">{t('dash.chooseAField')}</option>
             {stadiums.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} — {s.city} {s.price_per_team ? `(${s.price_per_team} د.م)` : ''}
+                {s.name} — {s.city} {s.price_per_team ? t('dash.perTeamPrice', { price: s.price_per_team }) : ''}
               </option>
             ))}
           </select>
         </Field>
 
         <div>
-          <span className="mb-1.5 block text-xs font-bold text-slate-700">نوع الحجز</span>
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('dash.bookingType')}</span>
           <div className="flex gap-2">
             {[
-              { value: 'training', label: 'تدريب' },
-              { value: 'private', label: 'حجز خاص' },
+              { value: 'training', label: t('dash.training') },
+              { value: 'private', label: t('dash.privateBooking') },
             ].map((t) => (
               <button
                 key={t.value}
@@ -150,11 +152,11 @@ function NewBookingModal({ open, onClose, onSaved }) {
         </div>
 
         <div>
-          <span className="mb-1.5 block text-xs font-bold text-slate-700">نظام الحجز</span>
+          <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('dash.bookingSystem')}</span>
           <div className="flex gap-2">
             {[
-              { value: 'single', label: 'حجز لمرة واحدة' },
-              { value: 'weekly_subscription', label: 'أبونمان أسبوعي' },
+              { value: 'single', label: t('dash.oneTimeBooking') },
+              { value: 'weekly_subscription', label: t('dash.weeklySubscription') },
             ].map((t) => (
               <button
                 key={t.value}
@@ -174,9 +176,9 @@ function NewBookingModal({ open, onClose, onSaved }) {
 
         {isWeekly ? (
           <FieldRow cols={3}>
-            <Field label="اليوم الأسبوعي" required>
+            <Field label={t('dash.dayOfWeek')} required>
               <select className={selectClass} value={form.day_of_week} onChange={set('day_of_week')}>
-                <option value="">اختر اليوم…</option>
+                <option value="">{t('dash.chooseADay')}</option>
                 {Object.entries(dayLabels).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
@@ -184,53 +186,53 @@ function NewBookingModal({ open, onClose, onSaved }) {
                 ))}
               </select>
             </Field>
-            <Field label="تاريخ البداية" required>
+            <Field label={t('dash.startDate')} required>
               <input type="date" className={inputClass} value={form.start_date} onChange={set('start_date')} />
             </Field>
-            <Field label="تاريخ النهاية">
+            <Field label={t('dash.endDate')}>
               <input type="date" className={inputClass} value={form.end_date} onChange={set('end_date')} />
             </Field>
           </FieldRow>
         ) : (
-          <Field label="تاريخ الحجز" required>
+          <Field label={t('dash.bookingDate')} required>
             <input type="date" className={inputClass} value={form.booking_date} onChange={set('booking_date')} />
           </Field>
         )}
 
         <FieldRow>
-          <Field label="وقت البداية" required>
+          <Field label={t('dash.startTime')} required>
             <TimeSlotPicker
               selectedTime={form.start_time}
               onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
               availableSlots={availableStartTimes}
               disabledSlots={disabledStartTimes}
               loading={loading}
-              label="وقت البداية"
+              label={t('dash.startTime')}
               required
             />
           </Field>
-          <Field label="وقت النهاية" required>
+          <Field label={t('dash.endTime')} required>
             <TimeSlotPicker
               selectedTime={form.end_time}
               onChange={(v) => setForm((f) => ({ ...f, end_time: v }))}
               availableSlots={endAvail}
               disabledSlots={endDisabled}
               loading={loading}
-              label="وقت النهاية"
+              label={t('dash.endTime')}
               required
               emptyText={closed ? closedReason || 'الملعب مغلق' : undefined}
             />
           </Field>
         </FieldRow>
 
-        <Field label="ملاحظات">
+        <Field label={t('dash.notes')}>
           <textarea rows={2} className={`${inputClass} h-auto py-3`} value={form.notes} onChange={set('notes')} />
         </Field>
 
         {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
 
         <Button className="w-full" disabled={busy} onClick={submit}>
-          {busy ? 'جارٍ الإرسال…' : 'إرسال طلب الحجز'}
+          {busy ? 'جارٍ الإرسال…' : t('dash.sendBookingRequest')}
         </Button>
       </div>
     </Modal>
@@ -247,7 +249,7 @@ function CancelModal({ booking, onClose, onSaved }) {
     setBusy(true)
     try {
       await api.post(`/manager/bookings/${booking.id}/request-cancel`, { reason: reason || undefined })
-      toast.success('تم إرسال طلب الإلغاء إلى صاحب الملعب')
+      toast.success(t('dash.cancellationRequestSentToTheFieldOwner'))
       onSaved()
       onClose()
     } catch (e) {
@@ -258,29 +260,29 @@ function CancelModal({ booking, onClose, onSaved }) {
   }
 
   return (
-    <Modal open onClose={onClose} title="طلب إلغاء الحجز" subtitle={`إلغاء حجز ${typeof booking.terrain?.name === 'string' ? booking.terrain.name : 'ملعب'}`}>
+    <Modal open onClose={onClose} title={t('dash.requestCancellation')} subtitle={`إلغاء حجز ${typeof booking.terrain?.name === 'string' ? booking.terrain.name : t('dash.field3')}`}>
       <div className="space-y-4">
         <div className="flex items-center gap-3 rounded-2xl border border-amber-100 bg-amber-50/60 px-4 py-3">
           <Hourglass className="size-5 shrink-0 text-amber-500" />
           <p className="text-xs leading-relaxed text-slate-600">
-            سيتم إرسال طلب الإلغاء إلى صاحب الملعب لمراجعته. يبقى الحجز ساريًا حتى موافقة صاحب الملعب.
+            {t('dash.theCancellationRequestWillBeSentToTheFieldOwnerForReviewTheBookingStaysValidUntilTheyApproveIt')}
           </p>
         </div>
-        <Field label="سبب الإلغاء (اختياري)">
+        <Field label={t('dash.cancellationReasonOptional')}>
           <textarea
             rows={3}
             className={`${inputClass} h-auto py-3`}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="مثال: تعارض في المواعيد…"
+            placeholder={t('dash.eGScheduleConflict')}
           />
         </Field>
         <div className="flex gap-3">
           <Button variant="outline" className="flex-1" onClick={onClose}>
-            تراجع
+            {t('dash.goBack')}
           </Button>
           <Button variant="danger" className="flex-1" disabled={busy} onClick={submit}>
-            {busy ? 'جارٍ الإرسال…' : 'إرسال الطلب'}
+            {busy ? 'جارٍ الإرسال…' : t('dash.sendRequest')}
           </Button>
         </div>
       </div>
@@ -289,10 +291,11 @@ function CancelModal({ booking, onClose, onSaved }) {
 }
 
 function BookingDetail({ booking, onClose, onCancel, onConvert }) {
+  const { t } = useTranslation()
   const terrain = booking?.terrain && typeof booking.terrain === 'object' && !Array.isArray(booking.terrain) ? booking.terrain : {}
   const isWeekly = booking?.reservation_type === 'weekly_subscription'
   return (
-    <Drawer open={Boolean(booking)} onClose={onClose} title="تفاصيل الحجز" subtitle={`حجز ${terrain.name || 'ملعب'}`} size="460">
+    <Drawer open={Boolean(booking)} onClose={onClose} title={t('dash.bookingDetails')} subtitle={`حجز ${terrain.name || t('dash.field3')}`} size="460">
       {booking && (
         <div className="space-y-5">
           <div className="rounded-3xl bg-gradient-to-l from-[#0b1220] to-[#12321f] p-6 text-center text-white">
@@ -303,7 +306,7 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
                 <CalendarCheck className="size-8 text-green-400" />
               </span>
             )}
-            <p className="mt-3 text-lg font-black">{typeof terrain.name === 'string' ? terrain.name : 'ملعب'}</p>
+            <p className="mt-3 text-lg font-black">{typeof terrain.name === 'string' ? terrain.name : t('dash.field3')}</p>
             <p className="mt-0.5 flex items-center justify-center gap-1 text-xs font-semibold text-white/60">
               <MapPin className="size-3.5" />
               {typeof terrain.city === 'string' ? terrain.city : '—'} {typeof terrain.type === 'string' ? `• ${terrain.type}` : ''}
@@ -316,7 +319,7 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
               {isWeekly ? (
                 <>
                   <Repeat className="size-3" />
-                  أبونمان أسبوعي
+                  {t('dash.weeklySubscription')}
                 </>
               ) : (
                 typeLabels[booking.booking_type] || booking.booking_type
@@ -328,16 +331,16 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
             {[
               {
                 icon: Clock,
-                label: isWeekly ? 'اليوم الأسبوعي' : 'التاريخ',
+                label: isWeekly ? t('dash.dayOfWeek') : t('dash.date'),
                 value: isWeekly
-                  ? `${dayLabels[booking.day_of_week] || '—'} (كل أسبوع)`
+                  ? t('dash.weeklyOn', { day: dayLabels[booking.day_of_week] || '—' })
                   : booking.booking_date
                     ? new Date(`${booking.booking_date}T00:00:00`).toLocaleDateString('ar-MA', { weekday: 'long', day: 'numeric', month: 'long' })
                     : '—',
               },
-              { icon: CalendarCheck, label: 'الوقت', value: `${booking.start_time} - ${booking.end_time}` },
-              { icon: Repeat, label: 'النوع', value: typeLabels[booking.booking_type] || booking.booking_type },
-              { icon: Swords, label: 'السعر', value: `${booking.price} د.م` },
+              { icon: CalendarCheck, label: t('dash.time'), value: `${booking.start_time} - ${booking.end_time}` },
+              { icon: Repeat, label: t('dash.type'), value: typeLabels[booking.booking_type] || booking.booking_type },
+              { icon: Swords, label: t('dash.price'), value: `${booking.price} د.م` },
             ].map((r, i) => (
               <div key={i} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
                 <span className="grid size-9 place-items-center rounded-xl bg-white text-green-600 shadow-sm">
@@ -353,7 +356,7 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
 
           {booking.notes && (
             <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-              <p className="text-[10px] font-bold text-slate-400">ملاحظات</p>
+              <p className="text-[10px] font-bold text-slate-400">{t('dash.notes')}</p>
               <p className="mt-1 text-sm leading-relaxed text-slate-700">{booking.notes}</p>
             </div>
           )}
@@ -363,17 +366,17 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
               <>
                 <Button variant="dangerSoft" className="flex-1" onClick={() => onCancel(booking)}>
                   <XCircle className="size-4" />
-                  طلب إلغاء
+                  {t('dash.cancelBooking')}
                 </Button>
                 <Button className="flex-1" onClick={() => onConvert(booking)}>
                   <Swords className="size-4" />
-                  تحويل لمباراة
+                  {t('dash.convertToMatch')}
                 </Button>
               </>
             )}
             {booking.status === 'pending' && (
               <div className="w-full rounded-2xl bg-amber-50 px-4 py-3 text-center text-xs font-bold text-amber-600">
-                بانتظار تأكيد صاحب الملعب
+                {t('dash.awaitingFieldOwnerConfirmation')}
               </div>
             )}
           </div>
@@ -418,11 +421,11 @@ export default function Bookings() {
   )
 
   const convert = async (b) => {
-    if (!window.confirm('تحويل هذا الحجز إلى طلب مباراة يبحث عن خصم؟')) return
+    if (!window.confirm(t('dash.convertThisBookingIntoAMatchRequestLookingForAnOpponent'))) return
     setBusyId(b.id)
     try {
       const res = await api.post(`/manager/match-requests/from-booking/${b.id}`)
-      toast.success(res.data.message || 'تم إنشاء طلب المباراة')
+      toast.success(res.data.message || t('dash.matchRequestCreated'))
       refetch()
     } catch (e) {
       toastApiError(e, t)
@@ -435,7 +438,7 @@ export default function Bookings() {
     if (category === 'past' || category === 'cancelled') {
       return (
         <span className="text-[11px] font-bold text-slate-400">
-          {category === 'past' ? 'تمت هذه الحجز' : 'تم إلغاء هذا الحجز'}
+          {category === 'past' ? 'تمت هذه الحجز' : t('dash.thisBookingWasCancelled')}
         </span>
       )
     }
@@ -446,18 +449,18 @@ export default function Bookings() {
           <>
             <Button size="sm" variant="dangerSoft" onClick={() => setCancelBooking(b)}>
               <XCircle className="size-3.5" />
-              طلب إلغاء
+              {t('dash.cancelBooking')}
             </Button>
             <Button size="sm" disabled={busyId === b.id} onClick={() => convert(b)}>
               <Swords className="size-3.5" />
-              تحويل لمباراة
+              {t('dash.convertToMatch')}
             </Button>
           </>
         )}
         {b.status === 'pending' && (
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-500">
             <Hourglass className="size-3.5" />
-            بانتظار تأكيد صاحب الملعب
+            {t('dash.awaitingFieldOwnerConfirmation')}
           </span>
         )}
       </>
@@ -467,22 +470,22 @@ export default function Bookings() {
   return (
     <div>
       <SectionTitle
-        title="حجوزاتي"
-        subtitle="حجوزات الملاعب الخاصة بفريقك"
+        title={t('dash.myBookings')}
+        subtitle={t('dash.fieldBookingsForYourTeam')}
         action={
           <Button onClick={() => setNewOpen(true)}>
             <Plus className="size-4" />
-            حجز جديد
+            {t('dash.newBooking')}
           </Button>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: 'القادمة', value: Number(counts.upcoming) || 0, icon: CalendarCheck, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'السابقة', value: Number(counts.past) || 0, icon: Clock, color: 'text-sky-600', bg: 'bg-sky-50' },
-          { label: 'الملغاة', value: Number(counts.cancelled) || 0, icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
-          { label: 'الكل', value: Number(counts.all) || 0, icon: CalendarPlus, color: 'text-violet-600', bg: 'bg-violet-50' },
+          { label: t('dash.upcoming'), value: Number(counts.upcoming) || 0, icon: CalendarCheck, color: 'text-green-600', bg: 'bg-green-50' },
+          { label: t('dash.past'), value: Number(counts.past) || 0, icon: Clock, color: 'text-sky-600', bg: 'bg-sky-50' },
+          { label: t('dash.cancelled2'), value: Number(counts.cancelled) || 0, icon: XCircle, color: 'text-rose-600', bg: 'bg-rose-50' },
+          { label: t('dash.all'), value: Number(counts.all) || 0, icon: CalendarPlus, color: 'text-violet-600', bg: 'bg-violet-50' },
         ].map((s) => (
           <div key={s.label} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
             <div className="flex items-center gap-3">
@@ -499,7 +502,7 @@ export default function Bookings() {
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {categoryTabs.map((t) => (
+        {categoryTabs().map((t) => (
           <button
             key={t.key}
             type="button"
@@ -521,7 +524,7 @@ export default function Bookings() {
           </button>
         ))}
         <span className="mx-1 w-px bg-slate-200" />
-        {typeTabs.map((t) => (
+        {typeTabs().map((t) => (
           <button
             key={t.key}
             type="button"
@@ -549,13 +552,13 @@ export default function Bookings() {
         <div className="mt-6">
           <Empty
             icon={CalendarPlus}
-            title="لا حجوزات في هذا التصنيف"
-            description="احجز ملعبًا لتدريبات ومباريات فريقك"
+            title={t('dash.noBookingsInThisCategory')}
+            description={t('dash.bookFieldsForYourTeamTrainingAndMatches')}
             action={
               type === 'all' && (
                 <Button size="sm" onClick={() => setNewOpen(true)}>
                   <Plus className="size-3.5" />
-                  حجز جديد
+                  {t('dash.newBooking')}
                 </Button>
               )
             }

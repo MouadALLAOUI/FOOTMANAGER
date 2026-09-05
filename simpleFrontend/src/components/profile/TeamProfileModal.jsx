@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { CalendarDays, MapPin, Shield, Target, Users, Trophy } from 'lucide-react'
 import { usePublicTeamProfile } from '../../api/queries'
 import { Modal, Skeleton, Badge } from '../dashboard/ui'
-import { logoThumb } from '../../lib/thumb'
+import TeamLogo from './TeamLogo'
 
 function Stat({ label, value, accent = 'text-slate-900' }) {
   return (
@@ -53,13 +53,7 @@ export default function TeamProfileModal({ team, onClose }) {
       ) : (
         <div className="space-y-5">
           <div className="flex items-center gap-4">
-            {info.logo_url ? (
-              <img src={logoThumb(info)} alt="" className="size-16 shrink-0 rounded-2xl object-cover ring-1 ring-slate-100" loading="lazy" />
-            ) : (
-              <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-green-100 text-xl font-black text-green-700">
-                {(info.name || '؟').slice(0, 1)}
-              </span>
-            )}
+            <TeamLogo team={info} className="size-16" rounded="rounded-2xl" ring="ring-1 ring-slate-100" fontSize="text-xl" />
             <div className="min-w-0 flex-1">
               <h4 className="truncate text-lg font-black text-slate-900">{info.name}</h4>
               <div className="mt-2 flex flex-wrap gap-1.5">

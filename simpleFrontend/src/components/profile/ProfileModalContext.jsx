@@ -36,8 +36,21 @@ export function ProfileModalProvider({ children }) {
   )
 }
 
+const FALLBACK = {
+  openTeam: () => {},
+  openManager: () => {},
+  openPlayer: () => {},
+  openOwner: () => {},
+  openCommittee: () => {},
+}
+
 export function useProfileModal() {
   const ctx = useContext(ProfileModalContext)
-  if (!ctx) throw new Error('useProfileModal must be used within ProfileModalProvider')
+  if (!ctx) {
+    // Fail soft: a missing provider must never take down a page that renders
+    // shared row components (leaderboard, tournament sections). Warn loudly instead.
+    console.warn('useProfileModal used outside ProfileModalProvider — profile modal disabled for this render')
+    return FALLBACK
+  }
   return ctx
 }

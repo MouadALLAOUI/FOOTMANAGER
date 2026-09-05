@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { consumeAction } from '../../lib/intent'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -49,7 +50,9 @@ export default function LoginForm() {
     setBusy(true)
     try {
       await login(loginValue, password)
-      navigate('/')
+      const pending = consumeAction()
+      if (pending?.type === 'book' && pending.id) navigate('/fields?book=' + pending.id)
+      else navigate('/')
     } catch (err) {
       const fe = getFieldErrors(err)
       if (Object.keys(fe).length > 0) {

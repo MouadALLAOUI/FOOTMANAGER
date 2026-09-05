@@ -23,7 +23,7 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
   const { t, i18n } = useTranslation()
 
   return (
-    <article className="group w-[320px] shrink-0 snap-start overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)]">
+    <article className="group w-[82%] max-w-[320px] shrink-0 snap-start overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)]">
       <div className="relative h-[220px] overflow-hidden bg-gradient-to-br from-emerald-600 via-emerald-800 to-slate-950">
         <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.25),transparent_60%)]" />
         <img
@@ -55,12 +55,23 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
       </div>
 
       <div className="p-6">
-        <div className="flex items-center gap-1.5">
-          <FontAwesomeIcon icon={faStar} className="size-4 text-amber-400" />
-          <span className="text-sm font-bold text-slate-800">{card.rating}</span>
-        </div>
-        <h3 className="mt-2 text-lg font-extrabold text-slate-900">{card.name}</h3>
-        <p className="mt-1 text-sm text-slate-500">{card.location}</p>
+        {card.rating != null && (
+          <div className="flex items-center gap-1.5">
+            <FontAwesomeIcon icon={faStar} className="size-4 text-amber-400" />
+            <span className="text-sm font-bold text-slate-800">{card.rating}</span>
+          </div>
+        )}
+        <h3
+          className={`bidi-plaintext truncate text-lg font-extrabold text-slate-900 ${
+            card.rating != null ? 'mt-2' : ''
+          }`}
+        >
+          {card.name}
+        </h3>
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+          <FontAwesomeIcon icon={faMapPin} className="size-4 shrink-0 text-slate-400" />
+          <span className="bidi-plaintext min-w-0 truncate">{card.location}</span>
+        </p>
         <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-slate-600">
           <FontAwesomeIcon icon={faClock} className="size-4 text-slate-400" />
           {card.isOpen ? t('landing.fields.openNow') : t('landing.fields.closed')}
@@ -90,7 +101,7 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
 
 function SkeletonCard() {
   return (
-    <div className="w-[320px] shrink-0 snap-start animate-pulse overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)]">
+    <div className="w-[82%] max-w-[320px] shrink-0 snap-start animate-pulse overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)]">
       <div className="h-[220px] bg-slate-200" />
       <div className="space-y-3 p-6">
         <div className="h-4 w-16 rounded-full bg-slate-200" />
@@ -122,7 +133,8 @@ export default function AvailableFields() {
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="text-start">
-            <h2 className="text-3xl font-black text-green-800 lg:text-4xl">
+            <span className="mb-3 block h-1 w-10 rounded-full bg-green-500" aria-hidden="true" />
+            <h2 className="text-3xl font-black text-slate-900 lg:text-4xl">
               {t('landing.fields.title')}
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500 lg:text-base">
@@ -141,7 +153,7 @@ export default function AvailableFields() {
 
         <div className="mt-12">
           {loading ? (
-            <Carousel>
+            <Carousel showDots>
               {[1, 2, 3].map((i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -153,7 +165,7 @@ export default function AvailableFields() {
               <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-400">{t('landing.fields.emptyDesc')}</p>
             </div>
           ) : (
-            <Carousel>
+            <Carousel showDots>
               {cards.map((card) => (
                 <FieldCard
                   key={card.id}

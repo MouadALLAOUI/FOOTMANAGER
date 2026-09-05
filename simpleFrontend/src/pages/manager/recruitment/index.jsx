@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -40,16 +41,17 @@ import { useAuth } from '../../../context/AuthContext'
 import { photoThumb } from '../../../lib/thumb'
 import { toastApiError } from '../../../lib/errors'
 
-const positionLabels = { goalkeeper: 'حارس مرمى', defender: 'مدافع', midfielder: 'وسط', forward: 'مهاجم' }
-const skillLabels = { beginner: 'مبتدئ', amateur: 'هواة', semi_pro: 'نصف محترف', pro: 'محترف' }
-const positionOptions = [
-  { value: 'goalkeeper', label: 'حارس مرمى', icon: '🧤' },
-  { value: 'defender', label: 'مدافع', icon: '🛡️' },
-  { value: 'midfielder', label: 'وسط ميدان', icon: '⚙️' },
-  { value: 'forward', label: 'مهاجم', icon: '⚽' },
+const positionLabels = { get goalkeeper() { return i18n.t('dash.goalkeeper') }, get defender() { return i18n.t('dash.defender') }, get midfielder() { return i18n.t('dash.midfielder') }, get forward() { return i18n.t('dash.striker') } }
+const skillLabels = { get beginner() { return i18n.t('dash.beginner') }, get amateur() { return i18n.t('dash.amateur') }, get semi_pro() { return i18n.t('dash.semiPro') }, get pro() { return i18n.t('dash.pro') } }
+const positionOptions = () => [
+  { value: 'goalkeeper', label: i18n.t('dash.goalkeeper'), icon: '🧤' },
+  { value: 'defender', label: i18n.t('dash.defender'), icon: '🛡️' },
+  { value: 'midfielder', label: i18n.t('dash.midfield'), icon: '⚙️' },
+  { value: 'forward', label: i18n.t('dash.striker'), icon: '⚽' },
 ]
 
 function SearchBar({ meta }) {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [expanded, setExpanded] = useState(false)
   const [search, setSearch] = useState('')
@@ -81,15 +83,15 @@ function SearchBar({ meta }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث عن لاعب بالاسم…"
-            aria-label="ابحث عن لاعب بالاسم"
+            placeholder={t('dash.searchPlayerByName')}
+            aria-label={t('dash.searchPlayerByName2')}
             className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pe-4 ps-10 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
           />
           {search && (
             <button
               type="button"
               onClick={() => setSearch('')}
-              aria-label="مسح البحث"
+              aria-label={t('dash.clearSearch')}
               className="absolute end-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-slate-200 text-slate-500"
             >
               <X className="size-3" />
@@ -104,25 +106,25 @@ function SearchBar({ meta }) {
           }`}
         >
           <SlidersHorizontal className="size-4" />
-          تصفية
+          {t('dash.filters')}
         </button>
       </div>
 
       {expanded && (
         <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="المركز">
+          <Field label={t('dash.position')}>
             <select className={selectClass} value={searchParams.get('position') || ''} onChange={(e) => setParam('position', e.target.value)}>
-              <option value="">كل المراكز</option>
-              {positionOptions.map((p) => (
+              <option value="">{t('dash.allPositions')}</option>
+              {positionOptions().map((p) => (
                 <option key={p.value} value={p.value}>
                   {p.icon} {p.label}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="المستوى">
+          <Field label={t('dash.level')}>
             <select className={selectClass} value={searchParams.get('skill_level') || ''} onChange={(e) => setParam('skill_level', e.target.value)}>
-              <option value="">كل المستويات</option>
+              <option value="">{t('dash.allLevels')}</option>
               {Object.entries(skillLabels).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
@@ -130,17 +132,17 @@ function SearchBar({ meta }) {
               ))}
             </select>
           </Field>
-          <Field label="المدينة">
+          <Field label={t('dash.city')}>
             <Select
               value={searchParams.get('city') || ''}
               onChange={(v) => setParam('city', v)}
               options={meta.cities.map((c) => ({ value: c, label: c }))}
-              placeholder="كل المدن"
+              placeholder={t('dash.allCities')}
             />
           </Field>
           <div className="flex items-end">
             <Button variant="ghost" className="w-full border border-slate-200" onClick={() => setSearchParams({})}>
-              مسح الكل
+              {t('dash.clearAll')}
             </Button>
           </div>
         </div>
@@ -150,6 +152,7 @@ function SearchBar({ meta }) {
 }
 
 function InviteModal({ player, hosted, onClose, onSaved }) {
+  const { t, i18n } = useTranslation()
   const { toast } = useToast()
   const [matchId, setMatchId] = useState('')
   const [message, setMessage] = useState('')
@@ -157,7 +160,7 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
   const [error, setError] = useState('')
 
   const submit = async () => {
-    if (!matchId) return setError('اختر مباراة لتوجيه الدعوة إليها')
+    if (!matchId) return setError(t('dash.chooseAMatchToDirectTheInvitationTo'))
     setBusy(true)
     setError('')
     try {
@@ -165,11 +168,11 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
         match_request_id: Number(matchId),
         message: message || undefined,
       })
-      toast.success('تم إرسال الدعوة للاعب بنجاح')
+      toast.success(t('dash.invitationSentToThePlayerSuccessfully'))
       onSaved()
       onClose()
     } catch (e) {
-      setError(e.response?.data?.message || 'تعذر إرسال الدعوة')
+      setError(e.response?.data?.message || t('dash.couldNotSendTheInvitation'))
     } finally {
       setBusy(false)
     }
@@ -179,8 +182,8 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
     <Modal
       open
       onClose={onClose}
-      title="دعوة لاعب"
-      subtitle={`أرسل دعوة لـ ${player.user?.name} للانضمام لإحدى مبارياتك المفتوحة`}
+      title={t('dash.invitePlayer')}
+      subtitle={t('dash.inviteSubtitle', { name: player.user?.name })}
     >
       <div className="space-y-4">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
@@ -194,7 +197,7 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
           <div className="min-w-0">
             <p className="truncate text-sm font-extrabold text-slate-900">{player.user?.name}</p>
             <p className="text-[11px] font-semibold text-slate-400">
-              {positionLabels[player.position] || player.position || 'لاعب'} • {skillLabels[player.skill_level] || player.skill_level || ''}
+              {positionLabels[player.position] || player.position || t('dash.player')} • {skillLabels[player.skill_level] || player.skill_level || ''}
             </p>
           </div>
           <span className="ms-auto inline-flex items-center gap-1 rounded-xl bg-amber-50 px-2.5 py-1.5 text-xs font-black text-amber-600 ring-1 ring-amber-200">
@@ -202,11 +205,11 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
           </span>
         </div>
 
-        <Field label="اختر مباراة مفتوحة" required>
+        <Field label={t('dash.chooseAnOpenMatch')} required>
           {hosted.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center">
-              <p className="text-xs font-bold text-slate-600">لا توجد مباريات مفتوحة</p>
-              <p className="mt-1 text-[11px] text-slate-400">أنشئ طلب مباراة أولاً لتتمكن من دعوة اللاعبين</p>
+              <p className="text-xs font-bold text-slate-600">{t('dash.noOpenMatches')}</p>
+              <p className="mt-1 text-[11px] text-slate-400">{t('dash.createAMatchRequestFirstToInvitePlayers')}</p>
             </div>
           ) : (
             <div className="max-h-56 space-y-2 overflow-y-auto">
@@ -231,10 +234,10 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-slate-800">
-                        {dt ? new Intl.DateTimeFormat('ar-MA', { dateStyle: 'medium', timeStyle: 'short' }).format(dt) : 'بدون وقت'}
+                        {dt ? new Intl.DateTimeFormat(i18n.language.startsWith('ar') ? 'ar-MA' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(dt) : t('dash.noTime')}
                       </p>
                       <p className="truncate text-[11px] font-semibold text-slate-400">
-                        {m.stadium?.name || m.custom_terrain_name || 'ملعب غير محدد'}
+                        {m.stadium?.name || m.custom_terrain_name || t('dash.unspecifiedField')}
                       </p>
                     </div>
                     <StatusBadge status="open" />
@@ -245,13 +248,13 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
           )}
         </Field>
 
-        <Field label="رسالة الدعوة (اختياري)">
+        <Field label={t('dash.inviteMessageOptional')}>
           <textarea
             rows={3}
             className={`${inputClass} h-auto py-3`}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="مرحبًا، نود انضمامك لمباراتنا القادمة…"
+            placeholder={t('dash.hiWeWouldLoveToHaveYouInOurNextMatch')}
           />
         </Field>
 
@@ -259,7 +262,7 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
 
         <Button className="w-full" disabled={busy || hosted.length === 0} onClick={submit}>
           <Send className="size-4" />
-          {busy ? 'جارٍ الإرسال…' : 'إرسال الدعوة'}
+          {busy ? 'جارٍ الإرسال…' : t('dash.sendInvitation')}
         </Button>
       </div>
     </Modal>
@@ -267,10 +270,11 @@ function InviteModal({ player, hosted, onClose, onSaved }) {
 }
 
 function PlayerDetail({ player, onClose, onInvite }) {
+  const { t } = useTranslation()
   if (!player) return null
-  const name = player.user?.name || 'لاعب'
+  const name = player.user?.name || t('dash.player')
   return (
-    <Drawer open onClose={onClose} title="ملف اللاعب" subtitle="تفاصيل اللاعب من المنصة" size="460">
+    <Drawer open onClose={onClose} title={t('dash.playerProfile')} subtitle={t('dash.playerDetailsFromThePlatform')} size="460">
       <div className="space-y-5">
         <div className="flex items-center gap-4">
           {player.photo_url ? (
@@ -283,7 +287,7 @@ function PlayerDetail({ player, onClose, onInvite }) {
           <div className="min-w-0">
             <p className="text-lg font-black text-slate-900">{name}</p>
             <p className="text-xs font-semibold text-slate-400">
-              {positionLabels[player.position] || player.position || 'لاعب حر'}
+              {positionLabels[player.position] || player.position || t('dash.freeAgent')}
             </p>
           </div>
           <span className="ms-auto grid size-12 place-items-center rounded-2xl bg-amber-50 text-base font-black text-amber-600 ring-1 ring-amber-200">
@@ -293,10 +297,10 @@ function PlayerDetail({ player, onClose, onInvite }) {
 
         <div className="grid grid-cols-2 gap-3">
           {[
-            { label: 'النقاط', value: player.points ?? 0 },
-            { label: 'مباريات', value: player.matches_played ?? 0 },
-            { label: 'المستوى', value: skillLabels[player.skill_level] || player.skill_level || '—' },
-            { label: 'القدم المفضلة', value: player.preferred_foot || '—' },
+            { label: t('dash.points'), value: player.points ?? 0 },
+            { label: t('dash.matches'), value: player.matches_played ?? 0 },
+            { label: t('dash.level'), value: skillLabels[player.skill_level] || player.skill_level || '—' },
+            { label: t('dash.preferredFoot'), value: player.preferred_foot || '—' },
           ].map((s) => (
             <div key={s.label} className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-center">
               <p className="text-base font-black text-slate-800">{s.value}</p>
@@ -311,7 +315,7 @@ function PlayerDetail({ player, onClose, onInvite }) {
               <MapPin className="size-4" />
             </span>
             <div>
-              <p className="text-[10px] font-bold text-slate-400">المدينة</p>
+              <p className="text-[10px] font-bold text-slate-400">{t('dash.city')}</p>
               <p className="text-sm font-bold text-slate-800">{player.city}</p>
             </div>
           </div>
@@ -319,14 +323,14 @@ function PlayerDetail({ player, onClose, onInvite }) {
 
         {player.description && (
           <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-            <p className="text-[10px] font-bold text-slate-400">نبذة</p>
+            <p className="text-[10px] font-bold text-slate-400">{t('dash.bio')}</p>
             <p className="mt-1 text-sm leading-relaxed text-slate-700">{player.description}</p>
           </div>
         )}
 
         <Button className="w-full" onClick={() => onInvite(player)}>
           <UserPlus className="size-4" />
-          دعوة اللاعب
+          {t('dash.playerInvitation')}
         </Button>
       </div>
     </Drawer>
@@ -335,7 +339,7 @@ function PlayerDetail({ player, onClose, onInvite }) {
 
 function Applications({ hosted }) {
   const { toast } = useToast()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [matchId, setMatchId] = useState('')
   const [apps, setApps] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -349,7 +353,7 @@ function Applications({ hosted }) {
     api
       .get(`/manager/matches/${id}/applicants`)
       .then((r) => setApps(r.data))
-      .catch((e) => setError(e.response?.data?.message || 'تعذر تحميل الطلبات'))
+      .catch((e) => setError(e.response?.data?.message || t('dash.couldNotLoadRequests')))
       .finally(() => setLoading(false))
   }
 
@@ -357,7 +361,7 @@ function Applications({ hosted }) {
     setBusyId(app.id)
     try {
       const res = await api.put(`/manager/recruitment/applications/${app.id}/respond`, { action })
-      toast.success(res.data.message || (action === 'accept' ? 'تم قبول اللاعب' : 'تم رفض الطلب'))
+      toast.success(res.data.message || (action === 'accept' ? t('dash.playerAccepted') : t('dash.requestRejected')))
       load(matchId)
     } catch (e) {
       toastApiError(e, t)
@@ -366,20 +370,20 @@ function Applications({ hosted }) {
     }
   }
 
-  const labelFor = (type) => (type === 'invite' ? 'دعوة مرسلة' : 'طلب انضمام')
+  const labelFor = (type) => (type === 'invite' ? 'دعوة مرسلة' : t('dash.joinRequest'))
 
   return (
     <div className="space-y-4">
       <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-        <Field label="اختر مباراة مضيفة لعرض الطلبات" required>
+        <Field label={t('dash.chooseAHostMatchToSeeRequests')} required>
           <select className={selectClass} value={matchId} onChange={(e) => e.target.value && load(e.target.value)}>
-            <option value="">اختر مباراة…</option>
+            <option value="">{t('dash.chooseAMatch')}</option>
             {hosted.map((m) => {
               const dt = m.match_datetime ? new Date(m.match_datetime) : null
               return (
                 <option key={m.id} value={m.id}>
-                  {dt ? new Intl.DateTimeFormat('ar-MA', { dateStyle: 'medium', timeStyle: 'short' }).format(dt) : 'بدون وقت'}{' '}
-                  — {m.stadium?.name || m.custom_terrain_name || 'ملعب'}
+                  {dt ? new Intl.DateTimeFormat(i18n.language.startsWith('ar') ? 'ar-MA' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(dt) : t('dash.noTime')}{' '}
+                  — {m.stadium?.name || m.custom_terrain_name || t('dash.field')}
                 </option>
               )
             })}
@@ -394,14 +398,14 @@ function Applications({ hosted }) {
       ) : !apps ? (
         <Empty
           icon={Inbox}
-          title="اختر مباراة لعرض طلبات اللاعبين"
-          description="عندما يطلب لاعب الانضمام لمباراتك ستظهر طلباته هنا"
+          title={t('dash.chooseAMatchToSeePlayerRequests')}
+          description={t('dash.whenAPlayerAsksToJoinYourMatchTheirRequestAppearsHere')}
         />
       ) : apps.applications.length === 0 ? (
         <Empty
           icon={Users}
-          title="لا طلبات لهذه المباراة"
-          description="بحث في اللاعبين الأحرار ودعوة من يناسبك"
+          title={t('dash.noRequestsForThisMatch')}
+          description={t('dash.searchFreeAgentsAndInviteWhoeverFits')}
         />
       ) : (
         <div className="space-y-3">
@@ -425,7 +429,7 @@ function Applications({ hosted }) {
                       <StatusBadge status={app.status} />
                     </div>
                     <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                      {positionLabels[pf.position] || pf.position || 'لاعب'} • {skillLabels[pf.skill_level] || pf.skill_level || '—'} •{' '}
+                      {positionLabels[pf.position] || pf.position || t('dash.player')} • {skillLabels[pf.skill_level] || pf.skill_level || '—'} •{' '}
                       {labelFor(app.type)}
                     </p>
                   </div>
@@ -443,11 +447,11 @@ function Applications({ hosted }) {
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                     <Button size="sm" variant="dangerSoft" disabled={busyId === app.id} onClick={() => respond(app, 'decline')}>
                       <XCircle className="size-3.5" />
-                      رفض
+                      {t('dash.reject')}
                     </Button>
                     <Button size="sm" disabled={busyId === app.id} onClick={() => respond(app, 'accept')}>
                       <CheckCircle2 className="size-3.5" />
-                      قبول اللاعب
+                      {t('dash.acceptPlayer')}
                     </Button>
                   </div>
                 )}
@@ -461,6 +465,7 @@ function Applications({ hosted }) {
 }
 
 export default function Recruitment() {
+  const { t } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const myTeamId = user?.team?.id
@@ -500,12 +505,12 @@ export default function Recruitment() {
   return (
     <div>
       <SectionTitle
-        title="اللاعبون الأحرار"
-        subtitle="ابحث عن لاعبين للانضمام لمباريات فريقك"
+        title={t('dash.freeAgents')}
+        subtitle={t('dash.findPlayersToJoinYourTeamMatches')}
         action={
           <Button variant={tab === 'apps' ? 'outline' : 'primary'} onClick={() => setTab(tab === 'search' ? 'apps' : 'search')}>
             {tab === 'search' ? <Inbox className="size-4" /> : <Handshake className="size-4" />}
-            {tab === 'search' ? 'الطلبات الواردة' : 'ابحث عن لاعبين'}
+            {tab === 'search' ? 'الطلبات الواردة' : t('dash.searchPlayers')}
           </Button>
         }
       />
@@ -517,7 +522,7 @@ export default function Recruitment() {
           <div className="mt-5 flex items-center justify-between">
             <p className="flex items-center gap-2 text-xs font-bold text-slate-400">
               <Sparkles className="size-3.5 text-green-500" />
-              {total} لاعب متاح للانضمام
+              {t('dash.playersAvailable', { count: total })}
             </p>
           </div>
 
@@ -529,8 +534,8 @@ export default function Recruitment() {
             <div className="mt-5">
               <Empty
                 icon={Users}
-                title="لا لاعبين يطابقون البحث"
-                description="عدّل الفلاتر وحاول مجددًا"
+                title={t('dash.noPlayersMatchTheSearch')}
+                description={t('dash.adjustTheFiltersAndTryAgain')}
               />
             </div>
           ) : (
@@ -545,10 +550,10 @@ export default function Recruitment() {
                       <>
                         <Button size="sm" className="flex-1" onClick={() => setInvitePlayer(p)}>
                           <UserPlus className="size-3.5" />
-                          دعوة
+                          {t('dash.invite')}
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => setDetail(p)}>
-                          الملف
+                          {t('dash.profile')}
                         </Button>
                       </>
                     }

@@ -1,11 +1,32 @@
-import { useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons'
+import { useSnapCarousel } from '../hooks/useSnapCarousel'
 
-export default function Carousel({ step = 348, children, className }) {
+export function CarouselDots({ count, active, goTo }) {
+  const { t } = useTranslation()
+  if (count <= 1) return null
+  return (
+    <div className="mt-1 flex justify-center gap-1.5 md:hidden">
+      {Array.from({ length: count }, (_, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => goTo(i)}
+          aria-label={t('common.goToSlide', { index: i + 1 })}
+          aria-current={active === i ? 'true' : undefined}
+          className={`h-2 rounded-full transition-all duration-300 ${
+            active === i ? 'w-6 bg-green-500' : 'w-2 bg-slate-300 hover:bg-slate-400'
+          }`}
+        />
+      ))}
+    </div>
+  )
+}
+
+export default function Carousel({ step = 348, children, className, showDots = false }) {
   const { i18n } = useTranslation()
-  const ref = useRef(null)
+  const { ref, count, active, goTo } = useSnapCarousel(children)
 
   const scroll = (dir) => {
     const el = ref.current
@@ -48,10 +69,12 @@ export default function Carousel({ step = 348, children, className }) {
 
       <div
         ref={ref}
-        className={`no-scrollbar flex snap-x gap-7 overflow-x-auto scroll-smooth px-2 pb-4 md:px-14 ${className ?? ''}`}
+        className={`no-scrollbar flex snap-x gap-7 overflow-x-auto scroll-smooth scroll-ps-2 px-2 pb-4 md:scroll-ps-14 md:px-14 ${className ?? ''}`}
       >
         {children}
       </div>
+
+      {showDots && <CarouselDots count={count} active={active} goTo={goTo} />}
     </div>
   )
 }

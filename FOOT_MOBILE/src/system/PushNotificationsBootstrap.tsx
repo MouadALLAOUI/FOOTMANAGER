@@ -1,15 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { useRouter, type Href } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 
 import { notificationTarget, type AppNotification, type NotificationCategory } from '@/api/notifications';
 import { useAuth } from '@/auth/AuthProvider';
-import { initializePushNotifications } from '@/services/notifications/push-notifications';
+import { initializePushNotifications, loadNotifications } from '@/services/notifications/push-notifications';
 
 /**
  * Mounted once at the root layout. Owns the push notification handler setup
  * and routes the user to the in-app destination when a push is tapped —
  * including cold starts (the app launched by tapping the notification).
+ *
+ * expo-notifications is loaded lazily: in Expo Go on Android (SDK 53+) the
+ * package throws at import time, so this component becomes a no-op there.
  */
 export function PushNotificationsBootstrap(): null {
   const router = useRouter();
@@ -22,6 +24,7 @@ export function PushNotificationsBootstrap(): null {
 
   useEffect(() => {
     let active = true;
+    let sub: { remove: () => void } | null = null;
 
     function routeFrom(data: Record<string, unknown> | null | undefined): void {
       const category = data?.category as NotificationCategory | undefined;
@@ -41,7 +44,10 @@ export function PushNotificationsBootstrap(): null {
       }
     }
 
-    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+    const Notifications = loadNotifications();
+    if (!Notifications || !active) return;
+
+    sub = Notifications.addNotificationResponseReceivedListener((response) => {
       routeFrom(response.notification.request.content.data);
     });
 
@@ -52,7 +58,7 @@ export function PushNotificationsBootstrap(): null {
 
     return () => {
       active = false;
-      sub.remove();
+      sub?.remove();
     };
   }, [router, role, sessionState]);
 

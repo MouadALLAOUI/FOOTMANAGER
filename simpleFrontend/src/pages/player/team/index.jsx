@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ShieldCheck, Star, Users } from 'lucide-react'
 import api from '../../../api/client'
 import { Skeleton } from '../../../components/dashboard/ui'
+import TeamLogo from '../../../components/profile/TeamLogo'
 
 const positionLabels = { goalkeeper: 'حارس مرمى', defender: 'مدافع', midfielder: 'وسط ميدان', forward: 'مهاجم' }
 
@@ -63,13 +64,7 @@ export default function PlayerTeam() {
       {/* Team Card */}
       <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
         <div className="flex items-center gap-4">
-          {team.logo_url ? (
-            <img loading="lazy" decoding="async" src={team.logo_url} alt="" className="size-16 rounded-2xl object-cover" />
-          ) : (
-            <span className="grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-green-100 to-emerald-200 text-2xl font-black text-green-700">
-              {team.name.charAt(0)}
-            </span>
-          )}
+          <TeamLogo team={team} className="size-16" rounded="rounded-2xl" fontSize="text-2xl" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-lg font-black text-slate-900">{team.name}</p>
             <p className="text-xs font-semibold text-slate-400">

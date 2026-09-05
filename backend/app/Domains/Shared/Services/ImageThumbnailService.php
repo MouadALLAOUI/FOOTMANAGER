@@ -41,6 +41,49 @@ class ImageThumbnailService
         ];
     }
 
+    public function copyFromPath(string $sourceRelative, string $directory, ?int $width = null, ?int $height = null): array
+    {
+        $disk = Storage::disk($this->disk);
+
+        if (! $sourceRelative || ! $disk->exists($sourceRelative)) {
+            throw new \RuntimeException('Source file missing');
+        }
+
+        $extension = strtolower(pathinfo($sourceRelative, PATHINFO_EXTENSION));
+
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true)) {
+            $extension = 'png';
+        }
+
+        $name = uniqid('preset_', true) . '.' . $extension;
+        $path = $directory . '/' . $name;
+
+        $stream = $disk->readStream($sourceRelative);
+        $disk->writeStream($path, $stream);
+
+        if (is_resource($stream)) {
+            fclose($stream);
+        }
+
+        $thumbnailPath = null;
+
+        try {
+            $thumbnailPath = $this->makeThumbnailFromPath(
+                $disk->path($path),
+                $directory,
+                $width,
+                $height
+            );
+        } catch (Throwable $e) {
+            // Thumbnail generation is best-effort; the original stays available.
+        }
+
+        return [
+            'path' => $path,
+            'thumbnail_path' => $thumbnailPath,
+        ];
+    }
+
     public function generateForExisting(string $relativePath, ?int $width = null, ?int $height = null): ?string
     {
         if (! $relativePath) {

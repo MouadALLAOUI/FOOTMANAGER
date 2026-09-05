@@ -122,7 +122,7 @@ export default function Overview() {
     setBusyKey(key)
     try {
       const r = await api.put(`/owner/bookings/${booking.id}/${action}`)
-      toast.success(action === 'approve' ? 'تم قبول الحجز' : 'تم رفض الحجز')
+      toast.success(action === 'approve' ? t('dash.bookingApproved') : t('dash.bookingRejected'))
       const wa = r.data?.whatsapp_notification_url
       setResolvedIds((ids) => [...ids, booking.id])
       if (selected?.id === booking.id) setSelected(null)
@@ -353,7 +353,7 @@ export default function Overview() {
                       <p className="truncate text-sm font-extrabold text-slate-900">
                         {b.guest_name || b.manager?.name || b.team?.name || t('terrain.overview.pending.unknownBooker')}
                         {b.is_guest && (
-                          <span className="ms-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-700">ضيف</span>
+                          <span className="ms-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-700">{t('dash.guest')}</span>
                         )}
                       </p>
                       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-semibold text-slate-500">
@@ -373,7 +373,7 @@ export default function Overview() {
                     </button>
                     <div className="shrink-0 rounded-xl bg-white px-2.5 py-1 text-center shadow-sm ring-1 ring-slate-200">
                       <p className="text-xs font-black text-green-700">{Number(b.price || 0).toLocaleString(locale)}</p>
-                      <p className="text-[8px] font-bold text-slate-400">د.م</p>
+                      <p className="text-[8px] font-bold text-slate-400">{t('dash.mad')}</p>
                     </div>
                   </div>
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
@@ -431,7 +431,7 @@ export default function Overview() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <p className="truncate text-sm font-extrabold text-slate-900">{typeof terrain.name === 'string' ? terrain.name : 'ملعب'}</p>
+                          <p className="truncate text-sm font-extrabold text-slate-900">{typeof terrain.name === 'string' ? terrain.name : t('dash.field3')}</p>
                           <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold ${open ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
                             <span className={`size-1 rounded-full ${open ? 'bg-emerald-500' : 'bg-rose-500'}`} />
                             {open ? t('terrain.overview.terrains.open') : t('terrain.overview.terrains.closed')}
@@ -504,8 +504,8 @@ export default function Overview() {
               data={series}
               xKey="label"
               series={[
-                { dataKey: 'الإيرادات', name: t('terrain.overview.revenue.seriesRevenue'), color: '#22c55e' },
-                { dataKey: 'الحجوزات', name: t('terrain.overview.revenue.seriesBookings'), color: '#0ea5e9', fillOpacity: 0.06 },
+                { dataKey: t('dash.revenue'), name: t('terrain.overview.revenue.seriesRevenue'), color: '#22c55e' },
+                { dataKey: t('dash.bookings'), name: t('terrain.overview.revenue.seriesBookings'), color: '#0ea5e9', fillOpacity: 0.06 },
               ]}
               height={250}
             />

@@ -47,6 +47,8 @@ export default function Footer() {
     else if (key === 'contact') navigate('/contact')
     else if (key === 'terms') navigate('/terms')
     else if (key === 'privacy') navigate('/privacy')
+    else if (key === 'help') navigate('/help')
+    else if (key === 'faq') navigate('/faq')
     else if (key === 'home') navigate('/')
   }
 

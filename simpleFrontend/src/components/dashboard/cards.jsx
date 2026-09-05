@@ -12,23 +12,14 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button, StatusBadge } from './ui'
-import { thumb, logoThumb, photoThumb } from '../../lib/thumb'
+import { logoThumb, photoThumb } from '../../lib/thumb'
+import TeamLogo from '../profile/TeamLogo'
 
 function TeamBadge({ team, logo, sub, align = 'start' }) {
   const { t } = useTranslation()
   return (
     <div className={`flex min-w-0 items-center gap-2.5 ${align === 'end' ? 'flex-row-reverse text-end' : ''}`}>
-      {team?.logo_url || logo ? (
-        <img loading="lazy" decoding="async" src={thumb(team, 'logo_url') || logo} alt="" className="size-9 shrink-0 rounded-xl object-cover" />
-      ) : (
-        <span
-          className={`grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 text-sm font-black text-slate-500 ${
-            align === 'end' ? 'order-1' : ''
-          }`}
-        >
-          {(team?.name || '؟').slice(0, 1)}
-        </span>
-      )}
+      <TeamLogo team={team} src={logo} className="size-9" fontSize="text-sm" />
       <div className={`min-w-0 ${align === 'end' ? 'items-end' : ''}`}>
         <p className={`truncate text-sm font-extrabold text-slate-900 ${align === 'end' ? 'order-2' : ''}`}>
           {team?.name || t('ov.common.unknownTeam')}

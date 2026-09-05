@@ -1,32 +1,35 @@
+import i18n from '../../../i18n'
+import { useTranslation } from 'react-i18next'
 import { CalendarDays, Clock, Phone, Users } from 'lucide-react'
 import { Button, StatusBadge } from '../../../components/dashboard/ui'
 import { typeLabels } from './TerrainCard'
 
 export const bookingTypeLabels = {
-  training: 'حصة تدريبية',
-  private: 'حجز خاص',
-  match: 'مباراة',
+  get training() { return i18n.t('dash.trainingSession') },
+  get private() { return i18n.t('dash.privateBooking') },
+  get match() { return i18n.t('dash.match') },
 }
 
 export const reservationTypeLabels = {
-  single: 'حجز فردي',
-  weekly_subscription: 'أبونمان أسبوعي',
+  get single() { return i18n.t('dash.individualBooking') },
+  get weekly_subscription() { return i18n.t('dash.weeklySubscription') },
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'
   try {
-    return new Date(`${dateStr}T00:00:00`).toLocaleDateString('ar-MA', { weekday: 'long', day: 'numeric', month: 'long' })
+    return new Date(`${dateStr}T00:00:00`).toLocaleDateString(i18n.language.startsWith('ar') ? 'ar-MA' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
   } catch {
     return dateStr
   }
 }
 
 export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terrainName }) {
+  const { t, i18n } = useTranslation()
   const manager = booking.manager || booking.user || {}
   const team = booking.team || {}
   const isGuest = booking.is_guest === true || Boolean(booking.guest_name)
-  const displayName = booking.guest_name || manager.name || 'مسير'
+  const displayName = booking.guest_name || manager.name || t('dash.manager')
   const displayInitial = (displayName || '؟').slice(0, 1)
   const contactPhone = booking.guest_phone || manager.phone
   const start = booking.start_time
@@ -50,20 +53,20 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate text-sm font-extrabold text-slate-900">
-              {bookingTypeLabels[booking.booking_type] || booking.booking_type || 'حجز'}
+              {bookingTypeLabels[booking.booking_type] || booking.booking_type || t('dash.booking')}
             </p>
             {isGuest && (
-              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">ضيف</span>
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">{t('dash.guest')}</span>
             )}
             <StatusBadge status={booking.status} />
           </div>
           <p className="mt-1.5 text-[11px] font-semibold text-slate-400">
-            {typeof terrainName === 'string' ? terrainName : typeof booking.terrain?.name === 'string' ? booking.terrain.name : 'ملعب'} • {reservationTypeLabels[booking.reservation_type] || '—'}
+            {typeof terrainName === 'string' ? terrainName : typeof booking.terrain?.name === 'string' ? booking.terrain.name : t('dash.field3')} • {reservationTypeLabels[booking.reservation_type] || '—'}
           </p>
         </div>
         <div className="shrink-0 rounded-2xl bg-green-50 px-3 py-2 text-center">
           <p className="text-sm font-black text-green-700">{Number(booking.price || 0).toLocaleString('ar-MA')}</p>
-          <p className="text-[9px] font-bold text-green-600/70">درهم</p>
+          <p className="text-[9px] font-bold text-green-600/70">{t('dash.mad3')}</p>
         </div>
       </div>
 
@@ -89,12 +92,12 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
           {isGuest ? (
             <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
               <Users className="size-3" />
-              زبون • {booking.guest_phone || booking.guest_email || 'بدون تواصل'}
+              زبون • {booking.guest_phone || booking.guest_email || t('dash.noContactInfo')}
             </p>
           ) : (
             <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
               <Users className="size-3" />
-              {team.name || 'فريق غير معروف'}
+              {team.name || t('dash.unknownTeam')}
             </p>
           )}
         </div>
@@ -113,16 +116,16 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
       <div className="mt-3 flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
         {onView && (
           <Button variant="outline" size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); onView() }}>
-            التفاصيل
+            {t('terrain.bookings.details')}
           </Button>
         )}
         {onDecide && booking.status === 'pending' && (
           <>
             <Button variant="outline" size="sm" className="flex-1 !text-rose-500" onClick={(e) => { e.stopPropagation(); onDecide('rejected') }}>
-              رفض
+              {t('dash.reject')}
             </Button>
             <Button size="sm" className="flex-1" onClick={(e) => { e.stopPropagation(); onDecide('approved') }}>
-              تأكيد
+              {t('dash.confirm')}
             </Button>
           </>
         )}
@@ -134,7 +137,7 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
             className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
           >
             <Phone className="size-3.5" />
-            واتساب
+            {t('dash.whatsapp')}
           </a>
         )}
       </div>

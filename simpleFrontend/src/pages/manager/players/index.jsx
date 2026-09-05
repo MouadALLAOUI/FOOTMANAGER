@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -32,18 +33,19 @@ import Drawer from '../../../components/dashboard/Drawer'
 import { Donut } from '../../../components/dashboard/charts'
 import { useToast } from '../../../components/ui/Toast'
 
-const positionLabels = { goalkeeper: 'حارس مرمى', defender: 'مدافع', midfielder: 'وسط ميدان', forward: 'مهاجم' }
-const positionChips = [
-  { value: '', label: 'الكل' },
-  { value: 'goalkeeper', label: 'حراس' },
-  { value: 'defender', label: 'مدافعون' },
-  { value: 'midfielder', label: 'أوساط' },
-  { value: 'forward', label: 'مهاجمون' },
+const positionLabels = { get goalkeeper() { return i18n.t('dash.goalkeeper') }, get defender() { return i18n.t('dash.defender') }, get midfielder() { return i18n.t('dash.midfield') }, get forward() { return i18n.t('dash.striker') } }
+const positionChips = () => [
+  { value: '', label: i18n.t('dash.all') },
+  { value: 'goalkeeper', label: i18n.t('dash.goalkeepers') },
+  { value: 'defender', label: i18n.t('dash.defenders') },
+  { value: 'midfielder', label: i18n.t('dash.midfielders') },
+  { value: 'forward', label: i18n.t('dash.attackers') },
 ]
 
 const emptyForm = { name: '', position: 'midfielder', number: '', phone: '', is_whatsapp: false, notes: '' }
 
 function PlayerModal({ open, onClose, editing, initial, onSaved }) {
+  const { t } = useTranslation()
   const { toast } = useToast()
   const [form, setForm] = useState(emptyForm)
   const [busy, setBusy] = useState(false)
@@ -66,13 +68,13 @@ function PlayerModal({ open, onClose, editing, initial, onSaved }) {
       }
       if (editing) await api.put(`/manager/players/${editing}`, payload)
       else await api.post('/manager/players', payload)
-      toast.success(editing ? 'تم تحديث بيانات اللاعب' : 'تم إضافة اللاعب')
+      toast.success(editing ? t('dash.playerInfoUpdated') : t('dash.playerAdded'))
       onSaved()
       onClose()
     } catch (e) {
       setError(e.response?.data?.errors
         ? Object.values(e.response.data.errors).flat()[0]
-        : e.response?.data?.message || 'تعذر الحفظ')
+        : e.response?.data?.message || t('dash.couldNotSave'))
     } finally {
       setBusy(false)
     }
@@ -82,42 +84,42 @@ function PlayerModal({ open, onClose, editing, initial, onSaved }) {
     <Modal
       open={open}
       onClose={onClose}
-      title={editing ? 'تعديل لاعب' : 'إضافة لاعب'}
-      subtitle={editing ? initial?.name : 'أضف عضوًا إلى تشكيلة فريقك'}
+      title={editing ? 'تعديل لاعب' : t('dash.addPlayer')}
+      subtitle={editing ? initial?.name : t('dash.addAMemberToYourSquad')}
     >
       <div className="space-y-4">
-        <Field label="الاسم" required>
+        <Field label={t('dash.name')} required>
           <input className={inputClass} value={form.name} onChange={set('name')} />
         </Field>
         <FieldRow>
-          <Field label="المركز">
+          <Field label={t('dash.position')}>
             <select className={selectClass} value={form.position} onChange={set('position')}>
-              <option value="goalkeeper">حارس مرمى</option>
-              <option value="defender">مدافع</option>
-              <option value="midfielder">وسط ميدان</option>
-              <option value="forward">مهاجم</option>
+              <option value="goalkeeper">{t('dash.goalkeeper')}</option>
+              <option value="defender">{t('dash.defender')}</option>
+              <option value="midfielder">{t('dash.midfield')}</option>
+              <option value="forward">{t('dash.striker')}</option>
             </select>
           </Field>
-          <Field label="الرقم القميص">
+          <Field label={t('dash.shirtNumber')}>
             <input type="number" min="0" max="99" className={inputClass} value={form.number} onChange={set('number')} />
           </Field>
         </FieldRow>
-        <Field label="الهاتف">
+        <Field label={t('dash.phone')}>
           <input dir="ltr" className={inputClass} value={form.phone} onChange={set('phone')} />
         </Field>
         <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
           <div>
-            <p className="text-sm font-bold text-slate-700">رقم واتساب</p>
-            <p className="text-[11px] font-semibold text-slate-400">لإرسال إشعارات المباريات عبر واتساب</p>
+            <p className="text-sm font-bold text-slate-700">{t('dash.whatsappNumber')}</p>
+            <p className="text-[11px] font-semibold text-slate-400">{t('dash.toSendMatchNotificationsViaWhatsapp')}</p>
           </div>
           <Toggle checked={form.is_whatsapp} onChange={(v) => setForm((f) => ({ ...f, is_whatsapp: v }))} />
         </div>
-        <Field label="ملاحظات">
+        <Field label={t('dash.notes')}>
           <textarea rows={2} className={`${inputClass} h-auto py-3`} value={form.notes} onChange={set('notes')} />
         </Field>
         {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
         <Button className="w-full" disabled={busy || !form.name.trim()} onClick={submit}>
-          {busy ? 'جارٍ الحفظ…' : 'حفظ'}
+          {busy ? t('dash.saving') : t('dash.save')}
         </Button>
       </div>
     </Modal>
@@ -125,6 +127,7 @@ function PlayerModal({ open, onClose, editing, initial, onSaved }) {
 }
 
 function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
+  const { t } = useTranslation()
   return (
     <div
       className="group flex cursor-pointer items-center gap-4 rounded-3xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]"
@@ -142,7 +145,7 @@ function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-extrabold text-slate-900">{p.name}</p>
         <p className="text-[11px] font-semibold text-slate-400">
-          {positionLabels[p.position] || p.position || 'لاعب'}
+          {positionLabels[p.position] || p.position || t('dash.player')}
           {p.phone ? ' • ' : ''}
           {p.phone}
         </p>
@@ -150,13 +153,13 @@ function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
       {p.is_whatsapp && (
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600 ring-1 ring-emerald-200">
           <Phone className="size-3" />
-          واتساب
+          {t('dash.whatsapp')}
         </span>
       )}
       {p.is_essential && (
         <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-bold text-amber-600 ring-1 ring-amber-200">
           <Star className="size-3 fill-amber-400" />
-          أساسي
+          {t('dash.starter')}
         </span>
       )}
       <div className="flex shrink-0 items-center gap-1 opacity-100 lg:opacity-0 lg:transition-opacity lg:group-hover:opacity-100">
@@ -167,7 +170,7 @@ function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
             onEdit(p)
           }}
           className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-          title="تعديل"
+          title={t('common.edit')}
         >
           <Pencil className="size-4" />
         </button>
@@ -179,7 +182,7 @@ function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
             onRemove(p)
           }}
           className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white text-rose-500 hover:bg-rose-50"
-          title="حذف"
+          title={t('common.delete')}
         >
           <Trash2 className="size-4" />
         </button>
@@ -230,10 +233,10 @@ export default function Players() {
       else counts.other += 1
     })
     return [
-      { name: 'حراس', value: counts.goalkeeper, color: '#22c55e' },
-      { name: 'مدافعون', value: counts.defender, color: '#0ea5e9' },
-      { name: 'أوساط', value: counts.midfielder, color: '#f59e0b' },
-      { name: 'مهاجمون', value: counts.forward, color: '#f43f5e' },
+      { name: t('dash.goalkeepers'), value: counts.goalkeeper, color: '#22c55e' },
+      { name: t('dash.defenders'), value: counts.defender, color: '#0ea5e9' },
+      { name: t('dash.midfielders'), value: counts.midfielder, color: '#f59e0b' },
+      { name: t('dash.attackers'), value: counts.forward, color: '#f43f5e' },
     ].filter((x) => x.value > 0)
   }, [players])
 
@@ -246,11 +249,11 @@ export default function Players() {
     })
 
   const remove = async (p) => {
-    if (!window.confirm(`حذف ${p.name} من الفريق؟`)) return
+    if (!window.confirm(t('dash.removePlayerConfirm', { name: p.name }))) return
     setBusyId(p.id)
     try {
       await api.delete(`/manager/players/${p.id}`)
-      toast.success('تم حذف اللاعب')
+      toast.success(t('dash.playerRemoved'))
       invalidateKeys(['manager', 'players'])
       if (detail?.id === p.id) setDetail(null)
     } catch (e) {
@@ -263,12 +266,12 @@ export default function Players() {
   return (
     <div>
       <SectionTitle
-        title="لاعبو الفريق"
-        subtitle="إدارة تشكيلة فريقك"
+        title={t('dash.teamPlayers')}
+        subtitle={t('dash.manageYourTeamSquad')}
         action={
           <Button onClick={openAdd}>
             <Plus className="size-4" />
-            إضافة لاعب
+            {t('dash.addPlayer')}
           </Button>
         }
       />
@@ -285,12 +288,12 @@ export default function Players() {
       ) : players.length === 0 ? (
         <Empty
           icon={UserRound}
-          title="لا يوجد لاعبون بعد"
-          description="أضف لاعبي فريقك لإدارتهم هنا"
+          title={t('dash.noPlayersYet')}
+          description={t('dash.addYourTeamPlayersToManageThemHere')}
           action={
             <Button size="sm" onClick={openAdd}>
               <Plus className="size-3.5" />
-              إضافة أول لاعب
+              {t('dash.addFirstPlayer')}
             </Button>
           }
         />
@@ -298,11 +301,11 @@ export default function Players() {
         <>
           <div className="grid gap-5 lg:grid-cols-3">
             <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-              <p className="text-sm font-extrabold text-slate-900">تركيبة التشكيلة</p>
+              <p className="text-sm font-extrabold text-slate-900">{t('dash.squadComposition')}</p>
               {distribution.length > 0 ? (
-                <Donut data={distribution} centerLabel="لاعب" centerValue={players.length} height={180} innerRadius={50} outerRadius={70} />
+                <Donut data={distribution} centerLabel={t('dash.player')} centerValue={players.length} height={180} innerRadius={50} outerRadius={70} />
               ) : (
-                <div className="flex h-44 items-center justify-center text-xs text-slate-400">لا بيانات بعد</div>
+                <div className="flex h-44 items-center justify-center text-xs text-slate-400">{t('dash.noDataYet')}</div>
               )}
             </div>
             <div className="lg:col-span-2">
@@ -312,15 +315,15 @@ export default function Players() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="ابحث بالاسم أو الرقم أو الهاتف…"
-                    aria-label="ابحث بالاسم أو الرقم أو الهاتف"
+                    placeholder={t('dash.searchByNameNumberOrPhone')}
+                    aria-label={t('dash.searchByNameNumberOrPhone2')}
                     className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pe-9 ps-10 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:bg-white focus:ring-4 focus:ring-green-500/10"
                   />
                   {search && (
                     <button
                       type="button"
                       onClick={() => setSearch('')}
-                      aria-label="مسح البحث"
+                      aria-label={t('dash.clearSearch')}
                       className="absolute end-3 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-slate-200 text-slate-500"
                     >
                       <X className="size-3" />
@@ -328,7 +331,7 @@ export default function Players() {
                   )}
                 </div>
                 <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                  {positionChips.map((c) => (
+                  {positionChips().map((c) => (
                     <button
                       key={c.value}
                       type="button"
@@ -349,8 +352,8 @@ export default function Players() {
                 {filtered.length === 0 ? (
                   <Empty
                     icon={Search}
-                    title="لا لاعبين يطابقون البحث"
-                    description="جرّب كلمة بحث أخرى أو غيّر مركز اللاعب"
+                    title={t('dash.noPlayersMatchTheSearch')}
+                    description={t('dash.tryAnotherSearchTermOrChangeThePosition')}
                     action={
                       <Button
                         size="sm"
@@ -361,7 +364,7 @@ export default function Players() {
                         }}
                       >
                         <X className="size-3.5" />
-                        مسح البحث والفلاتر
+                        {t('dash.clearSearchAndFilters')}
                       </Button>
                     }
                   />
@@ -402,7 +405,7 @@ export default function Players() {
         />
       )}
 
-      <Drawer open={Boolean(detail)} onClose={() => setDetail(null)} title="بيانات اللاعب" subtitle="معلومات اللاعب في فريقك" size="440">
+      <Drawer open={Boolean(detail)} onClose={() => setDetail(null)} title={t('dash.playerInfo')} subtitle={t('dash.playerInformationInYourTeam')} size="440">
         {detail && (
           <div className="space-y-5">
             <div className="flex items-center gap-4">
@@ -417,16 +420,16 @@ export default function Players() {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-lg font-black text-slate-900">{detail.name}</p>
-                <p className="text-xs font-semibold text-slate-400">{positionLabels[detail.position] || detail.position || 'لاعب'}</p>
+                <p className="text-xs font-semibold text-slate-400">{positionLabels[detail.position] || detail.position || t('dash.player')}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { label: 'المركز', value: positionLabels[detail.position] || detail.position || '—' },
-                { label: 'الرقم', value: detail.number ?? '—' },
-                { label: 'الهاتف', value: detail.phone || '—' },
-                { label: 'الحالة', value: detail.status || 'نشط' },
-                { label: 'العضوية', value: detail.is_essential ? 'أساسي' : 'عضو' },
+                { label: t('dash.position'), value: positionLabels[detail.position] || detail.position || '—' },
+                { label: t('dash.number'), value: detail.number ?? '—' },
+                { label: t('dash.phone'), value: detail.phone || '—' },
+                { label: t('dash.status'), value: detail.status || t('dash.active') },
+                { label: t('dash.membership'), value: detail.is_essential ? t('dash.starter') : 'عضو' },
               ].map((s) => (
                 <div key={s.label} className="rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-center">
                   <p className="text-sm font-black text-slate-800">{s.value}</p>
@@ -436,7 +439,7 @@ export default function Players() {
             </div>
             {detail.notes && (
               <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                <p className="text-[10px] font-bold text-slate-400">ملاحظات</p>
+                <p className="text-[10px] font-bold text-slate-400">{t('dash.notes')}</p>
                 <p className="mt-1 text-sm leading-relaxed text-slate-700">{detail.notes}</p>
               </div>
             )}
@@ -444,8 +447,8 @@ export default function Players() {
               <div className="flex items-center gap-2">
                 <Star className={`size-4 ${detail.is_essential ? 'fill-amber-400 text-amber-500' : 'text-slate-400'}`} />
                 <div>
-                  <p className="text-sm font-bold text-slate-700">لاعب أساسي</p>
-                  <p className="text-[11px] font-semibold text-slate-400">تحديد的重要性 في الفريق</p>
+                  <p className="text-sm font-bold text-slate-700">{t('dash.starter2')}</p>
+                  <p className="text-[11px] font-semibold text-slate-400">{t('dash.importanceInTheTeam')}</p>
                 </div>
               </div>
               <Toggle
@@ -472,7 +475,7 @@ export default function Players() {
                 }}
               >
                 <Trash2 className="size-4" />
-                حذف
+                {t('common.delete')}
               </Button>
               <Button
                 className="flex-1"
@@ -482,7 +485,7 @@ export default function Players() {
                 }}
               >
                 <Pencil className="size-4" />
-                تعديل
+                {t('common.edit')}
               </Button>
             </div>
           </div>

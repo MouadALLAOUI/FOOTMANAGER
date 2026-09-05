@@ -62,25 +62,30 @@ export const ALL_ADMIN_USER_ROLES: Exclude<AdminUserRole, 'all'>[] = [
 async function fetchRoleUsers(
   role: Exclude<AdminUserRole, 'all'>,
   search?: string,
+  status?: string,
 ): Promise<AdminUser[]> {
   const data = await get<ListResponse>(`/admin/${SINGLE_ENDPOINT[role]}`, {
-    params: { status: 'all', search: search ?? '', per_page: 50 },
+    params: { status: status ?? 'all', search: search ?? '', per_page: 50 },
   });
   return data[DATA_KEY[role]] ?? [];
 }
 
-export async function getAdminUsers(scope: AdminUserRole, search?: string): Promise<AdminUser[]> {
+export async function getAdminUsers(
+  scope: AdminUserRole,
+  search?: string,
+  status?: string,
+): Promise<AdminUser[]> {
   if (scope === 'all') {
-    const lists = await Promise.all(ALL_ADMIN_USER_ROLES.map((r) => fetchRoleUsers(r, search)));
+    const lists = await Promise.all(ALL_ADMIN_USER_ROLES.map((r) => fetchRoleUsers(r, search, status)));
     return lists.flat().sort((a, b) => (a.created_at ?? '').localeCompare(b.created_at ?? '') * -1);
   }
-  return fetchRoleUsers(scope, search);
+  return fetchRoleUsers(scope, search, status);
 }
 
-export function useAdminUsers(scope: AdminUserRole, search: string) {
+export function useAdminUsers(scope: AdminUserRole, search: string, status?: string) {
   return useQuery({
-    queryKey: q.adminUsers(scope, search),
-    queryFn: () => getAdminUsers(scope, search),
+    queryKey: [...q.adminUsers(scope, search), status ?? 'all'],
+    queryFn: () => getAdminUsers(scope, search, status),
   });
 }
 

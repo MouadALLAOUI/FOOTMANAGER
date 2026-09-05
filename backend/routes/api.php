@@ -60,6 +60,7 @@ use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AdminPlayerTeamRequestController;
 use App\Http\Controllers\Admin\ManagerApprovalController;
 use App\Http\Controllers\Admin\PlanController;
+use App\Http\Controllers\Admin\PresetController;
 use App\Http\Controllers\Admin\UserSubscriptionController;
 use App\Http\Controllers\Admin\PlayerApprovalController;
 use App\Http\Controllers\Admin\SettingsController;
@@ -100,6 +101,7 @@ use App\Http\Controllers\Player\PlayerController as PlayerProfileController;
 use App\Http\Controllers\Public\LeaderboardController;
 use App\Http\Controllers\Public\PlayerLeaderboardController;
 use App\Http\Controllers\Public\PublicTournamentController;
+use App\Http\Controllers\Public\PresetController as PublicPresetController;
 use App\Http\Controllers\Public\PublicTournamentLiveController;
 use App\Http\Controllers\Public\TournamentRegistrationController;
 use App\Http\Controllers\Public\PublicContactController;
@@ -486,7 +488,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/me', [AuthController::class, 'updateProfile']);
         Route::post('/me/avatar', [AuthController::class, 'uploadAvatar'])->middleware('throttle:upload');
         Route::delete('/me/avatar', [AuthController::class, 'removeAvatar']);
+        Route::post('/me/avatar-preset', [AuthController::class, 'applyAvatarPreset'])->middleware('throttle:upload');
+        Route::put('/me/avatar-color', [AuthController::class, 'updateAvatarColor']);
     });
+});
+
+Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
+    Route::get('/presets', [PublicPresetController::class, 'index']);
 });
 
 Route::middleware(['auth:sanctum', 'throttle:device'])->prefix('devices')->group(function () {
@@ -602,6 +610,12 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::delete('/maintenance-modules/{module}', [SettingsController::class, 'maintenanceDestroy']);
             Route::put('/page-maintenance', [SettingsController::class, 'pageMaintenanceUpdate']);
             Route::delete('/page-maintenance', [SettingsController::class, 'pageMaintenanceDestroy']);
+
+            Route::get('/presets', [PresetController::class, 'index']);
+            Route::post('/presets', [PresetController::class, 'store']);
+            Route::put('/presets/{id}', [PresetController::class, 'update']);
+            Route::patch('/presets/{id}/toggle-active', [PresetController::class, 'toggleActive']);
+            Route::delete('/presets/{id}', [PresetController::class, 'destroy']);
         });
 
         Route::middleware('permission:messages.view')->group(function () {
@@ -917,6 +931,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
                 Route::put('/manager/team-profile', [TeamProfileController::class, 'update']);
                 Route::post('/manager/team-profile/logo', [TeamProfileController::class, 'uploadLogo']);
+                Route::post('/manager/team-profile/logo-preset', [TeamProfileController::class, 'applyLogoPreset']);
             });
 
             Route::get('/manager/teams/{id}', [PublicTeamController::class, 'show']);

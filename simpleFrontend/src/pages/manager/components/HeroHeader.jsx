@@ -26,9 +26,9 @@ export default function HeroHeader() {
 
   const actions = [
     { label: t('ov.hero.newMatch'), desc: t('ov.hero.newMatchDesc'), icon: Swords, tint: 'bg-green-500', onClick: openCreate },
-    { label: t('ov.hero.bookTerrain'), desc: t('ov.hero.bookTerrainDesc'), icon: Zap, tint: 'bg-sky-500', onClick: () => scrollTo('quick-booking') },
-    { label: t('ov.hero.findOpponent'), desc: t('ov.hero.findOpponentDesc'), icon: Radar, tint: 'bg-violet-500', onClick: () => scrollTo('market') },
-    { label: t('ov.hero.recruitPlayer'), desc: t('ov.hero.recruitPlayerDesc'), icon: UserPlus, tint: 'bg-amber-500', onClick: () => scrollTo('recruitment') },
+    { label: t('ov.hero.bookTerrain'), desc: t('ov.hero.bookTerrainDesc'), icon: Zap, tint: 'bg-white/10', onClick: () => scrollTo('quick-booking') },
+    { label: t('ov.hero.findOpponent'), desc: t('ov.hero.findOpponentDesc'), icon: Radar, tint: 'bg-white/10', onClick: () => scrollTo('market') },
+    { label: t('ov.hero.recruitPlayer'), desc: t('ov.hero.recruitPlayerDesc'), icon: UserPlus, tint: 'bg-white/10', onClick: () => scrollTo('recruitment') },
   ]
 
   const stats = [

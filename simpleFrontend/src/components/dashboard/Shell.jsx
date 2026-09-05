@@ -230,7 +230,7 @@ export default function Shell({
         {t('common.skipToContent')}
       </a>
       <aside
-        className={`fixed inset-y-0 start-0 z-40 hidden flex-col bg-[#0b1220] transition-all duration-300 lg:flex ${
+        className={`fixed inset-y-0 start-0 z-40 hidden pitch-lines flex-col bg-[#0b1220] transition-all duration-300 lg:flex ${
           collapsed ? 'w-[84px]' : 'w-[264px]'
         }`}
       >

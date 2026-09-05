@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -26,9 +27,10 @@ import {
   selectClass,
 } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import TeamLogo from '../../../components/profile/TeamLogo'
 import { toastApiError } from '../../../lib/errors'
 
-const categoryLabels = { adult: 'كبار', teenager: 'شباب', children: 'أطفال' }
+const categoryLabels = { get adult() { return i18n.t('dash.adults') }, get teenager() { return i18n.t('dash.teens') }, get children() { return i18n.t('dash.children') } }
 
 function JerseyPreview({ primary, secondary, name }) {
   return (
@@ -90,7 +92,7 @@ export default function Team() {
     setSaving(true)
     try {
       const res = await api.put('/manager/team-profile', form)
-      toast.success(res.data.message || 'تم تحديث بيانات الفريق')
+      toast.success(res.data.message || t('dash.teamInfoUpdated'))
       refetch()
     } catch (e) {
       toastApiError(e, t)
@@ -108,7 +110,7 @@ export default function Team() {
       const res = await api.post('/manager/team-profile/logo', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      toast.success(res.data.message || 'تم رفع الشعار')
+      toast.success(res.data.message || t('dash.logoUploaded'))
       refetch()
     } catch (e) {
       toastApiError(e, t)
@@ -119,10 +121,10 @@ export default function Team() {
 
   const stats = useMemo(
     () => [
-      { label: 'النقاط', value: team?.points ?? 0, icon: Trophy, color: 'text-amber-600', bg: 'bg-amber-50' },
-      { label: 'مباريات', value: team?.matches_played ?? 0, icon: Swords, color: 'text-sky-600', bg: 'bg-sky-50' },
-      { label: 'فوز / تعادل / خسارة', value: `${team?.wins ?? 0} / ${team?.draws ?? 0} / ${team?.losses ?? 0}`, icon: ArrowUpDown, color: 'text-green-600', bg: 'bg-green-50' },
-      { label: 'الأهداف', value: `${team?.goals_for ?? 0} — ${team?.goals_against ?? 0}`, icon: CircleDot, color: 'text-violet-600', bg: 'bg-violet-50' },
+      { label: t('dash.points'), value: team?.points ?? 0, icon: Trophy, color: 'text-amber-600', bg: 'bg-amber-50' },
+      { label: t('dash.matches'), value: team?.matches_played ?? 0, icon: Swords, color: 'text-sky-600', bg: 'bg-sky-50' },
+      { label: t('dash.wDL'), value: `${team?.wins ?? 0} / ${team?.draws ?? 0} / ${team?.losses ?? 0}`, icon: ArrowUpDown, color: 'text-green-600', bg: 'bg-green-50' },
+      { label: t('dash.goals'), value: `${team?.goals_for ?? 0} — ${team?.goals_against ?? 0}`, icon: CircleDot, color: 'text-violet-600', bg: 'bg-violet-50' },
     ],
     [team],
   )
@@ -143,7 +145,7 @@ export default function Team() {
 
   if (!team) {
     return (
-      <SectionTitle title="ملف الفريق" subtitle="لا يوجد فريق مرتبط بحسابك بعد" />
+      <SectionTitle title={t('dash.teamProfile')} subtitle={t('dash.noTeamLinkedToYourAccountYet')} />
     )
   }
 
@@ -152,12 +154,12 @@ export default function Team() {
   return (
     <div>
       <SectionTitle
-        title="ملف الفريق"
-        subtitle="تعريف بفريقك ليظهر أمام المسيرين واللاعبين"
+        title={t('dash.teamProfile')}
+        subtitle={t('dash.introduceYourTeamToManagersAndPlayers')}
         action={
           <Button onClick={save} disabled={saving || loading}>
             <Save className="size-4" />
-            {saving ? 'جارٍ الحفظ…' : 'حفظ التغييرات'}
+            {saving ? t('dash.saving') : t('dash.saveChanges')}
           </Button>
         }
       />
@@ -178,24 +180,18 @@ export default function Team() {
 
         <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end gap-4 p-6">
           <div className="group relative">
-            {team.logo_url ? (
-              <img
-                src={team.logo_url}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="size-24 rounded-3xl border-4 border-white object-cover shadow-2xl"
-              />
-            ) : (
-              <span className="grid size-24 place-items-center rounded-3xl border-4 border-white bg-white/15 text-4xl font-black text-white shadow-2xl backdrop-blur">
-                {(team.name || '؟').slice(0, 1)}
-              </span>
-            )}
+            <TeamLogo
+              team={team}
+              className="size-24"
+              rounded="rounded-3xl"
+              ring="border-4 border-white"
+              fontSize="text-4xl"
+            />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
               className="absolute inset-0 grid place-items-center rounded-3xl bg-slate-950/50 opacity-0 transition-opacity group-hover:opacity-100"
-              title="تغيير الشعار"
+              title={t('dash.changeLogo')}
             >
               {uploading ? (
                 <span className="size-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
@@ -209,7 +205,7 @@ export default function Team() {
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-white/80">
               <span className="inline-flex items-center gap-1">
                 <Users className="size-3.5" />
-                {categoryLabels[team.category] || team.category || 'فئة غير محددة'}
+                {categoryLabels[team.category] || team.category || t('dash.unspecifiedCategory')}
               </span>
               {team.city && (
                 <span className="inline-flex items-center gap-1">
@@ -259,21 +255,21 @@ export default function Team() {
               <Shield className="size-4" />
             </span>
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900">معلومات الفريق</h3>
-              <p className="text-[11px] font-semibold text-slate-400">البيانات الأساسية لفريقك</p>
+              <h3 className="text-sm font-extrabold text-slate-900">{t('dash.teamInformation')}</h3>
+              <p className="text-[11px] font-semibold text-slate-400">{t('dash.yourTeamBasicInfo')}</p>
             </div>
           </div>
           <div className="space-y-4">
             <FieldRow>
-              <Field label="اسم الفريق" required>
+              <Field label={t('dash.teamName')} required>
                 <input className={inputClass} value={form.name || ''} onChange={set('name')} />
               </Field>
-              <Field label="عدد الأعضاء" required>
+              <Field label={t('dash.members')} required>
                 <input type="number" min="1" className={inputClass} value={form.member_count || ''} onChange={set('member_count')} />
               </Field>
             </FieldRow>
             <FieldRow>
-              <Field label="الفئة" required>
+              <Field label={t('dash.category')} required>
                 <select className={selectClass} value={form.category || 'adult'} onChange={set('category')}>
                   {Object.entries(categoryLabels).map(([k, v]) => (
                     <option key={k} value={k}>
@@ -282,9 +278,9 @@ export default function Team() {
                   ))}
                 </select>
               </Field>
-              <Field label="الملعب الأساسي">
+              <Field label={t('dash.homeField')}>
                 <select className={selectClass} value={form.primary_stadium_id || ''} onChange={set('primary_stadium_id')}>
-                  <option value="">غير محدد</option>
+                  <option value="">{t('dash.unspecified')}</option>
                   {stadiums.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} — {s.city}
@@ -294,23 +290,23 @@ export default function Team() {
               </Field>
             </FieldRow>
             <FieldRow>
-              <Field label="المدينة">
+              <Field label={t('dash.city')}>
                 <input className={inputClass} value={form.city || ''} onChange={set('city')} />
               </Field>
-              <Field label="الجهة / الإقليم">
+              <Field label={t('dash.regionProvince')}>
                 <input className={inputClass} value={form.region || ''} onChange={set('region')} />
               </Field>
             </FieldRow>
-            <Field label="الجمعية الرياضية">
+            <Field label={t('dash.sportsAssociation')}>
               <input className={inputClass} value={form.association_name || ''} onChange={set('association_name')} />
             </Field>
-            <Field label="نبذة عن الفريق">
+            <Field label={t('dash.aboutTheTeam')}>
               <textarea
                 rows={4}
                 className={`${inputClass} h-auto py-3`}
                 value={form.description || ''}
                 onChange={set('description')}
-                placeholder="عرّف بفريقك وتاريخه وإنجازاته…"
+                placeholder={t('dash.tellPeopleAboutYourTeamHistoryAndAchievements')}
               />
             </Field>
           </div>
@@ -324,8 +320,8 @@ export default function Team() {
                 <Palette className="size-4" />
               </span>
               <div>
-                <h3 className="text-sm font-extrabold text-slate-900">ألوان الفريق</h3>
-                <p className="text-[11px] font-semibold text-slate-400">معاينة حية لقميصك</p>
+                <h3 className="text-sm font-extrabold text-slate-900">{t('dash.teamColors')}</h3>
+                <p className="text-[11px] font-semibold text-slate-400">{t('dash.livePreviewOfYourJersey')}</p>
               </div>
             </div>
             <JerseyPreview
@@ -335,8 +331,8 @@ export default function Team() {
             />
             <div className="mt-5 grid grid-cols-2 gap-3">
               {[
-                { key: 'primary_color', label: 'اللون الأساسي' },
-                { key: 'secondary_color', label: 'اللون الثانوي' },
+                { key: 'primary_color', label: t('dash.primaryColor') },
+                { key: 'secondary_color', label: t('dash.secondaryColor') },
               ].map((c) => (
                 <label key={c.key} className="block">
                   <span className="mb-1.5 block text-[11px] font-bold text-slate-600">{c.label}</span>
@@ -364,24 +360,18 @@ export default function Team() {
                 <Upload className="size-4" />
               </span>
               <div>
-                <h3 className="text-sm font-extrabold text-slate-900">شعار الفريق</h3>
-                <p className="text-[11px] font-semibold text-slate-400">JPG أو PNG حتى 2MB</p>
+                <h3 className="text-sm font-extrabold text-slate-900">{t('dash.teamLogo')}</h3>
+                <p className="text-[11px] font-semibold text-slate-400">{t('dash.jpgOrPngUpTo2mb')}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              {team.logo_url ? (
-                <img loading="lazy" decoding="async" src={team.logo_url} alt="" className="size-16 rounded-2xl object-cover ring-1 ring-slate-200" />
-              ) : (
-                <span className="grid size-16 place-items-center rounded-2xl bg-slate-50 text-slate-300">
-                  <Shield className="size-7" strokeWidth={1.6} />
-                </span>
-              )}
+              <TeamLogo team={team} className="size-16" rounded="rounded-2xl" ring="ring-1 ring-slate-200" fontSize="text-lg" />
               <div className="min-w-0 flex-1">
                 <Button variant="outline" size="sm" className="w-full" disabled={uploading} onClick={() => fileRef.current?.click()}>
-                  {uploading ? 'جارٍ الرفع…' : 'رفع شعار جديد'}
+                  {uploading ? t('dash.uploading') : t('dash.uploadNewLogo')}
                 </Button>
                 <p className="mt-1.5 text-[10px] font-semibold text-slate-400">
-                  سيظهر الشعار في بطاقات الفريق والترتيب
+                  {t('dash.theLogoAppearsOnTeamCardsAndTheLeaderboard')}
                 </p>
               </div>
             </div>

@@ -11,6 +11,7 @@ use App\Domains\Subscription\Services\SubscriptionService;
 use App\Http\Requests\RegisterPlayerRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Mail\NewRegistrationMail;
+use App\Models\Preset;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -225,6 +226,55 @@ class AuthController extends Controller
         ]);
     }
 
+    public function applyAvatarPreset(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'preset_id' => 'required|integer|exists:presets,id',
+        ]);
+
+        $preset = Preset::query()->active()->findOrFail($validated['preset_id']);
+
+        if ($preset->category !== Preset::CATEGORY_PROFILE_AVATAR) {
+            return response()->json([
+                'message' => 'هذه الصورة الجاهزة ليست صورة شخصية',
+            ], 422);
+        }
+
+        $this->deleteAvatarFiles($user);
+
+        $stored = app(ImageThumbnailService::class)->copyFromPath($preset->image_path, 'avatars');
+
+        $user->update([
+            'avatar_path' => $stored['path'],
+            'avatar_thumbnail_path' => $stored['thumbnail_path'],
+        ]);
+
+        return response()->json([
+            'message' => 'تم تطبيق الصورة الشخصية بنجاح',
+            'user' => $this->userPayload($user->fresh()),
+        ]);
+    }
+
+    public function updateAvatarColor(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'color' => 'nullable|string|max:20',
+        ]);
+
+        $user->update([
+            'avatar_color' => $validated['color'] ?: null,
+        ]);
+
+        return response()->json([
+            'message' => 'تم تحديث لون الصورة الشخصية بنجاح',
+            'user' => $this->userPayload($user->fresh()),
+        ]);
+    }
+
     private function deleteAvatarFiles(User $user): void
     {
         foreach ([$user->avatar_path, $user->avatar_thumbnail_path] as $path) {
@@ -248,6 +298,7 @@ class AuthController extends Controller
             'is_whatsapp',
             'avatar_url',
             'avatar_thumbnail_url',
+            'avatar_color',
             'activity_locked',
             'activity_lock_reason',
             'activity_locked_at'

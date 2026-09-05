@@ -4,9 +4,9 @@ import useSeo from '../../hooks/useSeo'
 import { termsAr } from '../../content/terms/ar'
 import { termsEn } from '../../content/terms/en'
 import TermsHeader from './header'
-import TermsToc from './toc'
 import TermsSections from './sections'
 import TermsContact from './contact'
+import FloatingToc from '../../components/FloatingToc'
 
 export default function Terms() {
   const { t, i18n } = useTranslation()
@@ -24,9 +24,9 @@ export default function Terms() {
   return (
     <main id="main-content">
       <TermsHeader content={content} />
-      <TermsToc content={content} />
       <TermsSections content={content} />
       <TermsContact />
+      <FloatingToc sections={content.sections} label={t('terms.page.tocTitle')} />
     </main>
   )
 }

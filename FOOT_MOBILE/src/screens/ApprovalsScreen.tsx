@@ -29,9 +29,18 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
-import { radius, spacing } from '@/theme/spacing';
+import { layout, radius, spacing } from '@/theme/spacing';
 
 type RoleKey = 'managers' | 'owners' | 'committees';
+
+type ApprovalsFilter = 'all' | RoleKey;
+
+const APPROVALS_FILTERS: { key: ApprovalsFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'managers', label: 'Managers' },
+  { key: 'owners', label: 'Terrain Owners' },
+  { key: 'committees', label: 'Committees' },
+];
 
 interface RoleSection {
   key: RoleKey;
@@ -62,6 +71,7 @@ export default function ApprovalsScreen(): React.JSX.Element {
 
   const feedQuery = useAdminApprovalFeed();
   const decision = useAdminDecision();
+  const [filter, setFilter] = useState<ApprovalsFilter>('all');
   const [rejectTarget, setRejectTarget] = useState<{ role: AdminApprovalRole; applicant: AdminApplicant } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -167,6 +177,9 @@ export default function ApprovalsScreen(): React.JSX.Element {
     );
   };
 
+  const visibleSections: RoleSection[] =
+    filter === 'all' ? sections : sections.filter((s) => s.key === filter);
+
   const renderSection = (section: RoleSection): React.JSX.Element => {
     const applicants = applicantsFor(section.key, section.role);
     return (
@@ -214,7 +227,7 @@ export default function ApprovalsScreen(): React.JSX.Element {
       );
     return (
       <View style={styles.sections}>
-        {sections.map((s) => renderSection(s))}
+        {visibleSections.map((s) => renderSection(s))}
       </View>
     );
   };
@@ -222,6 +235,27 @@ export default function ApprovalsScreen(): React.JSX.Element {
   return (
     <Screen padded={false}>
       <ScreenHeader title={t('approvals.title', 'Registration Requests')} />
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipScroll}
+        style={styles.chipBar}
+      >
+        {APPROVALS_FILTERS.map((f) => {
+          const active = f.key === filter;
+          return (
+            <Button
+              key={f.key}
+              title={f.label}
+              size="sm"
+              variant={active ? 'primary' : 'secondary'}
+              onPress={() => setFilter(f.key)}
+              style={styles.chip}
+            />
+          );
+        })}
+      </ScrollView>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -294,6 +328,9 @@ export default function ApprovalsScreen(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
+  chipBar: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.sm },
+  chip: { marginRight: spacing.sm },
+  chipScroll: { gap: spacing.sm },
   scrollContent: { padding: spacing.lg, paddingBottom: spacing['4xl'] },
   totalRow: {
     flexDirection: 'row',

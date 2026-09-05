@@ -46,7 +46,7 @@ function MatchCard({ card, accent, onChallenge }) {
   return (
     <article
       style={{ '--accent': accent.color }}
-      className="group w-[320px] shrink-0 snap-start overflow-hidden rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)]"
+      className="group w-[82%] max-w-[320px] shrink-0 snap-start overflow-hidden rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)]"
     >
       <div className="relative text-center">
         <span
@@ -61,7 +61,7 @@ function MatchCard({ card, accent, onChallenge }) {
           <FontAwesomeIcon icon={faFutbol} className="size-12 text-[var(--accent)]" />
         </div>
 
-        <h3 className="mt-4 text-lg font-extrabold text-slate-900">{card.team}</h3>
+        <h3 className="bidi-plaintext mt-4 truncate text-lg font-extrabold text-slate-900">{card.team}</h3>
 
         <div className="mt-1.5 flex items-center justify-center gap-1.5">
           <FontAwesomeIcon icon={faTrophy} className="size-3.5 text-slate-400" />
@@ -83,22 +83,22 @@ function MatchCard({ card, accent, onChallenge }) {
             {card.time}
           </span>
         </div>
-        <span className="flex items-center gap-1 text-xs font-semibold text-slate-600">
-          <FontAwesomeIcon icon={faMapPin} className="size-3.5 text-slate-400" />
-          {card.city}
+        <span className="flex min-w-0 items-center gap-1 text-xs font-semibold text-slate-600">
+          <FontAwesomeIcon icon={faMapPin} className="size-3.5 shrink-0 text-slate-400" />
+          <span className="bidi-plaintext truncate">{card.city}</span>
         </span>
       </div>
 
       <div className="mt-3 flex flex-wrap justify-center gap-2">
         <span
-          className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600"
+          className="flex min-w-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600"
         >
-          <FontAwesomeIcon icon={faFutbol} className="size-3.5 text-slate-400" />
-          {card.format}
+          <FontAwesomeIcon icon={faFutbol} className="size-3.5 shrink-0 text-slate-400" />
+          <span className="bidi-plaintext truncate">{card.format}</span>
         </span>
-        <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
-          <FontAwesomeIcon icon={faLandmark} className="size-3.5 text-slate-400" />
-          {card.stadium}
+        <span className="flex min-w-0 items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
+          <FontAwesomeIcon icon={faLandmark} className="size-3.5 shrink-0 text-slate-400" />
+          <span className="bidi-plaintext max-w-[140px] truncate">{card.stadium}</span>
         </span>
         <span className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-600">
           <FontAwesomeIcon icon={faBullseye} className="size-3.5 text-slate-400" />
@@ -124,7 +124,7 @@ function MatchCard({ card, accent, onChallenge }) {
 
 function SkeletonCard() {
   return (
-    <div className="w-[320px] shrink-0 snap-start animate-pulse overflow-hidden rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(17,24,39,0.08)]">
+    <div className="w-[82%] max-w-[320px] shrink-0 snap-start animate-pulse overflow-hidden rounded-3xl bg-white p-5 shadow-[0_8px_30px_rgba(17,24,39,0.08)]">
       <div className="mx-auto size-[96px] rounded-full bg-slate-200" />
       <div className="mx-auto mt-4 h-5 w-1/2 rounded-full bg-slate-200" />
       <div className="mt-4 h-4 w-2/3 rounded-full bg-slate-200" />
@@ -147,9 +147,10 @@ export default function Matches() {
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="text-start">
+            <span className="mb-3 block h-1 w-10 rounded-full bg-green-500" aria-hidden="true" />
             <h2 className="text-3xl font-black text-slate-900 lg:text-4xl">
               {t('landing.matches.title1')}{' '}
-              <span className="text-green-600">{t('landing.matches.title2')}</span>
+              {t('landing.matches.title2')}
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500 lg:text-base">
               {t('landing.matches.subtitle')}
@@ -166,7 +167,7 @@ export default function Matches() {
 
         <div className="mt-12">
           {loading ? (
-            <Carousel>
+            <Carousel showDots>
               {[1, 2, 3].map((i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -178,7 +179,7 @@ export default function Matches() {
               <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-400">{t('landing.matches.emptyDesc')}</p>
             </div>
           ) : (
-            <Carousel>
+            <Carousel showDots>
               {cards.map((card, i) => (
                 <MatchCard
                   key={card.id}

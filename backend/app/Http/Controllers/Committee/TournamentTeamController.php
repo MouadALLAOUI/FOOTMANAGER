@@ -155,21 +155,37 @@ class TournamentTeamController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        $this->assertEditable($tournament);
+        if ($tournament->isCompleted() || $tournament->isCancelled()) {
+            throw new DomainException('لا يمكن تعديل الفرق بعد انتهاء البطولة');
+        }
+
         $this->assertFreeTeamBelongsToTournament($tournament, $team);
         $this->assertFreeTeam($team);
 
         $data = $request->validated();
+
+        // After the first settled result only identity edits (name/logo) are allowed.
+        if ($tournament->hasSettledResult()) {
+            $data = array_intersect_key($data, array_flip(['name', 'logo', 'remove_logo', 'logo_preset_id']));
+        }
 
         if (isset($data['name'])) {
             $data['name'] = trim($data['name']);
             $this->assertUniqueTeamNames($tournament, [$data['name']], $team->id);
         }
 
-        if (isset($data['logo'])) {
-            $this->storeFreeTeamLogo($team, $data['logo']);
-            unset($data['logo']);
+        $logoFile = $data['logo'] ?? null;
+        unset($data['logo']);
+
+        if ($logoFile) {
+            $this->storeFreeTeamLogo($team, $logoFile);
+        } elseif (! empty($data['remove_logo'])) {
+            $this->clearFreeTeamLogo($team);
+        } elseif (! empty($data['logo_preset_id'])) {
+            $this->applyFreeTeamLogoPreset($team, (int) $data['logo_preset_id']);
         }
+
+        unset($data['logo_preset_id'], $data['remove_logo']);
 
         if ($data) {
             $team->update($data);
@@ -201,13 +217,7 @@ class TournamentTeamController extends Controller
 
     private function storeFreeTeamLogo(Team $team, $file): void
     {
-        if ($team->logo_path && Storage::disk('public')->exists($team->logo_path)) {
-            Storage::disk('public')->delete($team->logo_path);
-        }
-
-        if ($team->logo_thumbnail_path && Storage::disk('public')->exists($team->logo_thumbnail_path)) {
-            Storage::disk('public')->delete($team->logo_thumbnail_path);
-        }
+        $this->deleteFreeTeamLogoFiles($team);
 
         $result = app(ImageThumbnailService::class)->storeWithThumbnail($file, 'teams/logos');
 
@@ -215,6 +225,45 @@ class TournamentTeamController extends Controller
             'logo_path' => $result['path'],
             'logo_thumbnail_path' => $result['thumbnail_path'],
         ]);
+    }
+
+    private function applyFreeTeamLogoPreset(Team $team, int $presetId): void
+    {
+        $preset = \App\Models\Preset::query()
+            ->active()
+            ->find($presetId);
+
+        if (! $preset || $preset->category !== \App\Models\Preset::CATEGORY_TEAM_LOGO) {
+            throw new DomainException('الشعار الجاهز المحدد غير متاح');
+        }
+
+        $this->deleteFreeTeamLogoFiles($team);
+
+        $result = app(ImageThumbnailService::class)->copyFromPath($preset->image_path, 'teams/logos');
+
+        $team->update([
+            'logo_path' => $result['path'],
+            'logo_thumbnail_path' => $result['thumbnail_path'],
+        ]);
+    }
+
+    private function clearFreeTeamLogo(Team $team): void
+    {
+        $this->deleteFreeTeamLogoFiles($team);
+
+        $team->update([
+            'logo_path' => null,
+            'logo_thumbnail_path' => null,
+        ]);
+    }
+
+    private function deleteFreeTeamLogoFiles(Team $team): void
+    {
+        foreach ([$team->logo_path, $team->logo_thumbnail_path] as $path) {
+            if ($path && Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+        }
     }
 
     public function approve(Tournament $tournament, $teamId): AnonymousResourceCollection

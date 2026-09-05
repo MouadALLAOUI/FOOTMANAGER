@@ -7,6 +7,18 @@
 
 @theme {
   --font-sans: "Cairo", "Segoe UI", system-ui, sans-serif;
+  /* Brand color roles — pitch green, match-night navy, desert sand */
+  --color-pitch: #16a34a;
+  --color-pitch-bright: #22c55e;
+  --color-night: #0b1220;
+  --color-sand: #f6f7fb;
+}
+
+/* Pitch-marking ornament for night-navy panels: halfway line + center circle */
+.pitch-lines {
+  background-image:
+    linear-gradient(to right, transparent calc(50% - 1px), rgba(255, 255, 255, 0.06) 50%, transparent calc(50% + 1px)),
+    radial-gradient(circle at 50% 62%, transparent 74px, rgba(255, 255, 255, 0.06) 75px, rgba(255, 255, 255, 0.06) 76px, transparent 77px);
 }
 
 :focus-visible {
@@ -378,6 +390,12 @@ body.sheet-open #root {
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+/* Isolate DB-sourced (mixed Latin/Arabic) strings: content direction follows the
+   text itself while alignment stays on the container's logical start. */
+.bidi-plaintext {
+  unicode-bidi: plaintext;
 }
 
 .no-scrollbar::-webkit-scrollbar {

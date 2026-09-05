@@ -71,6 +71,7 @@ export function Button({
           borderWidth: variant === 'outline' ? StyleSheet.hairlineWidth : 0,
           height,
           opacity: isDisabled ? 0.5 : pressed ? 0.9 : 1,
+          transform: pressed && !isDisabled ? [{ scale: 0.98 }] : [],
           alignSelf: fullWidth ? 'stretch' : 'auto',
         },
         style,

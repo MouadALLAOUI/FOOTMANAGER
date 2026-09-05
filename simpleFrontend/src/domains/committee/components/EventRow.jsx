@@ -4,7 +4,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { absoluteMinute, eventMeta, minuteText } from '../constants'
 import EventSub from './EventSub'
 
-export default function EventRow({ ev, index, total, fresh, onEdit, onDelete, halfDuration }) {
+export default function EventRow({ ev, index, total, fresh, onEdit, onDelete, halfDuration, readOnly = false }) {
   const { t } = useTranslation()
   const meta = eventMeta(ev)
   const out = ev.type === 'substitution' ? ev.player : null
@@ -36,14 +36,16 @@ export default function EventRow({ ev, index, total, fresh, onEdit, onDelete, ha
               {ev.note && <p className="mt-0.5 text-[11px] font-semibold leading-relaxed text-slate-500">{ev.note}</p>}
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity xl:opacity-0 xl:group-hover:opacity-100">
-            <button type="button" onClick={onEdit} aria-label={t('committee.result.editEventTitle')} title={t('committee.result.editEventTitle')} className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
-              <Pencil className="size-3.5" />
-            </button>
-            <button type="button" onClick={onDelete} aria-label={t('committee.result.deleteConfirm')} title={t('committee.result.deleteConfirm')} className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500">
-              <Trash2 className="size-3.5" />
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity xl:opacity-0 xl:group-hover:opacity-100">
+              <button type="button" onClick={onEdit} aria-label={t('committee.result.editEventTitle')} title={t('committee.result.editEventTitle')} className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <Pencil className="size-3.5" />
+              </button>
+              <button type="button" onClick={onDelete} aria-label={t('committee.result.deleteConfirm')} title={t('committee.result.deleteConfirm')} className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500">
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

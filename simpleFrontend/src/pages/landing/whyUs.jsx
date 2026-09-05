@@ -112,6 +112,7 @@ export default function WhyUs() {
     <section className="bg-white pt-[100px] pb-[160px] lg:pt-[120px] lg:pb-[140px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="mx-auto max-w-2xl text-center">
+          <span className="mb-3 block h-1 w-10 rounded-full bg-green-500" aria-hidden="true" />
           <h2 className="text-3xl font-black text-slate-900 lg:text-4xl">
             {t('landing.why.title')}
           </h2>
@@ -120,23 +121,23 @@ export default function WhyUs() {
           </p>
         </header>
 
-        <div className="mt-14 flex flex-wrap justify-center gap-8">
+        <div className="mt-14 flex flex-wrap justify-center gap-4 sm:gap-8">
           {features.map(({ key, icon: Icon }) => (
             <article
               key={key}
-              className="group w-full rounded-[24px] bg-white p-9 text-center shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.15)] hover:ring-1 hover:ring-green-500 sm:w-[calc(50%-1rem)] lg:w-[calc(25%-1.5rem)]"
+              className="group w-[calc(50%-0.5rem)] rounded-2xl bg-white p-4 text-center shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.15)] hover:ring-1 hover:ring-green-500 sm:w-[calc(50%-1rem)] sm:rounded-[24px] sm:p-9 lg:w-[calc(25%-1.5rem)]"
             >
-              <div className="mx-auto grid size-[76px] place-items-center rounded-[22px] bg-green-50 transition-colors duration-300 group-hover:bg-green-100">
+              <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-green-50 transition-colors duration-300 group-hover:bg-green-100 sm:size-[76px] sm:rounded-[22px]">
                 <FontAwesomeIcon
                   icon={Icon}
-                  className="size-9 text-green-600 transition-transform duration-300 ease-out group-hover:scale-110"
+                  className="size-5 text-green-600 transition-transform duration-300 ease-out group-hover:scale-110 sm:size-9"
                 />
               </div>
 
-              <h3 className="mt-6 text-lg font-extrabold text-slate-900">
+              <h3 className="mt-3 text-sm font-extrabold text-slate-900 sm:mt-6 sm:text-lg">
                 {t(`landing.why.features.${key}.title`)}
               </h3>
-              <p className="mx-auto mt-2 max-w-[220px] text-sm leading-relaxed text-slate-500">
+              <p className="mx-auto mt-1 line-clamp-2 max-w-[220px] text-xs leading-relaxed text-slate-500 sm:mt-2 sm:text-sm">
                 {t(`landing.why.features.${key}.description`)}
               </p>
             </article>

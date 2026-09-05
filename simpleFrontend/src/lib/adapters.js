@@ -69,7 +69,7 @@ export function toStadiumCard(s) {
     id: s.id,
     name: s.name,
     image: fieldImage(s),
-    rating: s.rating != null ? s.rating.toFixed(1) : '—',
+    rating: s.rating != null ? s.rating.toFixed(1) : null,
     reviews: s.reviews_count ?? 0,
     location: s.city || '',
     city: s.city || '',

@@ -85,7 +85,7 @@ export default function Shell({ groups, brand = 'admin.brand', homeUrl = '/', ch
   }
 
   const sidebar = (
-    <div className="flex h-full flex-col bg-[#0F172A]">
+    <div className="flex h-full flex-col pitch-lines bg-[#0b1220]">
       <Link to={homeUrl} className="flex items-center gap-3 px-5 py-6">
         <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-green-400 to-green-600 shadow-[0_12px_28px_rgba(34,197,94,0.45)]">
           <Trophy className="size-6 text-white" strokeWidth={2.2} />
@@ -169,14 +169,14 @@ export default function Shell({ groups, brand = 'admin.brand', homeUrl = '/', ch
       >
         {t('common.skipToContent')}
       </a>
-      <aside className="fixed inset-y-0 start-0 z-40 hidden w-[272px] bg-[#0F172A] lg:block">
+      <aside className="fixed inset-y-0 start-0 z-40 hidden w-[272px] pitch-lines bg-[#0b1220] lg:block">
         {sidebar}
       </aside>
 
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
-          <aside className="drawer-in absolute inset-y-0 start-0 w-[292px] bg-[#0F172A] shadow-2xl">
+          <aside className="drawer-in absolute inset-y-0 start-0 w-[292px] pitch-lines bg-[#0b1220] shadow-2xl">
             {sidebar}
           </aside>
         </div>

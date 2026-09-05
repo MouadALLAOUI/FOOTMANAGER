@@ -7,7 +7,7 @@ import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
 import { Card, SectionTitle, Button, Empty, Modal, SkeletonCards } from '../../../components/dashboard/ui'
 import { toast } from '../../../components/ui/Toast'
-import { logoThumb } from '../../../lib/thumb'
+import TeamLogo from '../../../components/profile/TeamLogo'
 
 const POSITION_ICONS = {
   goalkeeper: HandMetal,
@@ -102,7 +102,11 @@ export default function Feed() {
         <SkeletonCards count={4} className="grid gap-4 lg:grid-cols-2" />
       ) : matches.length === 0 ? (
         <Card>
-          <Empty title={t('player.feed.empty')} description={t('player.feed.emptyDesc')} />
+          <Empty
+            title={t('player.feed.empty')}
+            description={t('player.feed.emptyDesc')}
+            action={<Button size="sm" onClick={() => navigate('/matches')}>{t('player.feed.browseMatches')}</Button>}
+          />
         </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -115,13 +119,7 @@ export default function Feed() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-3">
-                      {team?.logo_url ? (
-                        <img loading="lazy" decoding="async" src={logoThumb(team)} alt="" className="size-11 shrink-0 rounded-2xl object-cover" />
-                      ) : (
-                        <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 text-sm font-black text-slate-500">
-                          {(team?.name || t('player.feed.team')).slice(0, 1)}
-                        </span>
-                      )}
+                      <TeamLogo team={team} className="size-11" rounded="rounded-2xl" fontSize="text-sm" />
                       <div className="min-w-0">
                         <p className="truncate text-base font-extrabold text-slate-900">{team?.name || t('player.feed.team')}</p>
                         <p className="text-xs text-slate-500">

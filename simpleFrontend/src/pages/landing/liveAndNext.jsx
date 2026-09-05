@@ -12,6 +12,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import api from '../../api/client'
 import { matchDay, formatTime } from '../../lib/adapters'
+import TeamLogo from '../../components/profile/TeamLogo'
 
 const EVENT_META = {
   goal: '⚽',
@@ -27,16 +28,7 @@ const EVENT_META = {
 }
 
 function Logo({ team, name }) {
-  if (team?.logo_url) {
-    return (
-      <img src={team.logo_url} alt="" className="size-12 shrink-0 rounded-2xl bg-slate-100 object-contain" />
-    )
-  }
-  return (
-    <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-green-600/10 text-base font-black text-green-700">
-      {(name || '—').charAt(0)}
-    </span>
-  )
+  return <TeamLogo team={team} name={name} className="size-12" rounded="rounded-2xl" fontSize="text-base" />
 }
 
 function LiveCard({ f, t }) {
@@ -52,7 +44,7 @@ function LiveCard({ f, t }) {
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600">
           <FontAwesomeIcon icon={faTrophy} className="size-3 text-slate-400" />
-          <span className="max-w-[140px] truncate">{tournaments?.name || '—'}</span>
+          <span className="max-w-[140px] truncate bidi-plaintext">{tournaments?.name || '—'}</span>
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-600 ring-1 ring-rose-200">
           <span className="size-1.5 animate-pulse rounded-full bg-rose-500" />
@@ -64,7 +56,7 @@ function LiveCard({ f, t }) {
       <div className="mt-4 flex items-center gap-3">
         <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
           <Logo team={home} name={home?.name} />
-          <span className="w-full truncate text-center text-xs font-bold text-slate-800">{home?.name || '—'}</span>
+          <span className="bidi-plaintext w-full truncate text-center text-xs font-bold text-slate-800">{home?.name || '—'}</span>
         </div>
         <div className="flex shrink-0 flex-col items-center">
           <span className="text-2xl font-black tabular-nums tracking-tight text-rose-600">
@@ -74,14 +66,14 @@ function LiveCard({ f, t }) {
         </div>
         <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
           <Logo team={away} name={away?.name} />
-          <span className="w-full truncate text-center text-xs font-bold text-slate-800">{away?.name || '—'}</span>
+          <span className="bidi-plaintext w-full truncate text-center text-xs font-bold text-slate-800">{away?.name || '—'}</span>
         </div>
       </div>
 
       {f.stadium && (
         <div className="mt-4 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-slate-500">
-          <FontAwesomeIcon icon={faLandmark} className="size-3 text-slate-400" />
-          {f.stadium.name}
+          <FontAwesomeIcon icon={faLandmark} className="size-3 shrink-0 text-slate-400" />
+          <span className="bidi-plaintext max-w-[200px] truncate">{f.stadium.name}</span>
         </div>
       )}
 
@@ -135,21 +127,21 @@ function NextCard({ f, t, i18n }) {
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-[10px] font-bold text-emerald-300">
           <FontAwesomeIcon icon={faTrophy} className="size-3" />
-          <span className="max-w-[130px] truncate">{tournaments?.name || '—'}</span>
+          <span className="max-w-[130px] truncate bidi-plaintext">{tournaments?.name || '—'}</span>
         </span>
       </div>
 
       <div className="flex items-center gap-4 px-5 py-5">
         <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
           <Logo team={home} name={home?.name} />
-          <span className="w-full truncate text-center text-sm font-extrabold">{home?.name || '—'}</span>
+          <span className="bidi-plaintext w-full truncate text-center text-sm font-extrabold">{home?.name || '—'}</span>
         </div>
         <div className="flex shrink-0 flex-col items-center">
           <span className="text-lg font-black tracking-tight text-amber-400">VS</span>
         </div>
         <div className="flex min-w-0 flex-1 flex-col items-center gap-2">
           <Logo team={away} name={away?.name} />
-          <span className="w-full truncate text-center text-sm font-extrabold">{away?.name || '—'}</span>
+          <span className="bidi-plaintext w-full truncate text-center text-sm font-extrabold">{away?.name || '—'}</span>
         </div>
       </div>
 
@@ -164,9 +156,9 @@ function NextCard({ f, t, i18n }) {
             {formatTime(f.scheduled_at)}
           </span>
           {f.stadium && (
-            <span className="flex items-center gap-1.5">
-              <FontAwesomeIcon icon={faLandmark} className="size-3 text-slate-400" />
-              {f.stadium.name}
+            <span className="flex min-w-0 items-center gap-1.5">
+              <FontAwesomeIcon icon={faLandmark} className="size-3 shrink-0 text-slate-400" />
+              <span className="bidi-plaintext truncate">{f.stadium.name}</span>
             </span>
           )}
         </div>
@@ -226,6 +218,7 @@ export default function LiveAndNext() {
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="text-start">
+            <span className="mb-3 block h-1 w-10 rounded-full bg-green-500" aria-hidden="true" />
             <h2 className="text-3xl font-black text-slate-900 lg:text-4xl">
               {t('landing.liveNext.title1')}{' '}
               <span className="inline-flex items-center gap-2 text-rose-600">

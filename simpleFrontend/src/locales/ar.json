@@ -4,6 +4,7 @@
     "loading": "جارٍ التحميل",
     "close": "إغلاق",
     "skipToContent": "تخطَّ إلى المحتوى",
+    "goToSlide": "الانتقال إلى الشريحة {{index}}",
     "resize": "تغيير عرض اللوحة",
     "now": "الآن",
     "minutesAgo": "منذ {{count}} دقيقة",
@@ -14,7 +15,10 @@
     "imagePreview": "معاينة الصورة",
     "imageLoadFailed": "فشل تحميل الصورة",
     "retry": "إعادة المحاولة",
-    "noData": "لا توجد بيانات بعد"
+    "noData": "لا توجد بيانات بعد",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "error": "حدث خطأ ما"
   },
   "stages": {
     "group": "دور المجموعات",
@@ -31,7 +35,7 @@
     "open": "مفتوح",
     "accepted": "مقبول",
     "live": "مباشرة",
-    "completed": "مكتمل",
+    "completed": "منتهية",
     "confirmed": "مؤكد",
     "reviewed": "تمت المراجعة",
     "resolved": "تم الحل",
@@ -61,8 +65,7 @@
     "finished": "منتهية",
     "open_for_registration": "التسجيل مفتوح",
     "registration_closed": "التسجيل مغلق",
-    "in_progress": "جارية",
-    "completed": "منتهية"
+    "in_progress": "جارية"
   },
   "profile": {
     "avatar": {
@@ -74,6 +77,15 @@
       "uploadFailed": "تعذر رفع الصورة",
       "removed": "تمت إزالة الصورة",
       "removeFailed": "تعذرت إزالة الصورة"
+    },
+    "appearance": {
+      "title": "المظهر",
+      "subtitle": "اختر لوناً أو صورة شخصية جاهزة",
+      "colorLabel": "اللون",
+      "presetLabel": "صور جاهزة",
+      "presetEmpty": "لا توجد صور جاهزة بعد. أضفها من لوحة الإدارة.",
+      "colorSaved": "تم تحديث اللون",
+      "presetApplied": "تم تطبيق الصورة الجاهزة"
     },
     "public": {
       "teamTitle": "الفريق",
@@ -108,7 +120,8 @@
       "skill": "المستوى",
       "cm": "سم",
       "kg": "كغ",
-      "terrainsCount": "عدد الأراضي"
+      "terrainsCount": "عدد الأراضي",
+      "priceHour": "/ ساعة"
     }
   },
   "shell": {
@@ -221,7 +234,8 @@
       "facilities": "المرافق",
       "settings": "الإعدادات",
       "messages": "رسائل التواصل",
-      "cities": "المدن",
+"cities": "المدن",
+      "presets": "الشعارات الجاهزة",
       "notifications": "الإشعارات",
       "profile": "الملف الشخصي",
       "plans": "الخطط والأسعار",
@@ -363,7 +377,8 @@
       "nudgeBody": "لنُعلمك فوراً عند وصول نتائج المباريات أو طلبات اعتماد جديدة",
       "testHint": "اضغط على الزر لإرسال إشعار تجريبي والتحقق من أن الإشعارات تعمل",
       "iosTitle": "إشعارات iOS تحتاج التثبيت",
-      "iosBody": "للاستمرار في تلقي الإشعارات على iPhone أو iPad، أضف التطبيق إلى الشاشة الرئيسية أولاً (مشاركة ← إضافة إلى الشاشة الرئيسية)، ثم فعّل الإشعارات من داخل التطبيق."
+      "iosBody": "للاستمرار في تلقي الإشعارات على iPhone أو iPad، أضف التطبيق إلى الشاشة الرئيسية أولاً (مشاركة ← إضافة إلى الشاشة الرئيسية)، ثم فعّل الإشعارات من داخل التطبيق.",
+      "enableToTest": "فعّل الإشعارات لتجربتها"
     }
   },
   "manager": {
@@ -491,6 +506,37 @@
     }
   },
   "admin": {
+    "presets": {
+      "title": "الشعارات الجاهزة",
+      "subtitle": "إدارة الشعارات والصور الجاهزة للفرق والملفات الشخصية",
+      "add": "شعار / صورة جديدة",
+      "name": "الاسم",
+      "category": "الفئة",
+      "image": "الصورة",
+      "sort": "الترتيب",
+      "created": "تمت إضافة الصورة الجاهزة",
+      "updated": "تم تحديث الصورة الجاهزة",
+      "deleted": "تم حذف الصورة الجاهزة",
+      "newTitle": "إضافة صورة جاهزة",
+      "newDesc": "أضف شعاراً جاهزاً للفرق أو صورة شخصية جاهزة",
+      "editTitle": "تعديل الصورة الجاهزة",
+      "editDesc": "تعديل بيانات الصورة الجاهزة «{{name}}»",
+      "chooseImage": "اختر صورة",
+      "hideTitle": "إخفاء الصورة الجاهزة",
+      "hideConfirm": "إخفاء «{{name}}»؟ لن تظهر بعد الآن للمستخدمين.",
+      "showTitle": "إظهار الصورة الجاهزة",
+      "showConfirm": "إظهار «{{name}}»؟",
+      "deleteTitle": "حذف الصورة الجاهزة",
+      "deleteConfirm": "حذف «{{name}}»؟ لن يكون بالإمكان التراجع.",
+      "emptyTitle": "لا توجد صور جاهزة بعد",
+      "emptyDesc": "أضف أول شعار أو صورة شخصية جاهزة",
+      "searchPlaceholder": "ابحث بالاسم...",
+      "categories": {
+        "all": "الكل",
+        "team_logo": "شعارات الفرق",
+        "profile_avatar": "صور الملفات الشخصية"
+      }
+    },
     "plans": {
       "title": "الخطط والأسعار",
       "subtitle": "إدارة خطط الاشتراك والخصومات المعروضة في صفحة الأسعار",
@@ -655,6 +701,11 @@
       "deleted": "تم حذف الرسالة",
       "statusUpdated": "تم تحديث حالة الرسالة",
       "actionFailed": "تعذر تنفيذ العملية"
+    },
+    "activity": {
+      "title": "سجل النشاط",
+      "subtitle": "تتبع جميع الأحداث التي تحدث على المنصة",
+      "allTypes": "كل الأحداث"
     }
   },
   "player": {
@@ -824,7 +875,8 @@
       "send": "إرسال الطلب",
       "sending": "جارٍ الإرسال...",
       "applied": "تم إرسال طلب الانضمام بنجاح",
-      "applyFailed": "تعذر إرسال الطلب"
+      "applyFailed": "تعذر إرسال الطلب",
+      "browseMatches": "استعرض المباريات المفتوحة"
     },
     "applications": {
       "title": "طلباتي ودعواتي",
@@ -1065,7 +1117,7 @@
       "remaining": "بقي {{count}}",
       "unassigned": "غير موزعة",
       "team": "الفريق",
-      "tbd": "لم يُحدد بعد",
+      "tbd": "بانتظار التحديد",
       "col": {
         "team": "الفريق",
         "played": "لعب",
@@ -1278,12 +1330,11 @@
       "settingsFoulTThreshold": "عدد المخالفات للتفعيل",
       "settingsFoulTeamSection": "ركلة جزاء الفريق",
       "settingsFoulRepeat": "التكرار بعد كل حدّ",
-      "settingsFoulResetScope": "إعادة حساب المخالفات",
-      "settingsFoulResetScopeHint": "هل يعاد العدّ كل شوط أم طوال المباراة",
       "settingsFoulResetScope": {
         "match": "طوال المباراة",
         "half": "كل شوط"
       },
+      "settingsFoulResetScopeHint": "هل يعاد العدّ كل شوط أم طوال المباراة",
       "settingsSectionReservation": "حجوزات الملاعب",
       "settingsSectionReservationDesc": "كيف تُدار حجوزات الملعب لمباريات البطولة",
       "settingsReservationMode": "نظام حجز الملعب",
@@ -1360,20 +1411,18 @@
       "cancel": "إلغاء",
       "nameRequired": "اسم اللاعب مطلوب",
       "playerUpdated": "تم تحديث اللاعب",
-
-          "editFreeTeam": "تعديل الفريق الحر",
-
-          "editFreeTeamDesc": "تعديل اسم الفريق والشعار ومدينة المنشأ",
-
-          "editFreeTeamLogo": "شعار الفريق",
-
-          "editFreeTeamChangeLogo": "تغيير الشعار",
-
-          "editFreeTeamCity": "مدينة المنشأ",
-
-          "editFreeTeamSaved": "تم حفظ بيانات الفريق الحر",
-
-          "editFreeTeamNameRequired": "اسم الفريق مطلوب",
+      "editFreeTeam": "تعديل الفريق الحر",
+      "editFreeTeamDesc": "تعديل اسم الفريق والشعار ومدينة المنشأ",
+      "editFreeTeamLogo": "شعار الفريق",
+      "editFreeTeamChangeLogo": "تغيير الشعار",
+      "editFreeTeamRemoveLogo": "إزالة الشعار",
+      "editFreeTeamPresetLabel": "أو اختر شعاراً جاهزاً",
+      "editFreeTeamPrimaryColor": "اللون الأساسي",
+      "editFreeTeamSecondaryColor": "اللون الثانوي",
+      "editFreeTeamCity": "مدينة المنشأ",
+      "editFreeTeamSaved": "تم حفظ بيانات الفريق الحر",
+      "editFreeTeamNameRequired": "اسم الفريق مطلوب",
+      "editFreeTeamLockedNote": "بعد تسجيل أول نتيجة يمكن تعديل اسم الفريق وشعاره فقط",
       "drawPendingDesc": "اضغط على زر السحب لتوزيع الفرق على المجموعات",
       "noFixtures": "لا توجد مباريات بعد",
       "noFixturesDesc": "أنشئ برنامج المباريات بعد استكمال الفرق والقرعة",
@@ -1434,7 +1483,6 @@
       "planConflicts": "{{count}} تعارض",
       "planSkipped": "تخطي {{count}}",
       "noStadium": "بدون ملعب",
-      "tbd": "بانتظار التحديد",
       "conflictsFound": "تم اكتشاف تعارضات",
       "conflictsFoundDesc": "بعض المباريات تتعارض مع حجوزات أو مباريات أخرى. اختر كيفية المتابعة.",
       "autoRoll": "ملء تلقائي",
@@ -1523,6 +1571,7 @@
       "chipLive": "{{count}} مباشرة",
       "chipPostponed": "{{count}} مؤجلة",
       "chipCancelled": "{{count}} ملغاة",
+      "statusLabel": "الحالة",
       "status": {
         "pending": "قيد الانتظار",
         "upcoming": "قادمة",
@@ -1596,6 +1645,8 @@
       "scorers": "الهدافون",
       "assists": "صناع الأهداف",
       "cards": "البطاقات",
+      "yellowCards": "البطاقات الصفراء",
+      "redCards": "البطاقات الحمراء",
       "bestAttack": "أفضل هجوم",
       "bestAttackDesc": "{{goals}} هدفاً",
       "bestDefense": "أفضل دفاع",
@@ -1830,7 +1881,8 @@
         "outcomeSaved": "تصدى الحارس",
         "outcomeRecorded": "تم تسجيل النتيجة",
         "allClear": "لا توجد عقوبات معلّقة"
-      }
+      },
+      "statusNotStarted": "لم تبدأ بعد"
     },
     "content": {
       "confirmDelete": "هل أنت متأكد من الحذف؟",
@@ -1938,7 +1990,7 @@
         "replied": "تم الرد",
         "closed": "مغلقة"
       }
-    },
+    },
     "export": {
       "openButton": "تصدير / طباعة",
       "title": "تصدير وطباعة البطولة",
@@ -2219,7 +2271,6 @@
       "matchDraftReservation": "حجز مسودة — لم يُشغَل الملعب بعد",
       "notFoundDesc": "قد تكون البطولة غير منشورة بعد أو أن الرابط غير صحيح"
     },
-
     "statistics": {
       "tabs": {
         "overview": "نظرة عامة",
@@ -2565,7 +2616,8 @@
       "noClosures": "لا توجد إغلاقات",
       "noCancellationRequests": "لا توجد طلبات إلغاء",
       "noCalendarTerrains": "لا توجد ملاعب",
-      "noCalendarTerrainsDesc": "أضف ملعبًا أولًا لعرض تقويم حجوزاته"
+      "noCalendarTerrainsDesc": "أضف ملعبًا أولًا لعرض تقويم حجوزاته",
+      "noClosureDesc": "أضف إغلاقًا لموعد معين أو ليوم كامل"
     },
     "calendar": {
       "bookerSectionTitle": "بيانات صاحب الحجز",
@@ -2593,6 +2645,87 @@
       "booked": "حجز مؤكد",
       "pending": "معلق",
       "subscription": "أبونمان"
+    },
+    "bookings": {
+      "hidePast": "إخفاء السابقة",
+      "viewPast": "عرض السابقة",
+      "showAll": "عرض الكل",
+      "pastBookingsExist": "لديك حجوزات سابقة",
+      "noUpcoming": "لا توجد حجوزات قادمة",
+      "noBookings": "لا توجد حجوزات",
+      "noBookingsDesc": "ستظهر حجوزات ملاعبك هنا",
+      "noMatches": "لا توجد مباريات",
+      "noMatchesDesc": "ستظهر حجوزات المباريات على ملاعبك هنا",
+      "title": "الحجوزات",
+      "subtitle": "إدارة حجوزات المواعيد ومباريات ملاعبك",
+      "searchPlaceholder": "ابحث عن فريق أو مسير أو ملعب…",
+      "searchLabel": "ابحث عن فريق أو مسير أو ملعب",
+      "segmentBookings": "حجوزات المواعيد",
+      "segmentMatches": "المباريات",
+      "approved": "مؤكدة",
+      "approvedUpcoming": "مؤكدة قادمة",
+      "awaiting": "في الانتظار",
+      "upcomingRevenue": "إيرادات قادمة (د.م)",
+      "fieldMatches": "مباريات على ملاعبك",
+      "details": "التفاصيل",
+      "calendar": "التقويم",
+      "calendarHint": "يمكنك إدارة هذا الموعد من التقويم",
+      "approvedToast": "تم قبول الحجز",
+      "rejectedToast": "تم رفض الحجز",
+      "rejectTitle": "رفض الحجز؟",
+      "rejectDesc": "سيتم رفض حجز «{{name}}».",
+      "rejectConfirm": "رفض الحجز",
+      "booking": "الحجز",
+      "vs": "ضد",
+      "teamN": "الفريق #{{id}}"
+    },
+    "cancellations": {
+      "emptyDesc": "ستظهر طلبات الإلغاء هنا",
+      "title": "طلبات الإلغاء",
+      "subtitle": "مراجعة وقبول أو رفض طلبات إلغاء الحجوزات",
+      "searchPlaceholder": "ابحث عن فريق أو مسير أو سبب…",
+      "searchLabel": "ابحث عن فريق أو مسير أو سبب",
+      "approvedToast": "تم قبول طلب الإلغاء",
+      "rejectedToast": "تم رفض طلب الإلغاء",
+      "rejectTitle": "رفض طلب الإلغاء؟",
+      "rejectDesc": "سيتم رفض طلب الإلغاء وإبقاء الحجز قائمًا.",
+      "rejectConfirm": "رفض الطلب",
+      "statRequests": "الطلبات",
+      "statApproved": "مقبولة",
+      "statRejected": "مرفوضة",
+      "booking": "حجز",
+      "fieldFallback": "ملعب",
+      "noReason": "طلب إلغاء",
+      "requestN": "طلب إلغاء #{{id}}",
+      "details": "التفاصيل",
+      "teamManager": "الفريق / المسير",
+      "reason": "سبب الطلب",
+      "log": "سجل الطلب",
+      "accept": "قبول الإلغاء"
+    },
+    "closures": {
+      "created": "تم إغلاق التوقيت بنجاح",
+      "createFailed": "تعذر إغلاق التوقيت",
+      "drawerTitle": "إغلاق موعد",
+      "drawerSubtitle": "حدد الوقت المتاح للإغلاق",
+      "date": "التاريخ",
+      "selectAvailableSlot": "اختر الوقت المتاح",
+      "selectAvailableSlotHint": "اختر وقت البداية ثم المدة المراد إغلاقها",
+      "summary": "ملخص الإغلاق",
+      "minutes": "دقيقة",
+      "reasonOptional": "السبب (اختياري)",
+      "reasonPlaceholder": "مثال: صيانة",
+      "confirm": "تأكيد الإغلاق"
+    },
+    "common": {
+      "all": "الكل",
+      "allFields": "كل الملاعب",
+      "field": "الملعب",
+      "date": "التاريخ",
+      "time": "الوقت",
+      "price": "السعر",
+      "pending": "معلقة",
+      "mad": "د.م"
     }
   },
   "ov": {
@@ -2944,9 +3077,18 @@
       "welcomeLine2": "أجي نقصرو",
       "description": "سجل الدخول للبحث عن الملاعب، حجزها، والانضمام إلى مباريات قريبة منك.",
       "features": [
-        { "title": "احجز ملعبك بسهولة", "description": "اختر الوقت المناسب واحجز خلال ثوانٍ." },
-        { "title": "انضم إلى مباريات", "description": "ابحث عن فرق قريبة وشارك في مباريات ودية." },
-        { "title": "نافس وتصدر الترتيب", "description": "كوّن فريقك وتنافس مع أفضل الفرق." }
+        {
+          "title": "احجز ملعبك بسهولة",
+          "description": "اختر الوقت المناسب واحجز خلال ثوانٍ."
+        },
+        {
+          "title": "انضم إلى مباريات",
+          "description": "ابحث عن فرق قريبة وشارك في مباريات ودية."
+        },
+        {
+          "title": "نافس وتصدر الترتيب",
+          "description": "كوّن فريقك وتنافس مع أفضل الفرق."
+        }
       ],
       "followUs": "تابعنا"
     },
@@ -2983,10 +3125,22 @@
     },
     "roles": {
       "back": "تغيير نوع الحساب",
-      "manager": { "title": "مسير فريق", "description": "أنشئ فريقك، ابحث عن خصم، ونظم مبارياتك" },
-      "terrain_owner": { "title": "صاحب تيران", "description": "أضف ملعبك واستقبل الحجوزات" },
-      "player": { "title": "لاعب حر", "description": "ابحث عن مباريات وانضم كلاعب مستقل" },
-      "committee": { "title": "اللجنة المنظمة", "description": "نظم بطولات ومباريات كروية رسمية" }
+      "manager": {
+        "title": "مسير فريق",
+        "description": "أنشئ فريقك، ابحث عن خصم، ونظم مبارياتك"
+      },
+      "terrain_owner": {
+        "title": "صاحب تيران",
+        "description": "أضف ملعبك واستقبل الحجوزات"
+      },
+      "player": {
+        "title": "لاعب حر",
+        "description": "ابحث عن مباريات وانضم كلاعب مستقل"
+      },
+      "committee": {
+        "title": "اللجنة المنظمة",
+        "description": "نظم بطولات ومباريات كروية رسمية"
+      }
     },
     "fields": {
       "name": "الاسم الكامل",
@@ -3033,7 +3187,8 @@
         "amateur": "هاوي",
         "semi_pro": "شبه محترف",
         "pro": "محترف"
-      }
+      },
+      "city": "اختر مدينة"
     },
     "submitRegister": "إرسال طلب الانضمام",
     "submitRegisterBusy": "جارٍ الإرسال...",
@@ -3353,6 +3508,39 @@
       "ctaButton": "تواصل معنا"
     }
   },
+  "help": {
+    "page": {
+      "badge": "مركز المساعدة",
+      "title": "مركز المساعدة",
+      "title1": "كيف يمكننا",
+      "title2": "مساعدتك؟",
+      "subtitle": "ابدأ مع المنصة واحجز الملاعب ونظّم المباريات والبطولات.",
+      "ctaExplore": "تصفح مواضيع المساعدة",
+      "topicsTitle": "مواضيع المساعدة",
+      "topicsSubtitle": "اختر الموضوع الذي تريده وسنوجهك في الاتجاه الصحيح.",
+      "open": "افتح",
+      "faqTitle": "الأسئلة الشائعة",
+      "faqDesc": "إجابات على أكثر الأسئلة تكراراً حول الحسابات والمباريات والحجوزات والبطولات.",
+      "faqButton": "تصفح الأسئلة الشائعة",
+      "ctaTitle": "ما زلت محتاراً؟",
+      "ctaDesc": "تواصل معنا مباشرة وسنعاونك.",
+      "ctaButton": "تواصل معنا"
+    }
+  },
+  "faq": {
+    "page": {
+      "badge": "الأسئلة الشائعة",
+      "title": "الأسئلة الشائعة",
+      "title1": "أسئلة",
+      "title2": "متكررة",
+      "subtitle": "كل ما تحتاج معرفته عن المنصة.",
+      "ctaExplore": "تصفح الإجابات",
+      "ctaTitle": "لم تجد إجابتك؟",
+      "ctaDesc": "استكشف مركز المساعدة أو تواصل معنا مباشرة.",
+      "ctaHelp": "مركز المساعدة",
+      "ctaButton": "تواصل معنا"
+    }
+  },
   "pricing": {
     "page": {
       "badge": "باقات تناسب فريقك",
@@ -3428,49 +3616,106 @@
       "title": "رسالتنا",
       "subtitle": "ماذا نعمل كل يوم",
       "items": [
-        { "title": "سهّلنا اللعب", "description": "نربط اللاعبين والفرق بالملاعب المتاحة والبطولات المنظمة في مدينتهم، بضغطة زر واحدة." },
-        { "title": "نظمّنا المنافسة", "description": "نوفّر فضاءً رياضياً منظمًا وآمنًا، يحجز فيه الجميع بثقة ويتنافسون باحترافية." },
-        { "title": "بسّطنا التعقيد", "description": "نختصر عناء البحث، نؤمّن الحجوزات، ونتكفل بالتواصل بين جميع الأطراف." }
+        {
+          "title": "سهّلنا اللعب",
+          "description": "نربط اللاعبين والفرق بالملاعب المتاحة والبطولات المنظمة في مدينتهم، بضغطة زر واحدة."
+        },
+        {
+          "title": "نظمّنا المنافسة",
+          "description": "نوفّر فضاءً رياضياً منظمًا وآمنًا، يحجز فيه الجميع بثقة ويتنافسون باحترافية."
+        },
+        {
+          "title": "بسّطنا التعقيد",
+          "description": "نختصر عناء البحث، نؤمّن الحجوزات، ونتكفل بالتواصل بين جميع الأطراف."
+        }
       ]
     },
     "problem": {
       "title": "مشكلة عرفناها جيداً",
       "subtitle": "التحديات اليومية لكل من يعيش كرة القدم الهواة",
       "items": [
-        { "title": "بحث لا ينتهي", "description": "التنقل بين المكالمات والملاعب بحثاً عن ملعب متاح في التوقيت المناسب." },
-        { "title": "لا يوجد خصم", "description": "فريق جاهز للعب ولا يجد منافساً بنفس المستوى وفي نفس المدينة." },
-        { "title": "بطولات مشتتة", "description": "صعوبة متابعة البطولات، ومعرفة مواعيدها، والتسجيل فيها في الوقت المناسب." },
-        { "title": "حجوزات غير موثوقة", "description": "مواعيد تلغى في اللحظة الأخيرة، وحجوزات غير مؤكدة تضيّع وقت الجميع." }
+        {
+          "title": "بحث لا ينتهي",
+          "description": "التنقل بين المكالمات والملاعب بحثاً عن ملعب متاح في التوقيت المناسب."
+        },
+        {
+          "title": "لا يوجد خصم",
+          "description": "فريق جاهز للعب ولا يجد منافساً بنفس المستوى وفي نفس المدينة."
+        },
+        {
+          "title": "بطولات مشتتة",
+          "description": "صعوبة متابعة البطولات، ومعرفة مواعيدها، والتسجيل فيها في الوقت المناسب."
+        },
+        {
+          "title": "حجوزات غير موثوقة",
+          "description": "مواعيد تلغى في اللحظة الأخيرة، وحجوزات غير مؤكدة تضيّع وقت الجميع."
+        }
       ]
     },
     "how": {
       "title": "كيف يعمل كل شيء؟",
       "subtitle": "أربع خطوات بسيطة تقودك من الهاتف إلى الملعب",
       "steps": [
-        { "title": "احجز الملعب", "description": "اختر المدينة والملعب والوقت، وأكّد حجزك خلال ثوانٍ." },
-        { "title": "ابحث عن خصم", "description": "اعثر على فريق بنفس مستواك ومدينتك وأرسل له طلب مباراة." },
-        { "title": "نظّم البطولة", "description": "سجّل فريقك في بطولة مفتوحة وتابع النتائج والترتيب لحظة بلحظة." },
-        { "title": "العب واستمتع", "description": "احصل على تأكيد نهائي، انزل إلى الملعب، واستمتع بالمباراة." }
+        {
+          "title": "احجز الملعب",
+          "description": "اختر المدينة والملعب والوقت، وأكّد حجزك خلال ثوانٍ."
+        },
+        {
+          "title": "ابحث عن خصم",
+          "description": "اعثر على فريق بنفس مستواك ومدينتك وأرسل له طلب مباراة."
+        },
+        {
+          "title": "نظّم البطولة",
+          "description": "سجّل فريقك في بطولة مفتوحة وتابع النتائج والترتيب لحظة بلحظة."
+        },
+        {
+          "title": "العب واستمتع",
+          "description": "احصل على تأكيد نهائي، انزل إلى الملعب، واستمتع بالمباراة."
+        }
       ]
     },
     "audience": {
       "title": "منصة لكل الفاعلين",
       "subtitle": "كل طرف يجد مكانه وأدواته",
       "roles": {
-        "players": { "title": "اللاعبون", "description": "تابع الفرق والبطولات، واكتشف المباريات القريبة منك، وانضم إلى المجتمع الرياضي." },
-        "managers": { "title": "مديرو الفرق", "description": "أضف فريقك، انشر طلبات المباريات، واقبل التحديات من لوحة تحكم بسيطة." },
-        "owners": { "title": "أصحاب الملاعب", "description": "اعرض ملعبك، استقبل الحجوزات، وأدر المواعيد والفتحات في مكان واحد." },
-        "committees": { "title": "لجان البطولات", "description": "أنشئ بطولاتك، أدر التسجيل والفرق، وانشر المواعيد والنتائج باحترافية." }
+        "players": {
+          "title": "اللاعبون",
+          "description": "تابع الفرق والبطولات، واكتشف المباريات القريبة منك، وانضم إلى المجتمع الرياضي."
+        },
+        "managers": {
+          "title": "مديرو الفرق",
+          "description": "أضف فريقك، انشر طلبات المباريات، واقبل التحديات من لوحة تحكم بسيطة."
+        },
+        "owners": {
+          "title": "أصحاب الملاعب",
+          "description": "اعرض ملعبك، استقبل الحجوزات، وأدر المواعيد والفتحات في مكان واحد."
+        },
+        "committees": {
+          "title": "لجان البطولات",
+          "description": "أنشئ بطولاتك، أدر التسجيل والفرق، وانشر المواعيد والنتائج باحترافية."
+        }
       }
     },
     "benefits": {
       "title": "مزايا تصنع الفارق",
       "subtitle": "لماذا يختارك الآلاف أجي نقصرو؟",
       "items": [
-        { "title": "حجز فوري وآمن", "description": "تأكيد الحجز والتواصل مع صاحب الملعب مباشرة، بدون وساطة." },
-        { "title": "بيئة موثوقة", "description": "حسابات موثقة وحالات اعتماد واضحة لكل طرف على المنصة." },
-        { "title": "معلومات منظمة", "description": "المواعيد، الأسعار، المباريات، والترتيبات في مكان واحد." },
-        { "title": "مجتمع متنامٍ", "description": "انضم إلى شبكة من الفرق واللاعبين والملاعب في كل المغرب." }
+        {
+          "title": "حجز فوري وآمن",
+          "description": "تأكيد الحجز والتواصل مع صاحب الملعب مباشرة، بدون وساطة."
+        },
+        {
+          "title": "بيئة موثوقة",
+          "description": "حسابات موثقة وحالات اعتماد واضحة لكل طرف على المنصة."
+        },
+        {
+          "title": "معلومات منظمة",
+          "description": "المواعيد، الأسعار، المباريات، والترتيبات في مكان واحد."
+        },
+        {
+          "title": "مجتمع متنامٍ",
+          "description": "انضم إلى شبكة من الفرق واللاعبين والملاعب في كل المغرب."
+        }
       ]
     },
     "vision": {
@@ -3495,8 +3740,11 @@
       "location": "المدينة أو المنطقة",
       "locationPlaceholder": "اختر مدينة أو منطقة",
       "datePlaceholder": "اختر تاريخ",
+      "time": "الوقت",
       "timePlaceholder": "اختر وقت",
       "typePlaceholder": "نوع الملعب",
+      "sheetTitle": "ابحث عن ملاعب",
+      "mobileSummaryPlaceholder": "المدينة، التاريخ والوقت",
       "types": {
         "5v5": "5 ضد 5",
         "7v7": "7 ضد 7",
@@ -3527,6 +3775,7 @@
         "open": "مكشوف"
       },
       "sortLabel": "ترتيب حسب",
+      "sortView": "الترتيب والعرض",
       "sort": {
         "nearest": "الأقرب",
         "priceAsc": "السعر: من الأقل إلى الأعلى",
@@ -3838,5 +4087,469 @@
     "noTerrains": "لا توجد ملاعب",
     "noTerrainsDesc": "أضف ملعبك الأول لبدء استقبال الحجوزات",
     "addField": "إضافة ملعب"
+  },
+  "playerTeamRequest": {
+    "title": "طلبات الانضمام للفريق",
+    "subtitle": "تابع طلباتك للانضمام إلى الفرق",
+    "submitNew": "طلب جديد",
+    "teamName": "اسم الفريق",
+    "teamNamePlaceholder": "مثال: أسود أطلس",
+    "message": "رسالة",
+    "messagePlaceholder": "عرّف الفريق بنفسك...",
+    "noTeamName": "فريق بدون اسم",
+    "tab": {
+      "all": "الكل",
+      "pending": "قيد المراجعة",
+      "approved": "مقبولة"
+    },
+    "pending": "قيد المراجعة",
+    "approved": "مقبول",
+    "rejected": "مرفوض",
+    "noRequest": "لا توجد طلبات بعد",
+    "emptyTab": "لا شيء هنا بعد",
+    "submittedAt": "أُرسل في",
+    "handledBy": "عالجها",
+    "responseDate": "تاريخ الرد",
+    "rejectionReason": "سبب الرفض",
+    "approvedMessage": "تم قبول طلبك",
+    "cancel": "إلغاء الطلب",
+    "cancelConfirm": "إلغاء هذا الطلب؟",
+    "cancelledSuccess": "تم إلغاء الطلب",
+    "requestSubmitted": "تم إرسال الطلب"
+  },
+  "dash": {
+    "myMatches": "مبارياتي",
+    "allMatchRequestsAndTheirStatus": "جميع طلبات المباريات وحالتها",
+    "noMatchesInThisCategory": "لا مباريات في هذا التصنيف",
+    "all": "الكل",
+    "confirmed": "مؤكدة",
+    "open": "مفتوحة",
+    "live": "مباشرة",
+    "finished": "منتهية",
+    "awaitingResult": "بانتظار النتيجة",
+    "cancelled": "ملغاة",
+    "lineUp": "التشكيلة",
+    "startMatch": "بدء المباراة",
+    "recordScore": "تسجيل النتيجة",
+    "reviewScore": "مراجعة النتيجة",
+    "cancelRequest": "إلغاء الطلب",
+    "details": "التفاصيل",
+    "newMatch": "مباراة جديدة",
+    "searchTeamOrField": "ابحث عن فريق أو ملعب…",
+    "searchTeamOrField2": "ابحث عن فريق أو ملعب",
+    "clearSearch": "مسح البحث",
+    "city": "المدينة",
+    "allCities": "كل المدن",
+    "category": "الفئة",
+    "level": "المستوى",
+    "field": "الملعب",
+    "playFormat": "شكل اللعب",
+    "date": "التاريخ",
+    "sort": "الترتيب",
+    "findAnOpponent": "ابحث عن خصم",
+    "teamsLookingForFriendlyMatchesPickYourNextOpponent": "فرق تبحث عن مباريات ودية — اختر خصمك المقبل",
+    "noMatchesAvailable": "لا توجد مباريات متاحة",
+    "adjustTheFiltersOrComeBackLaterYouCanAlsoPostYourOwnMatchRequest": "عدّل الفلاتر أو عد لاحقًا — يمكنك أيضًا نشر طلب مباراة بنفسك",
+    "adults": "كبار",
+    "teens": "شباب",
+    "children": "أطفال",
+    "beginner": "مبتدئ",
+    "amateur": "هواة",
+    "semiPro": "نصف محترف",
+    "pro": "محترف",
+    "filters": "تصفية",
+    "allCategories": "كل الفئات",
+    "allLevels": "كل المستويات",
+    "allFields": "كل الملاعب",
+    "soonest": "الأقرب موعدًا",
+    "newest": "الأحدث",
+    "clearAll": "مسح الكل",
+    "hostTeam": "الفريق المنظم",
+    "yourTeam": "فريقك",
+    "opponent": "المنافس",
+    "hostTeamManager": "مسير الفريق المنظم",
+    "dateTime": "الموعد",
+    "close": "إغلاق",
+    "vs": "ضد",
+    "cancel": "إلغاء",
+    "postAMatchRequest": "انشر طلب مباراة",
+    "acceptMatch": "قبول المباراة",
+    "searchPlayerByName": "ابحث عن لاعب بالاسم…",
+    "searchPlayerByName2": "ابحث عن لاعب بالاسم",
+    "position": "المركز",
+    "invitePlayer": "دعوة لاعب",
+    "chooseAnOpenMatch": "اختر مباراة مفتوحة",
+    "inviteMessageOptional": "رسالة الدعوة (اختياري)",
+    "hiWeWouldLoveToHaveYouInOurNextMatch": "مرحبًا، نود انضمامك لمباراتنا القادمة…",
+    "playerProfile": "ملف اللاعب",
+    "playerDetailsFromThePlatform": "تفاصيل اللاعب من المنصة",
+    "chooseAHostMatchToSeeRequests": "اختر مباراة مضيفة لعرض الطلبات",
+    "chooseAMatchToSeePlayerRequests": "اختر مباراة لعرض طلبات اللاعبين",
+    "whenAPlayerAsksToJoinYourMatchTheirRequestAppearsHere": "عندما يطلب لاعب الانضمام لمباراتك ستظهر طلباته هنا",
+    "noRequestsForThisMatch": "لا طلبات لهذه المباراة",
+    "searchFreeAgentsAndInviteWhoeverFits": "بحث في اللاعبين الأحرار ودعوة من يناسبك",
+    "freeAgents": "اللاعبون الأحرار",
+    "findPlayersToJoinYourTeamMatches": "ابحث عن لاعبين للانضمام لمباريات فريقك",
+    "noPlayersMatchTheSearch": "لا لاعبين يطابقون البحث",
+    "adjustTheFiltersAndTryAgain": "عدّل الفلاتر وحاول مجددًا",
+    "goalkeeper": "حارس مرمى",
+    "defender": "مدافع",
+    "midfielder": "وسط",
+    "striker": "مهاجم",
+    "midfield": "وسط ميدان",
+    "points": "النقاط",
+    "matches": "مباريات",
+    "preferredFoot": "القدم المفضلة",
+    "allPositions": "كل المراكز",
+    "noOpenMatches": "لا توجد مباريات مفتوحة",
+    "createAMatchRequestFirstToInvitePlayers": "أنشئ طلب مباراة أولاً لتتمكن من دعوة اللاعبين",
+    "bio": "نبذة",
+    "playerInvitation": "دعوة اللاعب",
+    "chooseAMatch": "اختر مباراة…",
+    "reject": "رفض",
+    "acceptPlayer": "قبول اللاعب",
+    "invite": "دعوة",
+    "profile": "الملف",
+    "teamProfile": "ملف الفريق",
+    "noTeamLinkedToYourAccountYet": "لا يوجد فريق مرتبط بحسابك بعد",
+    "introduceYourTeamToManagersAndPlayers": "تعريف بفريقك ليظهر أمام المسيرين واللاعبين",
+    "changeLogo": "تغيير الشعار",
+    "teamName": "اسم الفريق",
+    "members": "عدد الأعضاء",
+    "homeField": "الملعب الأساسي",
+    "regionProvince": "الجهة / الإقليم",
+    "sportsAssociation": "الجمعية الرياضية",
+    "aboutTheTeam": "نبذة عن الفريق",
+    "tellPeopleAboutYourTeamHistoryAndAchievements": "عرّف بفريقك وتاريخه وإنجازاته…",
+    "wDL": "فوز / تعادل / خسارة",
+    "goals": "الأهداف",
+    "primaryColor": "اللون الأساسي",
+    "secondaryColor": "اللون الثانوي",
+    "teamInformation": "معلومات الفريق",
+    "yourTeamBasicInfo": "البيانات الأساسية لفريقك",
+    "unspecified": "غير محدد",
+    "teamColors": "ألوان الفريق",
+    "livePreviewOfYourJersey": "معاينة حية لقميصك",
+    "teamLogo": "شعار الفريق",
+    "jpgOrPngUpTo2mb": "JPG أو PNG حتى 2MB",
+    "theLogoAppearsOnTeamCardsAndTheLeaderboard": "سيظهر الشعار في بطاقات الفريق والترتيب",
+    "name": "الاسم",
+    "shirtNumber": "الرقم القميص",
+    "phone": "الهاتف",
+    "notes": "ملاحظات",
+    "teamPlayers": "لاعبو الفريق",
+    "manageYourTeamSquad": "إدارة تشكيلة فريقك",
+    "noPlayersYet": "لا يوجد لاعبون بعد",
+    "addYourTeamPlayersToManageThemHere": "أضف لاعبي فريقك لإدارتهم هنا",
+    "player": "لاعب",
+    "searchByNameNumberOrPhone": "ابحث بالاسم أو الرقم أو الهاتف…",
+    "searchByNameNumberOrPhone2": "ابحث بالاسم أو الرقم أو الهاتف",
+    "tryAnotherSearchTermOrChangeThePosition": "جرّب كلمة بحث أخرى أو غيّر مركز اللاعب",
+    "playerInfo": "بيانات اللاعب",
+    "playerInformationInYourTeam": "معلومات اللاعب في فريقك",
+    "goalkeepers": "حراس",
+    "defenders": "مدافعون",
+    "midfielders": "أوساط",
+    "attackers": "مهاجمون",
+    "addAMemberToYourSquad": "أضف عضوًا إلى تشكيلة فريقك",
+    "number": "الرقم",
+    "status": "الحالة",
+    "membership": "العضوية",
+    "whatsappNumber": "رقم واتساب",
+    "toSendMatchNotificationsViaWhatsapp": "لإرسال إشعارات المباريات عبر واتساب",
+    "whatsapp": "واتساب",
+    "starter": "أساسي",
+    "addPlayer": "إضافة لاعب",
+    "addFirstPlayer": "إضافة أول لاعب",
+    "squadComposition": "تركيبة التشكيلة",
+    "noDataYet": "لا بيانات بعد",
+    "clearSearchAndFilters": "مسح البحث والفلاتر",
+    "starter2": "لاعب أساسي",
+    "importanceInTheTeam": "تحديد的重要性 في الفريق",
+    "newBooking": "حجز جديد",
+    "bookAFieldForYourTeamTrainingOrMatch": "احجز ملعبًا لتدريب أو مباراة فريقك",
+    "dayOfWeek": "اليوم الأسبوعي",
+    "startDate": "تاريخ البداية",
+    "endDate": "تاريخ النهاية",
+    "bookingDate": "تاريخ الحجز",
+    "startTime": "وقت البداية",
+    "endTime": "وقت النهاية",
+    "requestCancellation": "طلب إلغاء الحجز",
+    "cancellationReasonOptional": "سبب الإلغاء (اختياري)",
+    "eGScheduleConflict": "مثال: تعارض في المواعيد…",
+    "bookingDetails": "تفاصيل الحجز",
+    "myBookings": "حجوزاتي",
+    "fieldBookingsForYourTeam": "حجوزات الملاعب الخاصة بفريقك",
+    "noBookingsInThisCategory": "لا حجوزات في هذا التصنيف",
+    "bookFieldsForYourTeamTrainingAndMatches": "احجز ملعبًا لتدريبات ومباريات فريقك",
+    "training": "تدريب",
+    "privateBooking": "حجز خاص",
+    "match": "مباراة",
+    "sunday": "الأحد",
+    "monday": "الإثنين",
+    "tuesday": "الثلاثاء",
+    "wednesday": "الأربعاء",
+    "thursday": "الخميس",
+    "friday": "الجمعة",
+    "saturday": "السبت",
+    "upcoming": "القادمة",
+    "past": "السابقة",
+    "cancelled2": "الملغاة",
+    "weeklySubscription": "أبونمان أسبوعي",
+    "active": "نشط",
+    "ended": "منتهي",
+    "inactive": "غير نشط",
+    "oneTimeBooking": "حجز لمرة واحدة",
+    "field3": "ملعب",
+    "time": "الوقت",
+    "type": "النوع",
+    "price": "السعر",
+    "chooseAField": "اختر ملعبًا…",
+    "bookingType": "نوع الحجز",
+    "bookingSystem": "نظام الحجز",
+    "chooseADay": "اختر اليوم…",
+    "theCancellationRequestWillBeSentToTheFieldOwnerForReviewTheBookingStaysValidUntilTheyApproveIt": "سيتم إرسال طلب الإلغاء إلى صاحب الملعب لمراجعته. يبقى الحجز ساريًا حتى موافقة صاحب الملعب.",
+    "goBack": "تراجع",
+    "cancelBooking": "طلب إلغاء",
+    "convertToMatch": "تحويل لمباراة",
+    "awaitingFieldOwnerConfirmation": "بانتظار تأكيد صاحب الملعب",
+    "settings": "الإعدادات",
+    "notificationPreferencesAndYourAccountInfo": "تفضيلات الإشعارات ومعلومات حسابك",
+    "email": "البريد الإلكتروني",
+    "accountInformation": "معلومات الحساب",
+    "yourLoginDetails": "بيانات الدخول لحسابك",
+    "profile2": "الملف الشخصي",
+    "yourPersonalInfoAndAccount": "معلوماتك الشخصية وحسابك",
+    "fullName": "الاسم الكامل",
+    "phoneNumber": "رقم الهاتف",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "myTeam": "فريقي",
+    "personalInformation": "البيانات الشخصية",
+    "thisInformationAppearsForYourAccountOnThePlatform": "تظهر هذه البيانات لحسابك في المنصة",
+    "thisNumberIsOnWhatsapp": "هذا الرقم واتساب",
+    "soManagersCanReachYouEasily": "لسهولة التواصل مع المسيرين",
+    "changePassword": "تغيير كلمة المرور",
+    "leaveBothFieldsEmptyToKeepYourCurrentPassword": "اترك الحقلين فارغين إذا لم ترد التغيير",
+    "searchByActorNameOrEmail": "بحث عن الفاعل بالاسم أو البريد...",
+    "noEvents": "لا توجد أحداث",
+    "eventsHappeningOnThePlatformWillAppearHere": "عندما تحدث أحداث على المنصة ستظهر هنا.",
+    "event": "الحدث",
+    "actor": "الفاعل",
+    "details2": "تفاصيل",
+    "system": "النظام",
+    "cities": "المدن",
+    "manageCitiesAndLocations": "إدارة المدن والمواقع الجغرافية",
+    "searchCities": "بحث عن مدينة...",
+    "noCities": "لا توجد مدن",
+    "addTheFirstCityToManageLocations": "أضف أول مدينة لإدارة المواقع الجغرافية.",
+    "nameDefault": "الاسم (افتراضي)",
+    "eGCasablanca": "مثال: الدار البيضاء",
+    "nameInArabic": "الاسم بالعربية",
+    "casablanca": "الدار البيضاء",
+    "nameInFrench": "الاسم بالفرنسية",
+    "nameInEnglish": "الاسم بالإنجليزية",
+    "lowerNumbersAppearFirst": "رقم أصغر يظهر أولاً",
+    "active2": "نشطة",
+    "hidden": "مخفي",
+    "hideCity": "إخفاء المدينة",
+    "hide": "إخفاء",
+    "showCity": "إظهار المدينة",
+    "show": "إظهار",
+    "deleteCity": "حذف المدينة",
+    "fields": "الملاعب",
+    "teams": "الفرق",
+    "players": "اللاعبون",
+    "addCity": "إضافة مدينة",
+    "moderationReports": "الإشراف والبلاغات",
+    "reviewReportsAndManageHiddenContent": "مراجعة البلاغات وإدارة المحتوى المخفي",
+    "noReportsInThisState": "لا توجد بلاغات في هذه الحالة",
+    "whenUsersReportContentTheReportsAppearHere": "عندما يبلّغ المستخدمون عن محتوى، ستظهر البلاغات هنا.",
+    "noHiddenContent": "لا يوجد محتوى مخفي",
+    "allContentIsCurrentlyVisible": "كل المحتوى مرئي حالياً.",
+    "comment": "تعليق",
+    "chatMessage": "رسالة دردشة",
+    "playerReview": "تقييم لاعب",
+    "fieldReview": "تقييم ملعب",
+    "team": "فريق",
+    "announcement": "إعلان",
+    "activity": "نشاط",
+    "booking": "حجز",
+    "pendingReview": "بانتظار المراجعة",
+    "reviewed": "تمت المراجعة",
+    "resolved": "تم الحل",
+    "dismissed": "مهمل",
+    "hideContentAndResolveReport": "إخفاء المحتوى وحل البلاغ؟",
+    "theReportedContentWillBeHiddenFromEveryoneAndTheReportResolved": "سيتم إخفاء المحتوى المُبلّغ عنه عن الجميع وسيُحل البلاغ.",
+    "hideResolve": "إخفاء وحل",
+    "reportReason": "سبب البلاغ",
+    "content": "المحتوى",
+    "reportedBy": "المبلغ",
+    "actions": "إجراءات",
+    "hiddenContent": "المحتوى المخفي",
+    "contentOwner": "صاحب المحتوى",
+    "hiddenOn": "تاريخ الإخفاء",
+    "reports": "البلاغات",
+    "contentDeleted": "المحتوى محذوف",
+    "resolve": "حل",
+    "dismiss": "إهمال",
+    "review": "مراجعة",
+    "enterTeamName": "أدخل اسم الفريق...",
+    "enterRejectionReason": "أدخل سبب الرفض...",
+    "playerRequests": "طلبات اللاعبين",
+    "managePlayersRequestsToJoinTeams": "إدارة طلبات اللاعبين للانضمام إلى فرق",
+    "searchByName": "بحث بالاسم...",
+    "noRequestsRightNow": "لا توجد طلبات حالياً",
+    "changeTheFilterOrSearchForSomethingElse": "غيّر الفلتر أو ابحث بكلمة أخرى.",
+    "playerRequestDetails": "تفاصيل طلب اللاعب",
+    "underReview": "قيد المراجعة",
+    "approved": "مقبول",
+    "rejected": "مرفوض",
+    "cancelled3": "ملغي",
+    "approveThisRequest": "هل أنت متأكد من قبول هذا الطلب؟",
+    "aNewTeamWillBeCreatedAndThePlayerLinkedToIt": "سيتم إنشاء فريق جديد وربط اللاعب به.",
+    "approve": "قبول",
+    "player3": "اللاعب",
+    "submittedOn": "تاريخ التقديم",
+    "approveRequest": "قبول الطلب",
+    "aNewTeamWillBeCreatedAndThePlayerLinkedToIt2": "سيتم إنشاء فريق جديد وربط اللاعب به",
+    "newTeamNameOptional": "اسم الفريق الجديد (اختياري)",
+    "rejectRequest": "رفض الطلب",
+    "rejectionReason": "سبب الرفض",
+    "playerMessage": "رسالة اللاعب",
+    "reviewedBy": "تمت المراجعة بواسطة",
+    "facilities": "المرافق",
+    "facilitiesAvailableAtFieldsSuchAsSeatsLightingAndBathrooms": "المرافق المتوفرة في الملاعب مثل المقاعد والإنارة والحمامات",
+    "noFacilities": "لا توجد مرافق",
+    "addTheFirstFacilityToUseOnFields": "أضف أول مرفق لاستخدامه في الملاعب.",
+    "facilitiesAreShownOnTheFieldDetailPage": "المرافق تُعرض في صفحة تفاصيل الملاعب",
+    "eGNightLighting": "مثال: إنارة ليلية",
+    "iconEmoji": "الرمز (إيموجي)",
+    "aSmallIconShownNextToTheFacilityName": "رمز صغير يظهر بجانب اسم المرفق",
+    "addFacility": "إضافة مرفق",
+    "fieldFacility": "مرفق ملعب",
+    "platformSettings": "إعدادات المنصة",
+    "controlPlatformDataRulesAndFeatures": "تحكم في بيانات المنصة وقواعدها ومزاياها",
+    "platformInformation": "معلومات المنصة",
+    "nameContactDetailsSocialAccounts": "الاسم، بيانات التواصل، حسابات التواصل الاجتماعي",
+    "featureToggles": "تفعيل المزايا",
+    "controlTheFeaturesAvailableToUsers": "التحكم في المزايا المتاحة للمستخدمين",
+    "businessRules": "قواعد العمل",
+    "limitsAndDefaultValuesForOperations": "الحدود والقيم الافتراضية للعمليات",
+    "announcementBar": "شريط الإعلان",
+    "aBannerShownAtTheTopOfTheSite": "إعلان يظهر في أعلى الموقع",
+    "info": "معلومات",
+    "warning": "تحذير",
+    "success": "نجاح",
+    "unsavedChanges": "تعديلات غير محفوظة",
+    "changesSaved": "تم التعديل",
+    "revenue": "الإيرادات",
+    "bookings": "الحجوزات",
+    "guest": "ضيف",
+    "mad": "د.م",
+    "trainingSession": "حصة تدريبية",
+    "individualBooking": "حجز فردي",
+    "customerInformation": "معلومات الزبون",
+    "guestCustomerNoAccount": "زبون بدون حساب",
+    "totalPrice": "السعر الإجمالي",
+    "managerNotes": "ملاحظات المسير",
+    "bookingLog": "سجل الحجز",
+    "approveBooking": "قبول الحجز",
+    "mad3": "درهم",
+    "confirm": "تأكيد",
+    "inviteSent": "دعوة مرسلة",
+    "joinRequest": "طلب انضمام",
+    "requests": "الطلبات",
+    "startTheMatchNow": "هل تريد بدء المباراة الآن؟",
+    "matchStartedSuccessfully": "تم بدء المباراة بنجاح",
+    "cancelThisMatchRequest": "هل تريد إلغاء طلب المباراة هذا؟",
+    "matchRequestCancelled": "تم إلغاء طلب المباراة",
+    "postTheFirstMatchRequestToGetStarted": "انشر أول طلب مباراة لتبدأ",
+    "tryAnotherCategory": "جرّب تصنيفًا آخر",
+    "matchAcceptedSuccessfully": "تم قبول المباراة بنجاح",
+    "couldNotAcceptTheMatch": "تعذر قبول المباراة",
+    "contactTheHostTeamToAgreeOnTheDetails": "تواصل مع الفريق المنظم للاتفاق على التفاصيل",
+    "unspecifiedField": "ملعب غير محدد",
+    "confirming": "جارٍ التأكيد…",
+    "confirmMatch": "تأكيد المباراة",
+    "chooseAMatchToDirectTheInvitationTo": "اختر مباراة لتوجيه الدعوة إليها",
+    "invitationSentToThePlayerSuccessfully": "تم إرسال الدعوة للاعب بنجاح",
+    "couldNotSendTheInvitation": "تعذر إرسال الدعوة",
+    "noTime": "بدون وقت",
+    "sending": "جارٍ الإرسال…",
+    "sendInvitation": "إرسال الدعوة",
+    "freeAgent": "لاعب حر",
+    "couldNotLoadRequests": "تعذر تحميل الطلبات",
+    "playerAccepted": "تم قبول اللاعب",
+    "incomingRequests": "الطلبات الواردة",
+    "searchPlayers": "ابحث عن لاعبين",
+    "bookingRequestSent": "تم إرسال طلب الحجز",
+    "couldNotCreateTheBooking": "تعذر إنشاء الحجز",
+    "theFieldIsClosed": "الملعب مغلق",
+    "sendBookingRequest": "إرسال طلب الحجز",
+    "cancellationRequestSentToTheFieldOwner": "تم إرسال طلب الإلغاء إلى صاحب الملعب",
+    "sendRequest": "إرسال الطلب",
+    "convertThisBookingIntoAMatchRequestLookingForAnOpponent": "تحويل هذا الحجز إلى طلب مباراة يبحث عن خصم؟",
+    "matchRequestCreated": "تم إنشاء طلب المباراة",
+    "thisBookingWasCompleted": "تمت هذه الحجز",
+    "thisBookingWasCancelled": "تم إلغاء هذا الحجز",
+    "teamInfoUpdated": "تم تحديث بيانات الفريق",
+    "logoUploaded": "تم رفع الشعار",
+    "saving": "جارٍ الحفظ…",
+    "saveChanges": "حفظ التغييرات",
+    "uploading": "جارٍ الرفع…",
+    "uploadNewLogo": "رفع شعار جديد",
+    "unspecifiedCategory": "فئة غير محددة",
+    "playerInfoUpdated": "تم تحديث بيانات اللاعب",
+    "playerAdded": "تم إضافة اللاعب",
+    "couldNotSave": "تعذر الحفظ",
+    "save": "حفظ",
+    "playerRemoved": "تم حذف اللاعب",
+    "settingsSavedSuccessfully": "تم حفظ الإعدادات بنجاح",
+    "couldNotSaveSettings": "تعذر حفظ الإعدادات",
+    "enabled": "مفعل",
+    "disabled": "معطل",
+    "enableMaintenanceModeThePlatformWillBeHiddenFromAllUsers": "هل أنت متأكد من تفعيل وضع الصيانة؟ سيتم إخفاء المنصة عن جميع المستخدمين.",
+    "saveAllChanges": "حفظ جميع التغييرات",
+    "requestRejected": "تم رفض الطلب",
+    "matchRequestsAvailable": "طلب مباراة متاح",
+    "playersAvailable": "لاعب متاح للانضمام",
+    "matchAgainst": "مباراة ضد {{name}}",
+    "inviteSubtitle": "أرسل دعوة لـ {{name}} للانضمام لإحدى مبارياتك المفتوحة",
+    "removePlayerConfirm": "حذف {{name}} من الفريق؟",
+    "perTeamPrice": "({{price}} د.م)",
+    "weeklyOn": "{{day}} (كل أسبوع)",
+    "valueRange": "{{key}}: القيمة يجب أن تكون بين {{min}} و {{max}}",
+    "accountActive": "حساب مفعّل",
+    "profileUpdated": "تم تحديث الملف الشخصي",
+    "noEmail": "بدون بريد",
+    "whatsappEnabled": " • واتساب مفعّل",
+    "cityUpdatedSuccessfully": "تم تحديث المدينة بنجاح",
+    "cityAddedSuccessfully": "تمت إضافة المدينة بنجاح",
+    "cityDeletedSuccessfully": "تم حذف المدينة بنجاح",
+    "editCity": "تعديل المدينة",
+    "addNewCity": "إضافة مدينة جديدة",
+    "addANewCityToThePlatform": "أضف مدينة جديدة للمنصة",
+    "reportStatusUpdated": "تم تحديث حالة البلاغ",
+    "contentHiddenAndReportResolved": "تم إخفاء المحتوى وحل البلاغ",
+    "contentIsVisibleAgain": "تم إظهار المحتوى",
+    "noText": "بدون نص",
+    "requestApprovedSuccessfully": "تم قبول الطلب بنجاح",
+    "facilityUpdated": "تم تحديث المرفق",
+    "facilityAdded": "تمت إضافة المرفق",
+    "permanentlyDeleteThisFacility": "حذف هذا المرفق نهائياً؟",
+    "facilityDeleted": "تم حذف المرفق",
+    "bookingApproved": "تم قبول الحجز",
+    "bookingRejected": "تم رفض الحجز",
+    "customer": "زبون",
+    "noContactInfo": "بدون تواصل",
+    "messageTheCustomerViaWhatsapp": "مراسلة الزبون عبر واتساب",
+    "notifyTheManagerViaWhatsapp": "إشعار المسير عبر واتساب",
+    "unknownTeam": "فريق غير معروف",
+    "manager": "مسير",
+    "hideCityConfirm": "هل أنت متأكد من إخفاء \"{{name}}\"؟ لن تظهر المدينة في القوائم المعتادة.",
+    "showCityConfirm": "هل تريد إظهار \"{{name}}\" مرة أخرى؟",
+    "deleteCityConfirm": "هل أنت متأكد من حذف \"{{name}}\" نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.",
+    "editCityData": "تعديل بيانات \"{{name}}\""
   }
 }

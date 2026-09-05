@@ -1,11 +1,12 @@
+import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import i18n from '../../../i18n'
 
-export const categoryLabels = { adult: 'كبار', teenager: 'شباب', children: 'أطفال' }
-export const levelLabels = { beginner: 'مبتدئ', amateur: 'هواة', semi_pro: 'نصف محترف', pro: 'محترف' }
-export const positionLabels = { goalkeeper: 'حارس مرمى', defender: 'مدافع', midfielder: 'وسط ميدان', forward: 'مهاجم' }
-export const bookingTypeLabels = { training: 'تدريب', private: 'حجز خاص', match: 'مباراة' }
+export const categoryLabels = { get adult() { return i18n.t('dash.adults') }, get teenager() { return i18n.t('dash.teens') }, get children() { return i18n.t('dash.children') } }
+export const levelLabels = { get beginner() { return i18n.t('dash.beginner') }, get amateur() { return i18n.t('dash.amateur') }, get semi_pro() { return i18n.t('dash.semiPro') }, get pro() { return i18n.t('dash.pro') } }
+export const positionLabels = { get goalkeeper() { return i18n.t('dash.goalkeeper') }, get defender() { return i18n.t('dash.defender') }, get midfielder() { return i18n.t('dash.midfield') }, get forward() { return i18n.t('dash.striker') } }
+export const bookingTypeLabels = { get training() { return i18n.t('dash.training') }, get private() { return i18n.t('dash.privateBooking') }, get match() { return i18n.t('dash.match') } }
 
 const dateLocale = () => (i18n.language?.startsWith('en') ? 'en-GB' : 'ar-MA')
 
@@ -45,6 +46,7 @@ export function Section({ icon: Icon, title, subtitle, action, badge, defaultOpe
 }
 
 export function timeAgo(dateStr) {
+  const { t, i18n } = useTranslation()
   if (!dateStr) return ''
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)

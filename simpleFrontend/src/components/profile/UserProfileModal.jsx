@@ -7,7 +7,7 @@ import {
   usePublicCommitteeProfile,
 } from '../../api/queries'
 import { Badge, Modal, Skeleton } from '../dashboard/ui'
-import { logoThumb } from '../../lib/thumb'
+import TeamLogo from './TeamLogo'
 
 function Avatar({ url, name, className = 'size-16 text-xl' }) {
   if (url) return <img src={url} alt="" className={`${className} shrink-0 rounded-full object-cover`} loading="lazy" />
@@ -77,13 +77,7 @@ function ManagerBody({ id }) {
             {t('profile.public.team')}
           </p>
           <div className="flex items-center gap-3">
-            {team.logo_url ? (
-              <img src={logoThumb(team)} alt="" className="size-12 shrink-0 rounded-2xl object-cover ring-1 ring-slate-100" loading="lazy" />
-            ) : (
-              <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-green-100 text-sm font-black text-green-700">
-                {(team.name || '؟').slice(0, 1)}
-              </span>
-            )}
+            <TeamLogo team={team} className="size-12" rounded="rounded-2xl" ring="ring-1 ring-slate-100" fontSize="text-sm" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-extrabold text-slate-900">{team.name}</p>
               <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
@@ -157,13 +151,7 @@ function PlayerBody({ id }) {
 
       {team && (
         <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-          {team.logo_url ? (
-            <img src={logoThumb(team)} alt="" className="size-11 shrink-0 rounded-xl object-cover ring-1 ring-slate-100" loading="lazy" />
-          ) : (
-            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-green-100 text-sm font-black text-green-700">
-              {(team.name || '؟').slice(0, 1)}
-            </span>
-          )}
+          <TeamLogo team={team} className="size-11" rounded="rounded-xl" ring="ring-1 ring-slate-100" fontSize="text-sm" />
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
               <Users className="size-3.5" />

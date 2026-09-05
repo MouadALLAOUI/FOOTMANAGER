@@ -18,9 +18,10 @@ export default function MatchesHero() {
         fetchPriority="high"
         decoding="async"
         onError={hideBrokenImage}
-        className="absolute inset-0 size-full object-cover"
+        className="absolute inset-0 size-full object-cover object-[50%_30%] md:object-center"
       />
       <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute inset-0 bg-black/20 md:hidden" />
       <div className="absolute inset-0 bg-[radial-gradient(60%_140%_at_50%_0%,rgba(22,163,74,0.28),transparent_60%)]" />
 
       <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 pt-16 text-center">

@@ -1,3 +1,5 @@
+import i18n from '../../../i18n'
+import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { Save, Settings2, CheckCircle2 } from 'lucide-react'
 import api from '../../../api/client'
@@ -6,20 +8,21 @@ import { PageHeader, Button, Card, Input, Toggle, Skeleton, Badge } from '../../
 import ModuleMaintenance from '../../../components/admin/ModuleMaintenance'
 import PageMaintenance from '../../../components/admin/PageMaintenance'
 
-const groups = [
-  { key: 'platform', label: 'معلومات المنصة', icon: Settings2, description: 'الاسم، بيانات التواصل، حسابات التواصل الاجتماعي' },
-  { key: 'features', label: 'تفعيل المزايا', icon: Settings2, description: 'التحكم في المزايا المتاحة للمستخدمين' },
-  { key: 'rules', label: 'قواعد العمل', icon: Settings2, description: 'الحدود والقيم الافتراضية للعمليات' },
-  { key: 'announcement', label: 'شريط الإعلان', icon: Settings2, description: 'إعلان يظهر في أعلى الموقع' },
+const groups = () => [
+  { key: 'platform', label: i18n.t('dash.platformInformation'), icon: Settings2, description: i18n.t('dash.nameContactDetailsSocialAccounts') },
+  { key: 'features', label: i18n.t('dash.featureToggles'), icon: Settings2, description: i18n.t('dash.controlTheFeaturesAvailableToUsers') },
+  { key: 'rules', label: i18n.t('dash.businessRules'), icon: Settings2, description: i18n.t('dash.limitsAndDefaultValuesForOperations') },
+  { key: 'announcement', label: i18n.t('dash.announcementBar'), icon: Settings2, description: i18n.t('dash.aBannerShownAtTheTopOfTheSite') },
 ]
 
 const announcementTypes = {
-  info: { label: 'معلومات', tone: 'sky' },
-  warning: { label: 'تحذير', tone: 'amber' },
-  success: { label: 'نجاح', tone: 'green' },
+get   info() { return { label: i18n.t('dash.info'), tone: 'sky' } },
+get   warning() { return { label: i18n.t('dash.warning'), tone: 'amber' } },
+get   success() { return { label: i18n.t('dash.success'), tone: 'green' } },
 }
 
 export default function Settings() {
+  const { t } = useTranslation()
   const { data, loading, refetch } = useApi(() => api.get('/admin/settings').then((r) => r.data))
   const [values, setValues] = useState({})
   const [busy, setBusy] = useState(false)
@@ -50,7 +53,7 @@ export default function Settings() {
       if (dirtyKeys.includes(key)) {
         const val = Number(values[key])
         if (isNaN(val) || val < rule.min || val > rule.max) {
-          setError(`${key}: القيمة يجب أن تكون بين ${rule.min} و ${rule.max}`)
+          setError(t('dash.valueRange', { key, min: rule.min, max: rule.max }))
           setBusy(false)
           return
         }
@@ -62,11 +65,11 @@ export default function Settings() {
     setError('')
     try {
       const res = await api.put('/admin/settings', { settings: entries })
-      setMsg(res.data.message || 'تم حفظ الإعدادات بنجاح')
+      setMsg(res.data.message || t('dash.settingsSavedSuccessfully'))
       setValues({})
       refetch()
     } catch (e) {
-      setError(e.response?.data?.message || 'تعذر حفظ الإعدادات')
+      setError(e.response?.data?.message || t('dash.couldNotSaveSettings'))
     } finally {
       setBusy(false)
     }
@@ -75,7 +78,7 @@ export default function Settings() {
   if (loading) {
     return (
       <div>
-        <PageHeader title="إعدادات المنصة" subtitle="تحكم في بيانات المنصة وقواعدها ومزاياها" />
+        <PageHeader title={t('dash.platformSettings')} subtitle={t('dash.controlPlatformDataRulesAndFeatures')} />
         <div className="space-y-5">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-44 rounded-3xl" />)}
         </div>
@@ -86,13 +89,13 @@ export default function Settings() {
   return (
     <div>
       <PageHeader
-        title="إعدادات المنصة"
-        subtitle="تحكم في بيانات المنصة وقواعدها ومزاياها"
+        title={t('dash.platformSettings')}
+        subtitle={t('dash.controlPlatformDataRulesAndFeatures')}
         actions={
           dirtyKeys.length > 0 && (
             <Button loading={busy} onClick={save}>
               <Save className="size-4" />
-              حفظ ({dirtyKeys.length})
+              {t('dash.save')} ({dirtyKeys.length})
             </Button>
           )
         }
@@ -117,7 +120,7 @@ export default function Settings() {
         <div className="lg:col-span-2">
           <ModuleMaintenance />
         </div>
-        {groups.map((g) => {
+        {groups().map((g) => {
           const list = settings[g.key] || []
           if (list.length === 0) return null
           const dirty = list.some((s) => s.key in values)
@@ -131,7 +134,7 @@ export default function Settings() {
                   <h3 className="text-sm font-black text-slate-900">{g.label}</h3>
                   <p className="text-[11px] text-slate-400">{g.description}</p>
                 </div>
-                {dirty && <Badge tone="amber" className="ms-auto">تعديلات غير محفوظة</Badge>}
+                {dirty && <Badge tone="amber" className="ms-auto">{t('dash.unsavedChanges')}</Badge>}
               </div>
               <Card>
                 <div className="space-y-5">
@@ -146,14 +149,14 @@ export default function Settings() {
                             <span className="text-xs font-bold text-slate-600">{s.label}</span>
                             {s.description && <p className="text-[10px] text-slate-400 mt-0.5">{s.description}</p>}
                           </div>
-                          {changed && <span className="text-[10px] font-bold text-amber-500">تم التعديل</span>}
+                          {changed && <span className="text-[10px] font-bold text-amber-500">{t('dash.changesSaved')}</span>}
                         </div>
                         {s.type === 'boolean' ? (
                           <div className="flex items-center justify-between rounded-2xl bg-slate-50/80 p-3">
-                            <span className="text-xs text-slate-500">{current ? 'مفعل' : 'معطل'}</span>
+                            <span className="text-xs text-slate-500">{current ? t('dash.enabled') : t('dash.disabled')}</span>
                             <Toggle checked={Boolean(current)} onChange={(v) => {
                               if (v && s.key === 'maintenance_mode') {
-                                if (!window.confirm('هل أنت متأكد من تفعيل وضع الصيانة؟ سيتم إخفاء المنصة عن جميع المستخدمين.')) return;
+                                if (!window.confirm(t('dash.enableMaintenanceModeThePlatformWillBeHiddenFromAllUsers'))) return;
                               }
                               setValue(s.key, s.type, v)
                             }} />
@@ -204,7 +207,7 @@ export default function Settings() {
         <div className="sticky bottom-6 mt-8 flex justify-center">
           <Button size="lg" loading={busy} onClick={save} className="shadow-2xl">
             <Save className="size-4" />
-            حفظ جميع التغييرات ({dirtyKeys.length})
+            {t('dash.saveAllChanges')} ({dirtyKeys.length})
           </Button>
         </div>
       )}

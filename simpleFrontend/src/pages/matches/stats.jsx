@@ -25,7 +25,7 @@ export default function CommunityStats() {
   return (
     <section className="bg-slate-50 py-[100px] lg:py-[120px]">
       <div className="mx-auto max-w-[1400px] px-6">
-        <div className="grid grid-cols-1 gap-7 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 lg:gap-7">
           {items.map(({ key, icon: Icon, color, soft, field }, i) => {
             const value = data?.[field]
             return (

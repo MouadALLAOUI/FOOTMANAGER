@@ -2,6 +2,7 @@
 
 namespace App\Domains\Match\Resources;
 
+use App\Domains\Team\Resources\TeamResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 

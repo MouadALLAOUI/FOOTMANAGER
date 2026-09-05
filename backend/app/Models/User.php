@@ -46,6 +46,7 @@ class User extends Authenticatable
         'status',
         'avatar_path',
         'avatar_thumbnail_path',
+        'avatar_color',
         'activity_locked',
         'activity_lock_reason',
         'activity_locked_by',

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Activity, Radio } from 'lucide-react'
 import { Skeleton } from './dashboard/ui'
+import TeamLogo from './profile/TeamLogo'
 
 const EVENT_META = {
   goal: { icon: '⚽', labelKey: 'committee.result.ev.goal' },
@@ -19,13 +20,7 @@ const EVENT_META = {
 function TeamSide({ team, name, score }) {
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2.5">
-      {team?.logo_url ? (
-        <img src={team.logo_url} alt="" className="size-9 shrink-0 rounded-xl bg-slate-100 object-contain" />
-      ) : (
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-green-600/10 text-sm font-black text-green-700">
-          {(name || '—').charAt(0)}
-        </span>
-      )}
+      <TeamLogo team={team} name={name} className="size-9" rounded="rounded-xl" fontSize="text-sm" />
       <span className="truncate text-xs font-extrabold text-slate-800 sm:text-sm">{name || '—'}</span>
       <span className="ms-auto tabular-nums text-lg font-black text-slate-900">{score}</span>
     </div>

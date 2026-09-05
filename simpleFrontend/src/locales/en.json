@@ -4,6 +4,7 @@
     "loading": "Loading",
     "close": "Close",
     "skipToContent": "Skip to content",
+    "goToSlide": "Go to slide {{index}}",
     "resize": "Resize panel",
     "now": "Just now",
     "minutesAgo": "{{count}} min ago",
@@ -14,7 +15,10 @@
     "imagePreview": "Image preview",
     "imageLoadFailed": "Failed to load image",
     "retry": "Retry",
-    "noData": "No data yet"
+    "noData": "No data yet",
+    "delete": "Delete",
+    "edit": "Edit",
+    "error": "Something went wrong"
   },
   "stages": {
     "group": "Group stage",
@@ -61,8 +65,7 @@
     "finished": "Finished",
     "open_for_registration": "Registration open",
     "registration_closed": "Registration closed",
-    "in_progress": "In progress",
-    "completed": "Completed"
+    "in_progress": "In progress"
   },
   "profile": {
     "avatar": {
@@ -74,6 +77,15 @@
       "uploadFailed": "Could not upload the photo",
       "removed": "Profile photo removed",
       "removeFailed": "Could not remove the photo"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "subtitle": "Pick a color or a ready-made avatar",
+      "colorLabel": "Color",
+      "presetLabel": "Ready-made avatars",
+      "presetEmpty": "No ready-made avatars yet. Add them from the admin panel.",
+      "colorSaved": "Color updated",
+      "presetApplied": "Ready-made avatar applied"
     },
     "public": {
       "teamTitle": "Team",
@@ -108,7 +120,8 @@
       "skill": "Skill",
       "cm": "cm",
       "kg": "kg",
-      "terrainsCount": "Terrains"
+      "terrainsCount": "Terrains",
+      "priceHour": "/ hour"
     }
   },
   "shell": {
@@ -221,7 +234,8 @@
       "facilities": "Facilities",
       "settings": "Settings",
       "messages": "Contact messages",
-      "cities": "Cities",
+"cities": "Cities",
+      "presets": "Ready-made logos",
       "notifications": "Notifications",
       "profile": "Profile",
       "plans": "Plans & Pricing",
@@ -363,7 +377,8 @@
       "nudgeBody": "We'll reach you as soon as match results or new approval requests arrive",
       "testHint": "Press the button to send a test notification and confirm notifications are working",
       "iosTitle": "iOS notifications require installation",
-      "iosBody": "To keep receiving notifications on iPhone or iPad, first add the app to your home screen (Share → Add to Home Screen), then enable notifications from inside the app."
+      "iosBody": "To keep receiving notifications on iPhone or iPad, first add the app to your home screen (Share → Add to Home Screen), then enable notifications from inside the app.",
+      "enableToTest": "Enable notifications to try it"
     }
   },
   "manager": {
@@ -491,6 +506,37 @@
     }
   },
   "admin": {
+    "presets": {
+      "title": "Ready-made logos",
+      "subtitle": "Manage ready-made team logos and profile avatars",
+      "add": "New logo / avatar",
+      "name": "Name",
+      "category": "Category",
+      "image": "Image",
+      "sort": "Order",
+      "created": "Ready-made image added",
+      "updated": "Ready-made image updated",
+      "deleted": "Ready-made image deleted",
+      "newTitle": "Add a ready-made image",
+      "newDesc": "Add a ready-made team logo or profile avatar",
+      "editTitle": "Edit ready-made image",
+      "editDesc": "Edit the ready-made image \"{{name}}\"",
+      "chooseImage": "Choose image",
+      "hideTitle": "Hide ready-made image",
+      "hideConfirm": "Hide \"{{name}}\"? It will no longer appear to users.",
+      "showTitle": "Show ready-made image",
+      "showConfirm": "Show \"{{name}}\"?",
+      "deleteTitle": "Delete ready-made image",
+      "deleteConfirm": "Delete \"{{name}}\"? This cannot be undone.",
+      "emptyTitle": "No ready-made images yet",
+      "emptyDesc": "Add the first ready-made logo or avatar",
+      "searchPlaceholder": "Search by name...",
+      "categories": {
+        "all": "All",
+        "team_logo": "Team logos",
+        "profile_avatar": "Profile avatars"
+      }
+    },
     "plans": {
       "title": "Plans & Pricing",
       "subtitle": "Manage subscription plans and discounts shown on the pricing page",
@@ -655,6 +701,11 @@
       "deleted": "Message deleted",
       "statusUpdated": "Message status updated",
       "actionFailed": "Could not perform the action"
+    },
+    "activity": {
+      "title": "Activity log",
+      "subtitle": "Track all events happening on the platform",
+      "allTypes": "All events"
     }
   },
   "player": {
@@ -824,7 +875,8 @@
       "send": "Send request",
       "sending": "Sending...",
       "applied": "Application sent successfully",
-      "applyFailed": "Failed to send request"
+      "applyFailed": "Failed to send request",
+      "browseMatches": "Browse open matches"
     },
     "applications": {
       "title": "My applications & invites",
@@ -1065,7 +1117,7 @@
       "remaining": "{{count}} left",
       "unassigned": "Unassigned",
       "team": "Team",
-      "tbd": "TBD",
+      "tbd": "To be determined",
       "col": {
         "team": "Team",
         "played": "P",
@@ -1278,12 +1330,11 @@
       "settingsFoulTThreshold": "Fouls to trigger",
       "settingsFoulTeamSection": "Team penalty shot",
       "settingsFoulRepeat": "Repeat after every threshold",
-      "settingsFoulResetScope": "Reset foul count",
-      "settingsFoulResetScopeHint": "Whether the count restarts each half or runs all match",
       "settingsFoulResetScope": {
         "match": "Whole match",
         "half": "Each half"
       },
+      "settingsFoulResetScopeHint": "Whether the count restarts each half or runs all match",
       "settingsSectionDanger": "Danger zone",
       "settingsSectionDangerDesc": "Visibility and deletion of this tournament",
       "settingsHideTitle": "Hide tournament",
@@ -1344,20 +1395,18 @@
       "cancel": "Cancel",
       "nameRequired": "Player name is required",
       "playerUpdated": "Player updated",
-
-          "editFreeTeam": "Edit free team",
-
-          "editFreeTeamDesc": "Edit the team name, logo, and origin city",
-
-          "editFreeTeamLogo": "Team logo",
-
-          "editFreeTeamChangeLogo": "Change logo",
-
-          "editFreeTeamCity": "Origin city",
-
-          "editFreeTeamSaved": "Free team saved",
-
-          "editFreeTeamNameRequired": "Team name is required",
+      "editFreeTeam": "Edit free team",
+      "editFreeTeamDesc": "Edit the team name, logo, and origin city",
+      "editFreeTeamLogo": "Team logo",
+      "editFreeTeamChangeLogo": "Change logo",
+      "editFreeTeamRemoveLogo": "Remove logo",
+      "editFreeTeamPresetLabel": "Or pick a ready-made logo",
+      "editFreeTeamPrimaryColor": "Primary color",
+      "editFreeTeamSecondaryColor": "Secondary color",
+      "editFreeTeamCity": "Origin city",
+      "editFreeTeamSaved": "Free team saved",
+      "editFreeTeamNameRequired": "Team name is required",
+      "editFreeTeamLockedNote": "After the first result only the team name and logo can be edited",
       "drawPendingDesc": "Hit the draw button to distribute teams into groups",
       "noFixtures": "No fixtures yet",
       "noFixturesDesc": "Generate the fixtures after teams and draw are ready",
@@ -1418,7 +1467,6 @@
       "planConflicts": "{{count}} conflicts",
       "planSkipped": "{{count}} skipped",
       "noStadium": "No stadium",
-      "tbd": "To be determined",
       "conflictsFound": "Conflicts detected",
       "conflictsFoundDesc": "Some matches clash with existing bookings or other matches. Choose how to continue.",
       "autoRoll": "Auto fill",
@@ -1507,6 +1555,7 @@
       "chipLive": "{{count}} live",
       "chipPostponed": "{{count}} postponed",
       "chipCancelled": "{{count}} cancelled",
+      "statusLabel": "Status",
       "status": {
         "pending": "Pending",
         "upcoming": "Upcoming",
@@ -1580,12 +1629,26 @@
       "scorers": "Top scorers",
       "assists": "Top assists",
       "cards": "Cards",
+      "yellowCards": "Yellow cards",
+      "redCards": "Red cards",
       "bestAttack": "Best attack",
       "bestAttackDesc": "{{goals}} goals",
       "bestDefense": "Best defense",
       "bestDefenseDesc": "{{goals}} conceded",
       "biggestWin": "Biggest win",
-      "biggestWinDesc": "{{home}} - {{away}}"
+      "biggestWinDesc": "{{home}} - {{away}}",
+      "settingsSectionReservation": "Field bookings",
+      "settingsSectionReservationDesc": "How field bookings are managed for tournament matches",
+      "settingsReservationMode": "Field booking system",
+      "settingsReservationModeHint": "Can be changed at any time during the tournament",
+      "reservationMode": {
+        "independent": {
+          "desc": "The field is booked automatically once the match time is set, without waiting for confirmation."
+        },
+        "integrated": {
+          "desc": "Saving the schedule keeps it as a draft without booking; the field is booked upon confirmation. Switching to automatic releases active bookings."
+        }
+      }
     },
     "result": {
       "title": "Record match result",
@@ -1814,7 +1877,8 @@
         "outcomeSaved": "Saved",
         "outcomeRecorded": "Outcome recorded",
         "allClear": "No pending foul penalties"
-      }
+      },
+      "statusNotStarted": "Not started yet"
     },
     "content": {
       "confirmDelete": "Are you sure you want to delete this?",
@@ -1922,7 +1986,7 @@
         "replied": "Replied",
         "closed": "Closed"
       }
-    },
+    },
     "export": {
       "openButton": "Export / Print",
       "title": "Tournament export & print",
@@ -2200,9 +2264,9 @@
         "postponed": "Postponed",
         "cancelled": "Cancelled"
       },
-      "notFoundDesc": "The tournament may not be published yet or the link is incorrect"
+      "notFoundDesc": "The tournament may not be published yet or the link is incorrect",
+      "matchDraftReservation": "Draft booking — field not reserved yet"
     },
-
     "statistics": {
       "tabs": {
         "overview": "Overview",
@@ -2548,7 +2612,8 @@
       "noClosures": "No closures",
       "noCancellationRequests": "No cancellation requests",
       "noCalendarTerrains": "No fields",
-      "noCalendarTerrainsDesc": "Add a field first to view its booking calendar"
+      "noCalendarTerrainsDesc": "Add a field first to view its booking calendar",
+      "noClosureDesc": "Add a closure for a specific date or full day"
     },
     "calendar": {
       "bookerSectionTitle": "Booker information",
@@ -2576,6 +2641,87 @@
       "booked": "Confirmed booking",
       "pending": "Pending",
       "subscription": "Subscription"
+    },
+    "bookings": {
+      "hidePast": "Hide past",
+      "viewPast": "View past",
+      "showAll": "Show all",
+      "pastBookingsExist": "You have past bookings",
+      "noUpcoming": "No upcoming bookings",
+      "noBookings": "No bookings",
+      "noBookingsDesc": "Bookings for your fields will appear here",
+      "noMatches": "No matches",
+      "noMatchesDesc": "Match bookings on your fields will appear here",
+      "title": "Bookings",
+      "subtitle": "Manage field bookings and matches on your fields",
+      "searchPlaceholder": "Search team, manager or field…",
+      "searchLabel": "Search team, manager or field",
+      "segmentBookings": "Field bookings",
+      "segmentMatches": "Matches",
+      "approved": "Confirmed",
+      "approvedUpcoming": "Upcoming confirmed",
+      "awaiting": "Awaiting",
+      "upcomingRevenue": "Upcoming revenue (MAD)",
+      "fieldMatches": "Matches on your fields",
+      "details": "Details",
+      "calendar": "Calendar",
+      "calendarHint": "You can manage this slot from the calendar",
+      "approvedToast": "Booking approved",
+      "rejectedToast": "Booking rejected",
+      "rejectTitle": "Reject booking?",
+      "rejectDesc": "Booking \"{{name}}\" will be rejected.",
+      "rejectConfirm": "Reject booking",
+      "booking": "Booking",
+      "vs": "vs",
+      "teamN": "Team #{{id}}"
+    },
+    "cancellations": {
+      "emptyDesc": "Cancellation requests will appear here",
+      "title": "Cancellation requests",
+      "subtitle": "Review and accept or reject cancellation requests",
+      "searchPlaceholder": "Search team, manager or reason…",
+      "searchLabel": "Search team, manager or reason",
+      "approvedToast": "Cancellation approved",
+      "rejectedToast": "Cancellation rejected",
+      "rejectTitle": "Reject cancellation request?",
+      "rejectDesc": "The cancellation request will be rejected and the booking stays in place.",
+      "rejectConfirm": "Reject request",
+      "statRequests": "Requests",
+      "statApproved": "Approved",
+      "statRejected": "Rejected",
+      "booking": "Booking",
+      "fieldFallback": "Field",
+      "noReason": "Cancellation request",
+      "requestN": "Cancellation request #{{id}}",
+      "details": "Details",
+      "teamManager": "Team / Manager",
+      "reason": "Reason",
+      "log": "Request log",
+      "accept": "Accept cancellation"
+    },
+    "closures": {
+      "created": "Time slot closed successfully",
+      "createFailed": "Could not close the time slot",
+      "drawerTitle": "Close a slot",
+      "drawerSubtitle": "Pick an available time to close",
+      "date": "Date",
+      "selectAvailableSlot": "Choose available slot",
+      "selectAvailableSlotHint": "Pick a start time then the duration to close",
+      "summary": "Closure summary",
+      "minutes": "min",
+      "reasonOptional": "Reason (optional)",
+      "reasonPlaceholder": "e.g. maintenance",
+      "confirm": "Confirm closure"
+    },
+    "common": {
+      "all": "All",
+      "allFields": "All fields",
+      "field": "Field",
+      "date": "Date",
+      "time": "Time",
+      "price": "Price",
+      "pending": "Pending",
+      "mad": "MAD"
     }
   },
   "ov": {
@@ -2927,9 +3073,18 @@
       "welcomeLine2": "Aji Nqsro",
       "description": "Sign in to search for fields, book them, and join matches near you.",
       "features": [
-        { "title": "Book your field easily", "description": "Pick the right time and book in seconds." },
-        { "title": "Join matches", "description": "Find nearby teams and join friendly matches." },
-        { "title": "Compete & climb the ranks", "description": "Build your team and compete with the best." }
+        {
+          "title": "Book your field easily",
+          "description": "Pick the right time and book in seconds."
+        },
+        {
+          "title": "Join matches",
+          "description": "Find nearby teams and join friendly matches."
+        },
+        {
+          "title": "Compete & climb the ranks",
+          "description": "Build your team and compete with the best."
+        }
       ],
       "followUs": "Follow us"
     },
@@ -2966,10 +3121,22 @@
     },
     "roles": {
       "back": "Change account type",
-      "manager": { "title": "Team Manager", "description": "Create your team, find opponents, and organize matches" },
-      "terrain_owner": { "title": "Field Owner", "description": "Add your field and receive bookings" },
-      "player": { "title": "Free Agent", "description": "Find matches and join as a solo player" },
-      "committee": { "title": "Organizing Committee", "description": "Organize official football tournaments" }
+      "manager": {
+        "title": "Team Manager",
+        "description": "Create your team, find opponents, and organize matches"
+      },
+      "terrain_owner": {
+        "title": "Field Owner",
+        "description": "Add your field and receive bookings"
+      },
+      "player": {
+        "title": "Free Agent",
+        "description": "Find matches and join as a solo player"
+      },
+      "committee": {
+        "title": "Organizing Committee",
+        "description": "Organize official football tournaments"
+      }
     },
     "fields": {
       "name": "Full name",
@@ -3016,7 +3183,8 @@
         "amateur": "Amateur",
         "semi_pro": "Semi-pro",
         "pro": "Professional"
-      }
+      },
+      "city": "Select city"
     },
     "submitRegister": "Submit join request",
     "submitRegisterBusy": "Submitting...",
@@ -3092,10 +3260,10 @@
       "available": "Available",
       "openNow": "Open now",
       "closed": "Closed",
-        "perHour": "per hour",
-        "book": "Book now",
-        "empty": "No fields available right now",
-        "emptyDesc": "New fields are added regularly — check back soon."
+      "perHour": "per hour",
+      "book": "Book now",
+      "empty": "No fields available right now",
+      "emptyDesc": "New fields are added regularly — check back soon."
     },
     "matches": {
       "title1": "Matches",
@@ -3335,6 +3503,39 @@
       "ctaButton": "Contact us"
     }
   },
+  "help": {
+    "page": {
+      "badge": "Help center",
+      "title": "Help Center",
+      "title1": "How can we",
+      "title2": "help you?",
+      "subtitle": "Get started with the platform, book fields, organize matches, and run tournaments.",
+      "ctaExplore": "Browse help topics",
+      "topicsTitle": "Browse help topics",
+      "topicsSubtitle": "Pick the topic you need and we\u2019ll point you in the right direction.",
+      "open": "Open",
+      "faqTitle": "Common questions",
+      "faqDesc": "Answers to the most frequently asked questions about accounts, matches, bookings, and tournaments.",
+      "faqButton": "Browse the FAQ",
+      "ctaTitle": "Still stuck?",
+      "ctaDesc": "Contact us directly and we\u2019ll help you out.",
+      "ctaButton": "Contact us"
+    }
+  },
+  "faq": {
+    "page": {
+      "badge": "FAQ",
+      "title": "Frequently Asked Questions",
+      "title1": "Frequently asked",
+      "title2": "questions",
+      "subtitle": "Everything you need to know about the platform.",
+      "ctaExplore": "Browse the answers",
+      "ctaTitle": "Didn\u2019t find your answer?",
+      "ctaDesc": "Explore the help center or reach out to us directly.",
+      "ctaHelp": "Help center",
+      "ctaButton": "Contact us"
+    }
+  },
   "pricing": {
     "page": {
       "badge": "Plans that fit your team",
@@ -3410,49 +3611,106 @@
       "title": "Our mission",
       "subtitle": "What we work on every day",
       "items": [
-        { "title": "Make playing easy", "description": "We connect players and teams with available fields and organized tournaments in their city, with a single tap." },
-        { "title": "Organize competition", "description": "We provide a structured, safe sports space where everyone books with confidence and competes with professionalism." },
-        { "title": "Simplify complexity", "description": "We cut the search hassle, secure bookings, and handle communication between all parties." }
+        {
+          "title": "Make playing easy",
+          "description": "We connect players and teams with available fields and organized tournaments in their city, with a single tap."
+        },
+        {
+          "title": "Organize competition",
+          "description": "We provide a structured, safe sports space where everyone books with confidence and competes with professionalism."
+        },
+        {
+          "title": "Simplify complexity",
+          "description": "We cut the search hassle, secure bookings, and handle communication between all parties."
+        }
       ]
     },
     "problem": {
       "title": "A problem we know well",
       "subtitle": "The daily challenges of everyone living amateur football",
       "items": [
-        { "title": "Endless searching", "description": "Jumping between calls and fields to find an available pitch at the right time." },
-        { "title": "No opponent", "description": "A team ready to play that can't find a rival at the same level and city." },
-        { "title": "Scattered tournaments", "description": "Hard to follow tournaments, know their schedules, or register on time." },
-        { "title": "Unreliable bookings", "description": "Last-minute cancellations and unconfirmed bookings waste everyone's time." }
+        {
+          "title": "Endless searching",
+          "description": "Jumping between calls and fields to find an available pitch at the right time."
+        },
+        {
+          "title": "No opponent",
+          "description": "A team ready to play that can't find a rival at the same level and city."
+        },
+        {
+          "title": "Scattered tournaments",
+          "description": "Hard to follow tournaments, know their schedules, or register on time."
+        },
+        {
+          "title": "Unreliable bookings",
+          "description": "Last-minute cancellations and unconfirmed bookings waste everyone's time."
+        }
       ]
     },
     "how": {
       "title": "How it all works",
       "subtitle": "Four simple steps from your phone to the pitch",
       "steps": [
-        { "title": "Book the field", "description": "Pick your city, field, and time, then confirm your booking in seconds." },
-        { "title": "Find an opponent", "description": "Find a team at your level and city and send a match request." },
-        { "title": "Join a tournament", "description": "Register your team in an open tournament and follow results and standings live." },
-        { "title": "Play and enjoy", "description": "Get final confirmation, hit the pitch, and enjoy the match." }
+        {
+          "title": "Book the field",
+          "description": "Pick your city, field, and time, then confirm your booking in seconds."
+        },
+        {
+          "title": "Find an opponent",
+          "description": "Find a team at your level and city and send a match request."
+        },
+        {
+          "title": "Join a tournament",
+          "description": "Register your team in an open tournament and follow results and standings live."
+        },
+        {
+          "title": "Play and enjoy",
+          "description": "Get final confirmation, hit the pitch, and enjoy the match."
+        }
       ]
     },
     "audience": {
       "title": "A platform for everyone",
       "subtitle": "Every side finds its place and its tools",
       "roles": {
-        "players": { "title": "Players", "description": "Follow teams and tournaments, discover nearby matches, and join the football community." },
-        "managers": { "title": "Team managers", "description": "Add your team, publish match requests, and accept challenges from a simple dashboard." },
-        "owners": { "title": "Field owners", "description": "List your field, receive bookings, and manage schedules and slots in one place." },
-        "committees": { "title": "Tournament committees", "description": "Create your tournaments, manage registration and teams, and publish fixtures and results professionally." }
+        "players": {
+          "title": "Players",
+          "description": "Follow teams and tournaments, discover nearby matches, and join the football community."
+        },
+        "managers": {
+          "title": "Team managers",
+          "description": "Add your team, publish match requests, and accept challenges from a simple dashboard."
+        },
+        "owners": {
+          "title": "Field owners",
+          "description": "List your field, receive bookings, and manage schedules and slots in one place."
+        },
+        "committees": {
+          "title": "Tournament committees",
+          "description": "Create your tournaments, manage registration and teams, and publish fixtures and results professionally."
+        }
       }
     },
     "benefits": {
       "title": "Benefits that make the difference",
       "subtitle": "Why thousands choose AGUI NKSROU",
       "items": [
-        { "title": "Instant, secure booking", "description": "Booking confirmation and direct contact with the field owner, no middleman." },
-        { "title": "A trusted environment", "description": "Verified accounts and clear approval status for every party on the platform." },
-        { "title": "Organized information", "description": "Schedules, prices, matches, and standings all in one place." },
-        { "title": "A growing community", "description": "Join a network of teams, players, and fields across Morocco." }
+        {
+          "title": "Instant, secure booking",
+          "description": "Booking confirmation and direct contact with the field owner, no middleman."
+        },
+        {
+          "title": "A trusted environment",
+          "description": "Verified accounts and clear approval status for every party on the platform."
+        },
+        {
+          "title": "Organized information",
+          "description": "Schedules, prices, matches, and standings all in one place."
+        },
+        {
+          "title": "A growing community",
+          "description": "Join a network of teams, players, and fields across Morocco."
+        }
       ]
     },
     "vision": {
@@ -3477,8 +3735,11 @@
       "location": "City or area",
       "locationPlaceholder": "Choose a city or area",
       "datePlaceholder": "Choose a date",
+      "time": "Time",
       "timePlaceholder": "Choose a time",
       "typePlaceholder": "Field type",
+      "sheetTitle": "Search fields",
+      "mobileSummaryPlaceholder": "City, date & time",
       "types": {
         "5v5": "5v5",
         "7v7": "7v7",
@@ -3509,6 +3770,7 @@
         "open": "Open-air"
       },
       "sortLabel": "Sort by",
+      "sortView": "Sort & view",
       "sort": {
         "nearest": "Nearest",
         "priceAsc": "Price: low to high",
@@ -3820,5 +4082,469 @@
     "noTerrains": "No fields yet",
     "noTerrainsDesc": "Add your first field to start receiving bookings",
     "addField": "Add field"
+  },
+  "playerTeamRequest": {
+    "title": "Team join requests",
+    "subtitle": "Track your requests to join teams",
+    "submitNew": "New request",
+    "teamName": "Team name",
+    "teamNamePlaceholder": "e.g. Atlas Lions",
+    "message": "Message",
+    "messagePlaceholder": "Introduce yourself to the team...",
+    "noTeamName": "Unnamed team",
+    "tab": {
+      "all": "All",
+      "pending": "Pending",
+      "approved": "Approved"
+    },
+    "pending": "Pending review",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "noRequest": "No requests yet",
+    "emptyTab": "Nothing here yet",
+    "submittedAt": "Submitted",
+    "handledBy": "Handled by",
+    "responseDate": "Response date",
+    "rejectionReason": "Rejection reason",
+    "approvedMessage": "Your request was approved",
+    "cancel": "Cancel request",
+    "cancelConfirm": "Cancel this request?",
+    "cancelledSuccess": "Request cancelled",
+    "requestSubmitted": "Request submitted"
+  },
+  "dash": {
+    "myMatches": "My matches",
+    "allMatchRequestsAndTheirStatus": "All match requests and their status",
+    "noMatchesInThisCategory": "No matches in this category",
+    "all": "All",
+    "confirmed": "Confirmed",
+    "open": "Open",
+    "live": "Live",
+    "finished": "Finished",
+    "awaitingResult": "Awaiting result",
+    "cancelled": "Cancelled",
+    "lineUp": "Line-up",
+    "startMatch": "Start match",
+    "recordScore": "Record score",
+    "reviewScore": "Review score",
+    "cancelRequest": "Cancel request",
+    "details": "Details",
+    "newMatch": "New match",
+    "searchTeamOrField": "Search team or field…",
+    "searchTeamOrField2": "Search team or field",
+    "clearSearch": "Clear search",
+    "city": "City",
+    "allCities": "All cities",
+    "category": "Category",
+    "level": "Level",
+    "field": "Field",
+    "playFormat": "Play format",
+    "date": "Date",
+    "sort": "Sort",
+    "findAnOpponent": "Find an opponent",
+    "teamsLookingForFriendlyMatchesPickYourNextOpponent": "Teams looking for friendly matches — pick your next opponent",
+    "noMatchesAvailable": "No matches available",
+    "adjustTheFiltersOrComeBackLaterYouCanAlsoPostYourOwnMatchRequest": "Adjust the filters or come back later — you can also post your own match request",
+    "adults": "Adults",
+    "teens": "Teens",
+    "children": "Children",
+    "beginner": "Beginner",
+    "amateur": "Amateur",
+    "semiPro": "Semi-pro",
+    "pro": "Pro",
+    "filters": "Filters",
+    "allCategories": "All categories",
+    "allLevels": "All levels",
+    "allFields": "All fields",
+    "soonest": "Soonest",
+    "newest": "Newest",
+    "clearAll": "Clear all",
+    "hostTeam": "Host team",
+    "yourTeam": "Your team",
+    "opponent": "Opponent",
+    "hostTeamManager": "Host team manager",
+    "dateTime": "Date & time",
+    "close": "Close",
+    "vs": "vs",
+    "cancel": "Cancel",
+    "postAMatchRequest": "Post a match request",
+    "acceptMatch": "Accept match",
+    "searchPlayerByName": "Search player by name…",
+    "searchPlayerByName2": "Search player by name",
+    "position": "Position",
+    "invitePlayer": "Invite player",
+    "chooseAnOpenMatch": "Choose an open match",
+    "inviteMessageOptional": "Invite message (optional)",
+    "hiWeWouldLoveToHaveYouInOurNextMatch": "Hi, we would love to have you in our next match…",
+    "playerProfile": "Player profile",
+    "playerDetailsFromThePlatform": "Player details from the platform",
+    "chooseAHostMatchToSeeRequests": "Choose a host match to see requests",
+    "chooseAMatchToSeePlayerRequests": "Choose a match to see player requests",
+    "whenAPlayerAsksToJoinYourMatchTheirRequestAppearsHere": "When a player asks to join your match, their request appears here",
+    "noRequestsForThisMatch": "No requests for this match",
+    "searchFreeAgentsAndInviteWhoeverFits": "Search free agents and invite whoever fits",
+    "freeAgents": "Free agents",
+    "findPlayersToJoinYourTeamMatches": "Find players to join your team matches",
+    "noPlayersMatchTheSearch": "No players match the search",
+    "adjustTheFiltersAndTryAgain": "Adjust the filters and try again",
+    "goalkeeper": "Goalkeeper",
+    "defender": "Defender",
+    "midfielder": "Midfielder",
+    "striker": "Striker",
+    "midfield": "Midfield",
+    "points": "Points",
+    "matches": "Matches",
+    "preferredFoot": "Preferred foot",
+    "allPositions": "All positions",
+    "noOpenMatches": "No open matches",
+    "createAMatchRequestFirstToInvitePlayers": "Create a match request first to invite players",
+    "bio": "Bio",
+    "playerInvitation": "Player invitation",
+    "chooseAMatch": "Choose a match…",
+    "reject": "Reject",
+    "acceptPlayer": "Accept player",
+    "invite": "Invite",
+    "profile": "Profile",
+    "teamProfile": "Team profile",
+    "noTeamLinkedToYourAccountYet": "No team linked to your account yet",
+    "introduceYourTeamToManagersAndPlayers": "Introduce your team to managers and players",
+    "changeLogo": "Change logo",
+    "teamName": "Team name",
+    "members": "Members",
+    "homeField": "Home field",
+    "regionProvince": "Region / Province",
+    "sportsAssociation": "Sports association",
+    "aboutTheTeam": "About the team",
+    "tellPeopleAboutYourTeamHistoryAndAchievements": "Tell people about your team, history and achievements…",
+    "wDL": "W / D / L",
+    "goals": "Goals",
+    "primaryColor": "Primary color",
+    "secondaryColor": "Secondary color",
+    "teamInformation": "Team information",
+    "yourTeamBasicInfo": "Your team basic info",
+    "unspecified": "Unspecified",
+    "teamColors": "Team colors",
+    "livePreviewOfYourJersey": "Live preview of your jersey",
+    "teamLogo": "Team logo",
+    "jpgOrPngUpTo2mb": "JPG or PNG up to 2MB",
+    "theLogoAppearsOnTeamCardsAndTheLeaderboard": "The logo appears on team cards and the leaderboard",
+    "name": "Name",
+    "shirtNumber": "Shirt number",
+    "phone": "Phone",
+    "notes": "Notes",
+    "teamPlayers": "Team players",
+    "manageYourTeamSquad": "Manage your team squad",
+    "noPlayersYet": "No players yet",
+    "addYourTeamPlayersToManageThemHere": "Add your team players to manage them here",
+    "player": "Player",
+    "searchByNameNumberOrPhone": "Search by name, number or phone…",
+    "searchByNameNumberOrPhone2": "Search by name, number or phone",
+    "tryAnotherSearchTermOrChangeThePosition": "Try another search term or change the position",
+    "playerInfo": "Player info",
+    "playerInformationInYourTeam": "Player information in your team",
+    "goalkeepers": "Goalkeepers",
+    "defenders": "Defenders",
+    "midfielders": "Midfielders",
+    "attackers": "Attackers",
+    "addAMemberToYourSquad": "Add a member to your squad",
+    "number": "Number",
+    "status": "Status",
+    "membership": "Membership",
+    "whatsappNumber": "WhatsApp number",
+    "toSendMatchNotificationsViaWhatsapp": "To send match notifications via WhatsApp",
+    "whatsapp": "WhatsApp",
+    "starter": "Starter",
+    "addPlayer": "Add player",
+    "addFirstPlayer": "Add first player",
+    "squadComposition": "Squad composition",
+    "noDataYet": "No data yet",
+    "clearSearchAndFilters": "Clear search and filters",
+    "starter2": "Starter",
+    "importanceInTheTeam": "Importance in the team",
+    "newBooking": "New booking",
+    "bookAFieldForYourTeamTrainingOrMatch": "Book a field for your team training or match",
+    "dayOfWeek": "Day of week",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "bookingDate": "Booking date",
+    "startTime": "Start time",
+    "endTime": "End time",
+    "requestCancellation": "Request cancellation",
+    "cancellationReasonOptional": "Cancellation reason (optional)",
+    "eGScheduleConflict": "e.g. schedule conflict…",
+    "bookingDetails": "Booking details",
+    "myBookings": "My bookings",
+    "fieldBookingsForYourTeam": "Field bookings for your team",
+    "noBookingsInThisCategory": "No bookings in this category",
+    "bookFieldsForYourTeamTrainingAndMatches": "Book fields for your team training and matches",
+    "training": "Training",
+    "privateBooking": "Private booking",
+    "match": "Match",
+    "sunday": "Sunday",
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "upcoming": "Upcoming",
+    "past": "Past",
+    "cancelled2": "Cancelled",
+    "weeklySubscription": "Weekly subscription",
+    "active": "Active",
+    "ended": "Ended",
+    "inactive": "Inactive",
+    "oneTimeBooking": "One-time booking",
+    "field3": "Field",
+    "time": "Time",
+    "type": "Type",
+    "price": "Price",
+    "chooseAField": "Choose a field…",
+    "bookingType": "Booking type",
+    "bookingSystem": "Booking system",
+    "chooseADay": "Choose a day…",
+    "theCancellationRequestWillBeSentToTheFieldOwnerForReviewTheBookingStaysValidUntilTheyApproveIt": "The cancellation request will be sent to the field owner for review. The booking stays valid until they approve it.",
+    "goBack": "Go back",
+    "cancelBooking": "Cancel booking",
+    "convertToMatch": "Convert to match",
+    "awaitingFieldOwnerConfirmation": "Awaiting field owner confirmation",
+    "settings": "Settings",
+    "notificationPreferencesAndYourAccountInfo": "Notification preferences and your account info",
+    "email": "Email",
+    "accountInformation": "Account information",
+    "yourLoginDetails": "Your login details",
+    "profile2": "Profile",
+    "yourPersonalInfoAndAccount": "Your personal info and account",
+    "fullName": "Full name",
+    "phoneNumber": "Phone number",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "myTeam": "My team",
+    "personalInformation": "Personal information",
+    "thisInformationAppearsForYourAccountOnThePlatform": "This information appears for your account on the platform",
+    "thisNumberIsOnWhatsapp": "This number is on WhatsApp",
+    "soManagersCanReachYouEasily": "So managers can reach you easily",
+    "changePassword": "Change password",
+    "leaveBothFieldsEmptyToKeepYourCurrentPassword": "Leave both fields empty to keep your current password",
+    "searchByActorNameOrEmail": "Search by actor name or email...",
+    "noEvents": "No events",
+    "eventsHappeningOnThePlatformWillAppearHere": "Events happening on the platform will appear here.",
+    "event": "Event",
+    "actor": "Actor",
+    "details2": "Details",
+    "system": "System",
+    "cities": "Cities",
+    "manageCitiesAndLocations": "Manage cities and locations",
+    "searchCities": "Search cities...",
+    "noCities": "No cities",
+    "addTheFirstCityToManageLocations": "Add the first city to manage locations.",
+    "nameDefault": "Name (default)",
+    "eGCasablanca": "e.g. Casablanca",
+    "nameInArabic": "Name in Arabic",
+    "casablanca": "Casablanca",
+    "nameInFrench": "Name in French",
+    "nameInEnglish": "Name in English",
+    "lowerNumbersAppearFirst": "Lower numbers appear first",
+    "active2": "Active",
+    "hidden": "Hidden",
+    "hideCity": "Hide city",
+    "hide": "Hide",
+    "showCity": "Show city",
+    "show": "Show",
+    "deleteCity": "Delete city",
+    "fields": "Fields",
+    "teams": "Teams",
+    "players": "Players",
+    "addCity": "Add city",
+    "moderationReports": "Moderation & reports",
+    "reviewReportsAndManageHiddenContent": "Review reports and manage hidden content",
+    "noReportsInThisState": "No reports in this state",
+    "whenUsersReportContentTheReportsAppearHere": "When users report content, the reports appear here.",
+    "noHiddenContent": "No hidden content",
+    "allContentIsCurrentlyVisible": "All content is currently visible.",
+    "comment": "Comment",
+    "chatMessage": "Chat message",
+    "playerReview": "Player review",
+    "fieldReview": "Field review",
+    "team": "Team",
+    "announcement": "Announcement",
+    "activity": "Activity",
+    "booking": "Booking",
+    "pendingReview": "Pending review",
+    "reviewed": "Reviewed",
+    "resolved": "Resolved",
+    "dismissed": "Dismissed",
+    "hideContentAndResolveReport": "Hide content and resolve report?",
+    "theReportedContentWillBeHiddenFromEveryoneAndTheReportResolved": "The reported content will be hidden from everyone and the report resolved.",
+    "hideResolve": "Hide & resolve",
+    "reportReason": "Report reason",
+    "content": "Content",
+    "reportedBy": "Reported by",
+    "actions": "Actions",
+    "hiddenContent": "Hidden content",
+    "contentOwner": "Content owner",
+    "hiddenOn": "Hidden on",
+    "reports": "Reports",
+    "contentDeleted": "Content deleted",
+    "resolve": "Resolve",
+    "dismiss": "Dismiss",
+    "review": "Review",
+    "enterTeamName": "Enter team name...",
+    "enterRejectionReason": "Enter rejection reason...",
+    "playerRequests": "Player requests",
+    "managePlayersRequestsToJoinTeams": "Manage players requests to join teams",
+    "searchByName": "Search by name...",
+    "noRequestsRightNow": "No requests right now",
+    "changeTheFilterOrSearchForSomethingElse": "Change the filter or search for something else.",
+    "playerRequestDetails": "Player request details",
+    "underReview": "Under review",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "cancelled3": "Cancelled",
+    "approveThisRequest": "Approve this request?",
+    "aNewTeamWillBeCreatedAndThePlayerLinkedToIt": "A new team will be created and the player linked to it.",
+    "approve": "Approve",
+    "player3": "Player",
+    "submittedOn": "Submitted on",
+    "approveRequest": "Approve request",
+    "aNewTeamWillBeCreatedAndThePlayerLinkedToIt2": "A new team will be created and the player linked to it",
+    "newTeamNameOptional": "New team name (optional)",
+    "rejectRequest": "Reject request",
+    "rejectionReason": "Rejection reason",
+    "playerMessage": "Player message",
+    "reviewedBy": "Reviewed by",
+    "facilities": "Facilities",
+    "facilitiesAvailableAtFieldsSuchAsSeatsLightingAndBathrooms": "Facilities available at fields such as seats, lighting and bathrooms",
+    "noFacilities": "No facilities",
+    "addTheFirstFacilityToUseOnFields": "Add the first facility to use on fields.",
+    "facilitiesAreShownOnTheFieldDetailPage": "Facilities are shown on the field detail page",
+    "eGNightLighting": "e.g. night lighting",
+    "iconEmoji": "Icon (emoji)",
+    "aSmallIconShownNextToTheFacilityName": "A small icon shown next to the facility name",
+    "addFacility": "Add facility",
+    "fieldFacility": "Field facility",
+    "platformSettings": "Platform settings",
+    "controlPlatformDataRulesAndFeatures": "Control platform data, rules and features",
+    "platformInformation": "Platform information",
+    "nameContactDetailsSocialAccounts": "Name, contact details, social accounts",
+    "featureToggles": "Feature toggles",
+    "controlTheFeaturesAvailableToUsers": "Control the features available to users",
+    "businessRules": "Business rules",
+    "limitsAndDefaultValuesForOperations": "Limits and default values for operations",
+    "announcementBar": "Announcement bar",
+    "aBannerShownAtTheTopOfTheSite": "A banner shown at the top of the site",
+    "info": "Info",
+    "warning": "Warning",
+    "success": "Success",
+    "unsavedChanges": "Unsaved changes",
+    "changesSaved": "Changes saved",
+    "revenue": "Revenue",
+    "bookings": "Bookings",
+    "guest": "Guest",
+    "mad": "MAD",
+    "trainingSession": "Training session",
+    "individualBooking": "Individual booking",
+    "customerInformation": "Customer information",
+    "guestCustomerNoAccount": "Guest customer (no account)",
+    "totalPrice": "Total price",
+    "managerNotes": "Manager notes",
+    "bookingLog": "Booking log",
+    "approveBooking": "Approve booking",
+    "mad3": "MAD",
+    "confirm": "Confirm",
+    "inviteSent": "Invite sent",
+    "joinRequest": "Join request",
+    "requests": "Requests",
+    "startTheMatchNow": "Start the match now?",
+    "matchStartedSuccessfully": "Match started successfully",
+    "cancelThisMatchRequest": "Cancel this match request?",
+    "matchRequestCancelled": "Match request cancelled",
+    "postTheFirstMatchRequestToGetStarted": "Post the first match request to get started",
+    "tryAnotherCategory": "Try another category",
+    "matchAcceptedSuccessfully": "Match accepted successfully",
+    "couldNotAcceptTheMatch": "Could not accept the match",
+    "contactTheHostTeamToAgreeOnTheDetails": "Contact the host team to agree on the details",
+    "unspecifiedField": "Unspecified field",
+    "confirming": "Confirming…",
+    "confirmMatch": "Confirm match",
+    "chooseAMatchToDirectTheInvitationTo": "Choose a match to direct the invitation to",
+    "invitationSentToThePlayerSuccessfully": "Invitation sent to the player successfully",
+    "couldNotSendTheInvitation": "Could not send the invitation",
+    "noTime": "No time",
+    "sending": "Sending…",
+    "sendInvitation": "Send invitation",
+    "freeAgent": "Free agent",
+    "couldNotLoadRequests": "Could not load requests",
+    "playerAccepted": "Player accepted",
+    "incomingRequests": "Incoming requests",
+    "searchPlayers": "Search players",
+    "bookingRequestSent": "Booking request sent",
+    "couldNotCreateTheBooking": "Could not create the booking",
+    "theFieldIsClosed": "The field is closed",
+    "sendBookingRequest": "Send booking request",
+    "cancellationRequestSentToTheFieldOwner": "Cancellation request sent to the field owner",
+    "sendRequest": "Send request",
+    "convertThisBookingIntoAMatchRequestLookingForAnOpponent": "Convert this booking into a match request looking for an opponent?",
+    "matchRequestCreated": "Match request created",
+    "thisBookingWasCompleted": "This booking was completed",
+    "thisBookingWasCancelled": "This booking was cancelled",
+    "teamInfoUpdated": "Team info updated",
+    "logoUploaded": "Logo uploaded",
+    "saving": "Saving…",
+    "saveChanges": "Save changes",
+    "uploading": "Uploading…",
+    "uploadNewLogo": "Upload new logo",
+    "unspecifiedCategory": "Unspecified category",
+    "playerInfoUpdated": "Player info updated",
+    "playerAdded": "Player added",
+    "couldNotSave": "Could not save",
+    "save": "Save",
+    "playerRemoved": "Player removed",
+    "settingsSavedSuccessfully": "Settings saved successfully",
+    "couldNotSaveSettings": "Could not save settings",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "enableMaintenanceModeThePlatformWillBeHiddenFromAllUsers": "Enable maintenance mode? The platform will be hidden from all users.",
+    "saveAllChanges": "Save all changes",
+    "requestRejected": "Request rejected",
+    "matchRequestsAvailable": "{{count}} match requests available",
+    "playersAvailable": "{{count}} players available to join",
+    "matchAgainst": "Match against {{name}}",
+    "inviteSubtitle": "Send an invitation to {{name}} to join one of your open matches",
+    "removePlayerConfirm": "Remove {{name}} from the team?",
+    "perTeamPrice": "({{price}} MAD)",
+    "weeklyOn": "{{day}} (every week)",
+    "valueRange": "{{key}}: value must be between {{min}} and {{max}}",
+    "accountActive": "Account active",
+    "profileUpdated": "Profile updated",
+    "noEmail": "No email",
+    "whatsappEnabled": " • WhatsApp enabled",
+    "cityUpdatedSuccessfully": "City updated successfully",
+    "cityAddedSuccessfully": "City added successfully",
+    "cityDeletedSuccessfully": "City deleted successfully",
+    "editCity": "Edit city",
+    "addNewCity": "Add new city",
+    "addANewCityToThePlatform": "Add a new city to the platform",
+    "reportStatusUpdated": "Report status updated",
+    "contentHiddenAndReportResolved": "Content hidden and report resolved",
+    "contentIsVisibleAgain": "Content is visible again",
+    "noText": "No text",
+    "requestApprovedSuccessfully": "Request approved successfully",
+    "facilityUpdated": "Facility updated",
+    "facilityAdded": "Facility added",
+    "permanentlyDeleteThisFacility": "Permanently delete this facility?",
+    "facilityDeleted": "Facility deleted",
+    "bookingApproved": "Booking approved",
+    "bookingRejected": "Booking rejected",
+    "customer": "Customer",
+    "noContactInfo": "No contact info",
+    "messageTheCustomerViaWhatsapp": "Message the customer via WhatsApp",
+    "notifyTheManagerViaWhatsapp": "Notify the manager via WhatsApp",
+    "unknownTeam": "Unknown team",
+    "manager": "Manager",
+    "hideCityConfirm": "Hide \"{{name}}\"? The city will no longer appear in the usual lists.",
+    "showCityConfirm": "Show \"{{name}}\" again?",
+    "deleteCityConfirm": "Permanently delete \"{{name}}\"? This cannot be undone.",
+    "editCityData": "Edit details for \"{{name}}\""
   }
 }

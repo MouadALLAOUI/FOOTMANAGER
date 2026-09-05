@@ -4,6 +4,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Button, Field, FieldRow, SectionTitle, Skeleton, Toggle, inputClass } from '../../../components/dashboard/ui'
 import ProfileImageUploader from '../../../components/profile/ProfileImageUploader'
+import ProfileAppearance from '../../../components/profile/ProfileAppearance'
 import { useAuth } from '../../../context/AuthContext'
 import { useToast } from '../../../components/ui/Toast'
 
@@ -82,7 +83,7 @@ export default function Profile() {
       <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-l from-[#0b1220] to-[#12321f] p-7 text-white shadow-[0_18px_40px_rgba(15,23,42,0.22)]">
         <div className="pointer-events-none absolute -end-16 -top-16 size-56 rounded-full bg-green-500/20 blur-3xl" />
         <div className="relative flex flex-wrap items-center gap-5">
-          <ProfileImageUploader user={user} size="size-20" rounded="rounded-3xl" fontSize="text-3xl" />
+          <ProfileImageUploader user={user} size="size-20" rounded="rounded-full" fontSize="text-3xl" />
           <div className="min-w-0">
             <p className="text-xl font-black">{user?.name}</p>
             <p className="mt-1 text-xs font-semibold text-white/50">
@@ -163,6 +164,8 @@ export default function Profile() {
           </Field>
         </div>
       </div>
+
+      <ProfileAppearance />
 
       {error && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
     </div>

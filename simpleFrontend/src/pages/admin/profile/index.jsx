@@ -5,6 +5,7 @@ import api from '../../../api/client'
 import { useAuth } from '../../../context/AuthContext'
 import { PageHeader, Button, Card, Field, Input, Toggle, Badge, Skeleton } from '../../../components/admin/ui'
 import ProfileImageUploader from '../../../components/profile/ProfileImageUploader'
+import ProfileAppearance from '../../../components/profile/ProfileAppearance'
 import { toast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 
@@ -140,12 +141,14 @@ export default function Profile() {
               حفظ التغييرات
             </Button>
           </div>
+
+          <ProfileAppearance />
         </div>
 
         <div>
           <Card title="حسابك">
             <div className="flex flex-col items-center gap-3 py-4 text-center">
-              <ProfileImageUploader user={user} size="size-20" rounded="rounded-3xl" fontSize="text-3xl" />
+              <ProfileImageUploader user={user} size="size-20" rounded="rounded-full" fontSize="text-3xl" />
               <div>
                 <p className="text-base font-black text-slate-900">{user?.name}</p>
                 <p className="text-xs text-slate-400" dir="ltr">{user?.email}</p>

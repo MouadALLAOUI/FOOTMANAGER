@@ -85,9 +85,9 @@ export default function Cities() {
 
   const filterTabs = useMemo(() => {
     const tabs = [
-      { value: 'all', label: 'الكل' },
-      { value: 'active', label: 'نشطة' },
-      { value: 'hidden', label: 'مخفي' },
+      { value: 'all', label: t('dash.all') },
+      { value: 'active', label: t('dash.active2') },
+      { value: 'hidden', label: t('dash.hidden') },
     ]
     if (activeCount !== undefined) {
       tabs[1].count = activeCount
@@ -124,10 +124,10 @@ export default function Cities() {
     try {
       if (editing) {
         const res = await api.put(`/admin/cities/${editing.id}`, form)
-        toast.success(res.data.message || 'تم تحديث المدينة بنجاح')
+        toast.success(res.data.message || t('dash.cityUpdatedSuccessfully'))
       } else {
         const res = await api.post('/admin/cities', form)
-        toast.success(res.data.message || 'تمت إضافة المدينة بنجاح')
+        toast.success(res.data.message || t('dash.cityAddedSuccessfully'))
       }
       setFormOpen(false)
       refetch()
@@ -155,17 +155,17 @@ export default function Cities() {
 
       if (city.is_active) {
         confirm.run(action, {
-          title: 'إخفاء المدينة',
-          description: `هل أنت متأكد من إخفاء "${city.name}"؟ لن تظهر المدينة في القوائم المعتادة.`,
-          confirmLabel: 'إخفاء',
+          title: t('dash.hideCity'),
+          description: t('dash.hideCityConfirm', { name: city.name }),
+          confirmLabel: t('dash.hide'),
           tone: 'danger',
           icon: EyeOff,
         })
       } else {
         confirm.run(action, {
-          title: 'إظهار المدينة',
-          description: `هل تريد إظهار "${city.name}" مرة أخرى؟`,
-          confirmLabel: 'إظهار',
+          title: t('dash.showCity'),
+          description: t('dash.showCityConfirm', { name: city.name }),
+          confirmLabel: t('dash.show'),
           tone: 'default',
           icon: Eye,
         })
@@ -179,7 +179,7 @@ export default function Cities() {
       const action = async () => {
         try {
           const res = await api.delete(`/admin/cities/${city.id}`)
-          toast.success(res.data.message || 'تم حذف المدينة بنجاح')
+          toast.success(res.data.message || t('dash.cityDeletedSuccessfully'))
           refetch()
         } catch (e) {
           toastApiError(e, t)
@@ -187,9 +187,9 @@ export default function Cities() {
       }
 
       confirm.run(action, {
-        title: 'حذف المدينة',
-        description: `هل أنت متأكد من حذف "${city.name}" نهائياً؟ هذا الإجراء لا يمكن التراجع عنه.`,
-        confirmLabel: 'حذف',
+        title: t('dash.deleteCity'),
+        description: t('dash.deleteCityConfirm', { name: city.name }),
+        confirmLabel: t('common.delete'),
         tone: 'danger',
         icon: Trash2,
       })
@@ -201,7 +201,7 @@ export default function Cities() {
     () => [
       {
         key: 'name',
-        label: 'المدينة',
+        label: t('dash.city'),
         render: (row) => (
           <div className="flex items-center gap-3">
             <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-green-500/15 to-emerald-500/15">
@@ -218,14 +218,14 @@ export default function Cities() {
       },
       {
         key: 'is_active',
-        label: 'الحالة',
+        label: t('dash.status'),
         render: (row) => (
           <StatusBadge status={row.is_active ? 'active' : 'hidden'} />
         ),
       },
       {
         key: 'stadiums_count',
-        label: 'الملاعب',
+        label: t('dash.fields'),
         render: (row) => (
           <div className="flex items-center gap-1.5 text-slate-600">
             <Building2 className="size-3.5 text-slate-400" />
@@ -235,7 +235,7 @@ export default function Cities() {
       },
       {
         key: 'teams_count',
-        label: 'الفرق',
+        label: t('dash.teams'),
         render: (row) => (
           <div className="flex items-center gap-1.5 text-slate-600">
             <Users className="size-3.5 text-slate-400" />
@@ -245,7 +245,7 @@ export default function Cities() {
       },
       {
         key: 'players_count',
-        label: 'اللاعبون',
+        label: t('dash.players'),
         render: (row) => (
           <div className="flex items-center gap-1.5 text-slate-600">
             <User className="size-3.5 text-slate-400" />
@@ -273,7 +273,7 @@ export default function Cities() {
               size="sm"
               className="!h-8 !px-2.5"
               onClick={() => toggleActive(row)}
-              title={row.is_active ? 'إخفاء' : 'إظهار'}
+              title={row.is_active ? t('dash.hide') : t('dash.show')}
             >
               {row.is_active ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
             </Button>
@@ -298,12 +298,12 @@ export default function Cities() {
   return (
     <div>
       <PageHeader
-        title="المدن"
-        subtitle="إدارة المدن والمواقع الجغرافية"
+        title={t('dash.cities')}
+        subtitle={t('dash.manageCitiesAndLocations')}
         actions={
           <Button onClick={openCreate}>
             <Plus className="size-4" />
-            إضافة مدينة
+            {t('dash.addCity')}
           </Button>
         }
       />
@@ -321,39 +321,39 @@ export default function Cities() {
           onTabChange={setStatusFilter}
           search={search}
           onSearch={setSearch}
-          searchPlaceholder="بحث عن مدينة..."
+          searchPlaceholder={t('dash.searchCities')}
           page={page}
           lastPage={lastPage}
           total={total}
           perPage={perPage}
           onPageChange={setPage}
-          emptyTitle="لا توجد مدن"
-          emptyDescription="أضف أول مدينة لإدارة المواقع الجغرافية."
+          emptyTitle={t('dash.noCities')}
+          emptyDescription={t('dash.addTheFirstCityToManageLocations')}
         />
       )}
 
       <Modal
         open={formOpen}
         onClose={() => setFormOpen(false)}
-        title={editing ? 'تعديل المدينة' : 'إضافة مدينة جديدة'}
-        subtitle={editing ? `تعديل بيانات "${editing.name}"` : 'أضف مدينة جديدة للمنصة'}
+        title={editing ? t('dash.editCity') : t('dash.addNewCity')}
+        subtitle={editing ? t('dash.editCityData', { name: editing.name }) : t('dash.addANewCityToThePlatform')}
         footer={
           <>
             <Button variant="outline" onClick={() => setFormOpen(false)}>
-              {t('common.cancel', 'إلغاء')}
+              {t('common.cancel', t('dash.cancel'))}
             </Button>
             <Button loading={busy} onClick={submitForm}>
-              {busy ? 'جارٍ الحفظ...' : t('common.save', 'حفظ')}
+              {busy ? 'جارٍ الحفظ...' : t('common.save', t('dash.save'))}
             </Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Field label="الاسم (افتراضي)" required>
+          <Field label={t('dash.nameDefault')} required>
             <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="مثال: الدار البيضاء"
+              placeholder={t('dash.eGCasablanca')}
               className={cn(formErrors('name') && '!border-rose-400')}
             />
             {formErrors('name') && (
@@ -361,15 +361,15 @@ export default function Cities() {
             )}
           </Field>
 
-          <Field label="الاسم بالعربية">
+          <Field label={t('dash.nameInArabic')}>
             <Input
               value={form.name_ar}
               onChange={(e) => setForm((f) => ({ ...f, name_ar: e.target.value }))}
-              placeholder="الدار البيضاء"
+              placeholder={t('dash.casablanca')}
             />
           </Field>
 
-          <Field label="الاسم بالفرنسية">
+          <Field label={t('dash.nameInFrench')}>
             <Input
               value={form.name_fr}
               onChange={(e) => setForm((f) => ({ ...f, name_fr: e.target.value }))}
@@ -377,7 +377,7 @@ export default function Cities() {
             />
           </Field>
 
-          <Field label="الاسم بالإنجليزية">
+          <Field label={t('dash.nameInEnglish')}>
             <Input
               value={form.name_en}
               onChange={(e) => setForm((f) => ({ ...f, name_en: e.target.value }))}
@@ -385,7 +385,7 @@ export default function Cities() {
             />
           </Field>
 
-          <Field label="الترتيب" hint="رقم أصغر يظهر أولاً">
+          <Field label={t('dash.sort')} hint={t('dash.lowerNumbersAppearFirst')}>
             <Input
               type="number"
               min="0"

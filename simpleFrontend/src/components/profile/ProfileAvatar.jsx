@@ -12,9 +12,11 @@ export default function ProfileAvatar({
   rounded = 'rounded-full',
   fontSize = 'text-base',
   previewable = false,
+  color,
 }) {
   const displayName = name ?? user?.name ?? ''
   const imageSrc = src ?? user?.avatar_url ?? ''
+  const avatarColor = color || user?.avatar_color || ''
   const [failed, setFailed] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
 
@@ -43,7 +45,10 @@ export default function ProfileAvatar({
 
   return (
     <span
-      className={`grid shrink-0 place-items-center bg-gradient-to-br from-green-400 to-emerald-600 font-black text-white ${rounded} ${className}`}
+      className={`grid shrink-0 place-items-center font-black text-white ${rounded} ${className} ${
+        avatarColor ? '' : 'bg-gradient-to-br from-green-400 to-emerald-600'
+      }`}
+      style={avatarColor ? { background: avatarColor } : undefined}
     >
       <span className={fontSize}>{displayName.trim().charAt(0) || '؟'}</span>
     </span>

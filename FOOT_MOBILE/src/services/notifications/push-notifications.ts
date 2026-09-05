@@ -1,10 +1,41 @@
-import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { del, post } from '@/api/client';
 
+type NotificationsModule = typeof import('expo-notifications');
+
 let cachedToken: string | null = null;
+let notificationsModule: NotificationsModule | null = null;
+
+function isExpoGoAndroid(): boolean {
+  return (
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient && Platform.OS === 'android'
+  );
+}
+
+/**
+ * expo-notifications throws at import time inside Expo Go on Android
+ * (remote push was removed from Expo Go in SDK 53) — so the module must
+ * never even be evaluated there. A guarded require() keeps the module body
+ * unevaluated in Expo Go while loading normally in dev/production builds.
+ */
+function loadNotifications(): NotificationsModule | null {
+  if (isExpoGoAndroid()) return null;
+  if (!notificationsModule) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    notificationsModule = require('expo-notifications') as NotificationsModule;
+  }
+  return notificationsModule;
+}
+
+/**
+ * true when push APIs are usable on this platform/build combination.
+ * false in Expo Go on Android (SDK 53+ removed remote push there).
+ */
+export function isPushSupported(): boolean {
+  return loadNotifications() !== null;
+}
 
 function isSupportedPlatform(): boolean {
   return Platform.OS === 'ios' || Platform.OS === 'android';
@@ -23,6 +54,9 @@ function resolveProjectId(): string | undefined {
  */
 export async function initializePushNotifications(): Promise<void> {
   if (!isSupportedPlatform()) return;
+
+  const Notifications = loadNotifications();
+  if (!Notifications) return;
 
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -49,6 +83,9 @@ export async function initializePushNotifications(): Promise<void> {
 export async function hasPushPermission(): Promise<boolean> {
   if (!isSupportedPlatform()) return false;
 
+  const Notifications = loadNotifications();
+  if (!Notifications) return false;
+
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   if (current.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) return true;
@@ -69,6 +106,9 @@ export async function getExpoPushToken(): Promise<string | null> {
   if (!(await hasPushPermission())) return null;
 
   try {
+    const Notifications = loadNotifications();
+    if (!Notifications) return null;
+
     const projectId = resolveProjectId();
     const response = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : {});
     cachedToken = response.data;
@@ -117,3 +157,6 @@ export async function unregisterCurrentDevice(): Promise<void> {
 export function resetPushTokenCache(): void {
   cachedToken = null;
 }
+
+/** Sync accessor for callers that need the module (listener registration). */
+export { loadNotifications };

@@ -12,7 +12,7 @@ import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import BookingTimeline from '../components/BookingTimeline'
 
 export default function Cancellations() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { toast } = useToast()
   const { data, loading, errorState, refetch } = useApi(() => api.get('/owner/cancellation-requests').then((r) => r.data))
   const { data: terrainsData } = useApi(() => api.get('/owner/terrains').then((r) => r.data))
@@ -52,7 +52,7 @@ export default function Cancellations() {
     setBusy(true)
     try {
       await api.put(`/owner/cancellation-requests/${selected.id}`, { action })
-      toast.success(action === 'approve' ? 'تم قبول طلب الإلغاء' : 'تم رفض طلب الإلغاء')
+      toast.success(action === 'approve' ? t('terrain.cancellations.approvedToast') : t('terrain.cancellations.rejectedToast'))
       setSelected(null)
       refetch()
       return true
@@ -68,29 +68,29 @@ export default function Cancellations() {
   const confirmReject = () => {
     if (!selected) return
     confirm.run(() => act('reject'), {
-      title: 'رفض طلب الإلغاء؟',
-      description: 'سيتم رفض طلب الإلغاء وإبقاء الحجز قائمًا.',
-      confirmLabel: 'رفض الطلب',
+      title: t('terrain.cancellations.rejectTitle'),
+      description: t('terrain.cancellations.rejectDesc'),
+      confirmLabel: t('terrain.cancellations.rejectConfirm'),
     })
   }
 
   const stats = [
-    { label: 'الطلبات', value: counts.all || 0, icon: Inbox, color: 'bg-sky-50 text-sky-600' },
-    { label: 'معلقة', value: counts.pending || 0, icon: AlertTriangle, color: 'bg-amber-50 text-amber-600' },
-    { label: 'مقبولة', value: counts.approved || 0, icon: Check, color: 'bg-green-50 text-green-600' },
-    { label: 'مرفوضة', value: counts.rejected || 0, icon: Ban, color: 'bg-rose-50 text-rose-600' },
+    { label: t('terrain.cancellations.statRequests'), value: counts.all || 0, icon: Inbox, color: 'bg-sky-50 text-sky-600' },
+    { label: t('terrain.common.pending'), value: counts.pending || 0, icon: AlertTriangle, color: 'bg-amber-50 text-amber-600' },
+    { label: t('terrain.cancellations.statApproved'), value: counts.approved || 0, icon: Check, color: 'bg-green-50 text-green-600' },
+    { label: t('terrain.cancellations.statRejected'), value: counts.rejected || 0, icon: Ban, color: 'bg-rose-50 text-rose-600' },
   ]
 
   const statusTabs = [
-    { key: 'all', label: 'الكل' },
-    { key: 'pending', label: 'معلقة' },
-    { key: 'approved', label: 'مقبولة' },
-    { key: 'rejected', label: 'مرفوضة' },
+    { key: 'all', label: t('terrain.common.all') },
+    { key: 'pending', label: t('terrain.common.pending') },
+    { key: 'approved', label: t('terrain.cancellations.statApproved') },
+    { key: 'rejected', label: t('terrain.cancellations.statRejected') },
   ]
 
   return (
     <div>
-      <SectionTitle title="طلبات الإلغاء" subtitle="مراجعة وقبول أو رفض طلبات إلغاء الحجوزات" />
+      <SectionTitle title={t('terrain.cancellations.title')} subtitle={t('terrain.cancellations.subtitle')} />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map((s) => (
@@ -112,8 +112,8 @@ export default function Cancellations() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="ابحث عن فريق أو مسير أو سبب…"
-            aria-label="ابحث عن فريق أو مسير أو سبب"
+            placeholder={t('terrain.cancellations.searchPlaceholder')}
+            aria-label={t('terrain.cancellations.searchLabel')}
             className="h-11 w-full rounded-xl border border-slate-200 bg-white ps-11 pe-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
           />
           <Search className="absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -123,7 +123,7 @@ export default function Cancellations() {
           value={terrainFilter}
           onChange={(e) => setTerrainFilter(e.target.value)}
         >
-          <option value="">كل الملاعب</option>
+          <option value="">{t('terrain.common.allFields')}</option>
           {terrains.map((t) => (
             <option key={t.id} value={t.id}>{t.name}</option>
           ))}
@@ -159,11 +159,11 @@ export default function Cancellations() {
                 </span>
                 <div>
                   <p className="text-sm font-extrabold text-slate-900">
-                    {r.booking?.team?.name || r.team?.name || 'حجز'}
+                    {r.booking?.team?.name || r.team?.name || t('terrain.cancellations.booking')}
                     <span className="ms-1.5 text-slate-400">#{r.booking_id || r.id}</span>
                   </p>
                   <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
-                    {typeof r.booking?.terrain?.name === 'string' ? r.booking.terrain.name : 'ملعب'} • {r.reason || 'طلب إلغاء'} {r.created_at ? `• ${r.created_at.slice(0, 10)}` : ''}
+                    {typeof r.booking?.terrain?.name === 'string' ? r.booking.terrain.name : t('terrain.cancellations.fieldFallback')} • {r.reason || t('terrain.cancellations.noReason')} {r.created_at ? `• ${r.created_at.slice(0, 10)}` : ''}
                   </p>
                 </div>
               </div>
@@ -174,7 +174,7 @@ export default function Cancellations() {
                   onClick={() => setSelected(r)}
                   className="rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-extrabold text-slate-600 transition-colors hover:bg-slate-100"
                 >
-                  التفاصيل
+                  {t('terrain.cancellations.details')}
                 </button>
               </div>
             </div>
@@ -184,11 +184,11 @@ export default function Cancellations() {
 
       {/* Detail drawer */}
       {selected && (
-        <Drawer open onClose={() => setSelected(null)} title={`طلب إلغاء #${selected.id}`} subtitle={selected.created_at ? `قُدّم ${new Date(selected.created_at).toLocaleDateString('ar-MA', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}` : 'تفاصيل الطلب'} size="520">
+        <Drawer open onClose={() => setSelected(null)} title={t('terrain.cancellations.requestN', { id: selected.id })} subtitle={selected.created_at ? `قُدّم ${new Date(selected.created_at).toLocaleDateString('ar-MA', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}` : 'تفاصيل الطلب'} size="520">
           <div className="space-y-6">
             <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
               <div>
-                <p className="text-xs font-bold text-slate-400">الفريق / المسير</p>
+                <p className="text-xs font-bold text-slate-400">{t('terrain.cancellations.teamManager')}</p>
                 <p className="mt-0.5 text-sm font-extrabold text-slate-900">
                   {selected.booking?.team?.name || selected.team?.name || '—'}
                   {selected.user?.name ? ` • ${selected.user.name}` : ''}
@@ -200,10 +200,10 @@ export default function Cancellations() {
             {selected.booking && (
               <div className="grid grid-cols-2 gap-2.5">
                 {[
-                  { label: 'الملعب', value: selected.booking.terrain?.name || '—' },
-                  { label: 'التاريخ', value: selected.booking.booking_date || selected.booking.date || '—' },
-                  { label: 'الوقت', value: selected.booking.start_time ? `${selected.booking.start_time} - ${selected.booking.end_time}` : '—' },
-                  { label: 'السعر', value: `${Number(selected.booking.price || 0).toLocaleString('ar-MA')} د.م` },
+                  { label: t('terrain.common.field'), value: selected.booking.terrain?.name || '—' },
+                  { label: t('terrain.common.date'), value: selected.booking.booking_date || selected.booking.date || '—' },
+                  { label: t('terrain.common.time'), value: selected.booking.start_time ? `${selected.booking.start_time} - ${selected.booking.end_time}` : '—' },
+                  { label: t('terrain.common.price'), value: `${Number(selected.booking.price || 0).toLocaleString(i18n.language.startsWith('ar') ? 'ar-MA' : 'en-GB')} ${t('terrain.common.mad')}` },
                 ].map((f) => (
                   <div key={f.label} className="rounded-2xl border border-slate-100 bg-white p-3.5">
                     <p className="text-[10px] font-bold text-slate-400">{f.label}</p>
@@ -214,19 +214,19 @@ export default function Cancellations() {
             )}
 
             <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-              <p className="text-xs font-bold text-slate-400">سبب الطلب</p>
+              <p className="text-xs font-bold text-slate-400">{t('terrain.cancellations.reason')}</p>
               <p className="mt-1.5 text-sm font-bold text-slate-700">{selected.reason || '—'}</p>
             </div>
 
             <div className="rounded-2xl border border-slate-100 bg-white p-4">
-              <p className="mb-3 text-xs font-extrabold text-slate-700">سجل الطلب</p>
+              <p className="mb-3 text-xs font-extrabold text-slate-700">{t('terrain.cancellations.log')}</p>
               <BookingTimeline booking={{ status: selected.status || 'pending', created_at: selected.created_at, whatsapp_notification_url: null }} />
             </div>
 
             {(selected.status === 'pending' || !selected.status) && (
               <div className="flex gap-2">
                 <Button className="flex-1" disabled={busy} onClick={() => act('approve')}>
-                  <Check className="size-4" /> قبول الإلغاء
+                  <Check className="size-4" /> {t('terrain.cancellations.accept')}
                 </Button>
                 <Button variant="dangerSoft" className="flex-1" disabled={busy} onClick={confirmReject}>
                   <X className="size-4" /> رفض الطلب

@@ -70,6 +70,7 @@ class TournamentResultResource extends JsonResource
                     'id' => $event->id,
                     'type' => $event->type?->value,
                     'icon' => $event->type?->icon(),
+                    'punishment' => $event->punishment?->value,
                     'minute' => $event->minute,
                     'added_time' => $event->added_time,
                     'half' => $event->half,

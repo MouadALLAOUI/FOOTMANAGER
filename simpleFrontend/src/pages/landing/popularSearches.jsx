@@ -20,7 +20,7 @@ export default function PopularSearches({ onSelect }) {
             key={c.id}
             type="button"
             onClick={() => onSelect(c.slug)}
-            className="rounded-full bg-slate-900/80 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-black/30 ring-1 ring-white/15 backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-green-500 hover:ring-green-500"
+            className="bidi-plaintext rounded-full bg-slate-900/80 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-black/30 ring-1 ring-white/15 backdrop-blur-sm transition hover:-translate-y-0.5 hover:bg-green-500 hover:ring-green-500"
           >
             {c.localized_name}
           </button>

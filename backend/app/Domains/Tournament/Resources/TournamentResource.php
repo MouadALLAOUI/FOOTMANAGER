@@ -27,6 +27,7 @@ class TournamentResource extends JsonResource
             'end_date' => $this->end_date?->toDateString(),
             'status' => $this->status,
             'is_hidden' => $this->isHidden(),
+            'has_settled_result' => $this->hasSettledResult(),
             'hidden_at' => $this->hidden_at?->toIso8601String(),
             'registration_start_at' => $this->registration_start_at?->toIso8601String(),
             'registration_end_at' => $this->registration_end_at?->toIso8601String(),

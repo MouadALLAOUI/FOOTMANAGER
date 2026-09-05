@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { ChevronDown } from 'lucide-react'
 import {
   X,
   Inbox,
@@ -201,9 +202,14 @@ export function Input(props) {
 
 export function Select({ children, ...props }) {
   return (
-    <select {...props} className={cn(inputClass, 'cursor-pointer', props.className)}>
-      {children}
-    </select>
+    <span className="relative block w-full">
+      <select {...props} className={cn(inputClass, 'cursor-pointer appearance-none pe-9', props.className)}>
+        {children}
+      </select>
+      <span className="pointer-events-none absolute inset-y-0 end-0 flex items-center pe-3">
+        <ChevronDown className="size-4 text-slate-400" />
+      </span>
+    </span>
   )
 }
 

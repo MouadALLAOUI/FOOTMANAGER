@@ -17,6 +17,8 @@ const About = lazy(() => import('./pages/about'))
 const Contact = lazy(() => import('./pages/contact'))
 const Terms = lazy(() => import('./pages/terms'))
 const Privacy = lazy(() => import('./pages/privacy'))
+const Help = lazy(() => import('./pages/help'))
+const Faq = lazy(() => import('./pages/faq'))
 const Pricing = lazy(() => import('./pages/pricing'))
 const Fields = lazy(() => import('./pages/fields'))
 const Matches = lazy(() => import('./pages/matches'))
@@ -63,6 +65,8 @@ function App() {
                 <Route path="/contact" element={<PageMaintenanceGate><Contact /></PageMaintenanceGate>} />
                 <Route path="/terms" element={<PageMaintenanceGate><Terms /></PageMaintenanceGate>} />
                 <Route path="/privacy" element={<PageMaintenanceGate><Privacy /></PageMaintenanceGate>} />
+                <Route path="/help" element={<PageMaintenanceGate><Help /></PageMaintenanceGate>} />
+                <Route path="/faq" element={<PageMaintenanceGate><Faq /></PageMaintenanceGate>} />
                 <Route path="/pricing" element={<PageMaintenanceGate><Pricing /></PageMaintenanceGate>} />
                 <Route path="/fields" element={<PageMaintenanceGate><Fields /></PageMaintenanceGate>} />
                 <Route path="/matches" element={<PageMaintenanceGate><Matches /></PageMaintenanceGate>} />

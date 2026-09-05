@@ -1,3 +1,5 @@
+import i18n from '../../../i18n'
+import { useTranslation } from 'react-i18next'
 import { CalendarDays, Clock, Mail, MessageCircle, StickyNote, UserRound, Users } from 'lucide-react'
 import Drawer from '../../../components/dashboard/Drawer'
 import { Button, Modal, StatusBadge } from '../../../components/dashboard/ui'
@@ -5,14 +7,14 @@ import { ManagerProfile } from '../../../components/ui'
 import BookingTimeline, { bookingStatusLabels } from './BookingTimeline'
 
 const bookingTypeLabels = {
-  training: 'حصة تدريبية',
-  private: 'حجز خاص',
-  match: 'مباراة',
+  get training() { return i18n.t('dash.trainingSession') },
+  get private() { return i18n.t('dash.privateBooking') },
+  get match() { return i18n.t('dash.match') },
 }
 
 const reservationTypeLabels = {
-  single: 'حجز فردي',
-  weekly_subscription: 'أبونمان أسبوعي',
+  get single() { return i18n.t('dash.individualBooking') },
+  get weekly_subscription() { return i18n.t('dash.weeklySubscription') },
 }
 
 function formatDate(dateStr) {
@@ -25,17 +27,18 @@ function formatDate(dateStr) {
 }
 
 export default function BookingDrawer({ booking, onClose, onApprove, onReject, busy, variant = 'drawer' }) {
+  const { t } = useTranslation()
   if (!booking) return null
   const manager = booking.manager || {}
   const team = booking.team || {}
   const isGuest = booking.is_guest === true || Boolean(booking.guest_name)
 
   const rows = [
-    { label: 'الملعب', value: booking.terrain?.name || '—', icon: CalendarDays },
-    { label: 'التاريخ', value: formatDate(booking.date || booking.booking_date), icon: CalendarDays },
-    { label: 'الوقت', value: booking.start_time ? `${booking.start_time} — ${booking.end_time}` : '—', icon: Clock },
-    { label: 'النوع', value: bookingTypeLabels[booking.booking_type] || booking.booking_type || '—', icon: Clock },
-    { label: 'نوع الحجز', value: reservationTypeLabels[booking.reservation_type] || booking.reservation_type || '—', icon: Clock },
+    { label: t('dash.field'), value: booking.terrain?.name || '—', icon: CalendarDays },
+    { label: t('dash.date'), value: formatDate(booking.date || booking.booking_date), icon: CalendarDays },
+    { label: t('dash.time'), value: booking.start_time ? `${booking.start_time} — ${booking.end_time}` : '—', icon: Clock },
+    { label: t('dash.type'), value: bookingTypeLabels[booking.booking_type] || booking.booking_type || '—', icon: Clock },
+    { label: t('dash.bookingType'), value: reservationTypeLabels[booking.reservation_type] || booking.reservation_type || '—', icon: Clock },
   ]
 
   const subtitle = `#${booking.id} • ${bookingStatusLabels[booking.status] || booking.status}`
@@ -44,8 +47,8 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
     <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
       <p className="mb-3 flex items-center gap-1.5 text-xs font-extrabold text-slate-700">
         <UserRound className="size-3.5 text-amber-500" />
-        معلومات الزبون
-        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">ضيف</span>
+        {t('dash.customerInformation')}
+        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">{t('dash.guest')}</span>
       </p>
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-3">
@@ -53,10 +56,10 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
             {(booking.guest_name || '؟').slice(0, 1)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-extrabold text-slate-900">{booking.guest_name || 'زبون'}</p>
+            <p className="truncate text-sm font-extrabold text-slate-900">{booking.guest_name || t('dash.customer')}</p>
             <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
               <Users className="size-3 shrink-0" />
-              زبون بدون حساب
+              {t('dash.guestCustomerNoAccount')}
             </p>
           </div>
         </div>
@@ -92,9 +95,9 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
     <div className="space-y-6">
         <div className="flex items-center justify-between rounded-2xl bg-slate-50 p-4">
           <div>
-            <p className="text-xs font-bold text-slate-400">السعر الإجمالي</p>
+            <p className="text-xs font-bold text-slate-400">{t('dash.totalPrice')}</p>
             <p className="mt-0.5 text-2xl font-black text-green-600">
-              {Number(booking.price || 0).toLocaleString('ar-MA')} <span className="text-xs font-bold">د.م</span>
+              {Number(booking.price || 0).toLocaleString('ar-MA')} <span className="text-xs font-bold">{t('dash.mad')}</span>
             </p>
           </div>
           <StatusBadge status={booking.status} />
@@ -120,24 +123,24 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
         {booking.notes && (
           <div className="rounded-2xl border border-slate-100 bg-white p-4">
             <p className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
-              <StickyNote className="size-3.5" /> ملاحظات المسير
+              <StickyNote className="size-3.5" /> {t('dash.managerNotes')}
             </p>
             <p className="mt-1.5 text-sm font-semibold text-slate-700">{booking.notes}</p>
           </div>
         )}
 
         <div className="rounded-2xl border border-slate-100 bg-white p-4">
-          <p className="mb-3 text-xs font-extrabold text-slate-700">سجل الحجز</p>
+          <p className="mb-3 text-xs font-extrabold text-slate-700">{t('dash.bookingLog')}</p>
           <BookingTimeline booking={booking} />
         </div>
 
         {!isGuest && (booking.status === 'pending' || !booking.status) && (
           <div className="flex gap-2">
             <Button className="flex-1" disabled={busy} onClick={onApprove}>
-              قبول الحجز
+              {t('dash.approveBooking')}
             </Button>
             <Button variant="dangerSoft" className="flex-1" disabled={busy} onClick={onReject}>
-              رفض
+              {t('dash.reject')}
             </Button>
           </div>
         )}
@@ -150,7 +153,7 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
             className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(16,185,129,0.3)] transition-colors hover:bg-emerald-600"
           >
             <MessageCircle className="size-4" />
-            {isGuest ? 'مراسلة الزبون عبر واتساب' : 'إشعار المسير عبر واتساب'}
+            {isGuest ? t('dash.messageTheCustomerViaWhatsapp') : t('dash.notifyTheManagerViaWhatsapp')}
           </a>
         )}
     </div>
@@ -158,14 +161,14 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
 
   if (variant === 'modal') {
     return (
-      <Modal open onClose={onClose} title="تفاصيل الحجز" subtitle={subtitle} size="lg">
+      <Modal open onClose={onClose} title={t('dash.bookingDetails')} subtitle={subtitle} size="lg">
         {content}
       </Modal>
     )
   }
 
   return (
-    <Drawer open onClose={onClose} title="تفاصيل الحجز" subtitle={subtitle} size="520">
+    <Drawer open onClose={onClose} title={t('dash.bookingDetails')} subtitle={subtitle} size="520">
       {content}
     </Drawer>
   )

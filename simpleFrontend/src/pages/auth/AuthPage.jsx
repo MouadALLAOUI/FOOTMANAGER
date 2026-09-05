@@ -44,7 +44,7 @@ export default function AuthPage({ initialTab = 'login' }) {
           <LanguageSelector />
 
           <div className="fade-in my-auto w-full" style={{ animationDelay: '140ms' }}>
-            <div className="mb-8 flex flex-col items-center gap-2 lg:hidden">
+            <div className="mb-8 flex flex-col items-center gap-2 lg:hidden" onClick={(e) => navigate('/')}>
               <img
                 src="/logo.jpeg"
                 alt=""
@@ -76,16 +76,14 @@ export default function AuthPage({ initialTab = 'login' }) {
                       className={`size-4 transition-colors duration-300 ${active ? 'text-green-500' : 'text-slate-400'}`}
                     />
                     <span
-                      className={`text-sm font-extrabold transition-colors duration-300 ${
-                        active ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
-                      }`}
+                      className={`text-sm font-extrabold transition-colors duration-300 ${active ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+                        }`}
                     >
                       {t(labelKey)}
                     </span>
                     <span
-                      className={`absolute bottom-0 start-1/2 h-[3px] w-[64px] -translate-x-1/2 rounded-full bg-green-500 transition-all duration-300 ease-out rtl:translate-x-1/2 ${
-                        active ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
-                      }`}
+                      className={`absolute bottom-0 start-1/2 h-[3px] w-[64px] -translate-x-1/2 rounded-full bg-green-500 transition-all duration-300 ease-out rtl:translate-x-1/2 ${active ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0'
+                        }`}
                     />
                   </button>
                 )

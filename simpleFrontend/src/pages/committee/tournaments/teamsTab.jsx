@@ -535,6 +535,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
         onClose={() => setEditFreeTeam(null)}
         team={editFreeTeam}
         tournamentId={tournament?.id}
+        locked={tournament?.has_settled_result}
         onSaved={refresh}
       />
     </div>

@@ -5,10 +5,12 @@ import { faArrowLeft, faTrophy } from '@fortawesome/free-solid-svg-icons'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import TournamentCard from '../../components/tournaments/TournamentCard'
+import { useSnapCarousel } from '../../hooks/useSnapCarousel'
+import { CarouselDots } from '../../components/Carousel'
 
 function SkeletonCard() {
   return (
-    <div className="h-full w-[320px] shrink-0 snap-start animate-pulse overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 md:w-auto">
+    <div className="h-full w-[82%] max-w-[320px] shrink-0 snap-start animate-pulse overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 md:w-auto">
       <div className="h-[170px] bg-slate-200" />
       <div className="space-y-3 p-5 pt-7">
         <div className="h-5 w-3/4 rounded-full bg-slate-200" />
@@ -29,12 +31,14 @@ export default function Tournaments() {
   const tournaments = (data?.data || []).filter(
     (tour) => !['completed', 'cancelled'].includes(tour.status),
   )
+  const { ref, count, active, goTo } = useSnapCarousel(tournaments)
 
   return (
     <section id="tournaments" className="bg-[#f6f7fb] py-[100px] lg:py-[120px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="text-start">
+            <span className="mb-3 block h-1 w-10 rounded-full bg-green-500" aria-hidden="true" />
             <h2 className="text-3xl font-black text-slate-900 lg:text-4xl">
               {t('landing.tournaments.title')}
             </h2>
@@ -53,7 +57,7 @@ export default function Tournaments() {
 
         <div className="mt-12">
           {loading ? (
-            <div className="flex snap-x gap-6 overflow-x-auto no-scrollbar px-2 pb-4 md:grid md:grid-cols-2 md:gap-7 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-3">
+            <div className="flex snap-x gap-6 overflow-x-auto no-scrollbar scroll-ps-2 px-2 pb-4 md:grid md:grid-cols-2 md:gap-7 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -67,11 +71,17 @@ export default function Tournaments() {
               <p className="mt-1 text-xs text-slate-400">{t('landing.tournaments.emptyDesc')}</p>
             </div>
           ) : (
-            <div className="flex snap-x gap-6 overflow-x-auto no-scrollbar px-2 pb-4 md:grid md:grid-cols-2 md:gap-7 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-3">
-              {tournaments.map((tour) => (
-                <TournamentCard key={tour.id} tournament={tour} className="md:w-auto" />
-              ))}
-            </div>
+            <>
+              <div
+                ref={ref}
+                className="flex snap-x gap-6 overflow-x-auto no-scrollbar scroll-ps-2 px-2 pb-4 md:grid md:grid-cols-2 md:gap-7 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-3"
+              >
+                {tournaments.map((tour) => (
+                  <TournamentCard key={tour.id} tournament={tour} className="md:w-auto" />
+                ))}
+              </div>
+              <CarouselDots count={count} active={active} goTo={goTo} />
+            </>
           )}
         </div>
       </div>

@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Eye, Check, X, CalendarDays, Users, MessageSquare } from 'lucide-react'
@@ -11,10 +12,10 @@ import { ConfirmDialog, useConfirm } from '../../../components/ui/ConfirmDialog'
 import { toastApiError } from '../../../lib/errors'
 
 const statusLabels = {
-  pending: 'قيد المراجعة',
-  approved: 'مقبول',
-  rejected: 'مرفوض',
-  cancelled: 'ملغي',
+  get pending() { return i18n.t('dash.underReview') },
+  get approved() { return i18n.t('dash.approved') },
+  get rejected() { return i18n.t('dash.rejected') },
+  get cancelled() { return i18n.t('dash.cancelled3') },
 }
 
 const statusTones = {
@@ -25,6 +26,7 @@ const statusTones = {
 }
 
 function ApproveModal({ request, onClose, onApprove }) {
+  const { t } = useTranslation()
   const [teamName, setTeamName] = useState(request?.team_name || '')
   const [loading, setLoading] = useState(false)
 
@@ -42,32 +44,32 @@ function ApproveModal({ request, onClose, onApprove }) {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-black text-slate-900">قبول الطلب</h3>
+          <h3 className="text-lg font-black text-slate-900">{t('dash.approveRequest')}</h3>
           <button onClick={onClose} className="grid size-8 place-items-center rounded-xl text-slate-400 hover:bg-slate-100">
             <X className="size-4" />
           </button>
         </div>
 
         <div className="mb-4 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
-          <p className="text-xs text-slate-500">اللاعب</p>
+          <p className="text-xs text-slate-500">{t('dash.player3')}</p>
           <p className="mt-1 text-sm font-bold text-slate-800">{request?.player?.name}</p>
-          <p className="mt-0.5 text-xs text-slate-400">سيتم إنشاء فريق جديد وربط اللاعب به</p>
+          <p className="mt-0.5 text-xs text-slate-400">{t('dash.aNewTeamWillBeCreatedAndThePlayerLinkedToIt2')}</p>
         </div>
 
         <div className="mb-4">
-          <label className="mb-2 block text-xs font-bold text-slate-500">اسم الفريق الجديد (اختياري)</label>
+          <label className="mb-2 block text-xs font-bold text-slate-500">{t('dash.newTeamNameOptional')}</label>
           <Input
             value={teamName}
             onChange={(e) => setTeamName(e.target.value)}
-            placeholder="أدخل اسم الفريق..."
+            placeholder={t('dash.enterTeamName')}
           />
         </div>
 
         <div className="flex gap-3">
-          <Button variant="ghost" className="flex-1" onClick={onClose}>إلغاء</Button>
+          <Button variant="ghost" className="flex-1" onClick={onClose}>{t('dash.cancel')}</Button>
           <Button className="flex-1" loading={loading} onClick={handleSubmit}>
             <Check className="size-4" />
-            قبول
+            {t('dash.approve')}
           </Button>
         </div>
       </div>
@@ -76,6 +78,7 @@ function ApproveModal({ request, onClose, onApprove }) {
 }
 
 function RejectModal({ request, onClose, onReject }) {
+  const { t } = useTranslation()
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -93,33 +96,33 @@ function RejectModal({ request, onClose, onReject }) {
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-black text-slate-900">رفض الطلب</h3>
+          <h3 className="text-lg font-black text-slate-900">{t('dash.rejectRequest')}</h3>
           <button onClick={onClose} className="grid size-8 place-items-center rounded-xl text-slate-400 hover:bg-slate-100">
             <X className="size-4" />
           </button>
         </div>
 
         <div className="mb-4 rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
-          <p className="text-xs text-slate-500">اللاعب</p>
+          <p className="text-xs text-slate-500">{t('dash.player3')}</p>
           <p className="mt-1 text-sm font-bold text-slate-800">{request?.player?.name}</p>
         </div>
 
         <div className="mb-4">
-          <label className="mb-2 block text-xs font-bold text-slate-500">سبب الرفض</label>
+          <label className="mb-2 block text-xs font-bold text-slate-500">{t('dash.rejectionReason')}</label>
           <textarea
             rows={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-rose-400 focus:bg-white focus:ring-2 focus:ring-rose-100"
-            placeholder="أدخل سبب الرفض..."
+            placeholder={t('dash.enterRejectionReason')}
           />
         </div>
 
         <div className="flex gap-3">
-          <Button variant="ghost" className="flex-1" onClick={onClose}>إلغاء</Button>
+          <Button variant="ghost" className="flex-1" onClick={onClose}>{t('dash.cancel')}</Button>
           <Button variant="red" className="flex-1" loading={loading} onClick={handleSubmit}>
             <X className="size-4" />
-            رفض
+            {t('dash.reject')}
           </Button>
         </div>
       </div>
@@ -153,11 +156,11 @@ export default function Requests() {
   const pagination = data?.pagination || {}
 
   const tabs = [
-    { value: 'pending', label: 'قيد المراجعة' },
-    { value: 'approved', label: 'مقبول' },
-    { value: 'rejected', label: 'مرفوض' },
-    { value: 'cancelled', label: 'ملغي' },
-    { value: 'all', label: 'الكل' },
+    { value: 'pending', label: t('dash.underReview') },
+    { value: 'approved', label: t('dash.approved') },
+    { value: 'rejected', label: t('dash.rejected') },
+    { value: 'cancelled', label: t('dash.cancelled3') },
+    { value: 'all', label: t('dash.all') },
   ]
 
   const openDetail = async (row) => {
@@ -179,7 +182,7 @@ export default function Requests() {
     try {
       const body = teamName ? { team_name: teamName } : {}
       const res = await api.put(`/admin/player-team-requests/${id}/approve`, body)
-      toast.success(res.data.message || 'تم قبول الطلب بنجاح')
+      toast.success(res.data.message || t('dash.requestApprovedSuccessfully'))
       refetch()
       if (detail?.row?.id === id) {
         setDetail((d) => ({ ...d, row: { ...d.row, status: 'approved' } }))
@@ -198,7 +201,7 @@ export default function Requests() {
     try {
       const body = reason ? { rejection_reason: reason } : {}
       const res = await api.put(`/admin/player-team-requests/${id}/reject`, body)
-      toast.success(res.data.message || 'تم رفض الطلب')
+      toast.success(res.data.message || t('dash.requestRejected'))
       refetch()
       if (detail?.row?.id === id) {
         setDetail((d) => ({ ...d, row: { ...d.row, status: 'rejected' } }))
@@ -216,9 +219,9 @@ export default function Requests() {
 
   const actApprove = (row) => {
     confirm.run(() => approve(row.id), {
-      title: 'هل أنت متأكد من قبول هذا الطلب؟',
-      description: 'سيتم إنشاء فريق جديد وربط اللاعب به.',
-      confirmLabel: 'قبول',
+      title: t('dash.approveThisRequest'),
+      description: t('dash.aNewTeamWillBeCreatedAndThePlayerLinkedToIt'),
+      confirmLabel: t('dash.approve'),
     })
   }
 
@@ -229,7 +232,7 @@ export default function Requests() {
   const columns = [
     {
       key: 'player',
-      label: 'اللاعب',
+      label: t('dash.player3'),
       render: (r) => (
         <div className="flex items-center gap-3">
           <Avatar name={r.player?.name} className="size-10" />
@@ -242,7 +245,7 @@ export default function Requests() {
     },
     {
       key: 'team_name',
-      label: 'اسم الفريق',
+      label: t('dash.teamName'),
       render: (r) => (
         <span className="text-sm font-semibold text-slate-700">
           {r.team_name || (
@@ -253,7 +256,7 @@ export default function Requests() {
     },
     {
       key: 'status',
-      label: 'الحالة',
+      label: t('dash.status'),
       render: (r) => (
         <Badge tone={statusTones[r.status] || 'slate'}>
           {statusLabels[r.status] || r.status}
@@ -262,7 +265,7 @@ export default function Requests() {
     },
     {
       key: 'created_at',
-      label: 'تاريخ التقديم',
+      label: t('dash.submittedOn'),
       render: (r) => (
         <span className="inline-flex items-center gap-1.5 text-[13px] text-slate-500">
           <CalendarDays className="size-4 text-slate-400" />
@@ -272,7 +275,7 @@ export default function Requests() {
     },
     {
       key: 'actions',
-      label: 'إجراءات',
+      label: t('dash.actions'),
       className: 'text-end',
       render: (r) => (
         <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -286,7 +289,7 @@ export default function Requests() {
                 onClick={() => setApproveModal(r)}
               >
                 <Check className="size-3.5" />
-                قبول
+                {t('dash.approve')}
               </Button>
               <Button
                 size="sm"
@@ -296,7 +299,7 @@ export default function Requests() {
                 onClick={() => actReject(r)}
               >
                 <X className="size-3.5" />
-                رفض
+                {t('dash.reject')}
               </Button>
             </>
           )}
@@ -315,8 +318,8 @@ export default function Requests() {
   return (
     <div>
       <PageHeader
-        title="طلبات اللاعبين"
-        subtitle="إدارة طلبات اللاعبين للانضمام إلى فرق"
+        title={t('dash.playerRequests')}
+        subtitle={t('dash.managePlayersRequestsToJoinTeams')}
       />
 
       <DataTable
@@ -328,7 +331,7 @@ export default function Requests() {
         onTabChange={(t) => { setTab(t); setPage(1); setSelected([]) }}
         search={search}
         onSearch={(v) => { setSearch(v); setPage(1) }}
-        searchPlaceholder="بحث بالاسم..."
+        searchPlaceholder={t('dash.searchByName')}
         selectable
         selected={selected}
         onSelectedChange={setSelected}
@@ -338,14 +341,14 @@ export default function Requests() {
         total={pagination.total || 0}
         perPage={pagination.per_page || 15}
         onPageChange={setPage}
-        emptyTitle="لا توجد طلبات حالياً"
-        emptyDescription="غيّر الفلتر أو ابحث بكلمة أخرى."
+        emptyTitle={t('dash.noRequestsRightNow')}
+        emptyDescription={t('dash.changeTheFilterOrSearchForSomethingElse')}
       />
 
       <Drawer
         open={Boolean(detail)}
         onClose={() => setDetail(null)}
-        title="تفاصيل طلب اللاعب"
+        title={t('dash.playerRequestDetails')}
         subtitle={detailRow?.player?.name}
         footer={
           detailRow?.status === 'pending' && (
@@ -356,14 +359,14 @@ export default function Requests() {
                 onClick={() => { setDetail(null); actReject(detailRow) }}
               >
                 <X className="size-4" />
-                رفض
+                {t('dash.reject')}
               </Button>
               <Button
                 loading={busyId === detailRow?.id}
                 onClick={() => { setDetail(null); setApproveModal(detailRow) }}
               >
                 <Check className="size-4" />
-                قبول
+                {t('dash.approve')}
               </Button>
             </>
           )
@@ -392,11 +395,11 @@ export default function Requests() {
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate-100 p-4">
-                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">اسم الفريق</p>
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{t('dash.teamName')}</p>
                 <p className="mt-1 text-sm font-bold text-slate-800">{detailRow?.team_name || '—'}</p>
               </div>
               <div className="rounded-2xl border border-slate-100 p-4">
-                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">تاريخ التقديم</p>
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{t('dash.submittedOn')}</p>
                 <p className="mt-1 text-sm font-bold text-slate-800">
                   {detailRow?.created_at ? new Date(detailRow.created_at).toLocaleDateString('ar-MA', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
                 </p>
@@ -407,7 +410,7 @@ export default function Requests() {
               <div className="rounded-2xl border border-slate-100 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare className="size-4 text-slate-400" />
-                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">رسالة اللاعب</p>
+                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{t('dash.playerMessage')}</p>
                 </div>
                 <p className="text-sm leading-relaxed text-slate-700">{request.message}</p>
               </div>
@@ -415,7 +418,7 @@ export default function Requests() {
 
             {request?.handled_by && (
               <div className="rounded-2xl border border-slate-100 p-4">
-                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">تمت المراجعة بواسطة</p>
+                <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">{t('dash.reviewedBy')}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <Avatar name={request.handled_by.name} className="size-8" />
                   <div>
@@ -428,7 +431,7 @@ export default function Requests() {
 
             {request?.rejection_reason && (
               <div className="rounded-2xl border border-rose-100 bg-rose-50/50 p-4">
-                <p className="text-[11px] font-black uppercase tracking-wider text-rose-400">سبب الرفض</p>
+                <p className="text-[11px] font-black uppercase tracking-wider text-rose-400">{t('dash.rejectionReason')}</p>
                 <p className="mt-1 text-sm leading-relaxed text-rose-700">{request.rejection_reason}</p>
               </div>
             )}

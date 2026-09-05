@@ -25,10 +25,10 @@ export default function Facilities() {
     try {
       if (editing) {
         const res = await api.put(`/admin/facilities/${editing}`, form)
-        toast.success(res.data.message || 'تم تحديث المرفق')
+        toast.success(res.data.message || t('dash.facilityUpdated'))
       } else {
         const res = await api.post('/admin/facilities', form)
-        toast.success(res.data.message || 'تمت إضافة المرفق')
+        toast.success(res.data.message || t('dash.facilityAdded'))
       }
       setOpen(false)
       refetch()
@@ -40,11 +40,11 @@ export default function Facilities() {
   }
 
   const remove = async (id) => {
-    if (!window.confirm('حذف هذا المرفق نهائياً؟')) return
+    if (!window.confirm(t('dash.permanentlyDeleteThisFacility'))) return
     setDeleting(id)
     try {
       const res = await api.delete(`/admin/facilities/${id}`)
-      toast.success(res.data.message || 'تم حذف المرفق')
+      toast.success(res.data.message || t('dash.facilityDeleted'))
       refetch()
     } catch (e) {
       toastApiError(e, t)
@@ -56,12 +56,12 @@ export default function Facilities() {
   return (
     <div>
       <PageHeader
-        title="المرافق"
-        subtitle="المرافق المتوفرة في الملاعب مثل المقاعد والإنارة والحمامات"
+        title={t('dash.facilities')}
+        subtitle={t('dash.facilitiesAvailableAtFieldsSuchAsSeatsLightingAndBathrooms')}
         actions={
           <Button onClick={() => { setEditing(null); setForm({ name: '', icon: '' }); setOpen(true) }}>
             <Plus className="size-4" />
-            إضافة مرفق
+            {t('dash.addFacility')}
           </Button>
         }
       />
@@ -72,7 +72,7 @@ export default function Facilities() {
         </div>
       ) : facilities.length === 0 ? (
         <Card>
-          <EmptyState icon={Hotel} title="لا توجد مرافق" description="أضف أول مرفق لاستخدامه في الملاعب." />
+          <EmptyState icon={Hotel} title={t('dash.noFacilities')} description={t('dash.addTheFirstFacilityToUseOnFields')} />
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -88,7 +88,7 @@ export default function Facilities() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-[15px] font-black text-slate-900">{f.name}</p>
-                  <p className="text-[11px] text-slate-400">مرفق ملعب</p>
+                  <p className="text-[11px] text-slate-400">{t('dash.fieldFacility')}</p>
                 </div>
               </div>
               <div className="mt-5 flex gap-2">
@@ -99,7 +99,7 @@ export default function Facilities() {
                   onClick={() => { setEditing(f.id); setForm({ name: f.name, icon: f.icon }); setOpen(true) }}
                 >
                   <Pencil className="size-3.5" />
-                  تعديل
+                  {t('common.edit')}
                 </Button>
                 <Button
                   variant="softRed"
@@ -110,7 +110,7 @@ export default function Facilities() {
                   onClick={() => remove(f.id)}
                 >
                   <Trash2 className="size-3.5" />
-                  حذف
+                  {t('common.delete')}
                 </Button>
               </div>
             </div>
@@ -121,22 +121,22 @@ export default function Facilities() {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={editing ? 'تعديل مرفق' : 'إضافة مرفق'}
-        subtitle="المرافق تُعرض في صفحة تفاصيل الملاعب"
+        title={editing ? 'تعديل مرفق' : t('dash.addFacility')}
+        subtitle={t('dash.facilitiesAreShownOnTheFieldDetailPage')}
         footer={
           <>
-            <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>{t('dash.cancel')}</Button>
             <Button loading={busy} onClick={submit}>
-              {busy ? 'جارٍ الحفظ...' : 'حفظ'}
+              {busy ? 'جارٍ الحفظ...' : t('dash.save')}
             </Button>
           </>
         }
       >
         <div className="space-y-4">
-          <Field label="الاسم" required>
-            <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="مثال: إنارة ليلية" />
+          <Field label={t('dash.name')} required>
+            <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder={t('dash.eGNightLighting')} />
           </Field>
-          <Field label="الرمز (إيموجي)" hint="رمز صغير يظهر بجانب اسم المرفق">
+          <Field label={t('dash.iconEmoji')} hint={t('dash.aSmallIconShownNextToTheFacilityName')}>
             <Input value={form.icon} maxLength={10} onChange={(e) => setForm((f) => ({ ...f, icon: e.target.value }))} placeholder="💡" />
           </Field>
         </div>

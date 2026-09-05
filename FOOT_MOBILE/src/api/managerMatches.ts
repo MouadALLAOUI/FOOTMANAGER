@@ -87,7 +87,7 @@ export interface MatchApplicantsResponse {
 }
 
 export interface StadiumsResponse {
-  data: StadiumOption[];
+  stadiums: StadiumOption[];
   meta?: {
     current_page?: number;
     last_page?: number;

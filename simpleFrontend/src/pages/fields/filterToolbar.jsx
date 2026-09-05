@@ -64,8 +64,8 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
         : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:-translate-y-0.5 hover:bg-slate-50 hover:ring-slate-300'
     }`
 
-  const chips = (
-    <div className="flex flex-wrap items-center gap-2.5">
+  const chipButtons = (
+    <>
       <button type="button" onClick={() => handleChip('all', 'all')} className={chipClass('all', 'all')}>
         {t('fieldsPage.toolbar.all')}
       </button>
@@ -76,8 +76,12 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
           </button>
         )),
       )}
-    </div>
+    </>
   )
+
+  const chips = <div className="flex flex-wrap items-center gap-2.5">{chipButtons}</div>
+
+  const mobileChips = <div className="flex items-center gap-2.5">{chipButtons}</div>
 
   const sortControl = (
     <label className="relative flex h-11 items-center gap-2 rounded-2xl bg-white px-4 ring-1 ring-slate-200 transition hover:ring-slate-300">
@@ -127,19 +131,24 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="btn-ripple fixed bottom-6 start-1/2 z-40 flex h-14 -translate-x-1/2 items-center gap-2.5 rounded-2xl bg-green-500 px-7 text-base font-bold text-white shadow-[0_18px_45px_rgba(22,163,74,0.5)] transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-green-600 active:translate-x-[-50%] active:translate-y-0 md:hidden rtl:translate-x-1/2"
-      >
-        <FontAwesomeIcon icon={faSliders} className="size-5" />
-        {t('fieldsPage.filtersButton')}
-        {activeCount > 0 && (
-          <span className="grid size-6 place-items-center rounded-full bg-white/25 text-xs font-extrabold">
-            {activeCount}
-          </span>
-        )}
-      </button>
+      <div className="mt-8 flex items-center gap-2 md:hidden">
+        <div className="no-scrollbar -mx-6 flex flex-1 items-center gap-2.5 overflow-x-auto px-6 pb-1">
+          {mobileChips}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={t('fieldsPage.toolbar.sortView')}
+          className="relative grid size-11 shrink-0 place-items-center rounded-full bg-white text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50 hover:ring-slate-300"
+        >
+          <FontAwesomeIcon icon={faSliders} className="size-4" />
+          {activeCount > 0 && (
+            <span className="absolute -end-1 -top-1 grid size-5 place-items-center rounded-full bg-green-500 text-[10px] font-extrabold text-white shadow-md">
+              {activeCount}
+            </span>
+          )}
+        </button>
+      </div>
 
       {open &&
         createPortal(
@@ -162,7 +171,7 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
               <div className="relative flex items-center justify-between border-b border-slate-100 pb-4">
                 <h3 className="flex items-center gap-2 text-lg font-extrabold text-slate-900">
                   <FontAwesomeIcon icon={faSliders} className="size-5 text-green-600" />
-                  {t('fieldsPage.filtersButton')}
+                  {t('fieldsPage.toolbar.sortView')}
                 </h3>
                 <button
                   type="button"
@@ -174,7 +183,6 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
                 </button>
               </div>
               <div className="flex-1 space-y-6 overflow-y-auto overscroll-contain py-6">
-                {chips}
                 <div className="flex flex-wrap items-center gap-4">
                   {sortControl}
                   {viewControl}

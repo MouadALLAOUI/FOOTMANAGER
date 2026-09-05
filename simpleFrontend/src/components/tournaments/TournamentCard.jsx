@@ -30,7 +30,7 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
 
   return (
     <article
-      className={`group flex h-full w-[320px] shrink-0 snap-start flex-col overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)] ${className}`}
+      className={`group flex h-full w-[82%] max-w-[320px] shrink-0 snap-start flex-col overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)] ${className}`}
     >
       <div className="relative h-[170px] overflow-hidden">
         {tour.cover_url ? (
@@ -74,9 +74,9 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
       </div>
 
       <div className="flex flex-1 flex-col p-5 pt-7">
-        <h3 className="text-base font-extrabold leading-snug text-slate-900">{tour.name}</h3>
+        <h3 className="bidi-plaintext line-clamp-2 text-base font-extrabold leading-snug text-slate-900">{tour.name}</h3>
         {tour.description && (
-          <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{tour.description}</p>
+          <p className="bidi-plaintext mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{tour.description}</p>
         )}
 
         <div className="mt-3 space-y-1.5 text-xs font-semibold text-slate-600">
@@ -88,7 +88,7 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
           {tour.location && (
             <p className="flex items-center gap-2">
               <FontAwesomeIcon icon={faMapPin} className="size-3.5 shrink-0 text-slate-400" />
-              <span className="truncate">{tour.location}</span>
+              <span className="bidi-plaintext min-w-0 truncate">{tour.location}</span>
             </p>
           )}
           <p className="flex items-center gap-2">
@@ -116,7 +116,7 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
 
         {tour.organizer && (
           <p className="mt-3 text-[10px] font-semibold text-slate-400">
-            {t('public.tournaments.organizer')}: {tour.organizer.name}
+            {t('public.tournaments.organizer')}: <span className="bidi-plaintext">{tour.organizer.name}</span>
           </p>
         )}
 

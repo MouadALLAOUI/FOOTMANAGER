@@ -3,7 +3,7 @@ import { MapPin, Clock, Trophy, MessageSquare, Users, Shield } from 'lucide-reac
 import Drawer from '../../../components/dashboard/Drawer'
 import { StatusBadge } from '../../../components/dashboard/ui'
 import { ManagerContact } from '../../../components/dashboard/cards'
-import { logoThumb } from '../../../lib/thumb'
+import TeamLogo from '../../../components/profile/TeamLogo'
 
 export default function MatchDetail({ match, onClose, onActions, onLineup }) {
   const datetime = match?.match_datetime ? new Date(match.match_datetime) : null
@@ -19,13 +19,7 @@ export default function MatchDetail({ match, onClose, onActions, onLineup }) {
           <div className="rounded-3xl bg-gradient-to-l from-[#0b1220] to-[#12321f] p-6 text-center text-white">
             <div className="flex items-center justify-center gap-4">
               <div className="flex flex-col items-center gap-2">
-                {match.host_team?.logo_url ? (
-                  <img loading="lazy" decoding="async" src={logoThumb(match.host_team)} alt="" className="size-14 rounded-2xl object-cover ring-2 ring-white/10" />
-                ) : (
-                  <span className="grid size-14 place-items-center rounded-2xl bg-white/10 text-lg font-black">
-                    {match.host_team?.name?.slice(0, 1) || '؟'}
-                  </span>
-                )}
+                <TeamLogo team={match.host_team} className="size-14" rounded="rounded-2xl" ring="ring-2 ring-white/10" fontSize="text-lg" />
                 <span className="max-w-[100px] truncate text-xs font-bold">{match.host_team?.name}</span>
               </div>
               <div className="flex flex-col items-center">
@@ -34,13 +28,7 @@ export default function MatchDetail({ match, onClose, onActions, onLineup }) {
                 <span className="text-2xl font-black">{match.opponent_score ?? '–'}</span>
               </div>
               <div className="flex flex-col items-center gap-2">
-                {match.opponent_team?.logo_url ? (
-                  <img loading="lazy" decoding="async" src={logoThumb(match.opponent_team)} alt="" className="size-14 rounded-2xl object-cover ring-2 ring-white/10" />
-                ) : (
-                  <span className="grid size-14 place-items-center rounded-2xl bg-white/10 text-lg font-black">
-                    {match.opponent_team?.name?.slice(0, 1) || '؟'}
-                  </span>
-                )}
+                <TeamLogo team={match.opponent_team} className="size-14" rounded="rounded-2xl" ring="ring-2 ring-white/10" fontSize="text-lg" />
                 <span className="max-w-[100px] truncate text-xs font-bold">{match.opponent_team?.name || 'خصم محتمل'}</span>
               </div>
             </div>

@@ -41,6 +41,14 @@ import { radius, spacing } from '@/theme/spacing';
 
 type ScopeKey = AdminUserRole;
 
+const STATUS_FILTERS: { key: 'all' | 'pending' | 'approved' | 'rejected' | 'blocked'; fallback: string }[] = [
+  { key: 'all', fallback: 'All' },
+  { key: 'pending', fallback: 'Pending' },
+  { key: 'approved', fallback: 'Active' },
+  { key: 'rejected', fallback: 'Rejected' },
+  { key: 'blocked', fallback: 'Blocked' },
+];
+
 const SCOPE_KEYS: ScopeKey[] = ['all', ...ALL_ADMIN_USER_ROLES];
 
 function useDebouncedValue<T>(value: T, delay = 300): T {
@@ -85,10 +93,13 @@ export default function UsersScreen(): React.JSX.Element {
   const toast = useToast();
 
   const [scope, setScope] = useState<ScopeKey>('all');
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'pending' | 'approved' | 'rejected' | 'blocked'
+  >('all');
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebouncedValue(searchInput.trim(), 350);
 
-  const usersQuery = useAdminUsers(scope, debouncedSearch);
+  const usersQuery = useAdminUsers(scope, debouncedSearch, statusFilter);
   const blockToggle = useAdminBlockToggle();
   const activityLock = useAdminActivityLock();
 

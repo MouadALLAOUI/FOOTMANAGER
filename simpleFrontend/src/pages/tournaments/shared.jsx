@@ -13,30 +13,11 @@ import {
 } from 'lucide-react'
 import { Card, Badge } from '../../components/dashboard/ui'
 import { formatTime, matchDay } from '../../lib/adapters'
-import { logoThumb } from '../../lib/thumb'
+import TeamLogo from '../../components/profile/TeamLogo'
 import { useProfileModal } from '../../components/profile/ProfileModalContext'
 
 export function TeamAvatar({ team, className = 'size-8', onClick }) {
-  const clickable = onClick ? 'cursor-pointer' : ''
-  if (!team) return <span className={`${className} grid shrink-0 place-items-center rounded-full bg-slate-200 text-slate-500`}>?</span>
-  if (team.logo_url) {
-    const img = <img src={logoThumb(team)} alt="" className={`${className} ${clickable} shrink-0 rounded-full object-cover`} loading="lazy" />
-    return onClick ? (
-      <button type="button" onClick={onClick} aria-label={team.name} className="shrink-0 rounded-full">
-        {img}
-      </button>
-    ) : img
-  }
-  const letter = (
-    <span className={`${className} ${clickable} grid shrink-0 place-items-center rounded-full bg-green-100 text-xs font-black text-green-700`}>
-      {(team.name || '؟').slice(0, 1)}
-    </span>
-  )
-  return onClick ? (
-    <button type="button" onClick={onClick} aria-label={team.name} className="shrink-0">
-      {letter}
-    </button>
-  ) : letter
+  return <TeamLogo team={team} className={className} onClick={onClick} />
 }
 
 export function DrawGroups({ teams }) {
@@ -337,10 +318,11 @@ export function StatisticsView({ stats }) {
   return (
     <div className="space-y-5">
       <StatisticsSummary stats={stats} />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <RankList title={t('committee.detail.scorers')} icon={Target} items={stats?.top_scorers} />
         <RankList title={t('committee.detail.assists')} icon={Medal} items={stats?.top_assists} />
-        <RankList title={t('committee.detail.cards')} icon={Flame} items={stats?.yellow_cards} />
+        <RankList title={t('committee.detail.yellowCards')} icon={Flame} items={stats?.yellow_cards} />
+        <RankList title={t('committee.detail.redCards')} icon={Shield} items={stats?.red_cards} />
       </div>
     </div>
   )

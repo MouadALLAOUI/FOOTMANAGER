@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
@@ -8,6 +9,7 @@ import { typeMeta, typeToneMap, activityTypeMeta } from '../../../components/adm
 const typeOptions = Object.entries(typeMeta)
 
 export default function ActivityLog() {
+  const { t } = useTranslation()
   const [type, setType] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -23,7 +25,7 @@ export default function ActivityLog() {
   const columns = [
     {
       key: 'type',
-      label: 'الحدث',
+      label: t('dash.event'),
       render: (a) => {
         const meta = activityTypeMeta(a.type)
         const Icon = meta.icon
@@ -42,7 +44,7 @@ export default function ActivityLog() {
     },
     {
       key: 'actor',
-      label: 'الفاعل',
+      label: t('dash.actor'),
       render: (a) =>
         a.actor ? (
           <div className="flex items-center gap-2">
@@ -50,12 +52,12 @@ export default function ActivityLog() {
             <span className="text-[13px] font-semibold text-slate-700">{a.actor.name}</span>
           </div>
         ) : (
-          <span className="text-xs text-slate-400">النظام</span>
+          <span className="text-xs text-slate-400">{t('dash.system')}</span>
         ),
     },
     {
       key: 'data',
-      label: 'تفاصيل',
+      label: t('dash.details2'),
       render: (a) =>
         a.data && Object.keys(a.data).length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
@@ -71,7 +73,7 @@ export default function ActivityLog() {
     },
     {
       key: 'created_at',
-      label: 'الوقت',
+      label: t('dash.time'),
       className: 'text-end',
       render: (a) => (
         <span className="text-[13px] text-slate-500">
@@ -86,15 +88,15 @@ export default function ActivityLog() {
   return (
     <div>
       <PageHeader
-        title="سجل النشاط"
-        subtitle="تتبع جميع الأحداث التي تحدث على المنصة"
+        title={t('admin.activity.title')}
+        subtitle={t('admin.activity.subtitle')}
         actions={
           <select
             value={type}
             onChange={(e) => { setType(e.target.value); setPage(1) }}
             className="h-11 cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-green-500/60 focus:ring-4 focus:ring-green-500/10"
           >
-            <option value="all">كل الأحداث</option>
+            <option value="all">{t('admin.activity.allTypes')}</option>
             {typeOptions.map(([val, meta]) => (
               <option key={val} value={val}>{meta.label}</option>
             ))}
@@ -108,15 +110,15 @@ export default function ActivityLog() {
         columns={columns}
         search={search}
         onSearch={(v) => { setSearch(v); setPage(1) }}
-        searchPlaceholder="بحث عن الفاعل بالاسم أو البريد..."
+        searchPlaceholder={t('dash.searchByActorNameOrEmail')}
         onRowClick={() => {}}
         page={pagination.current_page || 1}
         lastPage={pagination.last_page || 1}
         total={pagination.total || 0}
         perPage={pagination.per_page || 15}
         onPageChange={setPage}
-        emptyTitle="لا توجد أحداث"
-        emptyDescription="عندما تحدث أحداث على المنصة ستظهر هنا."
+        emptyTitle={t('dash.noEvents')}
+        emptyDescription={t('dash.eventsHappeningOnThePlatformWillAppearHere')}
       />
     </div>
   )

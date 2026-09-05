@@ -150,6 +150,58 @@ export function get<T>(path: string, opts?: RequestOptions): Promise<T> {
   return request<T>(path, { ...opts, method: 'GET' });
 }
 
+/**
+ * Multipart upload via the native Expo File System transport.
+ * React Native's fetch+FormData path can fail with "Network request failed"
+ * (surfacing as a false "no internet") on device uploads — uploadAsync is the
+ * reliable native path. Accepts the same RN FormData the callers already build.
+ */
+export async function upload<T>(path: string, formData: FormData, opts: RequestOptions = {}): Promise<T> {
+  const url = buildUrl(path, opts.params);
+  const finalHeaders: Record<string, string> = { Accept: 'application/json', ...opts.headers };
+  if (opts.auth !== false) {
+    const bearer = await getAuthHeader();
+    if (bearer) finalHeaders.Authorization = bearer;
+  }
+
+  // RN FormData exposes its parts; separate file parts (with a uri) from text fields.
+  const parts =
+    (formData as unknown as { getParts?: () => Array<Record<string, string>> }).getParts?.() ?? [];
+  const filePart = parts.find((p) => p.uri);
+  if (!filePart) {
+    throw createApiError('No file provided for upload', 0, null, url);
+  }
+  const parameters: Record<string, string> = {};
+  for (const p of parts) {
+    if (!p.uri && p.fieldName) parameters[p.fieldName] = p.stringValue ?? p.value ?? '';
+  }
+
+  try {
+    // Lazy require keeps this transport isolated from the caller's bundling graph.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const FileSystem = require('expo-file-system/legacy') as typeof import('expo-file-system/legacy');
+    const res = await FileSystem.uploadAsync(url, filePart.uri, {
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: filePart.fieldName ?? 'file',
+      mimeType: filePart.type ?? 'application/octet-stream',
+      parameters,
+      headers: finalHeaders,
+    });
+
+    const data = parseJsonSafe(res.body);
+    if (res.status >= 400) {
+      if (res.status === 401 && !isAuthEndpoint(path)) {
+        await handleUnauthorized();
+      }
+      throw createApiError(extractLaravelMessage(data, res.status, ''), res.status, data, url);
+    }
+    return data as T;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw createApiError('Upload failed', 0, null, url);
+  }
+}
+
 export function post<T>(path: string, json?: unknown, opts?: RequestOptions): Promise<T> {
   return request<T>(path, { ...opts, method: 'POST', json });
 }
@@ -164,8 +216,4 @@ export function patch<T>(path: string, json?: unknown, opts?: RequestOptions): P
 
 export function del<T>(path: string, opts?: RequestOptions): Promise<T> {
   return request<T>(path, { ...opts, method: 'DELETE' });
-}
-
-export function upload<T>(path: string, formData: FormData, opts?: RequestOptions): Promise<T> {
-  return request<T>(path, { ...opts, method: 'POST', formData });
 }

@@ -1,3 +1,4 @@
+import i18n from '../../../i18n'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -39,14 +40,14 @@ import Drawer from '../../../components/dashboard/Drawer'
 import { ManagerContact, MatchCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
 
-const tabs = [
-  { key: 'all', label: 'الكل' },
-  { key: 'accepted', label: 'مؤكدة' },
-  { key: 'open', label: 'مفتوحة' },
-  { key: 'live', label: 'مباشرة' },
-  { key: 'completed', label: 'منتهية' },
-  { key: 'pending_confirmation', label: 'بانتظار النتيجة' },
-  { key: 'cancelled', label: 'ملغاة' },
+const tabs = () => [
+  { key: 'all', label: i18n.t('dash.all') },
+  { key: 'accepted', label: i18n.t('dash.confirmed') },
+  { key: 'open', label: i18n.t('dash.open') },
+  { key: 'live', label: i18n.t('dash.live') },
+  { key: 'completed', label: i18n.t('dash.finished') },
+  { key: 'pending_confirmation', label: i18n.t('dash.awaitingResult') },
+  { key: 'cancelled', label: i18n.t('dash.cancelled') },
 ]
 
 
@@ -109,11 +110,11 @@ export default function Matches() {
     (m.host_team_id === myTeamId || m.opponent_team_id === myTeamId)
 
   const startOpen = async (m) => {
-    if (!window.confirm('هل تريد بدء المباراة الآن؟')) return
+    if (!window.confirm(t('dash.startTheMatchNow'))) return
     setBusy(true)
     try {
       const res = await api.post(`/manager/match-requests/${m.id}/start`)
-      toast.success(res.data.message || 'تم بدء المباراة بنجاح')
+      toast.success(res.data.message || t('dash.matchStartedSuccessfully'))
       refetch()
     } catch (e) {
       toastApiError(e, t)
@@ -123,11 +124,11 @@ export default function Matches() {
   }
 
   const cancelOpen = async (m) => {
-    if (!window.confirm('هل تريد إلغاء طلب المباراة هذا؟')) return
+    if (!window.confirm(t('dash.cancelThisMatchRequest'))) return
     setBusy(true)
     try {
       await api.delete(`/manager/match-requests/${m.id}`)
-      toast.success('تم إلغاء طلب المباراة')
+      toast.success(t('dash.matchRequestCancelled'))
       refetch()
     } catch (e) {
       toastApiError(e, t)
@@ -141,36 +142,36 @@ export default function Matches() {
       {(m.status === 'open' || m.status === 'accepted') && (
         <Button size="sm" variant="soft" onClick={() => { setDetail(null); setLineupMatch(m) }}>
           <Shield className="size-3.5" />
-          التشكيلة
+          {t('dash.lineUp')}
         </Button>
       )}
       {canStart(m) && (
         <Button size="sm" variant="soft" disabled={busy} onClick={() => startOpen(m)}>
           <Play className="size-3.5" />
-          بدء المباراة
+          {t('dash.startMatch')}
         </Button>
       )}
       {canSubmit(m) && (
         <Button size="sm" onClick={() => setScoreMatch(m)}>
           <Trophy className="size-3.5" />
-          تسجيل النتيجة
+          {t('dash.recordScore')}
         </Button>
       )}
       {needsConfirmation(m) && (
         <Button size="sm" variant="soft" onClick={() => setConfirmMatch(m)}>
           <CheckCircle2 className="size-3.5" />
-          مراجعة النتيجة
+          {t('dash.reviewScore')}
         </Button>
       )}
       {m.status === 'open' && (
         <Button size="sm" variant="dangerSoft" disabled={busy} onClick={() => cancelOpen(m)}>
           <XCircle className="size-3.5" />
-          إلغاء الطلب
+          {t('dash.cancelRequest')}
         </Button>
       )}
       <Button size="sm" variant="outline" onClick={() => setDetail(m)}>
         <CalendarDays className="size-3.5" />
-        التفاصيل
+        {t('dash.details')}
       </Button>
     </>
   )
@@ -178,18 +179,18 @@ export default function Matches() {
   return (
     <div>
       <SectionTitle
-        title="مبارياتي"
-        subtitle="جميع طلبات المباريات وحالتها"
+        title={t('dash.myMatches')}
+        subtitle={t('dash.allMatchRequestsAndTheirStatus')}
         action={
           <Button onClick={() => setNewOpen(true)}>
             <Plus className="size-4" />
-            مباراة جديدة
+            {t('dash.newMatch')}
           </Button>
         }
       />
 
       <div className="flex gap-2 overflow-x-auto pb-1">
-        {tabs.map((t) => (
+        {tabs().map((t) => (
           <button
             key={t.key}
             type="button"
@@ -222,13 +223,13 @@ export default function Matches() {
         <div className="mt-6">
           <Empty
             icon={CalendarDays}
-            title="لا مباريات في هذا التصنيف"
-            description={tab === 'all' ? 'انشر أول طلب مباراة لتبدأ' : 'جرّب تصنيفًا آخر'}
+            title={t('dash.noMatchesInThisCategory')}
+            description={tab === 'all' ? 'انشر أول طلب مباراة لتبدأ' : t('dash.tryAnotherCategory')}
             action={
               tab === 'all' && (
                 <Button size="sm" onClick={() => setNewOpen(true)}>
                   <Plus className="size-3.5" />
-                  مباراة جديدة
+                  {t('dash.newMatch')}
                 </Button>
               )
             }

@@ -80,7 +80,7 @@ class TournamentStatisticsService
 
         $events = MatchEvent::query()
             ->whereIn('match_id', $matchIds)
-            ->get(['id', 'match_id', 'team_id', 'player_id', 'type', 'minute']);
+            ->get(['id', 'match_id', 'team_id', 'player_id', 'assist_player_id', 'type', 'punishment', 'minute']);
 
         $scorers = [];
         $ownGoals = [];
@@ -102,6 +102,9 @@ class TournamentStatisticsService
 
             if ($event->type === MatchEventType::Assist && $event->player_id) {
                 $assists[$event->player_id] = ($assists[$event->player_id] ?? 0) + 1;
+            } elseif ($event->assist_player_id
+                && in_array($event->type, [MatchEventType::Goal, MatchEventType::PenaltyGoal, MatchEventType::OwnGoal], true)) {
+                $assists[$event->assist_player_id] = ($assists[$event->assist_player_id] ?? 0) + 1;
             }
 
             if ($event->type === MatchEventType::YellowCard && $event->player_id) {

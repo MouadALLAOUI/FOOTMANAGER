@@ -13,29 +13,29 @@ import { mapHttpError } from '../../../lib/errorState'
 import { toastApiError } from '../../../lib/errors'
 import { SectionError } from '../../../components/errors'
 
-const segments = [
-  { key: 'bookings', label: 'حجوزات المواعيد' },
-  { key: 'matches', label: 'المباريات' },
-]
-
-const statusTabs = [
-  { key: 'all', label: 'الكل' },
-  { key: 'pending', label: 'معلقة' },
-  { key: 'approved', label: 'مؤكدة' },
-]
-
-function formatDate(str) {
+function formatDate(str, lang) {
   if (!str) return '—'
   try {
-    return new Intl.DateTimeFormat('ar-MA', { day: 'numeric', month: 'long' }).format(new Date(str + 'T00:00:00'))
+    return new Intl.DateTimeFormat(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', { day: 'numeric', month: 'long' }).format(new Date(str + 'T00:00:00'))
   } catch {
     return str
   }
 }
 
 export default function Bookings() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { toast } = useToast()
+
+  const segments = [
+    { key: 'bookings', label: t('terrain.bookings.segmentBookings') },
+    { key: 'matches', label: t('terrain.bookings.segmentMatches') },
+  ]
+
+  const statusTabs = [
+    { key: 'all', label: t('terrain.common.all') },
+    { key: 'pending', label: t('terrain.common.pending') },
+    { key: 'approved', label: t('terrain.bookings.approved') },
+  ]
   const { data: terrainsData, isLoading: terrainsLoading, refetch: refetchTerrains } = useOwnerTerrains()
   const { data: bookingsData, isLoading: bookingsLoading, error: bookingsError, refetch: refetchBookings } = useOwnerBookings()
   const bookingsErrorState = bookingsError ? mapHttpError(bookingsError) : null
@@ -121,31 +121,31 @@ export default function Bookings() {
     }
   }
 
-  const approve = (b) => act(() => api.put(`/owner/bookings/${b.id}/approve`), 'تم قبول الحجز')
-  const reject = (b) => act(() => api.put(`/owner/bookings/${b.id}/reject`), 'تم رفض الحجز')
+  const approve = (b) => act(() => api.put(`/owner/bookings/${b.id}/approve`), t('terrain.bookings.approvedToast'))
+  const reject = (b) => act(() => api.put(`/owner/bookings/${b.id}/reject`), t('terrain.bookings.rejectedToast'))
 
   const confirm = useConfirm()
   const confirmReject = (b) => {
     if (!b) return
     confirm.run(() => reject(b), {
-      title: 'رفض الحجز؟',
-      description: `سيتم رفض حجز «${b.title || b.team?.name || 'الحجز'}».`,
-      confirmLabel: 'رفض الحجز',
+      title: t('terrain.bookings.rejectTitle'),
+      description: t('terrain.bookings.rejectDesc', { name: b.title || b.team?.name || t('terrain.bookings.booking') }),
+      confirmLabel: t('terrain.bookings.rejectConfirm'),
     })
   }
 
   const stats = [
-    { label: 'في الانتظار', value: counts.pending || 0, icon: Clock, color: 'bg-amber-50 text-amber-600' },
-    { label: 'مؤكدة قادمة', value: counts.approved || 0, icon: CalendarCheck, color: 'bg-emerald-50 text-emerald-600' },
-    { label: 'إيرادات قادمة (د.م)', value: revenue.toLocaleString('ar-MA'), icon: CircleDollarSign, color: 'bg-green-50 text-green-600' },
-    { label: 'مباريات على ملاعبك', value: matchRequests.length, icon: Swords, color: 'bg-violet-50 text-violet-600' },
+    { label: t('terrain.bookings.awaiting'), value: counts.pending || 0, icon: Clock, color: 'bg-amber-50 text-amber-600' },
+    { label: t('terrain.bookings.approvedUpcoming'), value: counts.approved || 0, icon: CalendarCheck, color: 'bg-emerald-50 text-emerald-600' },
+    { label: t('terrain.bookings.upcomingRevenue'), value: revenue.toLocaleString(i18n.language.startsWith('ar') ? 'ar-MA' : 'en-GB'), icon: CircleDollarSign, color: 'bg-green-50 text-green-600' },
+    { label: t('terrain.bookings.fieldMatches'), value: matchRequests.length, icon: Swords, color: 'bg-violet-50 text-violet-600' },
   ]
 
   return (
     <div>
       <SectionTitle
-        title="الحجوزات"
-        subtitle="إدارة حجوزات المواعيد ومباريات ملاعبك"
+        title={t('terrain.bookings.title')}
+        subtitle={t('terrain.bookings.subtitle')}
         action={
           <div className="flex rounded-xl border border-slate-200 bg-white p-1">
             {segments.map((s) => (
@@ -183,8 +183,8 @@ export default function Bookings() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="ابحث عن فريق أو مسير أو ملعب…"
-                aria-label="ابحث عن فريق أو مسير أو ملعب"
+                placeholder={t('terrain.bookings.searchPlaceholder')}
+                aria-label={t('terrain.bookings.searchLabel')}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white ps-11 pe-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
               />
               <Search className="absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
@@ -194,7 +194,7 @@ export default function Bookings() {
               value={terrainFilter}
               onChange={(e) => setTerrainFilter(e.target.value)}
             >
-              <option value="">كل الملاعب</option>
+              <option value="">{t('terrain.common.allFields')}</option>
               {terrains.map((t) => (
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
@@ -278,11 +278,11 @@ export default function Bookings() {
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-extrabold text-slate-900">
-                        {m.host_team?.name || `الفريق #${m.host_team_id}`}
-                        {m.opponent_team?.name ? <span className="text-slate-400"> ضد {m.opponent_team.name}</span> : ''}
+                        {m.host_team?.name || t('terrain.bookings.teamN', { id: m.host_team_id })}
+                        {m.opponent_team?.name ? <span className="text-slate-400"> {t('terrain.bookings.vs')} {m.opponent_team.name}</span> : ''}
                       </p>
                       <p className="text-[11px] font-semibold text-slate-400">
-                        {formatDate(m.match_datetime)}
+                        {formatDate(m.match_datetime, i18n.language)}
                         {m.match_datetime && (
                           <> • {new Intl.DateTimeFormat('ar-MA', { hour: '2-digit', minute: '2-digit' }).format(new Date(m.match_datetime))}</>
                         )}
@@ -291,7 +291,7 @@ export default function Bookings() {
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusBadge status={m.status === 'accepted' ? 'approved' : 'open'} />
-                    <Button size="sm" variant="outline" onClick={() => toast.info('يمكنك إدارة هذا الموعد من التقويم')}>التقويم</Button>
+                    <Button size="sm" variant="outline" onClick={() => toast.info(t('terrain.bookings.calendarHint'))}>{t('terrain.bookings.calendar')}</Button>
                   </div>
                 </div>
               ))}

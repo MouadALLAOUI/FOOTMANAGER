@@ -3,7 +3,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import UserApproval from '../../../components/admin/UserApproval'
 import { EmptyState } from '../../../components/admin/ui'
-import { logoThumb } from '../../../lib/thumb'
+import TeamLogo from '../../../components/profile/TeamLogo'
 
 export default function Managers() {
   const { data } = useApi(() => api.get('/admin/stats').then((r) => r.data))
@@ -51,13 +51,7 @@ export default function Managers() {
           <div className="rounded-3xl border border-slate-100 p-5">
             <p className="mb-4 text-[11px] font-black uppercase tracking-wider text-slate-400">معلومات الفريق</p>
             <div className="flex items-center gap-4">
-              <div className="grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-green-500/15 to-emerald-500/15 text-2xl">
-                {team.logo_url ? (
-                  <img loading="lazy" decoding="async" src={logoThumb(team)} alt="" className="size-14 rounded-2xl object-cover" />
-                ) : (
-                  <Users className="size-6 text-green-600" />
-                )}
-              </div>
+              <TeamLogo team={team} className="size-14" rounded="rounded-2xl" fontSize="text-lg" />
               <div>
                 <p className="text-base font-black text-slate-900">{team.name}</p>
                 <p className="mt-0.5 text-xs text-slate-400">{team.city || '—'}</p>

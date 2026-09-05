@@ -10,6 +10,7 @@ import {
 } from '@/api/managerBookings';
 import { AppText } from '@/components/ui/AppText';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { List } from '@/components/ui/List';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -102,7 +103,18 @@ export default function ManagerBookingsListScreen(): React.JSX.Element {
   if (isLoading) {
     return (
       <Screen padded={false}>
-        <ScreenHeader title={t('bookings.title', 'الحجوزات')} />
+                <ScreenHeader
+          title={t('bookings.title', 'الحجوزات')}
+          rightAction={
+            <Button
+              size="sm"
+              variant="secondary"
+              title={t('terrain.book')}
+              leftIcon={<CalendarDays size={14} color={colors.primary} />}
+              onPress={() => router.push('/terrain' as never)}
+            />
+          }
+        />
         <View style={styles.content}>
           <Skeleton height={110} radiusValue={radius.lg} />
           <Skeleton height={110} radiusValue={radius.lg} />

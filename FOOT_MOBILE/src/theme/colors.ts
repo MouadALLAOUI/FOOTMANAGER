@@ -1,29 +1,66 @@
 export const palette = {
-  green: '#22c55e',
-  greenDark: '#16a34a',
-  greenLight: '#dcfce7',
-  dark: '#0f172a',
-  darkCard: '#1e293b',
+  primaryGreen: '#16A34A',
+  darkGreen: '#065F46',
+  navy: '#0F2747',
+  accentBlue: '#3B82F6',
+  background: '#F8FAFC',
+  surface: '#FFFFFF',
+
+  // Status colors
+  available: '#22C55E',
+  pending: '#F59E0B',
+  booked: '#EF4444',
+  cancelled: '#6B7280',
+  approved: '#10B981',
+  rejected: '#DC2626',
+
+  // Extended palette & aliases
+  green: '#16A34A',
+  greenDark: '#065F46',
+  greenLight: '#DCFCE7',
+  dark: '#0F2747',
+  darkCard: '#1E293B',
   darkBorder: '#334155',
-  darkMuted: '#64748b',
-  light: '#f8fafc',
-  lightCard: '#ffffff',
-  lightBorder: '#e2e8f0',
-  lightMuted: '#94a3b8',
-  muted: '#94a3b8',
-  mutedDark: '#64748b',
-  danger: '#f43f5e',
-  dangerDark: '#e11d48',
-  dangerLight: '#ffe4e6',
-  amber: '#f59e0b',
-  amberDark: '#d97706',
-  amberLight: '#fef3c7',
-  blue: '#3b82f6',
-  blueDark: '#2563eb',
-  blueLight: '#dbeafe',
-  overlay: 'rgba(15, 23, 42, 0.6)',
-  overlayLight: 'rgba(15, 23, 42, 0.04)',
+  darkMuted: '#64748B',
+  light: '#F8FAFC',
+  lightCard: '#FFFFFF',
+  lightBorder: '#E2E8F0',
+  lightMuted: '#94A3B8',
+  muted: '#64748B',
+  mutedDark: '#475569',
+  danger: '#EF4444',
+  dangerDark: '#DC2626',
+  dangerLight: '#FEE2E2',
+  amber: '#F59E0B',
+  amberDark: '#D97706',
+  amberLight: '#FEF3C7',
+  blue: '#3B82F6',
+  blueDark: '#1D4ED8',
+  blueLight: '#DBEAFE',
+  overlay: 'rgba(15, 39, 71, 0.6)',
+  overlayLight: 'rgba(15, 39, 71, 0.05)',
 } as const;
+
+export const statusColors = {
+  available: palette.available,
+  pending: palette.pending,
+  booked: palette.booked,
+  cancelled: palette.cancelled,
+  approved: palette.approved,
+  rejected: palette.rejected,
+} as const;
+
+export type StatusColorKey = keyof typeof statusColors;
+
+export const roleAccents = {
+  player: palette.primaryGreen,
+  manager: palette.darkGreen,
+  terrain_owner: palette.primaryGreen,
+  committee: palette.accentBlue,
+  admin: palette.navy,
+} as const;
+
+export type RoleAccentKey = keyof typeof roleAccents;
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -39,53 +76,81 @@ export interface ThemeColors {
   textSubtle: string;
   textOnPrimary: string;
   primary: string;
+  primaryDark: string;
   primaryPressed: string;
+  navy: string;
+  accentBlue: string;
   danger: string;
   dangerPressed: string;
   amber: string;
   success: string;
   muted: string;
   overlay: string;
+  // Status tokens
+  statusAvailable: string;
+  statusPending: string;
+  statusBooked: string;
+  statusCancelled: string;
+  statusApproved: string;
+  statusRejected: string;
 }
 
 export const lightColors: ThemeColors = {
-  bg: '#f1f5f9',
-  bgMuted: '#e2e8f0',
-  surface: palette.lightCard,
-  surfaceHover: '#f8fafc',
+  bg: palette.background,
+  bgMuted: '#F1F5F9',
+  surface: palette.surface,
+  surfaceHover: '#F8FAFC',
   border: palette.lightBorder,
-  borderStrong: '#cbd5e1',
-  text: '#0f172a',
-  textMuted: palette.mutedDark,
-  textSubtle: '#94a3b8',
-  textOnPrimary: '#ffffff',
-  primary: palette.green,
-  primaryPressed: palette.greenDark,
+  borderStrong: '#CBD5E1',
+  text: palette.navy,
+  textMuted: '#64748B',
+  textSubtle: '#94A3B8',
+  textOnPrimary: '#FFFFFF',
+  primary: palette.primaryGreen,
+  primaryDark: palette.darkGreen,
+  primaryPressed: palette.darkGreen,
+  navy: palette.navy,
+  accentBlue: palette.accentBlue,
   danger: palette.danger,
   dangerPressed: palette.dangerDark,
   amber: palette.amber,
-  success: palette.green,
+  success: palette.approved,
   muted: palette.muted,
   overlay: palette.overlay,
+  statusAvailable: palette.available,
+  statusPending: palette.pending,
+  statusBooked: palette.booked,
+  statusCancelled: palette.cancelled,
+  statusApproved: palette.approved,
+  statusRejected: palette.rejected,
 };
 
 export const darkColors: ThemeColors = {
-  bg: palette.dark,
-  bgMuted: '#1e293b',
-  surface: palette.darkCard,
-  surfaceHover: '#334155',
-  border: palette.darkBorder,
-  borderStrong: '#475569',
+  bg: '#0B192C',
+  bgMuted: '#1E293B',
+  surface: '#15253B',
+  surfaceHover: '#1E3352',
+  border: '#243B55',
+  borderStrong: '#3A506B',
   text: palette.light,
-  textMuted: palette.muted,
-  textSubtle: '#64748b',
-  textOnPrimary: '#ffffff',
-  primary: palette.green,
-  primaryPressed: palette.greenDark,
+  textMuted: '#94A3B8',
+  textSubtle: '#64748B',
+  textOnPrimary: '#FFFFFF',
+  primary: palette.primaryGreen,
+  primaryDark: palette.darkGreen,
+  primaryPressed: palette.darkGreen,
+  navy: '#0B192C',
+  accentBlue: palette.accentBlue,
   danger: palette.danger,
-  dangerPressed: '#fb7185',
+  dangerPressed: '#FB7185',
   amber: palette.amber,
-  success: palette.green,
-  muted: palette.muted,
+  success: palette.approved,
+  muted: '#94A3B8',
   overlay: palette.overlay,
+  statusAvailable: palette.available,
+  statusPending: palette.pending,
+  statusBooked: palette.booked,
+  statusCancelled: palette.cancelled,
+  statusApproved: palette.approved,
+  statusRejected: palette.rejected,
 };

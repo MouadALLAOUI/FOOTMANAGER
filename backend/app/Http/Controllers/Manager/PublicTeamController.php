@@ -11,10 +11,16 @@ class PublicTeamController extends Controller
 {
     public function show(int $id): JsonResponse
     {
-        $team = Team::with(['primaryStadium', 'manager:id,name,status'])
-            ->findOrFail($id);
+        $team = Team::with([
+            'primaryStadium',
+            'manager:id,name,status,phone,email',
+            'formation.players.player:id,name,position,number,photo_path,photo_thumbnail_path',
+            'formation.captain:id,name,number',
+            'formation.viceCaptain:id,name,number',
+            'players' => fn ($q) => $q->where('status', 'active')->orderBy('number'),
+        ])->findOrFail($id);
 
-        if ($team->manager->status !== 'approved') {
+        if ($team->manager && $team->manager->status !== 'approved') {
             return response()->json(['message' => 'هذا الحساب غير متاح'], 404);
         }
 

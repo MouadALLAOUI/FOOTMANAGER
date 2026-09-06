@@ -20,7 +20,10 @@ import { OfflineBanner } from '@/system/OfflineBanner';
 import { PushNotificationsBootstrap } from '@/system/PushNotificationsBootstrap';
 import { ThemedStatusBar } from '@/system/ThemedStatusBar';
 import { useAppBootstrap } from '@/system/useAppBootstrap';
+import { ModeSwitchFAB } from '@/components/navigation/ModeSwitchFAB';
+import { appLogger } from '@/services/logger/app-logger';
 import { ThemeProvider } from '@/theme/ThemeProvider';
+
 
 function BootstrapGate({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { isReady, error, retry } = useAppBootstrap();
@@ -44,7 +47,10 @@ function BootstrapGate({ children }: { children: React.ReactNode }): React.JSX.E
 }
 
 export default function RootLayout(): React.JSX.Element {
-  useEffect(() => setupNetworkMonitoring(), []);
+  useEffect(() => {
+    appLogger.init();
+    setupNetworkMonitoring();
+  }, []);
 
   return (
     <ErrorBoundary>
@@ -76,6 +82,7 @@ export default function RootLayout(): React.JSX.Element {
                         </Stack>
                       </AuthGuard>
                     </MaintenanceGate>
+                    <ModeSwitchFAB />
                   </ToastProvider>
                   </SessionRestoreGate>
                 </AuthProvider>

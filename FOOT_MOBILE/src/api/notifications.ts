@@ -155,6 +155,7 @@ export function notificationTarget(
   }
   if (kind === 'booking') {
     const id = idFrom(notification.data, ['booking_id', 'id']);
+    if (role === 'terrain_owner') return '/(terrain)/bookings' as Href;
     if (id == null) return null;
     if (role === 'manager') return `/(manager)/bookings/${id}` as Href;
     if (role === 'player') return `/(player)/bookings/${id}` as Href;
@@ -164,6 +165,10 @@ export function notificationTarget(
     if (role === 'manager') return '/(manager)/team' as Href;
     if (role === 'player') return '/(player)/team' as Href;
     return null;
+  }
+  if (kind === 'tournament') {
+    if (role === 'committee') return '/(committee)/tournaments' as Href;
+    return '/(public)' as Href;
   }
   return null;
 }

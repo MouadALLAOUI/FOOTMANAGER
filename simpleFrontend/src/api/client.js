@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+import { toast } from '../components/ui/Toast/toastStore';
 import { queryClient } from './queryClient';
 
 const api = axios.create({
@@ -13,6 +14,10 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  const activeTeamId = localStorage.getItem('active_team_id');
+  if (activeTeamId) {
+    config.headers['X-Team-ID'] = activeTeamId;
   }
   return config;
 });
@@ -37,7 +42,6 @@ api.interceptors.response.use(
     }
     if (error.response?.status === 403 && error.response?.data?.activity_locked) {
       try {
-        const { toast } = require('../components/ui/Toast/toastStore');
         toast.error(error.response.data.message || 'تم تقييد نشاط حسابك');
       } catch {}
     }

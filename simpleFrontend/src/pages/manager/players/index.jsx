@@ -1,7 +1,10 @@
 import i18n from '../../../i18n'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  Camera,
+  ImageIcon,
+  Palette,
   Phone,
   Pencil,
   Plus,
@@ -48,8 +51,57 @@ function PlayerModal({ open, onClose, editing, initial, onSaved }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [form, setForm] = useState(emptyForm)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [selectedPreset, setSelectedPreset] = useState(null)
+  const [photoRemoved, setPhotoRemoved] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [presetModalOpen, setPresetModalOpen] = useState(false)
+  const [presets, setPresets] = useState([])
+  const [loadingPresets, setLoadingPresets] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  const isLinked = Boolean(editing && initial && initial.user_id != null)
+
+  useEffect(() => {
+    if (!presetModalOpen) return
+    let mounted = true
+    setLoadingPresets(true)
+    api
+      .get('/presets', { params: { category: 'profile_avatar' } })
+      .then((res) => {
+        if (!mounted) return
+        setPresets(res.data?.data || [])
+      })
+      .catch((e) => console.error(e))
+      .finally(() => {
+        if (mounted) setLoadingPresets(false)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [presetModalOpen])
+
+  useEffect(() => {
+    if (initial) {
+      setForm({
+        name: initial.name || '',
+        position: initial.position || 'midfielder',
+        number: initial.number !== null && initial.number !== undefined ? String(initial.number) : '',
+        phone: initial.phone || '',
+        is_whatsapp: Boolean(initial.is_whatsapp),
+        notes: initial.notes || '',
+      })
+      setPreviewUrl(initial.photo_thumbnail_url || initial.photo_url || null)
+    } else {
+      setForm(emptyForm)
+      setPreviewUrl(null)
+    }
+    setPhotoFile(null)
+    setSelectedPreset(null)
+    setPhotoRemoved(false)
+    setError('')
+  }, [initial, open])
 
   const set = (key) => (e) =>
     setForm((f) => ({ ...f, [key]: key === 'is_whatsapp' ? e.target.checked : e.target.value }))
@@ -58,92 +110,287 @@ function PlayerModal({ open, onClose, editing, initial, onSaved }) {
     setBusy(true)
     setError('')
     try {
-      const payload = {
-        name: form.name,
-        position: form.position,
-        number: form.number ? Number(form.number) : null,
-        phone: form.phone,
-        is_whatsapp: form.is_whatsapp,
-        notes: form.notes,
+      if (photoFile) {
+        const formData = new FormData()
+        formData.append('name', form.name)
+        formData.append('position', form.position)
+        if (form.number) formData.append('number', form.number)
+        if (form.phone) formData.append('phone', form.phone)
+        formData.append('is_whatsapp', form.is_whatsapp ? '1' : '0')
+        if (form.notes) formData.append('notes', form.notes)
+        formData.append('photo', photoFile)
+
+        if (editing) {
+          formData.append('_method', 'PUT')
+          await api.post(`/manager/players/${editing}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          })
+        } else {
+          await api.post('/manager/players', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          })
+        }
+      } else {
+        const payload = {
+          name: form.name,
+          position: form.position,
+          number: form.number ? Number(form.number) : null,
+          phone: form.phone,
+          is_whatsapp: form.is_whatsapp,
+          notes: form.notes,
+          ...(selectedPreset ? { photo_preset_id: selectedPreset.id } : {}),
+          ...(photoRemoved ? { remove_photo: true } : {}),
+        }
+        if (editing) await api.put(`/manager/players/${editing}`, payload)
+        else await api.post('/manager/players', payload)
       }
-      if (editing) await api.put(`/manager/players/${editing}`, payload)
-      else await api.post('/manager/players', payload)
+
       toast.success(editing ? t('dash.playerInfoUpdated') : t('dash.playerAdded'))
       onSaved()
       onClose()
     } catch (e) {
-      setError(e.response?.data?.errors
-        ? Object.values(e.response.data.errors).flat()[0]
-        : e.response?.data?.message || t('dash.couldNotSave'))
+      setError(
+        e.response?.data?.errors
+          ? Object.values(e.response.data.errors).flat()[0]
+          : e.response?.data?.message || t('dash.couldNotSave'),
+      )
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={editing ? 'تعديل لاعب' : t('dash.addPlayer')}
-      subtitle={editing ? initial?.name : t('dash.addAMemberToYourSquad')}
-    >
-      <div className="space-y-4">
-        <Field label={t('dash.name')} required>
-          <input className={inputClass} value={form.name} onChange={set('name')} />
-        </Field>
-        <FieldRow>
-          <Field label={t('dash.position')}>
-            <select className={selectClass} value={form.position} onChange={set('position')}>
-              <option value="goalkeeper">{t('dash.goalkeeper')}</option>
-              <option value="defender">{t('dash.defender')}</option>
-              <option value="midfielder">{t('dash.midfield')}</option>
-              <option value="forward">{t('dash.striker')}</option>
-            </select>
+    <>
+      <Modal
+        open={open}
+        onClose={onClose}
+        title={editing ? 'تعديل لاعب' : t('dash.addPlayer')}
+        subtitle={editing ? initial?.name : t('dash.addAMemberToYourSquad')}
+      >
+        <div className="space-y-4">
+          {isLinked && (
+            <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-3.5 text-xs text-blue-800">
+              <p className="font-extrabold flex items-center gap-1.5">
+                <UserRound className="size-4 text-blue-600" />
+                حساب لاعب مرتبط
+              </p>
+              <p className="mt-1 text-[11px] text-blue-600 leading-relaxed">
+                هذا اللاعب مسجل بحساب شخصي. يتم تحديث الاسم ورقم الهاتف والصورة من طرفه مباشرة.
+              </p>
+            </div>
+          )}
+
+          {!isLinked && (
+            <Field label="صورة اللاعب الشخصية">
+              <div className="flex items-center gap-4">
+                {previewUrl ? (
+                  <div className="relative size-16 shrink-0 overflow-hidden rounded-2xl border border-slate-200">
+                    <img src={previewUrl} alt="Preview" className="size-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPhotoFile(null)
+                        setSelectedPreset(null)
+                        setPhotoRemoved(true)
+                        setPreviewUrl(null)
+                      }}
+                      className="absolute end-1 top-1 grid size-5 place-items-center rounded-full bg-slate-900/70 text-white hover:bg-rose-600"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid size-16 shrink-0 place-items-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-slate-400">
+                    <UserRound className="size-6" />
+                  </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                      <Camera className="size-4 text-green-600" />
+                      {previewUrl ? 'رفع صورة أخرى' : 'رفع صورة من الجهاز'}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            setPhotoFile(file)
+                            setSelectedPreset(null)
+                            setPhotoRemoved(false)
+                            setPreviewUrl(URL.createObjectURL(file))
+                          }
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setPresetModalOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50"
+                    >
+                      <Palette className="size-4 text-violet-600" />
+                      اختيار رمزية جاهزة
+                    </button>
+                  </div>
+                  <p className="mt-1 text-[11px] text-slate-400">يمكنك رفع صورة شخصية أو اختيار رمزية جاهزة يوفرها التطبيق</p>
+                </div>
+              </div>
+            </Field>
+          )}
+
+          <Field label={t('dash.name')} required>
+            <input
+              className={inputClass}
+              value={form.name}
+              onChange={set('name')}
+              disabled={isLinked}
+            />
           </Field>
-          <Field label={t('dash.shirtNumber')}>
-            <input type="number" min="0" max="99" className={inputClass} value={form.number} onChange={set('number')} />
+
+          <FieldRow>
+            <Field label={t('dash.position')}>
+              <select className={selectClass} value={form.position} onChange={set('position')}>
+                <option value="goalkeeper">{t('dash.goalkeeper')}</option>
+                <option value="defender">{t('dash.defender')}</option>
+                <option value="midfielder">{t('dash.midfield')}</option>
+                <option value="forward">{t('dash.striker')}</option>
+              </select>
+            </Field>
+            <Field label={t('dash.shirtNumber')}>
+              <input type="number" min="0" max="99" className={inputClass} value={form.number} onChange={set('number')} />
+            </Field>
+          </FieldRow>
+
+          <Field label={t('dash.phone')}>
+            <input
+              dir="ltr"
+              className={inputClass}
+              value={form.phone}
+              onChange={set('phone')}
+              disabled={isLinked}
+            />
           </Field>
-        </FieldRow>
-        <Field label={t('dash.phone')}>
-          <input dir="ltr" className={inputClass} value={form.phone} onChange={set('phone')} />
-        </Field>
-        <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-          <div>
-            <p className="text-sm font-bold text-slate-700">{t('dash.whatsappNumber')}</p>
-            <p className="text-[11px] font-semibold text-slate-400">{t('dash.toSendMatchNotificationsViaWhatsapp')}</p>
+
+          <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+            <div>
+              <p className="text-sm font-bold text-slate-700">{t('dash.whatsappNumber')}</p>
+              <p className="text-[11px] font-semibold text-slate-400">{t('dash.toSendMatchNotificationsViaWhatsapp')}</p>
+            </div>
+            <Toggle checked={form.is_whatsapp} onChange={(v) => setForm((f) => ({ ...f, is_whatsapp: v }))} />
           </div>
-          <Toggle checked={form.is_whatsapp} onChange={(v) => setForm((f) => ({ ...f, is_whatsapp: v }))} />
+
+          <Field label={t('dash.notes')}>
+            <textarea rows={2} className={`${inputClass} h-auto py-3`} value={form.notes} onChange={set('notes')} />
+          </Field>
+
+          {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
+          <Button className="w-full" disabled={busy || !form.name.trim()} onClick={submit}>
+            {busy ? t('dash.saving') : t('dash.save')}
+          </Button>
         </div>
-        <Field label={t('dash.notes')}>
-          <textarea rows={2} className={`${inputClass} h-auto py-3`} value={form.notes} onChange={set('notes')} />
-        </Field>
-        {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
-        <Button className="w-full" disabled={busy || !form.name.trim()} onClick={submit}>
-          {busy ? t('dash.saving') : t('dash.save')}
-        </Button>
-      </div>
-    </Modal>
+      </Modal>
+
+      {presetModalOpen && (
+        <Modal
+          open={presetModalOpen}
+          onClose={() => setPresetModalOpen(false)}
+          title="اختيار رمزية جاهزة للاعب"
+          subtitle="اختر صورة جاهزة من الرمزيات المضافة بالمنصة"
+          size="md"
+        >
+          <div className="space-y-4">
+            {loadingPresets ? (
+              <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <span key={i} className="size-16 animate-pulse rounded-2xl bg-slate-100" />
+                ))}
+              </div>
+            ) : presets.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">
+                لم يتم إضافة رمزيات جاهزة بعد من قِبل الإدارة.
+              </div>
+            ) : (
+              <div className="max-h-64 overflow-y-auto pe-1">
+                <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
+                  {presets.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPreset(p)
+                        setPhotoFile(null)
+                        setPhotoRemoved(false)
+                        setPreviewUrl(p.image_thumbnail_url || p.image_url)
+                        setPresetModalOpen(false)
+                      }}
+                      className="group flex flex-col items-center gap-1.5 rounded-2xl border border-slate-200 bg-white p-2 transition-all hover:border-violet-400 hover:shadow-md hover:ring-2 hover:ring-violet-400/20 active:scale-95"
+                    >
+                      <img
+                        src={p.image_thumbnail_url || p.image_url}
+                        alt={p.name}
+                        loading="lazy"
+                        className="size-14 rounded-xl object-contain"
+                      />
+                      <span className="max-w-[70px] truncate text-[10px] font-bold text-slate-600 group-hover:text-violet-700">
+                        {p.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end border-t border-slate-100 pt-3">
+              <Button variant="outline" size="sm" onClick={() => setPresetModalOpen(false)}>
+                إغلاق
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
   )
 }
 
 function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
   const { t } = useTranslation()
+  const isLinked = Boolean(p.user_id != null)
+
   return (
     <div
       className="group flex cursor-pointer items-center gap-4 rounded-3xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]"
       onClick={() => onOpen(p)}
     >
-      <span
-        className={`grid size-12 shrink-0 place-items-center rounded-2xl text-sm font-black ${
-          p.number !== null && p.number !== undefined
-            ? 'bg-slate-900 text-white'
-            : 'bg-gradient-to-br from-green-100 to-emerald-200 text-green-700'
-        }`}
-      >
-        {p.number !== null && p.number !== undefined ? p.number : <UserRound className="size-5" />}
-      </span>
+      {p.photo_thumbnail_url || p.photo_url ? (
+        <img
+          src={p.photo_thumbnail_url || p.photo_url}
+          alt={p.name}
+          className="size-12 shrink-0 rounded-2xl object-cover ring-1 ring-slate-200 shadow-sm"
+        />
+      ) : (
+        <span
+          className={`grid size-12 shrink-0 place-items-center rounded-2xl text-sm font-black ${
+            p.number !== null && p.number !== undefined
+              ? 'bg-slate-900 text-white'
+              : 'bg-gradient-to-br from-green-100 to-emerald-200 text-green-700'
+          }`}
+        >
+          {p.number !== null && p.number !== undefined ? p.number : <UserRound className="size-5" />}
+        </span>
+      )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-extrabold text-slate-900">{p.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-extrabold text-slate-900">{p.name}</p>
+          {isLinked ? (
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-black text-blue-600 ring-1 ring-blue-200">
+              حساب مرتبط
+            </span>
+          ) : (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-black text-slate-500">
+              لاعب يدوي
+            </span>
+          )}
+        </div>
         <p className="text-[11px] font-semibold text-slate-400">
           {positionLabels[p.position] || p.position || t('dash.player')}
           {p.phone ? ' • ' : ''}
@@ -190,6 +437,7 @@ function PlayerRow({ p, busyId, onOpen, onEdit, onRemove }) {
     </div>
   )
 }
+
 
 export default function Players() {
   const { toast } = useToast()
@@ -409,17 +657,36 @@ export default function Players() {
         {detail && (
           <div className="space-y-5">
             <div className="flex items-center gap-4">
-              <span
-                className={`grid size-16 place-items-center rounded-3xl text-xl font-black ${
-                  detail.number !== null && detail.number !== undefined
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-gradient-to-br from-green-100 to-emerald-200 text-green-700'
-                }`}
-              >
-                {detail.number !== null && detail.number !== undefined ? detail.number : <UserRound className="size-7" />}
-              </span>
+              {detail.photo_thumbnail_url || detail.photo_url ? (
+                <img
+                  src={detail.photo_thumbnail_url || detail.photo_url}
+                  alt={detail.name}
+                  className="size-16 rounded-3xl object-cover shadow-sm ring-2 ring-slate-100"
+                />
+              ) : (
+                <span
+                  className={`grid size-16 place-items-center rounded-3xl text-xl font-black ${
+                    detail.number !== null && detail.number !== undefined
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-gradient-to-br from-green-100 to-emerald-200 text-green-700'
+                  }`}
+                >
+                  {detail.number !== null && detail.number !== undefined ? detail.number : <UserRound className="size-7" />}
+                </span>
+              )}
               <div className="min-w-0">
-                <p className="truncate text-lg font-black text-slate-900">{detail.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-lg font-black text-slate-900">{detail.name}</p>
+                  {detail.user_id ? (
+                    <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black text-blue-600 ring-1 ring-blue-200">
+                      حساب مرتبط
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">
+                      لاعب يدوي
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs font-semibold text-slate-400">{positionLabels[detail.position] || detail.position || t('dash.player')}</p>
               </div>
             </div>
@@ -428,6 +695,7 @@ export default function Players() {
                 { label: t('dash.position'), value: positionLabels[detail.position] || detail.position || '—' },
                 { label: t('dash.number'), value: detail.number ?? '—' },
                 { label: t('dash.phone'), value: detail.phone || '—' },
+                { label: 'نوع اللاعب', value: detail.user_id ? 'حساب شخصي مرتبط' : 'لاعب يدوي' },
                 { label: t('dash.status'), value: detail.status || t('dash.active') },
                 { label: t('dash.membership'), value: detail.is_essential ? t('dash.starter') : 'عضو' },
               ].map((s) => (
@@ -437,6 +705,7 @@ export default function Players() {
                 </div>
               ))}
             </div>
+
             {detail.notes && (
               <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
                 <p className="text-[10px] font-bold text-slate-400">{t('dash.notes')}</p>

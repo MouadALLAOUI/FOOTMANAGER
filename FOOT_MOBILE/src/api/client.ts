@@ -36,9 +36,13 @@ function parseJsonSafe(text: string): unknown {
 }
 
 function extractLaravelMessage(data: unknown, status: number, statusText: string): string {
-  if (typeof data === 'object' && data !== null && 'message' in data) {
-    const message = (data as { message: unknown }).message;
-    if (typeof message === 'string' && message.length > 0) return message;
+  if (typeof data === 'object' && data !== null) {
+    const obj = data as { message?: unknown; errors?: Record<string, string[]> };
+    if (obj.errors && typeof obj.errors === 'object') {
+      const errorList = Object.values(obj.errors).flat().filter(Boolean);
+      if (errorList.length > 0) return errorList.join(' • ');
+    }
+    if (typeof obj.message === 'string' && obj.message.length > 0) return obj.message;
   }
   return `Request failed (${status} ${statusText})`;
 }
@@ -60,6 +64,10 @@ async function handleUnauthorized(): Promise<void> {
   handling401 = true;
   try {
     const { secureStorage } = await import('@/services/storage/secure-storage');
+    const token = await secureStorage.getTokenAsync().catch(() => null);
+    // If there was no token (guest browsing), never forcibly redirect to login
+    if (!token) return;
+
     await secureStorage.deleteTokenAsync().catch(() => {});
     const { persistentStorage } = await import('@/services/storage/persistent-storage');
     persistentStorage.remove('auth.cachedUser');
@@ -75,8 +83,10 @@ async function handleUnauthorized(): Promise<void> {
 }
 
 function isAuthEndpoint(path: string): boolean {
-  return path.includes('/login') || path.includes('/register');
+  return path.includes('/login') || path.includes('/register') || path.includes('/stadiums') || path.includes('/tournaments');
 }
+
+import { appLogger } from '@/services/logger/app-logger';
 
 export async function request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
   const { json, formData, params, timeoutMs = DEFAULT_TIMEOUT_MS, headers, auth, ...rest } = options;
@@ -103,9 +113,15 @@ export async function request<T = unknown>(path: string, options: RequestOptions
     body = JSON.stringify(json) as BodyInit;
   }
 
+  const startTime = Date.now();
+  const method = (rest.method || 'GET').toUpperCase();
+
   try {
     const res = await fetch(url, { ...rest, headers: finalHeaders, body, signal: controller.signal });
     const text = await res.text();
+    const duration = Date.now() - startTime;
+    appLogger.network(method, path, res.status, duration);
+
     if (res.status === 204) return null as T;
     const data = parseJsonSafe(text);
 
@@ -123,6 +139,10 @@ export async function request<T = unknown>(path: string, options: RequestOptions
     }
     return data as T;
   } catch (error) {
+    const duration = Date.now() - startTime;
+    const status = error instanceof ApiError ? error.status : 0;
+    appLogger.network(method, path, status, duration, error);
+
     if (error instanceof ApiError) {
       if (error.status === 401 && !isAuthEndpoint(path)) {
         await handleUnauthorized();
@@ -177,28 +197,43 @@ export async function upload<T>(path: string, formData: FormData, opts: RequestO
   }
 
   try {
-    // Lazy require keeps this transport isolated from the caller's bundling graph.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const FileSystem = require('expo-file-system/legacy') as typeof import('expo-file-system/legacy');
-    const res = await FileSystem.uploadAsync(url, filePart.uri, {
-      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-      fieldName: filePart.fieldName ?? 'file',
-      mimeType: filePart.type ?? 'application/octet-stream',
-      parameters,
-      headers: finalHeaders,
-    });
+    const FileSystem = require('expo-file-system') as {
+      uploadAsync?: (
+        url: string,
+        fileUri: string,
+        options: {
+          uploadType?: unknown;
+          fieldName?: string;
+          mimeType?: string;
+          parameters?: Record<string, string>;
+          headers?: Record<string, string>;
+        },
+      ) => Promise<{ status: number; body: string }>;
+      FileSystemUploadType?: { MULTIPART: unknown };
+    };
+    if (FileSystem.uploadAsync) {
+      const res = await FileSystem.uploadAsync(url, filePart.uri, {
+        uploadType: FileSystem.FileSystemUploadType?.MULTIPART ?? 'MULTIPART',
+        fieldName: filePart.fieldName ?? 'file',
+        mimeType: filePart.type ?? 'application/octet-stream',
+        parameters,
+        headers: finalHeaders,
+      });
 
-    const data = parseJsonSafe(res.body);
-    if (res.status >= 400) {
-      if (res.status === 401 && !isAuthEndpoint(path)) {
-        await handleUnauthorized();
+      const data = parseJsonSafe(res.body);
+      if (res.status >= 400) {
+        if (res.status === 401 && !isAuthEndpoint(path)) {
+          await handleUnauthorized();
+        }
+        throw createApiError(extractLaravelMessage(data, res.status, ''), res.status, data, url);
       }
-      throw createApiError(extractLaravelMessage(data, res.status, ''), res.status, data, url);
+      return data as T;
     }
-    return data as T;
+    return request<T>(path, { ...opts, method: 'POST', formData });
   } catch (error) {
     if (error instanceof ApiError) throw error;
-    throw createApiError('Upload failed', 0, null, url);
+    return request<T>(path, { ...opts, method: 'POST', formData });
   }
 }
 

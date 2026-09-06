@@ -48,6 +48,15 @@ export function AuthProvider({ children }) {
     return data.user
   }, [persist])
 
+  const loginWithToken = useCallback(async (authToken) => {
+    localStorage.setItem('auth_token', authToken)
+    const { data } = await api.get('/me', {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+    persist(authToken, data.user)
+    return data.user
+  }, [persist])
+
   const register = useCallback(async (role, payload) => {
     const url =
       role === 'manager' ? '/register'
@@ -73,8 +82,8 @@ export function AuthProvider({ children }) {
   const updateUser = useCallback((usr) => persist(token, usr), [persist, token])
 
   const value = useMemo(
-    () => ({ user, token, loading, login, register, logout, updateUser }),
-    [user, token, loading, login, register, logout, updateUser],
+    () => ({ user, token, loading, login, loginWithToken, register, logout, updateUser }),
+    [user, token, loading, login, loginWithToken, register, logout, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

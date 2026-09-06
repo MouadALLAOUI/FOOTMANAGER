@@ -17,7 +17,7 @@ class TournamentSquadController extends Controller
 
     public function index(Request $request, Tournament $tournament): JsonResponse
     {
-        $team = $request->user()->team;
+        $team = app(\App\Domains\Shared\Support\CurrentTeamResolver::class)->for($request->user());
 
         if (! $team) {
             throw new DomainException('يجب إنشاء ملف الفريق أولاً', 422);
@@ -28,7 +28,7 @@ class TournamentSquadController extends Controller
 
     public function toggle(Request $request, Tournament $tournament, int $playerId): JsonResponse
     {
-        $team = $request->user()->team;
+        $team = app(\App\Domains\Shared\Support\CurrentTeamResolver::class)->for($request->user());
 
         if (! $team) {
             throw new DomainException('يجب إنشاء ملف الفريق أولاً', 422);

@@ -1,5 +1,58 @@
 import { ImageManipulator, SaveFormat, type ImageRef } from 'expo-image-manipulator';
 import { File } from 'expo-file-system';
+import { getApiUrl } from '@/config/env';
+
+/**
+ * Rewrite a backend-generated image URL so it is reachable from a mobile device.
+ *
+ * Laravel's `Storage::disk('public')->url(path)` produces `http://localhost:8000/storage/...`
+ * which resolves to the phone itself — not the dev server. This function replaces
+ * the origin with the one derived from `EXPO_PUBLIC_API_URL`.
+ *
+ * Rules:
+ *  - null / undefined / empty → returns null
+ *  - starts with `data:` → returned as-is (base64)
+ *  - starts with `file://` → returned as-is (local pick)
+ *  - `http://localhost:*` or `http://127.0.0.1:*` → origin replaced
+ *  - starts with `/storage/` → prepended with API base origin
+ *  - everything else (https://, S3, Cloudinary…) → returned as-is
+ */
+export function resolveImageUrl(uri?: string | null): string | null {
+  if (!uri || !uri.trim()) return null;
+  const trimmed = uri.trim();
+
+  // Local / data URIs — pass straight through
+  if (trimmed.startsWith('data:') || trimmed.startsWith('file://')) {
+    return trimmed;
+  }
+
+  // Derive base origin from the configured API URL (strip trailing /api or similar)
+  let baseOrigin = '';
+  try {
+    const apiUrl = getApiUrl(); // e.g. https://tunnel.trycloudflare.com/api
+    const parsed = new URL(apiUrl);
+    baseOrigin = `${parsed.protocol}//${parsed.host}`; // e.g. https://tunnel.trycloudflare.com
+  } catch {
+    return trimmed; // can't parse — return original
+  }
+
+  // Relative /storage/ path
+  if (trimmed.startsWith('/storage/') || trimmed.startsWith('storage/')) {
+    const clean = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return `${baseOrigin}${clean}`;
+  }
+
+  // Localhost or loopback absolute URL — rewrite the origin only
+  const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/i;
+  const match = trimmed.match(localhostPattern);
+  if (match) {
+    const rest = match[3] ?? '/'; // path after host:port
+    return `${baseOrigin}${rest}`;
+  }
+
+  // All other URLs (https://, real domains) — leave untouched
+  return trimmed;
+}
 
 export interface CompressImageOptions {
   /** Max resulting width (image is downscaled to fit, preserving ratio). */

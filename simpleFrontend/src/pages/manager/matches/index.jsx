@@ -1,15 +1,13 @@
 import i18n from '../../../i18n'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
   CheckCircle2,
-  Clock,
-  MessageSquare,
-  MapPin,
   Play,
   Plus,
+  Radio,
   Shield,
   Trophy,
   XCircle,
@@ -17,27 +15,21 @@ import {
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { SectionError } from '../../../components/errors'
-import { useStadiums } from '../../../api/queries'
 import { useAuth } from '../../../context/AuthContext'
+import { useTeam } from '../../../context/TeamContext'
 import { toastApiError } from '../../../lib/errors'
 import NewMatchModal from '../../../domains/manager/components/NewMatchModal'
 import ScoreModal from '../../../domains/manager/components/ScoreModal'
 import MatchDetail from '../../../domains/manager/components/MatchDetail'
+import OpponentProfileModal from '../../../domains/manager/components/OpponentProfileModal'
 import MatchLineupDrawer from '../components/MatchLineupDrawer'
 import {
   Button,
   Empty,
-  Field,
-  FieldRow,
-  Modal,
   SectionTitle,
   SkeletonCards,
-  StatusBadge,
-  inputClass,
-  selectClass,
 } from '../../../components/dashboard/ui'
-import Drawer from '../../../components/dashboard/Drawer'
-import { ManagerContact, MatchCard } from '../../../components/dashboard/cards'
+import { MatchCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
 
 const tabs = () => [
@@ -50,13 +42,16 @@ const tabs = () => [
   { key: 'cancelled', label: i18n.t('dash.cancelled') },
 ]
 
-
-
 export default function Matches() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const { user } = useAuth()
-  const myTeamId = user?.team?.id
+  const { currentTeam, teams } = useTeam()
+  const myTeamIds = useMemo(
+    () => new Set(teams.map((t) => t.id).concat(currentTeam?.id ? [currentTeam.id] : user?.team?.id ? [user.team.id] : [])),
+    [teams, currentTeam, user?.team?.id],
+  )
   const [tab, setTab] = useState('all')
   const { data, loading, errorState, refetch } = useApi(() =>
     api.get('/manager/my-match-requests?status=all').then((r) => r.data),
@@ -68,10 +63,11 @@ export default function Matches() {
   const [confirmMatch, setConfirmMatch] = useState(null)
   const [detail, setDetail] = useState(null)
   const [lineupMatch, setLineupMatch] = useState(null)
+  const [inspectTeam, setInspectTeam] = useState(null)
   const [busy, setBusy] = useState(false)
   const { toast } = useToast()
 
-  const matches = data?.match_requests || []
+  const matches = useMemo(() => data?.match_requests || [], [data])
   const canSubmitIds = useMemo(() => new Set((pendingScores?.matches || []).map((m) => m.id)), [pendingScores])
   const confirmIds = useMemo(() => new Set((pendingConfirms?.matches || []).map((m) => m.id)), [pendingConfirms])
 
@@ -106,8 +102,8 @@ export default function Matches() {
     (m.status === 'open' || m.status === 'accepted') &&
     m.match_datetime &&
     new Date(m.match_datetime) <= new Date() &&
-    Boolean(myTeamId) &&
-    (m.host_team_id === myTeamId || m.opponent_team_id === myTeamId)
+    myTeamIds.size > 0 &&
+    (myTeamIds.has(m.host_team_id) || myTeamIds.has(m.opponent_team_id))
 
   const startOpen = async (m) => {
     if (!window.confirm(t('dash.startTheMatchNow'))) return
@@ -115,12 +111,28 @@ export default function Matches() {
     try {
       const res = await api.post(`/manager/match-requests/${m.id}/start`)
       toast.success(res.data.message || t('dash.matchStartedSuccessfully'))
-      refetch()
+      const liveId = res.data?.live_match_id
+      if (liveId) {
+        navigate(`/dashboard/live/${liveId}`)
+      } else {
+        refetch()
+      }
     } catch (e) {
       toastApiError(e, t)
     } finally {
       setBusy(false)
     }
+  }
+
+  const openLive = (m) => {
+    const liveId = m.football_match?.id
+    if (liveId) navigate(`/dashboard/live/${liveId}`)
+  }
+
+  const isLiveOpen = (m) => {
+    const fm = m.football_match
+    if (!fm?.id) return false
+    return !['finished', 'cancelled', 'postponed'].includes(fm.status)
   }
 
   const cancelOpen = async (m) => {
@@ -167,6 +179,22 @@ export default function Matches() {
         <Button size="sm" variant="dangerSoft" disabled={busy} onClick={() => cancelOpen(m)}>
           <XCircle className="size-3.5" />
           {t('dash.cancelRequest')}
+        </Button>
+      )}
+      {m.status === 'live' && isLiveOpen(m) && (
+        <Button size="sm" variant="outline" onClick={() => openLive(m)}>
+          <Radio className="size-3.5 text-rose-500" />
+          {t('dash.live')}
+        </Button>
+      )}
+      {m.status === 'live' && (
+        <Button
+          size="sm"
+          className="bg-emerald-600 text-white hover:bg-emerald-700"
+          onClick={() => (m.football_match?.id ? navigate(`/dashboard/live/${m.football_match.id}`) : setScoreMatch(m))}
+        >
+          <Trophy className="size-3.5" />
+          تحديث النتيجة
         </Button>
       )}
       <Button size="sm" variant="outline" onClick={() => setDetail(m)}>
@@ -238,7 +266,13 @@ export default function Matches() {
       ) : (
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
           {filtered.map((m) => (
-            <MatchCard key={m.id} match={m} onClick={() => setDetail(m)} actions={actionsFor(m)} />
+            <MatchCard
+              key={m.id}
+              match={m}
+              onClick={() => setDetail(m)}
+              actions={actionsFor(m)}
+              onTeamClick={(team) => setInspectTeam(team)}
+            />
           ))}
         </div>
       )}
@@ -250,8 +284,16 @@ export default function Matches() {
       {confirmMatch && (
         <ScoreModal match={confirmMatch} mode="confirm" onClose={() => setConfirmMatch(null)} onSaved={refetch} />
       )}
-      <MatchDetail match={detail} onClose={() => setDetail(null)} onActions={actionsFor} onLineup={(m) => { setDetail(null); setLineupMatch(m) }} />
+      <MatchDetail
+        match={detail}
+        onClose={() => setDetail(null)}
+        onActions={actionsFor}
+        onLineup={(m) => { setDetail(null); setLineupMatch(m) }}
+        onTeamClick={(team) => setInspectTeam(team)}
+      />
       <MatchLineupDrawer matchRequestId={lineupMatch?.id} open={Boolean(lineupMatch)} onClose={() => setLineupMatch(null)} />
+      <OpponentProfileModal teamId={inspectTeam?.id} open={Boolean(inspectTeam)} onClose={() => setInspectTeam(null)} />
     </div>
   )
 }
+

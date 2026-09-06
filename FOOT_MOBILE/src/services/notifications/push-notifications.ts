@@ -158,5 +158,44 @@ export function resetPushTokenCache(): void {
   cachedToken = null;
 }
 
+/**
+ * Trigger an immediate test notification via expo-notifications
+ */
+export async function sendLocalTestNotification(
+  title = '⚽ FootMANAGER Notification',
+  body = 'تذكير بمباراة اليوم: الرجاء ضد الوداد الساعة 18:00 على ملعب Oasis',
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const Notifications = loadNotifications();
+    if (!Notifications) {
+      return {
+        success: false,
+        message: 'Notifications not supported in this environment (e.g. Expo Go on Android).',
+      };
+    }
+
+    const permitted = await hasPushPermission();
+    if (!permitted) {
+      return { success: false, message: 'Notification permission was denied.' };
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        sound: 'default',
+        data: { test: true, timestamp: Date.now() },
+      },
+      trigger: null,
+    });
+
+    return { success: true, message: 'Notification sent successfully!' };
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, message: `Failed to trigger notification: ${errMsg}` };
+  }
+}
+
 /** Sync accessor for callers that need the module (listener registration). */
 export { loadNotifications };
+

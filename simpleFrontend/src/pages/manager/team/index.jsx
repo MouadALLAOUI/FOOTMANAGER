@@ -28,6 +28,7 @@ import {
 } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 import TeamLogo from '../../../components/profile/TeamLogo'
+import TeamLogoModal from '../../../components/profile/TeamLogoModal'
 import { toastApiError } from '../../../lib/errors'
 
 const categoryLabels = { get adult() { return i18n.t('dash.adults') }, get teenager() { return i18n.t('dash.teens') }, get children() { return i18n.t('dash.children') } }
@@ -63,8 +64,7 @@ export default function Team() {
   const { data: stadiumsData } = useStadiums({ per_page: 50 })
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const fileRef = useRef(null)
+  const [logoModalOpen, setLogoModalOpen] = useState(false)
 
   const team = data?.team
   const stadiums = stadiumsData?.data || []
@@ -101,23 +101,6 @@ export default function Team() {
     }
   }
 
-  const uploadLogo = async (file) => {
-    if (!file) return
-    setUploading(true)
-    try {
-      const fd = new FormData()
-      fd.append('logo', file)
-      const res = await api.post('/manager/team-profile/logo', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
-      toast.success(res.data.message || t('dash.logoUploaded'))
-      refetch()
-    } catch (e) {
-      toastApiError(e, t)
-    } finally {
-      setUploading(false)
-    }
-  }
 
   const stats = useMemo(
     () => [
@@ -189,15 +172,11 @@ export default function Team() {
             />
             <button
               type="button"
-              onClick={() => fileRef.current?.click()}
+              onClick={() => setLogoModalOpen(true)}
               className="absolute inset-0 grid place-items-center rounded-3xl bg-slate-950/50 opacity-0 transition-opacity group-hover:opacity-100"
               title={t('dash.changeLogo')}
             >
-              {uploading ? (
-                <span className="size-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              ) : (
-                <Camera className="size-6 text-white" />
-              )}
+              <Camera className="size-6 text-white" />
             </button>
           </div>
           <div className="min-w-0 pb-1 text-white">
@@ -222,17 +201,14 @@ export default function Team() {
             </p>
           </div>
         </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            uploadLogo(e.target.files?.[0])
-            e.target.value = ''
-          }}
-        />
       </div>
+
+      <TeamLogoModal
+        open={logoModalOpen}
+        onClose={() => setLogoModalOpen(false)}
+        team={team}
+        onSuccess={() => refetch()}
+      />
 
       {/* Stats */}
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">

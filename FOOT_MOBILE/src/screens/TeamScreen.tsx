@@ -15,8 +15,10 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, spacing } from '@/theme/spacing';
+import { TeamLogo } from '@/components/ui/TeamLogo';
 
 export default function TeamScreen(): React.JSX.Element {
+
   const { t } = useI18n();
   const { colors } = useTheme();
   const router = useRouter();
@@ -78,13 +80,7 @@ export default function TeamScreen(): React.JSX.Element {
   const header = (
     <View style={styles.headerWrap}>
       <View style={[styles.header, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <View style={[styles.logo, { backgroundColor: colors.bgMuted }]}>
-          {team.logo_thumbnail_url || team.logo_url ? (
-            <Image source={{ uri: team.logo_thumbnail_url ?? team.logo_url ?? undefined }} style={styles.logoImage} resizeMode="cover" />
-          ) : (
-            <Users size={28} color={colors.textMuted} />
-          )}
-        </View>
+        <TeamLogo uri={team.logo_thumbnail_url ?? team.logo_url} name={team.name} size="xl" />
         <View style={styles.headerText}>
           <AppText variant="h2">{team.name}</AppText>
           <AppText variant="caption" muted>

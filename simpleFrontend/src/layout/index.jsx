@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Navbar from './Navbar'
 import Footer from './Footer'
+import AnnouncementBar from '../components/system/AnnouncementBar'
 
 export default function Layout() {
   const { t } = useTranslation()
@@ -14,6 +15,7 @@ export default function Layout() {
       >
         {t('common.skipToContent')}
       </a>
+      <AnnouncementBar />
       <Navbar />
       <div key={location.pathname} className="page-enter">
         <Outlet />

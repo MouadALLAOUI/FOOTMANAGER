@@ -35,17 +35,28 @@ export function AuthGuard({ children }: { children: React.ReactNode }): React.JS
   const segments = useSegments();
 
   useEffect(() => {
+    const group = resolveGroup(segments);
+
+    // Allow browsing public screens for all session states (including pending, blocked, rejected)
+    if (group === '(public)') {
+      return;
+    }
+
     const route = ACCOUNT_STATE_ROUTES[sessionState];
     if (route) {
       router.replace(route);
       return;
     }
-    if (sessionState !== 'authenticated' || !role) return;
+    if (sessionState !== 'authenticated' || !role) {
+      const isProtected = group && group !== '(public)' && group !== '(auth)';
+      if (isProtected) {
+        router.replace('/(auth)');
+      }
+      return;
+    }
 
-    const group = resolveGroup(segments);
-
-    if (group === '(auth)' || group === '(public)' || !group) {
-      if ((group === '(auth)' || group === '(public)') && sessionState === 'authenticated' && role) {
+    if (group === '(auth)' || !group) {
+      if (group === '(auth)' && sessionState === 'authenticated' && role) {
         router.replace(homeForRole(role as Role));
       }
       return;

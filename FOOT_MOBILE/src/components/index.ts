@@ -15,3 +15,6 @@ export * from './ui/Modal';
 export * from './ui/ConfirmationDialog';
 export * from './ui/List';
 export * from './ui/Toast';
+export * from './ui/TeamLogo';
+export * from './ui/illustrations';
+

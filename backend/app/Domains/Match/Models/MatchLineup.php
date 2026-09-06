@@ -15,11 +15,17 @@ class MatchLineup extends Model
         'team_id',
         'player_id',
         'position',
+        'tactical_position',
+        'role',
+        'x',
+        'y',
         'shirt_number',
         'is_starter',
         'is_captain',
         'is_vice_captain',
         'is_free_kick_taker',
+        'is_penalty_taker',
+        'is_corner_taker',
         'order_index',
     ];
 
@@ -30,6 +36,10 @@ class MatchLineup extends Model
             'is_captain' => 'boolean',
             'is_vice_captain' => 'boolean',
             'is_free_kick_taker' => 'boolean',
+            'is_penalty_taker' => 'boolean',
+            'is_corner_taker' => 'boolean',
+            'x' => 'float',
+            'y' => 'float',
             'order_index' => 'integer',
         ];
     }

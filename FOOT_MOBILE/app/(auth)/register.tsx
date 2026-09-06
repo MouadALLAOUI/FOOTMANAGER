@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useRouter } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
   Linking,
@@ -47,7 +47,7 @@ const CATEGORIES = [
 const POSITIONS = [
   { value: 'goalkeeper', labelAr: 'حارس', labelEn: 'Goalkeeper', labelFr: 'Gardien' },
   { value: 'defender', labelAr: 'مدافع', labelEn: 'Defender', labelFr: 'Défenseur' },
-  { value: 'midfielder', labelAr: 'وسط ميدان', labelEn: 'Midfielder', labelFr: 'Milieu' },
+  { value: 'midfielder', labelAr: 'وسط ميدان', labelEn: 'Milieu', labelFr: 'Milieu' },
   { value: 'forward', labelAr: 'مهاجم', labelEn: 'Forward', labelFr: 'Attaquant' },
 ] as const;
 
@@ -84,10 +84,16 @@ export default function RegisterWizard(): React.JSX.Element {
   const { colors } = useTheme();
   const router = useRouter();
   const toast = useToast();
+  const params = useLocalSearchParams<{ role?: string }>();
+
+  const initialRole: Role | null =
+    params.role && ['player', 'manager', 'terrain_owner', 'committee'].includes(params.role)
+      ? (params.role as Role)
+      : null;
 
   // ── step: 1..5 (5 = result)
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
-  const [role, setRole] = useState<Role | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(initialRole ? 2 : 1);
+  const [role, setRole] = useState<Role | null>(initialRole);
 
   // Account Info
   const [name, setName] = useState('');

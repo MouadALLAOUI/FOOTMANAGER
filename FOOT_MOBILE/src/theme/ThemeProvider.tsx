@@ -40,8 +40,15 @@ export function ThemeProvider({
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
+const fallbackThemeValue: ThemeContextValue = {
+  colors: lightColors,
+  mode: 'light',
+  isDark: false,
+  setMode: () => {},
+  isRTL: true,
+};
+
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
-  return ctx;
+  return ctx ?? fallbackThemeValue;
 }

@@ -8,9 +8,15 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.footmanager.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "يتطلب التطبيق الوصول إلى الكاميرا لالتقاط وتحديث صور الحساب والمباريات.",
+        "NSPhotoLibraryUsageDescription": "يتطلب التطبيق الوصول إلى مكتبة الصور لاختيار صور الحساب والملعب."
+      }
     },
     "android": {
+      "package": "com.footmanager.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -40,7 +46,12 @@
       "expo-notifications"
     ],
     "extra": {
-      "appEnv": "development"
-    }
+      "appEnv": "development",
+      "router": {},
+      "eas": {
+        "projectId": "31eed485-ac01-45f1-bf7a-467e5700634e"
+      }
+    },
+    "owner": "moadallaoui"
   }
 }

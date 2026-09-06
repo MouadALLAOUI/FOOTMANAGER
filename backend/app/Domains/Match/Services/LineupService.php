@@ -3,9 +3,11 @@
 namespace App\Domains\Match\Services;
 
 use App\Domains\Match\Models\FootballMatch;
+use App\Domains\Match\Models\MatchFormationSnapshot;
 use App\Domains\Match\Models\MatchLineup;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Team\Support\FormationPresets;
 
 class LineupService
 {
@@ -144,27 +146,35 @@ class LineupService
                 ->delete();
         }
 
-        foreach ($players as $index => $entry) {
-            $captainCount = MatchLineup::query()
-                ->where('match_request_id', $matchRequest->id)
-                ->where('team_id', $teamId)
-                ->where('is_captain', true)
-                ->where('player_id', '!=', $entry['player_id'])
-                ->count();
+        // Track role holders within this batch so the starting XI never ends
+        // up with two captains (or two penalty takers etc.) from one payload.
+        $roleColumns = [
+            'is_captain',
+            'is_vice_captain',
+            'is_free_kick_taker',
+            'is_penalty_taker',
+            'is_corner_taker',
+        ];
 
-            $viceCaptainCount = MatchLineup::query()
-                ->where('match_request_id', $matchRequest->id)
-                ->where('team_id', $teamId)
-                ->where('is_vice_captain', true)
-                ->where('player_id', '!=', $entry['player_id'])
-                ->count();
+        $heldBy = [];
+        foreach ($roleColumns as $roleColumn) {
+            $heldBy[$roleColumn] = null;
+        }
 
-            $fkCount = MatchLineup::query()
-                ->where('match_request_id', $matchRequest->id)
-                ->where('team_id', $teamId)
-                ->where('is_free_kick_taker', true)
-                ->where('player_id', '!=', $entry['player_id'])
-                ->count();
+        foreach (array_values($players) as $index => $entry) {
+            $isStarter = (bool) ($entry['is_starter'] ?? false);
+
+            // Role consistency: only starters may hold roles; a role holder
+            // moved to the bench is cleared automatically.
+            foreach ($roleColumns as $roleColumn) {
+                $wants = $isStarter && ! empty($entry[$roleColumn]) && $heldBy[$roleColumn] === null;
+
+                if ($wants) {
+                    $heldBy[$roleColumn] = (int) $entry['player_id'];
+                }
+            }
+
+            $tacticalPosition = $isStarter ? ($entry['tactical_position'] ?? null) : null;
 
             MatchLineup::query()->updateOrCreate(
                 [
@@ -174,15 +184,55 @@ class LineupService
                 ],
                 [
                     'position' => $entry['position'] ?? null,
+                    'tactical_position' => $tacticalPosition,
+                    'role' => $tacticalPosition ? FormationPresets::roleFor((string) $tacticalPosition) : null,
+                    'x' => $isStarter ? ($entry['x'] ?? null) : null,
+                    'y' => $isStarter ? ($entry['y'] ?? null) : null,
                     'shirt_number' => $entry['shirt_number'] ?? null,
-                    'is_starter' => $entry['is_starter'] ?? false,
-                    'is_captain' => (! empty($entry['is_captain']) && $captainCount === 0),
-                    'is_vice_captain' => (! empty($entry['is_vice_captain']) && $viceCaptainCount === 0),
-                    'is_free_kick_taker' => (! empty($entry['is_free_kick_taker']) && $fkCount === 0),
+                    'is_starter' => $isStarter,
+                    'is_captain' => $isStarter && $heldBy['is_captain'] === (int) $entry['player_id'],
+                    'is_vice_captain' => $isStarter && $heldBy['is_vice_captain'] === (int) $entry['player_id'],
+                    'is_free_kick_taker' => $isStarter && $heldBy['is_free_kick_taker'] === (int) $entry['player_id'],
+                    'is_penalty_taker' => $isStarter && $heldBy['is_penalty_taker'] === (int) $entry['player_id'],
+                    'is_corner_taker' => $isStarter && $heldBy['is_corner_taker'] === (int) $entry['player_id'],
                     'order_index' => $entry['order_index'] ?? $index,
                 ],
             );
         }
+    }
+
+    /**
+     * Stores the formation identity the team built its match lineup from.
+     * It never touches the team's saved formations — purely match context.
+     */
+    public function upsertFormationForMatchRequest(MatchRequest $matchRequest, int $teamId, array $formationData): void
+    {
+        MatchFormationSnapshot::query()->updateOrCreate(
+            ['match_request_id' => $matchRequest->id, 'team_id' => $teamId],
+            [
+                'format' => $formationData['format'] ?? $matchRequest->player_format,
+                'preset_key' => $formationData['preset_key'] ?? null,
+                'formation' => $formationData['formation'] ?? null,
+            ],
+        );
+    }
+
+    public function formationForMatchRequest(int $matchRequestId, int $teamId): ?array
+    {
+        $snapshot = MatchFormationSnapshot::query()
+            ->where('match_request_id', $matchRequestId)
+            ->where('team_id', $teamId)
+            ->first();
+
+        if (! $snapshot) {
+            return null;
+        }
+
+        return [
+            'format' => $snapshot->format,
+            'preset_key' => $snapshot->preset_key,
+            'formation' => $snapshot->formation,
+        ];
     }
 
     public function forMatchRequest(int $matchRequestId): array
@@ -243,6 +293,42 @@ class LineupService
             ->update(['is_free_kick_taker' => false]);
 
         $entry->update(['is_free_kick_taker' => true]);
+
+        return $entry->fresh();
+    }
+
+    public function setPenaltyTakerForMatchRequest(MatchRequest $matchRequest, int $teamId, int $playerId): MatchLineup
+    {
+        $entry = MatchLineup::query()
+            ->where('match_request_id', $matchRequest->id)
+            ->where('team_id', $teamId)
+            ->where('player_id', $playerId)
+            ->firstOrFail();
+
+        MatchLineup::query()
+            ->where('match_request_id', $matchRequest->id)
+            ->where('team_id', $teamId)
+            ->update(['is_penalty_taker' => false]);
+
+        $entry->update(['is_penalty_taker' => true]);
+
+        return $entry->fresh();
+    }
+
+    public function setCornerTakerForMatchRequest(MatchRequest $matchRequest, int $teamId, int $playerId): MatchLineup
+    {
+        $entry = MatchLineup::query()
+            ->where('match_request_id', $matchRequest->id)
+            ->where('team_id', $teamId)
+            ->where('player_id', $playerId)
+            ->firstOrFail();
+
+        MatchLineup::query()
+            ->where('match_request_id', $matchRequest->id)
+            ->where('team_id', $teamId)
+            ->update(['is_corner_taker' => false]);
+
+        $entry->update(['is_corner_taker' => true]);
 
         return $entry->fresh();
     }

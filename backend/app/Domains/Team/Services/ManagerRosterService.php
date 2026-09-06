@@ -28,10 +28,17 @@ class ManagerRosterService
         return Player::create([
             'team_id' => $teamId,
             'name' => $validated['name'],
+            'photo_path' => $validated['photo_path'] ?? null,
+            'photo_thumbnail_path' => $validated['photo_thumbnail_path'] ?? null,
             'position' => $validated['position'] ?? null,
+            'preferred_position' => $validated['preferred_position'] ?? ($validated['position'] ?? null),
             'number' => $validated['number'] ?? null,
             'phone' => $validated['phone'] ?? null,
             'is_whatsapp' => $validated['is_whatsapp'] ?? false,
+            'role' => $validated['role'] ?? Player::ROLE_STARTER,
+            'preferred_foot' => $validated['preferred_foot'] ?? null,
+            'height_cm' => $validated['height_cm'] ?? null,
+            'weight_kg' => $validated['weight_kg'] ?? null,
             'notes' => $validated['notes'] ?? null,
         ]);
     }

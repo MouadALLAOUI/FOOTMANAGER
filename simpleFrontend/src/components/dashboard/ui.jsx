@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import ItemIcon from './ItemIcon'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react'
@@ -240,7 +241,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
   const widths = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
   const titleId = titleIdRef.current
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center">
       <div className={`${closing ? 'overlay-out' : 'overlay-in'} absolute inset-0 bg-slate-900/50 backdrop-blur-sm`} onClick={requestClose} aria-hidden="true" />
       <div
@@ -268,9 +269,11 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
         <div className="px-6 py-5">{children}</div>
         {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
+
 
 export function Spinner({ className = '' }) {
   return (

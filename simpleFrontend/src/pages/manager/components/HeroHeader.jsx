@@ -3,7 +3,7 @@ import { CalendarDays, MapPin, Medal, Radar, Search, Swords, Trophy, UserPlus, Z
 import { Button } from '../../../components/dashboard/ui'
 import { useCommandCenter } from '../components/CommandCenterContext'
 import { categoryLabels, formatDate, opponentOf } from '../components/shared'
-import { logoThumb } from '../../../lib/thumb'
+import TeamLogo from '../../../components/profile/TeamLogo'
 
 function countdown(target) {
   const diff = Math.max(0, new Date(target).getTime() - Date.now())
@@ -47,13 +47,14 @@ export default function HeroHeader() {
 
       <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-4">
-          {team?.logo_url ? (
-            <img loading="lazy" decoding="async" src={logoThumb(team)} alt="" className="size-16 shrink-0 rounded-3xl object-cover ring-4 ring-white/10" />
-          ) : (
-            <span className="grid size-16 shrink-0 place-items-center rounded-3xl bg-gradient-to-br from-green-400 to-emerald-600 text-2xl font-black text-white shadow-[0_10px_24px_rgba(34,197,94,0.4)]">
-              {(team?.name || user?.name || '؟').slice(0, 1)}
-            </span>
-          )}
+          <TeamLogo
+            team={team}
+            name={team?.name || user?.name}
+            className="size-16"
+            rounded="rounded-3xl"
+            fontSize="text-2xl"
+            ring="ring-4 ring-white/10 shadow-[0_10px_24px_rgba(34,197,94,0.3)]"
+          />
           <div className="min-w-0">
             <p className="text-xs font-bold text-green-400">
               {t('ov.hero.greeting', { today })}

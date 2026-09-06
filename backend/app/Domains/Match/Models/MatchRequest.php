@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MatchRequest extends Model
 {
@@ -107,6 +108,16 @@ class MatchRequest extends Model
     public function lineups(): HasMany
     {
         return $this->hasMany(MatchLineup::class, 'match_request_id');
+    }
+
+    public function formationSnapshot(): HasOne
+    {
+        return $this->hasOne(MatchFormationSnapshot::class, 'match_request_id');
+    }
+
+    public function footballMatch(): HasOne
+    {
+        return $this->hasOne(FootballMatch::class, 'match_request_id');
     }
 
     public function getPlayersJoinedAttribute(): int

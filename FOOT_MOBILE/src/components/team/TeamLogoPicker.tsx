@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius } from '@/theme/spacing';
-import { compressSquareImage } from '@/utils/image';
+import { compressSquareImage, resolveImageUrl } from '@/utils/image';
 
 interface Props {
   logoUrl?: string | null;
@@ -28,7 +28,8 @@ export function TeamLogoPicker({ logoUrl, logoThumbnailUrl, name, size = 72, edi
   const [previewUri, setPreviewUri] = useState<string | null>(null);
 
   const busy = uploadMutation.isPending;
-  const source = previewUri ?? logoUrl ?? logoThumbnailUrl ?? null;
+  const resolvedLogoUrl = resolveImageUrl(logoUrl ?? logoThumbnailUrl);
+  const source = previewUri ?? resolvedLogoUrl ?? null;
   const initial = name?.trim().charAt(0) ?? '';
 
   const pickLogo = async (): Promise<void> => {

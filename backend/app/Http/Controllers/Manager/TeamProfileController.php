@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Manager;
 
 use App\Domains\Shared\Base\Controller;
+use App\Domains\Shared\Services\ImageThumbnailService;
+use App\Domains\Shared\Support\CurrentTeamResolver;
 use App\Models\Preset;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,17 +12,16 @@ use Illuminate\Support\Facades\Storage;
 
 class TeamProfileController extends Controller
 {
+    public function __construct(
+        private CurrentTeamResolver $resolver,
+    ) {}
+
     public function show(Request $request): JsonResponse
     {
-        $team = $request->user()->team()
-            ->with(['primaryStadium', 'manager'])
-            ->first();
+        $team = $this->resolver->for($request->user());
 
-        if (! $team) {
-            return response()->json(['message' => 'لا يوجد فريق مرتبط بحسابك'], 404);
-        }
-
-        $team->manager->makeVisible('phone', 'email', 'is_whatsapp');
+        $team->loadMissing(['primaryStadium', 'manager']);
+        $team->manager?->makeVisible('phone', 'email', 'is_whatsapp');
 
         return response()->json(['team' => $team]);
     }
@@ -40,16 +41,12 @@ class TeamProfileController extends Controller
             'secondary_color' => 'nullable|string|max:20',
         ]);
 
-        $team = $request->user()->team;
-
-        if (! $team) {
-            return response()->json(['message' => 'لا يوجد فريق مرتبط بحسابك'], 404);
-        }
+        $team = $this->resolver->for($request->user());
 
         $team->update($validated);
 
         $team->load(['primaryStadium', 'manager']);
-        $team->manager->makeVisible('phone', 'email', 'is_whatsapp');
+        $team->manager?->makeVisible('phone', 'email', 'is_whatsapp');
 
         return response()->json([
             'message' => 'تم تحديث بيانات الفريق بنجاح!',
@@ -71,11 +68,7 @@ class TeamProfileController extends Controller
             ], 422);
         }
 
-        $team = $request->user()->team;
-
-        if (! $team) {
-            return response()->json(['message' => 'لا يوجد فريق مرتبط بحسابك'], 404);
-        }
+        $team = $this->resolver->for($request->user());
 
         if ($team->logo_path && Storage::disk('public')->exists($team->logo_path)) {
             Storage::disk('public')->delete($team->logo_path);
@@ -85,7 +78,7 @@ class TeamProfileController extends Controller
             Storage::disk('public')->delete($team->logo_thumbnail_path);
         }
 
-        $result = app(\App\Domains\Shared\Services\ImageThumbnailService::class)
+        $result = app(ImageThumbnailService::class)
             ->copyFromPath($preset->image_path, 'teams/logos');
 
         $team->update([
@@ -94,7 +87,7 @@ class TeamProfileController extends Controller
         ]);
 
         $team->load(['primaryStadium', 'manager']);
-        $team->manager->makeVisible('phone', 'email', 'is_whatsapp');
+        $team->manager?->makeVisible('phone', 'email', 'is_whatsapp');
 
         return response()->json([
             'message' => 'تم تطبيق شعار الفريق بنجاح!',
@@ -106,15 +99,11 @@ class TeamProfileController extends Controller
 
     public function uploadLogo(Request $request): JsonResponse
     {
-        $validated = $request->validate([
+        $request->validate([
             'logo' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048',
         ]);
 
-        $team = $request->user()->team;
-
-        if (! $team) {
-            return response()->json(['message' => 'لا يوجد فريق مرتبط بحسابك'], 404);
-        }
+        $team = $this->resolver->for($request->user());
 
         if ($team->logo_path && Storage::disk('public')->exists($team->logo_path)) {
             Storage::disk('public')->delete($team->logo_path);
@@ -124,7 +113,7 @@ class TeamProfileController extends Controller
             Storage::disk('public')->delete($team->logo_thumbnail_path);
         }
 
-        $result = app(\App\Domains\Shared\Services\ImageThumbnailService::class)
+        $result = app(ImageThumbnailService::class)
             ->storeWithThumbnail($request->file('logo'), 'teams/logos');
 
         $team->update([
@@ -133,7 +122,7 @@ class TeamProfileController extends Controller
         ]);
 
         $team->load(['primaryStadium', 'manager']);
-        $team->manager->makeVisible('phone', 'email', 'is_whatsapp');
+        $team->manager?->makeVisible('phone', 'email', 'is_whatsapp');
 
         return response()->json([
             'message' => 'تم رفع الشعار بنجاح!',

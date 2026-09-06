@@ -2,6 +2,11 @@
 
 namespace App\Http\Controllers\Manager;
 
+use App\Domains\Match\Enums\MatchEventType;
+use App\Domains\Match\Enums\MatchPunishment;
+use App\Domains\Match\Enums\MatchStatus;
+use App\Domains\Match\Models\FootballMatch;
+use App\Domains\Match\Models\MatchEvent;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Player\Models\PlayerProfile;
@@ -17,12 +22,20 @@ class MatchResultController extends Controller
     public function pendingScores(Request $request): JsonResponse
     {
         $user = $request->user();
-        $teamId = $user->team->id;
+        $teamId = app(\App\Domains\Shared\Support\CurrentTeamResolver::class)->teamIdFor($user);
 
-        $matches = MatchRequest::with(['hostTeam', 'opponentTeam.manager', 'stadium'])
-            ->where('status', 'accepted')
+        $matches = MatchRequest::with([
+            'hostTeam',
+            'opponentTeam.manager',
+            'stadium',
+            'footballMatch.events' => fn ($q) => $q->with(['team', 'player', 'assistPlayer'])->orderBy('minute')->orderBy('id'),
+        ])
+            ->whereIn('status', ['accepted', 'live'])
             ->whereIn('score_status', ['none', 'disputed'])
-            ->where('match_datetime', '<=', now()->subHour())
+            ->where(function ($q) {
+                $q->where('status', 'live')
+                    ->orWhere('match_datetime', '<=', now()->subHour());
+            })
             ->where(function ($q) use ($teamId) {
                 $q->where('host_team_id', $teamId)
                     ->orWhere('opponent_team_id', $teamId);
@@ -38,10 +51,16 @@ class MatchResultController extends Controller
     public function pendingConfirmations(Request $request): JsonResponse
     {
         $user = $request->user();
-        $teamId = $user->team->id;
+        $teamId = app(\App\Domains\Shared\Support\CurrentTeamResolver::class)->teamIdFor($user);
 
-        $matches = MatchRequest::with(['hostTeam', 'opponentTeam.manager', 'stadium', 'scoreSubmittedBy'])
-            ->where('status', 'accepted')
+        $matches = MatchRequest::with([
+            'hostTeam',
+            'opponentTeam.manager',
+            'stadium',
+            'scoreSubmittedBy',
+            'footballMatch.events' => fn ($q) => $q->with(['team', 'player', 'assistPlayer'])->orderBy('minute')->orderBy('id'),
+        ])
+            ->whereIn('status', ['accepted', 'live'])
             ->where('score_status', 'pending_confirmation')
             ->where(function ($q) use ($teamId) {
                 $q->where('host_team_id', $teamId)
@@ -59,35 +78,99 @@ class MatchResultController extends Controller
     public function submitScore(Request $request, int $matchId): JsonResponse
     {
         $user = $request->user();
-        $teamId = $user->team->id;
 
         $validated = $request->validate([
             'host_score' => 'required|integer|min:0',
             'opponent_score' => 'required|integer|min:0',
+            'events' => 'nullable|array',
+            'events.*.type' => 'required|string',
+            'events.*.team_id' => 'required|integer',
+            'events.*.player_id' => 'nullable|integer',
+            'events.*.assist_player_id' => 'nullable|integer',
+            'events.*.minute' => 'nullable|integer|min:1|max:130',
+            'events.*.description' => 'nullable|string|max:255',
         ]);
 
-        $match = MatchRequest::with(['hostTeam', 'opponentTeam'])
+        $match = MatchRequest::with(['hostTeam', 'opponentTeam', 'footballMatch'])
             ->where('id', $matchId)
-            ->where('status', 'accepted')
+            ->whereIn('status', ['accepted', 'live'])
             ->whereIn('score_status', ['none', 'disputed'])
             ->firstOrFail();
 
-        if ($match->match_datetime->gt(now()->subHour())) {
+        if ($match->status !== 'live' && $match->match_datetime && $match->match_datetime->gt(now()->subHour())) {
             return response()->json(['message' => 'لا يمكن تسجيل النتيجة قبل مرور ساعة على المباراة'], 422);
         }
 
-        if ($match->host_team_id != $teamId && $match->opponent_team_id != $teamId) {
+        $isParticipant = $user->managedTeams()->whereIn('id', [$match->host_team_id, $match->opponent_team_id])->exists();
+        if (! $isParticipant) {
             return response()->json(['message' => 'غير مصرح لك بتسجيل نتيجة هذه المباراة'], 403);
         }
 
-        $match->update([
-            'host_score' => $validated['host_score'],
-            'opponent_score' => $validated['opponent_score'],
-            'score_submitted_by' => $user->id,
-            'score_status' => 'pending_confirmation',
-        ]);
+        DB::transaction(function () use ($match, $validated, $user) {
+            $match->update([
+                'host_score' => $validated['host_score'],
+                'opponent_score' => $validated['opponent_score'],
+                'score_submitted_by' => $user->id,
+                'score_status' => 'pending_confirmation',
+            ]);
 
-        $opponentManagerId = $match->host_team_id === $teamId
+            $footballMatch = FootballMatch::firstOrCreate(
+                ['match_request_id' => $match->id],
+                [
+                    'home_team_id' => $match->host_team_id,
+                    'away_team_id' => $match->opponent_team_id,
+                    'stadium_id' => $match->stadium_id,
+                    'status' => MatchStatus::Scheduled,
+                    'current_period' => 'full_time',
+                    'home_score' => $validated['host_score'],
+                    'away_score' => $validated['opponent_score'],
+                    'created_by' => $user->id,
+                ]
+            );
+
+            $footballMatch->update([
+                'home_score' => $validated['host_score'],
+                'away_score' => $validated['opponent_score'],
+                'current_period' => 'full_time',
+            ]);
+
+            if (array_key_exists('events', $validated)) {
+                MatchEvent::where('match_id', $footballMatch->id)->delete();
+                if (! empty($validated['events'])) {
+                    foreach ($validated['events'] as $evt) {
+                        $rawType = $evt['type'] ?? 'goal';
+                        $type = MatchEventType::tryFrom($rawType) ?? MatchEventType::Goal;
+                        $punishment = null;
+                        if ($type === MatchEventType::YellowCard) {
+                            $type = MatchEventType::Foul;
+                            $punishment = MatchPunishment::Yellow;
+                        } elseif ($type === MatchEventType::SecondYellow) {
+                            $type = MatchEventType::Foul;
+                            $punishment = MatchPunishment::SecondYellow;
+                        } elseif ($type === MatchEventType::RedCard) {
+                            $type = MatchEventType::Foul;
+                            $punishment = MatchPunishment::Red;
+                        }
+
+                        MatchEvent::create([
+                            'match_id' => $footballMatch->id,
+                            'team_id' => $evt['team_id'] ?? null,
+                            'player_id' => $evt['player_id'] ?? null,
+                            'assist_player_id' => $evt['assist_player_id'] ?? null,
+                            'type' => $type,
+                            'punishment' => $punishment,
+                            'minute' => $evt['minute'] ?? 1,
+                            'description' => $evt['description'] ?? null,
+                            'icon' => $type->icon(),
+                            'created_by' => $user->id,
+                        ]);
+                    }
+                }
+            }
+        });
+
+        $isHost = $user->managedTeams()->where('id', $match->host_team_id)->exists();
+        $opponentManagerId = $isHost
             ? $match->opponentTeam?->manager_id
             : $match->hostTeam?->manager_id;
 
@@ -102,7 +185,11 @@ class MatchResultController extends Controller
             );
         }
 
-        $fresh = $match->fresh()->load(['hostTeam', 'opponentTeam.manager']);
+        $fresh = $match->fresh()->load([
+            'hostTeam',
+            'opponentTeam.manager',
+            'footballMatch.events' => fn ($q) => $q->with(['team', 'player', 'assistPlayer'])->orderBy('minute')->orderBy('id'),
+        ]);
         $fresh->opponentTeam?->manager?->makeVisible('phone');
 
         return response()->json([
@@ -114,11 +201,10 @@ class MatchResultController extends Controller
     public function confirmScore(Request $request, int $matchId): JsonResponse
     {
         $user = $request->user();
-        $teamId = $user->team->id;
 
-        $match = MatchRequest::with(['hostTeam', 'opponentTeam'])
+        $match = MatchRequest::with(['hostTeam', 'opponentTeam', 'footballMatch'])
             ->where('id', $matchId)
-            ->where('status', 'accepted')
+            ->whereIn('status', ['accepted', 'live'])
             ->where('score_status', 'pending_confirmation')
             ->firstOrFail();
 
@@ -126,15 +212,35 @@ class MatchResultController extends Controller
             return response()->json(['message' => 'لا يمكنك تأكيد نتيجة التي سجلتها بنفسك'], 403);
         }
 
-        if ($match->host_team_id != $teamId && $match->opponent_team_id != $teamId) {
+        $isParticipant = $user->managedTeams()->whereIn('id', [$match->host_team_id, $match->opponent_team_id])->exists();
+        if (! $isParticipant) {
             return response()->json(['message' => 'غير مصرح لك بتأكيد نتيجة هذه المباراة'], 403);
         }
 
-        DB::transaction(function () use ($match) {
+        // When the match was tracked live through the shared event system, the
+        // MatchFinishedListener already applied the team records via the
+        // FootballMatch. Skip the increments here to avoid double counting.
+        $recordsAlreadyApplied = $match->footballMatch()
+            ->where('status', MatchStatus::Finished->value)
+            ->exists();
+
+        DB::transaction(function () use ($match, $recordsAlreadyApplied) {
             $match->update([
                 'score_status' => 'confirmed',
                 'status' => 'completed',
             ]);
+
+            if ($match->footballMatch) {
+                $match->footballMatch->update([
+                    'status' => MatchStatus::Finished,
+                    'is_confirmed' => true,
+                    'ended_at' => now(),
+                ]);
+            }
+
+            if ($recordsAlreadyApplied) {
+                return;
+            }
 
             $hostTeam = $match->hostTeam;
             $opponentTeam = $match->opponentTeam;
@@ -200,11 +306,10 @@ class MatchResultController extends Controller
     public function disputeScore(Request $request, int $matchId): JsonResponse
     {
         $user = $request->user();
-        $teamId = $user->team->id;
 
         $match = MatchRequest::with(['hostTeam', 'opponentTeam'])
             ->where('id', $matchId)
-            ->where('status', 'accepted')
+            ->whereIn('status', ['accepted', 'live'])
             ->where('score_status', 'pending_confirmation')
             ->firstOrFail();
 
@@ -212,7 +317,8 @@ class MatchResultController extends Controller
             return response()->json(['message' => 'لا يمكنك الاعتراض على نتيجة سجلتها بنفسك'], 403);
         }
 
-        if ($match->host_team_id != $teamId && $match->opponent_team_id != $teamId) {
+        $isParticipant = $user->managedTeams()->whereIn('id', [$match->host_team_id, $match->opponent_team_id])->exists();
+        if (! $isParticipant) {
             return response()->json(['message' => 'غير مصرح لك'], 403);
         }
 

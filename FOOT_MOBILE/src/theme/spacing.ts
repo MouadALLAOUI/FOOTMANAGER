@@ -1,21 +1,24 @@
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 24,
-  '3xl': 32,
-  '4xl': 48,
-  '5xl': 64,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  '2xl': 32,
+  '3xl': 48,
+  '4xl': 64,
+  '5xl': 80,
 } as const;
 
 export const radius = {
   xs: 4,
+  small: 8,
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
+  medium: 16,
+  md: 16,
+  large: 24,
+  lg: 24,
+  xl: 24,
   full: 9999,
 } as const;
 
@@ -24,16 +27,16 @@ export const sizes = {
   iconMd: 20,
   iconLg: 24,
   iconXl: 32,
-  buttonHeightSm: 36,
-  buttonHeightMd: 44,
-  buttonHeightLg: 52,
-  inputHeight: 44,
+  buttonHeightSm: 40,
+  buttonHeightMd: 48,
+  buttonHeightLg: 54,
+  inputHeight: 48,
   avatarSm: 32,
-  avatarMd: 40,
+  avatarMd: 44,
   avatarLg: 56,
   avatarXl: 72,
-  touchTarget: 44,
-  hitSlop: 8,
+  touchTarget: 48,
+  hitSlop: 10,
 } as const;
 
 export const layout = {
@@ -42,6 +45,7 @@ export const layout = {
   maxContentWidth: 480,
   headerHeight: 56,
   tabBarHeight: 64,
-  cardGap: 12,
+  cardGap: 16,
   sectionGap: 24,
 } as const;
+

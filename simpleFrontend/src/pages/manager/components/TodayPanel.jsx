@@ -177,7 +177,7 @@ export default function TodayPanel() {
         </span>
       }
     >
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
         <MiniCard
           icon={Swords}
           tint="bg-green-50 text-green-600"

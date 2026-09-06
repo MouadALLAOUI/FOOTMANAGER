@@ -20,6 +20,9 @@ class MatchRequestQuery
                 'opponentTeam.manager',
                 'targetTeam',
                 'playerApplications',
+                'footballMatch.events.team',
+                'footballMatch.events.player',
+                'footballMatch.events.assistPlayer',
             ])
             ->withCount(['playerApplications as players_joined_count' => fn ($q) => $q->where('status', 'accepted')])
             ->where(fn (Builder $q) => $q->where('host_team_id', $teamId)->orWhere('opponent_team_id', $teamId))

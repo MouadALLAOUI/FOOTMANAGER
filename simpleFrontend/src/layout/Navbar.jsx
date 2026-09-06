@@ -130,7 +130,7 @@ export default function Navbar() {
   return (
     <header
       className={`fixed inset-x-0 z-50 transition-all duration-[350ms] ease-out ${
-        scrolled ? 'top-[18px]' : 'top-0'
+        scrolled ? 'top-[calc(var(--announce-height,0px)+18px)]' : 'top-[var(--announce-height,0px)]'
       }`}
     >
       <div

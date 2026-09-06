@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    marginRight: spacing.sm,
+    marginEnd: spacing.sm,
   },
   slotGrid: {
     flexDirection: 'row',

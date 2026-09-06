@@ -36,7 +36,7 @@ class TournamentController extends Controller
 
     public function register(Request $request, Tournament $tournament): JsonResponse
     {
-        $team = $request->user()->team;
+        $team = app(\App\Domains\Shared\Support\CurrentTeamResolver::class)->for($request->user());
 
         if (! $team) {
             throw new DomainException('يجب إنشاء ملف الفريق أولاً', 422);
@@ -55,7 +55,7 @@ class TournamentController extends Controller
 
     public function cancel(Request $request, Tournament $tournament): JsonResponse
     {
-        $team = $request->user()->team;
+        $team = app(\App\Domains\Shared\Support\CurrentTeamResolver::class)->for($request->user());
 
         if (! $team) {
             throw new DomainException('يجب إنشاء ملف الفريق أولاً', 422);

@@ -329,7 +329,7 @@ export default function ApprovalsScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   chipBar: { paddingHorizontal: layout.screenPadding, paddingBottom: spacing.sm },
-  chip: { marginRight: spacing.sm },
+  chip: { marginEnd: spacing.sm },
   chipScroll: { gap: spacing.sm },
   scrollContent: { padding: spacing.lg, paddingBottom: spacing['4xl'] },
   totalRow: {

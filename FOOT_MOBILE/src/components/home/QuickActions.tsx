@@ -60,9 +60,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    minHeight: 92,
+    borderRadius: radius.large,
+    borderWidth: 1.5,
+    minHeight: 104,
   },
-  label: { fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  label: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
 });

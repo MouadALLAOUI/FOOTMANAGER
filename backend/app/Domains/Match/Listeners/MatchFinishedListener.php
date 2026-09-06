@@ -8,6 +8,7 @@ use App\Domains\Match\Events\MatchFinished;
 use App\Domains\Match\Notifications\MatchFinishedNotification;
 use App\Domains\Match\Services\PlayerPerformanceService;
 use App\Domains\Player\Models\Player;
+use App\Domains\Shared\Support\PublicCache;
 use App\Domains\Shared\Support\TeamCache;
 use App\Domains\Team\Models\Team;
 use App\Models\User;
@@ -27,9 +28,33 @@ class MatchFinishedListener implements ShouldQueue
         $match = $event->match;
 
         $this->updateTeamRecords($match);
+        $this->syncMatchRequest($match);
         $this->performances->syncFromMatch($match);
         $this->updateStandings($match);
         $this->notifyTeams($match);
+    }
+
+    protected function syncMatchRequest($match): void
+    {
+        if (! $match->match_request_id) {
+            return;
+        }
+
+        $matchRequest = $match->matchRequest()->first();
+
+        if (! $matchRequest) {
+            return;
+        }
+
+        $matchRequest->update([
+            'status' => 'completed',
+            'host_score' => $match->home_score,
+            'opponent_score' => $match->away_score,
+            'score_status' => 'confirmed',
+        ]);
+
+        PublicCache::flushTeamLeaderboard();
+        PublicCache::flushPlayerLeaderboard();
     }
 
     protected function updateStandings($match): void

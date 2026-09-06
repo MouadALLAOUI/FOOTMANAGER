@@ -43,6 +43,10 @@ class MatchPolicy
             return false;
         }
 
+        if ($user->isManager()) {
+            return $user->managedTeams()->where('id', $teamId)->exists();
+        }
+
         return (int) $user->currentTeam()?->id === (int) $teamId;
     }
 }

@@ -65,6 +65,7 @@ use App\Http\Controllers\Admin\UserSubscriptionController;
 use App\Http\Controllers\Admin\PlayerApprovalController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\Committee\CommitteeRefereeController;
 use App\Http\Controllers\Committee\CommitteeTeamController;
 use App\Http\Controllers\Committee\CommitteeTeamPlayerController;
@@ -90,6 +91,7 @@ use App\Http\Controllers\Manager\MatchFeedController;
 use App\Http\Controllers\Manager\ManagerLineupController;
 use App\Http\Controllers\Manager\MatchRequestController;
 use App\Http\Controllers\Manager\MatchResultController;
+use App\Http\Controllers\Manager\ManagerTeamController;
 use App\Http\Controllers\Manager\PlayerController;
 use App\Http\Controllers\Manager\PlayerRecruitController;
 use App\Http\Controllers\Manager\PublicTeamController;
@@ -125,6 +127,13 @@ Route::post('/register-terrain-owner', [AuthController::class, 'registerTerrainO
 Route::post('/register-player', [AuthController::class, 'registerPlayer'])->middleware('throttle:auth');
 Route::post('/register-committee', [AuthController::class, 'registerCommittee'])->middleware('throttle:auth');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+
+// OAuth authentication (Google & Facebook)
+Route::prefix('auth')->group(function () {
+    Route::get('/{provider}/redirect', [OAuthController::class, 'redirect'])->whereIn('provider', ['google', 'facebook']);
+    Route::get('/{provider}/callback', [OAuthController::class, 'callback'])->whereIn('provider', ['google', 'facebook']);
+    Route::post('/{provider}/token', [OAuthController::class, 'tokenExchange'])->whereIn('provider', ['google', 'facebook'])->middleware('throttle:auth');
+});
 
 // Self-service password recovery
 Route::post('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetController::class, 'sendResetLink'])->middleware('throttle:password');
@@ -192,6 +201,23 @@ Route::prefix('v1')->group(function () {
     Route::get('/terrain-owners/{id}/profile', [TerrainOwnerProfileController::class, 'show']);
     Route::get('/committee-members/{id}/profile', [CommitteeMemberProfileController::class, 'show']);
 
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/devices', [DeviceController::class, 'index']);
+        Route::post('/devices', [DeviceController::class, 'store']);
+        Route::delete('/devices', [DeviceController::class, 'destroyByToken']);
+        Route::delete('/devices/{device}', [DeviceController::class, 'destroy']);
+
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+        Route::get('/notifications/preferences', [NotificationController::class, 'preferences']);
+        Route::put('/notifications/preferences', [NotificationController::class, 'updatePreferences']);
+        Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::put('/notifications/{id}/pin', [NotificationController::class, 'togglePin']);
+        Route::put('/notifications/{id}/important', [NotificationController::class, 'toggleImportant']);
+        Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+    });
+
     Route::middleware(['auth:sanctum', 'module.maintenance:tournaments'])->group(function () {
         Route::get('/tournaments/{tournament}/registration/me', [TournamentRegistrationController::class, 'me']);
 
@@ -243,10 +269,26 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/attendance', [V1AttendanceController::class, 'index']);
 
-        Route::get('/formation', [TeamFormationController::class, 'show']);
+        // Team formations (multi-formation CRUD)
+        Route::get('/formations', [TeamFormationController::class, 'index']);
+        Route::get('/formation-presets', [TeamFormationController::class, 'presets']);
 
         Route::middleware('activity.not_locked')->group(function () {
-            Route::put('/formation', [TeamFormationController::class, 'update']);
+            Route::post('/formations', [TeamFormationController::class, 'store']);
+            Route::put('/formations/{formation}', [TeamFormationController::class, 'update']);
+            Route::delete('/formations/{formation}', [TeamFormationController::class, 'destroy']);
+            Route::post('/formation-presets', [TeamFormationController::class, 'storePreset']);
+            Route::put('/formation-presets/{preset}', [TeamFormationController::class, 'updatePreset']);
+            Route::delete('/formation-presets/{preset}', [TeamFormationController::class, 'destroyPreset']);
+        });
+
+        Route::get('/formations/{formation}', [TeamFormationController::class, 'show']);
+
+        // Legacy single-formation endpoints (team's active formation)
+        Route::get('/formation', [TeamFormationController::class, 'legacyShow']);
+
+        Route::middleware('activity.not_locked')->group(function () {
+            Route::put('/formation', [TeamFormationController::class, 'legacyUpdate']);
             Route::put('/captain/{player}', [CaptainController::class, 'assignCaptain']);
             Route::put('/vice-captain/{player}', [CaptainController::class, 'assignViceCaptain']);
             Route::delete('/captain', [CaptainController::class, 'removeCaptain']);
@@ -302,7 +344,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/{match}/mvp', [LiveMatchController::class, 'awardMvp']);
     });
 
-    Route::middleware('auth:sanctum')->prefix('team')->group(function () {
+    Route::middleware(['auth:sanctum', 'user.approved'])->prefix('team')->group(function () {
         Route::get('/', [V1TeamController::class, 'profile']);
         Route::get('/gallery', [V1TeamController::class, 'gallery']);
         Route::get('/fixtures/upcoming', [V1TeamController::class, 'upcoming']);
@@ -916,16 +958,26 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
             Route::get('/manager/match-requests/{matchRequestId}/lineup', [ManagerLineupController::class, 'index']);
             Route::get('/manager/match-requests/{matchRequestId}/lineup/roster', [ManagerLineupController::class, 'roster']);
+            Route::get('/manager/match-requests/{id}/players', [MatchRequestController::class, 'players']);
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::put('/manager/match-requests/{matchRequestId}/lineup', [ManagerLineupController::class, 'update']);
                 Route::put('/manager/match-requests/{matchRequestId}/lineup/captain', [ManagerLineupController::class, 'setCaptain']);
                 Route::put('/manager/match-requests/{matchRequestId}/lineup/vice-captain', [ManagerLineupController::class, 'setViceCaptain']);
                 Route::put('/manager/match-requests/{matchRequestId}/lineup/free-kick', [ManagerLineupController::class, 'setFreeKickTaker']);
+                Route::put('/manager/match-requests/{matchRequestId}/lineup/penalty', [ManagerLineupController::class, 'setPenaltyTaker']);
+                Route::put('/manager/match-requests/{matchRequestId}/lineup/corner', [ManagerLineupController::class, 'setCornerTaker']);
             });
         });
 
         Route::middleware('module.maintenance:teams')->group(function () {
+            Route::get('/manager/teams', [ManagerTeamController::class, 'index']);
+            Route::post('/manager/teams', [ManagerTeamController::class, 'store']);
+            Route::post('/manager/teams/switch', [ManagerTeamController::class, 'switchTeam']);
+            Route::get('/manager/teams/{id}', [PublicTeamController::class, 'show']);
+            Route::get('/manager/teams/{id}/details', [ManagerTeamController::class, 'show']);
+            Route::put('/manager/teams/{id}/details', [ManagerTeamController::class, 'update']);
+
             Route::get('/manager/team-profile', [TeamProfileController::class, 'show']);
 
             Route::middleware(['activity.not_locked', 'throttle:upload'])->group(function () {
@@ -933,6 +985,22 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/manager/team-profile/logo', [TeamProfileController::class, 'uploadLogo']);
                 Route::post('/manager/team-profile/logo-preset', [TeamProfileController::class, 'applyLogoPreset']);
             });
+
+            // Team formations (multi-formation CRUD)
+            Route::get('/manager/team/formations', [TeamFormationController::class, 'index']);
+            Route::get('/manager/team/formation-presets', [TeamFormationController::class, 'presets']);
+
+            Route::middleware('activity.not_locked')->group(function () {
+                Route::post('/manager/team/formations', [TeamFormationController::class, 'store']);
+                Route::put('/manager/team/formations/{formation}', [TeamFormationController::class, 'update']);
+                Route::delete('/manager/team/formations/{formation}', [TeamFormationController::class, 'destroy']);
+                Route::post('/manager/team/formations/{formation}/activate', [TeamFormationController::class, 'activate']);
+                Route::post('/manager/team/formation-presets', [TeamFormationController::class, 'storePreset']);
+                Route::put('/manager/team/formation-presets/{preset}', [TeamFormationController::class, 'updatePreset']);
+                Route::delete('/manager/team/formation-presets/{preset}', [TeamFormationController::class, 'destroyPreset']);
+            });
+
+            Route::get('/manager/team/formations/{formation}', [TeamFormationController::class, 'show']);
 
             Route::get('/manager/teams/{id}', [PublicTeamController::class, 'show']);
         });
@@ -944,6 +1012,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/manager/players', [PlayerController::class, 'store']);
                 Route::put('/manager/players/{id}', [PlayerController::class, 'update']);
                 Route::delete('/manager/players/{id}', [PlayerController::class, 'destroy']);
+                Route::post('/manager/players/{id}/photo', [PlayerController::class, 'uploadPhoto']);
             });
 
             // Team membership management

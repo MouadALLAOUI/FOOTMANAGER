@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, View, type ImageStyle, type ViewStyle } from 'react-native';
+import { Image, Pressable, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, spacing } from '@/theme/spacing';
 import { shadows } from '@/theme/shadows';
+import { resolveImageUrl } from '@/utils/image';
 import { AppText } from './AppText';
 import { Badge, type BadgeVariant } from './Badge';
 
@@ -12,7 +13,7 @@ type RowAction = { label: string; onPress?: () => void; variant?: CardActionVari
 
 interface Props {
   children?: ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   elevated?: boolean;
   padded?: boolean;
@@ -83,7 +84,7 @@ export function Card({
   ) : null;
 
   const image = imageUri ? (
-    <Image source={{ uri: imageUri }} style={[styles.image, imageStyle]} resizeMode="cover" />
+    <Image source={{ uri: resolveImageUrl(imageUri) ?? imageUri }} style={[styles.image, imageStyle]} resizeMode="cover" />
   ) : null;
 
   const hasActions = Boolean(primaryAction || secondaryAction);

@@ -24,31 +24,31 @@ export default function RecruitmentPanel() {
       }
     >
       {loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {[0, 1, 2].map((i) => (
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+          {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-20 rounded-2xl" />
           ))}
         </div>
       ) : recruits.length === 0 ? (
         <Empty title={t('ov.recruitment.emptyTitle')} description={t('ov.recruitment.emptyDesc')} />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
           {recruits.map((r) => {
             const name = r.user?.name || r.player_profile?.full_name || r.full_name || t('ov.common.player')
             return (
               <div
                 key={r.id ?? r.user_id}
-                className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3.5 transition-colors hover:border-amber-200"
+                className="flex items-center gap-2.5 sm:gap-3 rounded-2xl border border-slate-100 bg-white p-3 sm:p-3.5 transition-colors hover:border-amber-200"
               >
                 {r.player_profile?.avatar_url || r.player_profile?.photo_url ? (
-                  <img loading="lazy" decoding="async" src={photoThumb(r.player_profile)} alt="" className="size-11 shrink-0 rounded-2xl object-cover" />
+                  <img loading="lazy" decoding="async" src={photoThumb(r.player_profile)} alt="" className="size-10 sm:size-11 shrink-0 rounded-2xl object-cover" />
                 ) : (
-                  <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-50 text-sm font-black text-amber-600">
+                  <span className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-amber-50 text-xs sm:text-sm font-black text-amber-600">
                     {initials(name)}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-extrabold text-slate-900">{name}</p>
+                  <p className="truncate text-xs sm:text-sm font-extrabold text-slate-900">{name}</p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-semibold text-slate-400">
                     <span>{positionLabels[r.position] && t('ov.positions.' + r.position) || positionLabels[r.position] || r.player_profile?.position || '—'}</span>
                     {r.skill_level && (

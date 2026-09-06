@@ -10,6 +10,7 @@ export default class ErrorBoundary extends Component {
 
   componentDidCatch(error) {
     // Detailed errors stay in the developer log only, never rendered to users.
+    if (typeof window !== 'undefined') window.__lastBoundaryError = String(error?.stack || error)
     console.error('Application error:', error)
   }
 

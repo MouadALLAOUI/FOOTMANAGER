@@ -5,12 +5,14 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { baseTabScreenOptions } from '@/navigation/tabOptions';
 import { useTheme } from '@/theme/ThemeProvider';
 
+import { roleAccents } from '@/theme/colors';
+
 export default function TerrainLayout(): React.JSX.Element {
   const { t } = useI18n();
   const { colors } = useTheme();
 
   return (
-    <Tabs screenOptions={baseTabScreenOptions(colors)}>
+    <Tabs screenOptions={baseTabScreenOptions(colors, roleAccents.terrain_owner)}>
       <Tabs.Screen
         name="index"
         options={{ title: t('nav.home', 'الرئيسية'), tabBarIcon: ({ color, size }) => <Home size={size} color={color} /> }}

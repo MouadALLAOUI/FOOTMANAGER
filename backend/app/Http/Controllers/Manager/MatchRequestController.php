@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Manager;
 
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Match\Models\MatchRequest;
+use App\Domains\Match\Services\FriendlyMatchService;
 use App\Domains\Match\Services\MatchMembershipService;
 use App\Domains\Match\Queries\MatchRequestQuery;
 use App\Domains\Notification\Services\NotificationService;
+use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Stadium\Models\Stadium;
 use App\Domains\Subscription\Services\SubscriptionService;
+use App\Domains\Shared\Support\CurrentTeamResolver;
 use App\Domains\Team\Models\Team;
 use App\Models\Setting;
 use App\Models\User;
@@ -22,17 +25,14 @@ class MatchRequestController extends Controller
 {
     public function __construct(
         private SubscriptionService $subscription,
+        private CurrentTeamResolver $resolver,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        if (! $user->team) {
-            return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
-        }
-
-        $teamId = $user->team->id;
+        $team = $this->resolver->for($user);
+        $teamId = $team->id;
 
         $status = $request->query('status');
         $perPage = (int) $request->input('per_page', 50);
@@ -53,12 +53,8 @@ class MatchRequestController extends Controller
     public function receivedChallenges(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        if (! $user->team) {
-            return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
-        }
-
-        $teamId = $user->team->id;
+        $team = $this->resolver->for($user);
+        $teamId = $team->id;
         $perPage = (int) $request->input('per_page', 50);
 
         $challenges = MatchRequestQuery::receivedChallenges($teamId)->paginate($perPage);
@@ -77,10 +73,7 @@ class MatchRequestController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        if (! $user->team) {
-            return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
-        }
+        $team = $this->resolver->for($user);
 
         $this->assertWithinMatchRequestLimit($user);
 
@@ -137,7 +130,7 @@ class MatchRequestController extends Controller
 
         if (empty($validated['stadium_id'])) {
             $matchRequest = MatchRequest::create([
-                'host_team_id' => $user->team->id,
+                'host_team_id' => $team->id,
                 'stadium_id' => null,
                 'player_format' => null,
                 'custom_terrain_name' => $validated['custom_terrain_name'] ?? null,
@@ -163,9 +156,9 @@ class MatchRequestController extends Controller
                 : ($validated['start_date'] ?? date('Y-m-d', strtotime($validated['match_datetime'])));
 
             try {
-                DB::transaction(function () use ($validated, $terrain, $user, $checkDate, $endTime, $isWeekly, &$matchRequest) {
+                DB::transaction(function () use ($validated, $terrain, $user, $team, $checkDate, $endTime, $isWeekly, $positionsNeeded, &$matchRequest) {
                     $matchRequest = MatchRequest::create([
-                        'host_team_id' => $user->team->id,
+                        'host_team_id' => $team->id,
                         'stadium_id' => $validated['stadium_id'],
                         'player_format' => $terrain->player_format,
                         'custom_terrain_name' => $validated['custom_terrain_name'] ?? null,
@@ -310,7 +303,7 @@ class MatchRequestController extends Controller
             ], 403);
         }
 
-        $matchRequest = DB::transaction(function () use ($validated, $teamId, $needsPlayers) {
+        $matchRequest = DB::transaction(function () use ($validated, $teamId, $needsPlayers, $positionsNeeded) {
             $playerFormat = null;
             if (! empty($validated['stadium_id'])) {
                 $terrain = \App\Domains\Stadium\Models\Stadium::find($validated['stadium_id']);
@@ -351,12 +344,8 @@ class MatchRequestController extends Controller
     public function respondToChallenge(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
-
-        if (! $user->team) {
-            return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
-        }
-
-        $teamId = $user->team->id;
+        $team = $this->resolver->for($user);
+        $teamId = $team->id;
 
         $validated = $request->validate([
             'action' => 'required|in:accept,decline',
@@ -636,28 +625,72 @@ class MatchRequestController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->team) {
-            return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
-        }
-
-        $teamId = $user->team->id;
-
         $matchRequest = MatchRequest::where('id', $id)
             ->whereIn('status', ['open', 'accepted'])
             ->firstOrFail();
 
-        if ($matchRequest->host_team_id !== $teamId && $matchRequest->opponent_team_id !== $teamId) {
+        $isParticipant = $user->managedTeams()->whereIn('id', [$matchRequest->host_team_id, $matchRequest->opponent_team_id])->exists();
+        if (! $isParticipant) {
             return response()->json(['message' => 'غير مصرح لك ببدء هذه المباراة'], 403);
         }
 
-        $matchRequest->update([
-            'status' => 'live',
-            'started_at' => now(),
-        ]);
+        $footballMatch = null;
+
+        DB::transaction(function () use ($matchRequest, $user, &$footballMatch) {
+            $footballMatch = app(FriendlyMatchService::class)->start($matchRequest, $user);
+
+            $matchRequest->update([
+                'status' => 'live',
+                'started_at' => now(),
+            ]);
+        });
+
+        if (! $footballMatch) {
+            return response()->json(['message' => 'حدث خطأ أثناء بدء المباراة'], 500);
+        }
 
         return response()->json([
             'message' => 'تم بدء المباراة بنجاح',
-            'match_request' => $matchRequest->fresh(),
+            'live_match_id' => $footballMatch->id,
+            'match_request' => $matchRequest->fresh(['hostTeam', 'opponentTeam.manager', 'stadium', 'footballMatch']),
+        ]);
+    }
+
+    /**
+     * Rosters of both teams playing in a friendly match, used by the
+     * live control room and result update modal for event entry (goals, cards, substitutions).
+     */
+    public function players(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+
+        $matchRequest = MatchRequest::findOrFail($id);
+
+        $isParticipant = $user->managedTeams()->whereIn('id', [$matchRequest->host_team_id, $matchRequest->opponent_team_id])->exists();
+        if (! $isParticipant) {
+            return response()->json(['message' => 'غير مصرح لك'], 403);
+        }
+
+        $hostTeamId = $matchRequest->host_team_id;
+        $opponentTeamId = $matchRequest->opponent_team_id;
+
+        $players = Player::query()
+            ->whereIn('team_id', array_filter([$hostTeamId, $opponentTeamId]))
+            ->orderBy('team_id')
+            ->orderByDesc('is_essential')
+            ->orderBy('name')
+            ->limit(240)
+            ->get(['id', 'team_id', 'name', 'number', 'position', 'is_essential']);
+
+        $footballMatch = $matchRequest->footballMatch()->with([
+            'events' => fn ($q) => $q->with(['team', 'player', 'assistPlayer'])->orderBy('minute')->orderBy('id'),
+        ])->first();
+
+        return response()->json([
+            'players' => $players,
+            'host_players' => $players->where('team_id', $hostTeamId)->values(),
+            'opponent_players' => $players->where('team_id', $opponentTeamId)->values(),
+            'events' => $footballMatch?->events ?? [],
         ]);
     }
 
@@ -665,12 +698,8 @@ class MatchRequestController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->team) {
-            return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
-        }
-
         $matchRequest = MatchRequest::where('id', $id)
-            ->where('host_team_id', $user->team->id)
+            ->whereIn('host_team_id', $user->managedTeams()->pluck('id'))
             ->where('status', 'open')
             ->firstOrFail();
 

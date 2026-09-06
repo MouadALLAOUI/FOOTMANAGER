@@ -30,6 +30,7 @@ const Pending = lazy(() => import('./pages/auth/pending'))
 const ForgotPassword = lazy(() => import('./pages/auth/forgot-password'))
 const ResetPassword = lazy(() => import('./pages/auth/reset-password'))
 const RecoveryApply = lazy(() => import('./pages/auth/recovery'))
+const OAuthCallback = lazy(() => import('./pages/auth/OAuthCallback'))
 const ManagerDashboard = lazy(() => import('./pages/manager'))
 const TerrainDashboard = lazy(() => import('./pages/terrain'))
 const AdminDashboard = lazy(() => import('./pages/admin'))
@@ -81,6 +82,7 @@ function App() {
               <Route path="/reset-password" element={<GuestRoute><PageMaintenanceGate><ResetPassword /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/pending" element={<PageMaintenanceGate><Pending /></PageMaintenanceGate>} />
               <Route path="/recovery" element={<PageMaintenanceGate><RecoveryApply /></PageMaintenanceGate>} />
+              <Route path="/auth/callback" element={<OAuthCallback />} />
 
               <Route path="/dashboard/*" element={<ProtectedRoute role="manager"><PageMaintenanceGate><ManagerDashboard /></PageMaintenanceGate></ProtectedRoute>} />
               <Route path="/terrain/*" element={<ProtectedRoute role="terrain_owner"><PageMaintenanceGate><TerrainDashboard /></PageMaintenanceGate></ProtectedRoute>} />

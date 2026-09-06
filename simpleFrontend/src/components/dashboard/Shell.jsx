@@ -46,6 +46,7 @@ export default function Shell({
   notifPath = '/dashboard/notifications',
   settingsPath = '/dashboard/settings',
   profilePath = '/dashboard/profile',
+  headerSlot = null,
 }) {
   const { t, i18n } = useTranslation()
   const { user, logout } = useAuth()
@@ -63,7 +64,8 @@ export default function Shell({
   const { data: notifData } = useNotifications({ filter: 'unread' }, { enabled: notifOpen })
   const notifs = (notifData?.notifications || []).slice(0, 5)
 
-  const active = items.find((i) => location.pathname === i.to)
+  const currentPath = location.pathname.replace(/\/$/, '') || '/'
+  const active = items.find((i) => i.to === location.pathname || i.to.replace(/\/$/, '') === currentPath)
 
   useEffect(() => {
     const onKey = (e) => {
@@ -267,7 +269,12 @@ export default function Shell({
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-black text-slate-900">
-                {active ? t(active.label) : t(roleLabel)}
+                <span className="sm:hidden">
+                  {active?.shortLabel ? t(active.shortLabel) : active ? t(active.label) : t(roleLabel)}
+                </span>
+                <span className="hidden sm:inline">
+                  {active ? t(active.label) : t(roleLabel)}
+                </span>
               </p>
               <p className="hidden text-[11px] font-semibold text-slate-500 sm:block">{today}</p>
             </div>
@@ -283,6 +290,8 @@ export default function Shell({
                 Ctrl K
               </kbd>
             </button>
+
+            {headerSlot}
 
             <QuickActions
               open={quickOpen}

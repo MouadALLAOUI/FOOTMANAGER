@@ -15,13 +15,24 @@ import { Button, StatusBadge } from './ui'
 import { logoThumb, photoThumb } from '../../lib/thumb'
 import TeamLogo from '../profile/TeamLogo'
 
-function TeamBadge({ team, logo, sub, align = 'start' }) {
+function TeamBadge({ team, logo, sub, align = 'start', onClick }) {
   const { t } = useTranslation()
   return (
-    <div className={`flex min-w-0 items-center gap-2.5 ${align === 'end' ? 'flex-row-reverse text-end' : ''}`}>
+    <div
+      className={`flex min-w-0 items-center gap-2.5 ${align === 'end' ? 'flex-row-reverse text-end' : ''} ${
+        onClick ? 'cursor-pointer group/team transition-transform hover:scale-105' : ''
+      }`}
+      onClick={(e) => {
+        if (onClick && team?.id) {
+          e.stopPropagation()
+          onClick(team)
+        }
+      }}
+      title={onClick && team?.name ? `عرض ملف ${team.name}` : undefined}
+    >
       <TeamLogo team={team} src={logo} className="size-9" fontSize="text-sm" />
       <div className={`min-w-0 ${align === 'end' ? 'items-end' : ''}`}>
-        <p className={`truncate text-sm font-extrabold text-slate-900 ${align === 'end' ? 'order-2' : ''}`}>
+        <p className={`truncate text-sm font-extrabold text-slate-900 ${onClick ? 'group-hover/team:text-green-600 transition-colors' : ''} ${align === 'end' ? 'order-2' : ''}`}>
           {team?.name || t('ov.common.unknownTeam')}
         </p>
         {sub && <p className="truncate text-[11px] text-slate-400">{sub}</p>}
@@ -30,7 +41,7 @@ function TeamBadge({ team, logo, sub, align = 'start' }) {
   )
 }
 
-export function MatchCard({ match, actions, onClick }) {
+export function MatchCard({ match, actions, onClick, onTeamClick }) {
   const { t } = useTranslation()
   const isHost = Boolean(match.opponent_team)
   const datetime = match.match_datetime ? new Date(match.match_datetime) : null
@@ -68,6 +79,7 @@ export function MatchCard({ match, actions, onClick }) {
           team={match.host_team}
           logo={logoThumb(match.host_team)}
           sub={match.host_team?.city || t('ov.common.host')}
+          onClick={onTeamClick}
         />
         {isHost ? (
           <div className="flex shrink-0 flex-col items-center gap-1">
@@ -93,8 +105,10 @@ export function MatchCard({ match, actions, onClick }) {
           logo={logoThumb(match.opponent_team)}
           sub={isHost ? match.opponent_team?.city : match.target_team?.name || t('ov.common.potentialOpponent')}
           align="end"
+          onClick={onTeamClick}
         />
       </div>
+
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-4 text-[11px] font-semibold text-slate-400">
         <span className="inline-flex items-center gap-1.5">

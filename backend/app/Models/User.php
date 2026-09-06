@@ -42,6 +42,8 @@ class User extends Authenticatable
         'phone',
         'is_whatsapp',
         'password',
+        'google_id',
+        'facebook_id',
         'role',
         'status',
         'avatar_path',
@@ -51,6 +53,7 @@ class User extends Authenticatable
         'activity_lock_reason',
         'activity_locked_by',
         'activity_locked_at',
+        'current_team_id',
     ];
 
     protected $appends = [
@@ -131,6 +134,16 @@ class User extends Authenticatable
     public function team(): HasOne
     {
         return $this->hasOne(Team::class, 'manager_id');
+    }
+
+    public function managedTeams(): HasMany
+    {
+        return $this->hasMany(Team::class, 'manager_id');
+    }
+
+    public function activeTeam(): BelongsTo
+    {
+        return $this->belongsTo(Team::class, 'current_team_id');
     }
 
     public function devices(): HasMany
@@ -277,13 +290,32 @@ class User extends Authenticatable
         $this->notify(new \App\Notifications\Auth\ResetPasswordNotification($token));
     }
 
-    public function currentTeam(): ?Team
+    public function currentTeam(?int $teamId = null): ?Team
     {
         if ($this->isManager()) {
-            return $this->team;
+            if ($teamId) {
+                return $this->managedTeams()->where('id', $teamId)->first();
+            }
+
+            if ($this->current_team_id) {
+                $team = $this->managedTeams()->where('id', $this->current_team_id)->first();
+                if ($team) {
+                    return $team;
+                }
+            }
+
+            return $this->managedTeams()->first();
         }
 
         return $this->rosterPlayer?->team;
+    }
+
+    public function switchTeam(int $teamId): ?Team
+    {
+        $team = $this->managedTeams()->where('id', $teamId)->firstOrFail();
+        $this->update(['current_team_id' => $team->id]);
+
+        return $team;
     }
 
     public function isManager(): bool

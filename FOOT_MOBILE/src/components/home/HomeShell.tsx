@@ -2,7 +2,9 @@ import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native
 
 import { useAuth } from '@/auth/AuthProvider';
 import { roleLabel } from '@/auth/roles';
+import { Avatar } from '@/components/ui/Avatar';
 import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
@@ -50,7 +52,10 @@ export function HomeShell({ quickActions, upcomingTitleKey = 'home.upcoming', up
               <Text style={[styles.team, { color: colors.textMuted }]}>{(user.team as Record<string, unknown>).name as string}</Text>
             ) : null}
           </View>
-          <NotificationBell />
+          <View style={styles.headerActions}>
+            <NotificationBell />
+            <Avatar uri={user?.avatar_thumbnail_url ?? user?.avatar_url} name={user?.name} size="md" />
+          </View>
         </View>
 
         {isActivityLocked ? (
@@ -73,10 +78,14 @@ export function HomeShell({ quickActions, upcomingTitleKey = 'home.upcoming', up
           <QuickActions actions={quickActions} />
         </View>
 
-        <Card>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>{t(upcomingTitleKey, upcomingFallback)}</Text>
-          <Text style={[styles.empty, { color: colors.textMuted }]}>{t('common.comingSoon', 'قريباً')}</Text>
-          <Text style={[styles.hint, { color: colors.textSubtle }]}>{t('home.upcomingHint', 'ستظهر هنا الأنشطة القادمة.')}</Text>
+        <Card style={styles.upcomingCard}>
+          <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: spacing.sm }]}>
+            {t(upcomingTitleKey, upcomingFallback)}
+          </Text>
+          <EmptyState
+            title={t('home.noUpcomingTitle', 'لا توجد أنشطة مجدولة')}
+            description={t('home.upcomingHint', 'ستظهر هنا الأنشطة والمباريات القادمة فور جدولتها.')}
+          />
         </Card>
       </ScrollView>
     </Screen>
@@ -87,9 +96,11 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing['3xl'] },
   greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   greetingWrap: { gap: spacing.xs, paddingVertical: spacing.sm, flex: 1, paddingEnd: spacing.sm },
-  greeting: { fontSize: 22, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  greeting: { fontSize: 24, fontWeight: '800' },
   role: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   team: { fontSize: 13, fontWeight: '600' },
+  upcomingCard: { padding: spacing.lg, borderRadius: radius.large },
   lockBanner: { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, gap: 4 },
   lockText: { fontSize: 12, fontWeight: '700' },
   lockReason: { fontSize: 11, lineHeight: 16 },

@@ -33,24 +33,33 @@ function Field({ labelKey, icon: Icon, className, onClick, children }) {
   )
 }
 
-export default function Search({ city, onCityChange, onSubmit }) {
+export default function Search({ city, onCityChange, date, onDateChange, onSubmit }) {
   const { t } = useTranslation()
   const [time, setTime] = useState('')
-  const cityRef = useRef(null)
+  const selectRef = useRef(null)
   const dateRef = useRef(null)
   const { data: citiesData } = useCitiesSelect()
   const cities = citiesData?.cities || []
 
   const cityOptions = cities.map((c) => ({ value: c.slug, label: c.localized_name }))
 
-  const openPicker = (ref) => (e) => {
-    const el = ref.current
-    if (!el || el.contains(e.target)) return
-    e.preventDefault()
-    if (typeof el.showPicker === 'function') {
-      el.showPicker()
-    } else {
-      el.focus()
+  const openSelect = () => {
+    if (selectRef.current) {
+      if (typeof selectRef.current.showPicker === 'function') {
+        selectRef.current.showPicker()
+      } else {
+        selectRef.current.focus()
+      }
+    }
+  }
+
+  const openDatePicker = () => {
+    if (dateRef.current) {
+      if (typeof dateRef.current.showPicker === 'function') {
+        dateRef.current.showPicker()
+      } else {
+        dateRef.current.focus()
+      }
     }
   }
 
@@ -69,10 +78,11 @@ export default function Search({ city, onCityChange, onSubmit }) {
           <Field
             labelKey="landing.hero.city"
             icon={faMapPin}
-            onClick={openPicker(cityRef)}
+            onClick={openSelect}
           >
-            <span className="relative" ref={cityRef}>
+            <span className="relative">
               <Select
+                ref={selectRef}
                 bare
                 value={city}
                 onChange={onCityChange}
@@ -86,13 +96,15 @@ export default function Search({ city, onCityChange, onSubmit }) {
             labelKey="landing.hero.date"
             icon={faCalendarDays}
             className="lg:border-s lg:border-slate-100"
-            onClick={openPicker(dateRef)}
+            onClick={openDatePicker}
           >
             <input
               ref={dateRef}
               type="date"
               min={today}
-              className="w-full bg-transparent py-0.5 text-sm font-bold text-slate-800 outline-none"
+              value={date || ''}
+              onChange={(e) => onDateChange?.(e.target.value)}
+              className="w-full bg-transparent py-0.5 text-sm font-bold text-slate-800 outline-none cursor-pointer"
             />
           </Field>
 

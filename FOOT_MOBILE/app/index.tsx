@@ -3,16 +3,29 @@ import { Redirect } from 'expo-router';
 import { useAuth } from '@/auth/AuthProvider';
 import { homeForRole } from '@/auth/homeForRole';
 
-export default function Index(): React.JSX.Element {
-  const { sessionState, role } = useAuth();
+export default function Index(): React.JSX.Element | null {
+  const { sessionState, role, isLoading } = useAuth();
 
-  if (sessionState === 'restoring' || sessionState === 'pending' || sessionState === 'blocked' || sessionState === 'rejected') {
-    return <Redirect href="/(auth)" />;
+  // While checking SecureStore credentials, do not redirect anywhere
+  if (isLoading || sessionState === 'restoring') {
+    return null;
   }
 
-  if (sessionState === 'unauthenticated') {
-    return <Redirect href="/(public)" />;
+  if (sessionState === 'pending') {
+    return <Redirect href="/(auth)/account-pending" />;
+  }
+  if (sessionState === 'blocked') {
+    return <Redirect href="/(auth)/account-blocked" />;
+  }
+  if (sessionState === 'rejected') {
+    return <Redirect href="/(auth)/account-rejected" />;
   }
 
-  return <Redirect href={homeForRole(role)} />;
+  // If authenticated with a valid role, take to role dashboard
+  if (sessionState === 'authenticated' && role) {
+    return <Redirect href={homeForRole(role)} />;
+  }
+
+  // Default for unauthenticated guests: ALWAYS go to Landing page
+  return <Redirect href="/(public)" />;
 }

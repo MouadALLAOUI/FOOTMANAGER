@@ -19,6 +19,9 @@ export const q = {
   notificationPrefs: () => ['notifications', 'prefs'],
   notificationUnreadCount: () => ['notifications', 'unread-count'],
   teamProfile: () => ['manager', 'team-profile'],
+  managerTeams: () => ['manager', 'teams'],
+  teamFormations: () => ['manager', 'team-formations'],
+  formationPresets: () => ['manager', 'formation-presets'],
   matchRequests: (params) => ['manager', 'match-requests', params],
   bookings: (params) => ['manager', 'bookings', params],
   players: () => ['manager', 'players'],
@@ -79,6 +82,12 @@ export const useNotificationUnreadCount = (options) =>
   useTypedQuery(q.notificationUnreadCount(), () => get('/notifications/unread-count'), options)
 export const useTeamProfile = (options) =>
   useTypedQuery(q.teamProfile(), () => get('/manager/team-profile'), options)
+export const useManagerTeams = (options) =>
+  useTypedQuery(q.managerTeams(), () => get('/manager/teams'), options)
+export const useTeamFormations = (options) =>
+  useTypedQuery(q.teamFormations(), () => get('/manager/team/formations'), options)
+export const useFormationPresets = (options) =>
+  useTypedQuery(q.formationPresets(), () => get('/manager/team/formation-presets'), options)
 export const useMatchRequests = (params, options) =>
   useTypedQuery(q.matchRequests(params), () => get('/manager/my-match-requests', params), options)
 export const useManagerBookings = (params, options) =>

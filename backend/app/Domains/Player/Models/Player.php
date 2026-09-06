@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Storage;
 
 class Player extends Model
 {
@@ -36,6 +37,8 @@ class Player extends Model
         'team_id',
         'user_id',
         'name',
+        'photo_path',
+        'photo_thumbnail_path',
         'position',
         'preferred_position',
         'number',
@@ -52,6 +55,59 @@ class Player extends Model
         'joined_at',
         'notes',
     ];
+
+    protected $appends = [
+        'photo_url',
+        'photo_thumbnail_url',
+        'is_manual',
+        'is_linked',
+    ];
+
+    public function getIsManualAttribute(): bool
+    {
+        return $this->user_id === null;
+    }
+
+    public function getIsLinkedAttribute(): bool
+    {
+        return $this->user_id !== null;
+    }
+
+    public function getPhotoUrlAttribute(): ?string
+    {
+        if ($this->photo_path) {
+            return str_starts_with($this->photo_path, 'http')
+                ? $this->photo_path
+                : Storage::disk('public')->url($this->photo_path);
+        }
+
+        return $this->user?->avatar_url;
+    }
+
+    public function getPhotoThumbnailUrlAttribute(): ?string
+    {
+        if ($this->photo_thumbnail_path) {
+            return str_starts_with($this->photo_thumbnail_path, 'http')
+                ? $this->photo_thumbnail_path
+                : Storage::disk('public')->url($this->photo_thumbnail_path);
+        }
+
+        if ($this->photo_path) {
+            return $this->photo_url;
+        }
+
+        return $this->user?->avatar_thumbnail_url;
+    }
+
+    public function isManual(): bool
+    {
+        return $this->user_id === null;
+    }
+
+    public function isLinked(): bool
+    {
+        return $this->user_id !== null;
+    }
 
     protected function casts(): array
     {

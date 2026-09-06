@@ -19,6 +19,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    const { appLogger } = require('@/services/logger/app-logger');
+    appLogger.error('ErrorBoundary', error.message, { stack: error.stack, componentStack: info.componentStack });
     if (__DEV__) {
       console.error('[ErrorBoundary]', error, info.componentStack);
     }

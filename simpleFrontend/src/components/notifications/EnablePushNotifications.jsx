@@ -126,25 +126,27 @@ export function PushEnableBanner() {
       }
 
   return (
-    <div className="mb-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
-        {subscribed ? <BellRing className="size-4" /> : <BellOff className="size-4" />}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-extrabold text-emerald-900">
-          {subscribed ? t('notifications.push.title') : t('notifications.push.nudgeTitle')}
-        </p>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-700">
-          {subscribed ? t('notifications.push.testHint') : t('notifications.push.nudgeBody')}
-        </p>
-        {needsIOSHomeScreen && <IosNudge />}
+    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
+          {subscribed ? <BellRing className="size-4" /> : <BellOff className="size-4" />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-extrabold text-emerald-900">
+            {subscribed ? t('notifications.push.title') : t('notifications.push.nudgeTitle')}
+          </p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-700">
+            {subscribed ? t('notifications.push.testHint') : t('notifications.push.nudgeBody')}
+          </p>
+          {needsIOSHomeScreen && <IosNudge />}
+        </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center justify-end sm:self-center ps-12 sm:ps-0">
         <button
           type="button"
           onClick={primary.onClick}
           disabled={busy}
-          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors disabled:opacity-50 ${primary.cls}`}
+          className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors disabled:opacity-50 ${primary.cls}`}
         >
           <primary.icon className="size-3.5" />
           {primary.label}

@@ -36,6 +36,8 @@ return Application::configure(basePath: dirname(__DIR__))
         App\Domains\Review\Events::class => App\Domains\Review\Listeners::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
+
         $middleware->api(append: [
             AddSecurityHeaders::class,
             EnsureAccountNotBlocked::class,

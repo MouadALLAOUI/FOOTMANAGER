@@ -67,7 +67,14 @@ export default function QuickBooking() {
           <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <Field label={t('ov.quick.timeOptional')}>
-          <TimeSlotPicker selectedTime={time} onChange={setTime} availableSlots={available} label={t('ov.quick.timeOptional')} />
+          <TimeSlotPicker
+            compact
+            selectedTime={time}
+            onChange={setTime}
+            availableSlots={available}
+            label={t('ov.quick.timeOptional')}
+            placeholder={t('ov.quick.timeOptional')}
+          />
         </Field>
         <div className="flex items-end">
           <Button className="w-full" onClick={search} disabled={loading}>

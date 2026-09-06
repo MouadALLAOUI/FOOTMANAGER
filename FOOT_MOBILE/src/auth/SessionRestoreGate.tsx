@@ -1,21 +1,36 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View, Dimensions } from 'react-native';
 
 import { useAuth } from '@/auth/AuthProvider';
-import { useTheme } from '@/theme/ThemeProvider';
+import { BrandLogoMark, StadiumPitchBackground } from '@/components/ui/illustrations';
+import { palette } from '@/theme/colors';
 import { spacing } from '@/theme/spacing';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export function SessionRestoreGate({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { isLoading } = useAuth();
-  const { colors } = useTheme();
 
   if (isLoading) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.bg }]}>
-        <View style={[styles.logoCircle, { backgroundColor: colors.primary + '18' }]}>
-          <Text style={[styles.logoText, { color: colors.primary }]}>⚽</Text>
+      <View style={styles.container}>
+        {/* Pitch perspective at bottom */}
+        <View style={styles.pitchBackground}>
+          <StadiumPitchBackground width={SCREEN_WIDTH} height={SCREEN_WIDTH * 0.65} />
         </View>
-        <Text style={[styles.title, { color: colors.text }]}>FootMANAGER</Text>
-        <ActivityIndicator size="large" color={colors.primary} style={styles.spinner} />
+
+        {/* Centered Brand Mark */}
+        <View style={styles.content}>
+          <View style={styles.brandCard}>
+            <BrandLogoMark size={90} />
+            <Text style={styles.appName}>أجي نقصروا</Text>
+            <Text style={styles.appSub}>FOOTMANAGER</Text>
+            <Text style={styles.tagline}>More Football · Stronger Communities</Text>
+          </View>
+
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color={palette.primaryGreen} />
+          </View>
+        </View>
       </View>
     );
   }
@@ -26,18 +41,53 @@ export function SessionRestoreGate({ children }: { children: React.ReactNode }):
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  content: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: spacing.lg,
+    zIndex: 10,
+    paddingHorizontal: spacing.lg,
   },
-  logoCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 24,
+  brandCard: {
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
   },
-  logoText: { fontSize: 40 },
-  title: { fontSize: 22, fontWeight: '800', letterSpacing: 0.5 },
-  spinner: { marginTop: spacing.md },
+  appName: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: palette.navy,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  appSub: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: palette.primaryGreen,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  tagline: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  loadingBox: {
+    marginTop: spacing.xl,
+    alignItems: 'center',
+  },
+  pitchBackground: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    opacity: 0.95,
+  },
 });
+

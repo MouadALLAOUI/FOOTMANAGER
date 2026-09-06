@@ -1,3 +1,4 @@
+import { forwardRef } from 'react'
 import { ChevronDown, Loader2 } from 'lucide-react'
 
 function cn(...parts) {
@@ -10,10 +11,14 @@ const bareClass =
 const defaultClass =
   'h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pe-9 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 disabled:cursor-not-allowed disabled:opacity-50'
 
-export default function Select({ options = [], value, onChange, placeholder, disabled, loading, bare, className, ...props }) {
+const Select = forwardRef(function Select(
+  { options = [], value, onChange, placeholder, disabled, loading, bare, className, ...props },
+  ref,
+) {
   return (
     <span className={bare ? 'relative inline-flex w-full' : 'relative block w-full'}>
       <select
+        ref={ref}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || loading}
@@ -40,4 +45,6 @@ export default function Select({ options = [], value, onChange, placeholder, dis
       </span>
     </span>
   )
-}
+})
+
+export default Select

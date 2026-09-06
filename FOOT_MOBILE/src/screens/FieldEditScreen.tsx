@@ -44,7 +44,7 @@ import { useToast } from '@/components/ui/Toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, sizes, spacing } from '@/theme/spacing';
-import { compressImage } from '@/utils/image';
+import { compressImage, resolveImageUrl } from '@/utils/image';
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -287,7 +287,7 @@ export default function FieldEditScreen(): React.JSX.Element {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Card padded={false} style={styles.heroCard}>
           {terrain.cover_image_url ? (
-            <Image source={{ uri: terrain.cover_image_url }} style={styles.heroImage} resizeMode="cover" />
+            <Image source={{ uri: resolveImageUrl(terrain.cover_image_url) ?? '' }} style={styles.heroImage} resizeMode="cover" />
           ) : (
             <View style={[styles.heroImage, styles.heroEmpty, { backgroundColor: colors.bgMuted }]}>
               <ImagesIcon size={sizes.iconXl} color={colors.textSubtle} />
@@ -407,7 +407,7 @@ export default function FieldEditScreen(): React.JSX.Element {
                   accessibilityLabel={t('field.photos.setCover', 'Set as cover')}
                   accessibilityRole="button"
                 >
-                  <Image source={{ uri: img.thumbnail_url ?? img.image_url ?? undefined }} style={styles.photoImage} resizeMode="cover" />
+                  <Image source={{ uri: resolveImageUrl(img.thumbnail_url ?? img.image_url) ?? undefined }} style={styles.photoImage} resizeMode="cover" />
                   {img.is_thumbnail ? (
                     <View style={styles.coverBadge}>
                       <Badge label={t('field.photos.cover', 'Cover')} variant="success" />

@@ -5,11 +5,13 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 import { AppText } from './AppText';
 import { Button, type ButtonVariant } from './Button';
+import { GoalpostEmptyIllustration } from './illustrations';
 
 interface Props {
   title?: string;
   description?: string;
   icon?: ReactNode | string;
+  illustration?: ReactNode;
   actionLabel?: string;
   onAction?: () => void;
   actionVariant?: ButtonVariant;
@@ -23,7 +25,8 @@ interface Props {
 export function EmptyState({
   title,
   description,
-  icon = '—',
+  icon,
+  illustration,
   actionLabel,
   onAction,
   actionVariant = 'primary',
@@ -35,20 +38,36 @@ export function EmptyState({
 }: Props): React.JSX.Element {
   const { colors } = useTheme();
 
-  return (
-    <View style={[styles.container, style]} accessibilityRole="summary">
-      {typeof icon === 'string' ? (
+  const renderVisual = () => {
+    if (illustration) return <View style={styles.illustrationNode}>{illustration}</View>;
+    if (icon && typeof icon !== 'string') return <View style={styles.iconNode}>{icon}</View>;
+    if (typeof icon === 'string' && icon !== '—') {
+      return (
         <AppText variant="h1" style={[styles.icon, { color: colors.textSubtle }]}>
           {icon}
         </AppText>
-      ) : (
-        <View style={styles.iconNode}>{icon}</View>
-      )}
-      <AppText variant="bodyBold" style={styles.title}>
-        {title}
-      </AppText>
+      );
+    }
+    // Default: Shared flat goalpost illustration
+    return (
+      <View style={styles.illustrationNode}>
+        <GoalpostEmptyIllustration />
+      </View>
+    );
+  };
+
+  return (
+    <View style={[styles.container, style]} accessibilityRole="summary">
+      {renderVisual()}
+
+      {title ? (
+        <AppText variant="h2" style={styles.title}>
+          {title}
+        </AppText>
+      ) : null}
+
       {description ? (
-        <AppText variant="caption" muted style={styles.desc}>
+        <AppText variant="body" muted style={styles.desc}>
           {description}
         </AppText>
       ) : null}
@@ -81,11 +100,22 @@ export function EmptyState({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', justifyContent: 'center', padding: spacing['2xl'], gap: spacing.sm },
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.sm,
+  },
+  illustrationNode: {
+    marginBottom: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   icon: { marginBottom: spacing.xs },
   iconNode: { marginBottom: spacing.xs, justifyContent: 'center', alignItems: 'center' },
-  title: { textAlign: 'center' },
-  desc: { textAlign: 'center', lineHeight: 18 },
-  actions: { marginTop: spacing.sm },
+  title: { textAlign: 'center', fontWeight: '700' },
+  desc: { textAlign: 'center', lineHeight: 22, maxWidth: 300 },
+  actions: { marginTop: spacing.md },
   secondary: { marginTop: spacing.xs },
 });
+

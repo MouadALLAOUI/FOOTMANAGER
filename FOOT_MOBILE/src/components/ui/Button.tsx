@@ -45,15 +45,26 @@ export function Button({
       : variant === 'danger'
         ? colors.danger
         : variant === 'secondary'
-          ? colors.bgMuted
+          ? colors.surface
           : 'transparent';
-  const borderColor = variant === 'outline' ? colors.borderStrong : 'transparent';
+
+  const borderColor =
+    variant === 'secondary'
+      ? colors.primary
+      : variant === 'outline'
+        ? colors.borderStrong
+        : 'transparent';
+
+  const borderWidth = variant === 'secondary' ? 1.5 : variant === 'outline' ? 1 : 0;
+
   const textColor =
     variant === 'primary' || variant === 'danger'
       ? colors.textOnPrimary
-      : variant === 'ghost'
-        ? colors.text
-        : colors.text;
+      : variant === 'secondary'
+        ? colors.primary
+        : variant === 'ghost'
+          ? colors.text
+          : colors.text;
 
   return (
     <Pressable
@@ -68,8 +79,9 @@ export function Button({
         {
           backgroundColor: bg,
           borderColor,
-          borderWidth: variant === 'outline' ? StyleSheet.hairlineWidth : 0,
+          borderWidth,
           height,
+          borderRadius: radius.large,
           opacity: isDisabled ? 0.5 : pressed ? 0.9 : 1,
           transform: pressed && !isDisabled ? [{ scale: 0.98 }] : [],
           alignSelf: fullWidth ? 'stretch' : 'auto',
@@ -92,13 +104,14 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
+    borderRadius: radius.large,
+    paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: sizes.touchTarget,
     minWidth: sizes.touchTarget,
   },
   content: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  label: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
   icon: { justifyContent: 'center', alignItems: 'center' },
 });

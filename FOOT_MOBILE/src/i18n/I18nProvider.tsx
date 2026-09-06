@@ -130,10 +130,20 @@ export function I18nProvider({ children }: { children: ReactNode }): React.JSX.E
   );
 }
 
+const fallbackI18nValue: I18nContextValue = {
+  locale: 'ar',
+  direction: 'rtl',
+  isRTL: true,
+  t: (key: string, fallback?: string): string => dictionaries.ar[key] ?? fallback ?? key,
+  setLocale: () => {},
+  formatDate: (value: string | Date): string => String(value),
+  formatRelativeTime: (value: string | Date): string => String(value),
+  formatNumber: (value: number): string => String(value),
+};
+
 export function useI18n(): I18nContextValue {
   const ctx = useContext(I18nContext);
-  if (!ctx) throw new Error('useI18n must be used within I18nProvider');
-  return ctx;
+  return ctx ?? fallbackI18nValue;
 }
 
 export function useTranslation(): I18nContextValue {

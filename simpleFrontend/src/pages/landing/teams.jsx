@@ -21,6 +21,7 @@ import TeamLogo from '../../components/profile/TeamLogo'
 import { useProfileModal } from '../../components/profile/ProfileModalContext'
 import MatchRequestModal from '../../components/public/MatchRequestModal'
 import { usePublicActions } from '../../components/public/usePublicActions'
+import { useAuth } from '../../context/AuthContext'
 
 const levelColors = {
   beginner: 'bg-slate-100 text-slate-700 border-slate-200',
@@ -131,7 +132,7 @@ function ContactModal({ team, open, onClose, onOpenProfile }) {
   )
 }
 
-function TeamLandingCard({ team, onChallenge, onContact, onOpenProfile }) {
+function TeamLandingCard({ team, onChallenge, onContact, onOpenProfile, isOwnTeam }) {
   const { t } = useTranslation()
   const levelKey = team.level || 'intermediate'
   const levelStyle = levelColors[levelKey] || levelColors.intermediate
@@ -211,14 +212,25 @@ function TeamLandingCard({ team, onChallenge, onContact, onOpenProfile }) {
 
       {/* Action Buttons */}
       <div className="mt-6 flex flex-col gap-2.5">
-        <button
-          type="button"
-          onClick={() => onChallenge(team)}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/35 active:scale-[0.98] cursor-pointer"
-        >
-          <FontAwesomeIcon icon={faHandshake} className="size-4" />
-          <span>{t('landing.teams.challenge')}</span>
-        </button>
+        {isOwnTeam ? (
+          <button
+            type="button"
+            onClick={() => onOpenProfile(team)}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-4 text-xs font-black uppercase tracking-wider text-slate-700 transition hover:bg-slate-200 cursor-pointer"
+          >
+            <FontAwesomeIcon icon={faShieldHalved} className="size-4 text-emerald-600" />
+            <span>{t('landing.teams.yourTeam') || 'فريقك'}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onChallenge(team)}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/35 active:scale-[0.98] cursor-pointer"
+          >
+            <FontAwesomeIcon icon={faHandshake} className="size-4" />
+            <span>{t('landing.teams.challenge')}</span>
+          </button>
+        )}
 
         <button
           type="button"
@@ -255,9 +267,14 @@ function SkeletonCard() {
 export default function Teams() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { openTeam } = useProfileModal()
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [contactTeam, setContactTeam] = useState(null)
+
+  const activeHeaderId =
+    typeof localStorage !== 'undefined' ? Number(localStorage.getItem('active_team_id')) : null
+  const ownTeamId = user?.team?.id ?? user?.team_id ?? activeHeaderId
 
   const { openChallenge } = usePublicActions({
     onChallenge: (target) => setChallengeTarget(target),
@@ -378,6 +395,7 @@ export default function Teams() {
                 <TeamLandingCard
                   key={team.id}
                   team={team}
+                  isOwnTeam={Boolean(ownTeamId && ownTeamId === team.id)}
                   onChallenge={(tm) => openChallenge({ teamId: tm.id, teamName: tm.name })}
                   onContact={(tm) => setContactTeam(tm)}
                   onOpenProfile={(tm) =>

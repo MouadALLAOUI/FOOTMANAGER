@@ -7,8 +7,10 @@ export function getApiErrorMessage(error, t, fallback) {
   switch (state.type) {
     case ERROR_TYPES.UNAUTHORIZED:
       return t('errors.loginRequired')
-    case ERROR_TYPES.FORBIDDEN:
-      return t('errors.forbidden')
+    case ERROR_TYPES.FORBIDDEN: {
+      const backendMessage = error?.response?.data?.message
+      return backendMessage || t('errors.forbidden')
+    }
     case ERROR_TYPES.SESSION_EXPIRED:
       return t('errors.sessionExpired')
     case ERROR_TYPES.NOT_FOUND: {

@@ -338,6 +338,20 @@ class SubscriptionService
             }
         }
 
+        if ($featureKey === 'friendly_match_requests') {
+            return [
+                'feature' => 'friendly_match_requests',
+                'key' => 'friendly_match_requests',
+                'name' => 'طلبات المباريات الودية',
+                'type' => FeatureType::Limit->value,
+                'scope' => 'manager',
+                'enabled' => true,
+                'value' => 5,
+                'is_unlimited' => false,
+                'plan' => $plan->slug ?? 'bronze',
+            ];
+        }
+
         return null;
     }
 

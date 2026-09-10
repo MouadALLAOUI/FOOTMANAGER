@@ -249,7 +249,13 @@ class MatchRequestController extends Controller
     {
         $user = $request->user();
 
-        if (! $user->team) {
+        try {
+            $team = $this->resolver->for($user);
+        } catch (\Throwable $e) {
+            $team = $user->team ?? $user->managedTeams()->first();
+        }
+
+        if (! $team) {
             return response()->json(['message' => 'يجب إنشاء ملف الفريق أولاً'], 422);
         }
 
@@ -269,7 +275,7 @@ class MatchRequestController extends Controller
             'positions_needed.forward' => 'nullable|integer|min:0|max:50',
         ]);
 
-        $teamId = $user->team->id;
+        $teamId = $team->id;
         $needsPlayers = (bool) ($validated['needs_players'] ?? false);
         $positionsNeeded = $validated['positions_needed'] ?? null;
 
@@ -292,14 +298,18 @@ class MatchRequestController extends Controller
 
         if ($validated['target_team_id'] == $teamId) {
             return response()->json([
-                'message' => 'لا يمكنك إرسال تحدي لفريقك',
-            ], 403);
+                'message' => 'لا يمكنك إرسال تحدي لفريقك الخاص',
+            ], 422);
         }
 
         $targetTeam = Team::with('manager')->find($validated['target_team_id']);
-        if (! $targetTeam->manager || $targetTeam->manager->status !== 'approved') {
+        if (! $targetTeam) {
+            return response()->json(['message' => 'الفريق المستهدف غير موجود'], 404);
+        }
+
+        if ($targetTeam->manager && $targetTeam->manager->status === 'blocked') {
             return response()->json([
-                'message' => 'لا يمكن إرسال تحدي لهذا الفريق',
+                'message' => 'لا يمكن إرسال تحدي لهذا الفريق لأن حسابه محظور',
             ], 403);
         }
 
@@ -326,14 +336,16 @@ class MatchRequestController extends Controller
             ]);
         });
 
-        NotificationService::push(
-            (int) $targetTeam->manager_id,
-            'challenge_received',
-            'تحدي جديد من فريق',
-            "الفريق {$user->team?->name} أرسل لك تحدياً لمباراة ودية بتاريخ {$validated['match_datetime']}",
-            ['match_request_id' => $matchRequest->id],
-            '/dashboard',
-        );
+        if ($targetTeam->manager_id) {
+            NotificationService::push(
+                (int) $targetTeam->manager_id,
+                'challenge_received',
+                'تحدي جديد من فريق',
+                "الفريق {$team->name} أرسل لك تحدياً لمباراة ودية بتاريخ {$validated['match_datetime']}",
+                ['match_request_id' => $matchRequest->id],
+                '/dashboard',
+            );
+        }
 
         return response()->json([
             'message' => 'تم إرسال التحدي المباشر للفريق بنجاح',

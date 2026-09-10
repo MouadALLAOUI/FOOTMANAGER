@@ -10,7 +10,7 @@ import { toast } from '../ui/Toast'
 import { ConfirmDialog, useConfirm } from '../ui/ConfirmDialog'
 import PlanBadge from './PlanBadge'
 import UserSubscriptionDrawer from './UserSubscriptionDrawer'
-import { toastApiError } from '../../lib/errors'
+import { toastApiError, getApiErrorMessage } from '../../lib/errors'
 
 const actionMeta = {
   approve: { label: 'قبول', tone: 'primary', icon: Check },
@@ -222,13 +222,21 @@ export default function UserApproval({
 
   const bulk = async (action) => {
     try {
-      const res = await api.post(`${endpoint}/bulk`, { ids: selected, action })
+      let res
+      if (action === 'delete') {
+        res = await api.delete('/admin/accounts/bulk', { data: { ids: selected } })
+      } else {
+        res = await api.post(`${endpoint}/bulk`, { ids: selected, action })
+      }
       toast.success(res.data.message || `تم تنفيذ ${action}`)
       setSelected([])
       refetch()
       return true
     } catch (e) {
-      toastApiError(e, t)
+      const data = e.response?.data
+      const msg = getApiErrorMessage(e, t)
+      const blockers = data?.blockers
+      toast.error(blockers?.length ? `${msg} — ${blockers.slice(0, 3).join('؛ ')}` : msg)
       return false
     }
   }
@@ -254,6 +262,15 @@ export default function UserApproval({
   }
 
   const bulkWithConfirm = (action) => {
+    if (action === 'delete') {
+      confirm.run(() => bulk('delete'), {
+        title: 'حذف الحسابات المحددة؟',
+        description: `سيتم حذف ${selected.length} حساب نهائياً. هذا الإجراء لا يمكن التراجع عنه.`,
+        confirmLabel: 'حذف',
+        tone: 'red',
+      })
+      return
+    }
     if (!needsConfirm(action)) {
       bulk(action)
       return
@@ -480,6 +497,7 @@ export default function UserApproval({
           { action: 'reject', label: 'رفض المحدد', tone: 'softRed' },
           { action: 'block', label: 'حظر المحدد', tone: 'softRed' },
           { action: 'unblock', label: 'إلغاء حظر المحدد', tone: 'primary' },
+          { action: 'delete', label: 'حذف المحدد', tone: 'red' },
         ]}
         onBulk={(action) => bulkWithConfirm(action)}
         onRowClick={openDetail}

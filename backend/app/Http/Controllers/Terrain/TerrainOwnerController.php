@@ -89,6 +89,19 @@ class TerrainOwnerController extends Controller
             $terrain->facilities()->sync($validated['facility_ids']);
         }
 
+        // Initialize working schedules for all 7 days (0 to 6)
+        for ($day = 0; $day < 7; $day++) {
+            TerrainSchedule::firstOrCreate(
+                ['terrain_id' => $terrain->id, 'day_of_week' => $day],
+                [
+                    'open_time' => '00:00',
+                    'close_time' => '23:59',
+                    'slot_duration_minutes' => 60,
+                    'is_active' => true,
+                ]
+            );
+        }
+
         PublicCache::flushTerrains();
 
         return response()->json([
@@ -195,29 +208,42 @@ class TerrainOwnerController extends Controller
             ->where('id', $id)
             ->firstOrFail();
 
-        $request->validate([
-            'images' => 'required|array|max:6',
-            'images.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120',
-        ], [
-            'images.required' => 'يجب اختيار صورة واحدة على الأقل',
-            'images.array' => 'يجب إرسال الصور في صيغة صحيحة',
-            'images.max' => 'الحد الأقصى هو 6 صور لكل ملعب',
-            'images.*.image' => 'الملف المرفوع ليس صورة صالحة',
-            'images.*.mimes' => 'صيغة الصورة غير مدعومة — يُسمح فقط بـ JPG أو PNG أو WEBP',
-            'images.*.dimensions' => 'ملف الصورة تالف أو غير قابل للقراءة',
-            'images.*.max' => 'حجم الصورة يتجاوز الحد الأقصى (5MB)',
-            'images.*.uploaded' => 'فشل تحميل الصورة — حجمها أكبر من المسموح به',
-        ]);
+        $rawImages = $request->file('images') ?? $request->input('images');
 
+        if (empty($rawImages) || !is_array($rawImages)) {
+            return response()->json(['message' => 'يجب اختيار صورة واحدة على الأقل'], 422);
+        }
+
+        if (count($rawImages) > 6) {
+            return response()->json(['message' => 'الحد الأقصى هو 6 صور لكل ملعب'], 422);
+        }
+
+        $thumbnailService = app(ImageThumbnailService::class);
         $images = [];
-        foreach ($request->file('images') as $file) {
-            $thumbnail = app(ImageThumbnailService::class)->storeWithThumbnail($file, 'terrains/images');
-            $image = TerrainImage::create([
-                'terrain_id' => $terrain->id,
-                'image_path' => $thumbnail['path'],
-                'thumbnail_path' => $thumbnail['thumbnail_path'],
-            ]);
-            $images[] = $image;
+
+        foreach ($rawImages as $img) {
+            $thumbnail = null;
+            if ($img instanceof \Illuminate\Http\UploadedFile) {
+                $thumbnail = $thumbnailService->storeWithThumbnail($img, 'terrains/images');
+            } elseif (is_string($img) && (str_starts_with($img, 'data:image') || strlen($img) > 100)) {
+                $thumbnail = $thumbnailService->storeBase64WithThumbnail($img, 'terrains/images');
+            }
+
+            if ($thumbnail) {
+                $image = TerrainImage::create([
+                    'terrain_id' => $terrain->id,
+                    'image_path' => $thumbnail['path'],
+                    'thumbnail_path' => $thumbnail['thumbnail_path'],
+                ]);
+                $images[] = $image;
+
+                if (empty($terrain->cover_image)) {
+                    $terrain->update([
+                        'cover_image' => $thumbnail['path'],
+                        'cover_thumbnail_path' => $thumbnail['thumbnail_path'],
+                    ]);
+                }
+            }
         }
 
         PublicCache::flushTerrains();

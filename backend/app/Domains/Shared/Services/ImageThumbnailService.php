@@ -41,6 +41,51 @@ class ImageThumbnailService
         ];
     }
 
+    public function storeBase64WithThumbnail(
+        string $base64Data,
+        string $directory,
+        ?int $width = null,
+        ?int $height = null
+    ): ?array {
+        if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $type)) {
+            $base64Data = substr($base64Data, strpos($base64Data, ',') + 1);
+            $extension = strtolower($type[1]);
+            if ($extension === 'jpeg') {
+                $extension = 'jpg';
+            }
+        } else {
+            $extension = 'jpg';
+        }
+
+        $decoded = base64_decode($base64Data, true);
+        if ($decoded === false) {
+            return null;
+        }
+
+        $name = uniqid('img_', true) . '.' . $extension;
+        $path = $directory . '/' . $name;
+
+        $disk = Storage::disk($this->disk);
+        $disk->put($path, $decoded);
+
+        $thumbnailPath = null;
+        try {
+            $thumbnailPath = $this->makeThumbnailFromPath(
+                $disk->path($path),
+                $directory,
+                $width,
+                $height
+            );
+        } catch (Throwable $e) {
+            // Thumbnail generation is best-effort
+        }
+
+        return [
+            'path' => $path,
+            'thumbnail_path' => $thumbnailPath,
+        ];
+    }
+
     public function copyFromPath(string $sourceRelative, string $directory, ?int $width = null, ?int $height = null): array
     {
         $disk = Storage::disk($this->disk);

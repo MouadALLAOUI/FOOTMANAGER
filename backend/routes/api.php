@@ -124,6 +124,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:auth');
 Route::post('/register-terrain-owner', [AuthController::class, 'registerTerrainOwner'])->middleware('throttle:auth');
+Route::post('/register-terrain-details', [AuthController::class, 'registerTerrainDetails'])->middleware('throttle:auth');
 Route::post('/register-player', [AuthController::class, 'registerPlayer'])->middleware('throttle:auth');
 Route::post('/register-committee', [AuthController::class, 'registerCommittee'])->middleware('throttle:auth');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
@@ -628,6 +629,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
         });
 
         Route::middleware('permission:users.accounts')->group(function () {
+            Route::delete('/accounts/bulk', [AccountController::class, 'bulkDelete']);
             Route::delete('/accounts/{id}', [AccountController::class, 'delete']);
             Route::post('/accounts/{id}/recovery', [AccountController::class, 'generateRecovery']);
         });

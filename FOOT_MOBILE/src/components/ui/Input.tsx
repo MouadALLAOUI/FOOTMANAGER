@@ -33,6 +33,8 @@ export function Input({ label, error, hint, containerStyle, editable = true, ...
       <TextInput
         {...rest}
         editable={editable}
+        autoCapitalize={rest.autoCapitalize ?? (rest.secureTextEntry ? 'none' : undefined)}
+        autoCorrect={rest.autoCorrect ?? (rest.secureTextEntry ? false : undefined)}
         onFocus={(e) => {
           setFocused(true);
           rest.onFocus?.(e);

@@ -46,7 +46,6 @@ export function Section({ icon: Icon, title, subtitle, action, badge, defaultOpe
 }
 
 export function timeAgo(dateStr) {
-  const { t, i18n } = useTranslation()
   if (!dateStr) return ''
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)

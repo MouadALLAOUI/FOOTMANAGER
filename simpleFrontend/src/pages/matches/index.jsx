@@ -7,6 +7,7 @@ import MatchRequestModal from '../../components/public/MatchRequestModal'
 import { usePublicActions } from '../../components/public/usePublicActions'
 import MatchesHero from './hero'
 import LiveMatches from './liveMatches'
+import TournamentMatches from './tournamentMatches'
 import OpponentTeams from './opponentTeams'
 import Leaderboard from './leaderboard'
 import CommunityStats from './stats'
@@ -23,7 +24,14 @@ export default function Matches() {
   const { openChallenge } = usePublicActions({ onChallenge: setChallenge })
 
   useEffect(() => {
-    window.scrollTo(0, 0)
+    if (window.location.hash) {
+      const targetId = window.location.hash.replace('#', '')
+      setTimeout(() => {
+        document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 120)
+    } else {
+      window.scrollTo(0, 0)
+    }
   }, [])
 
   const challengeParam = searchParams.get('challenge')
@@ -58,6 +66,7 @@ export default function Matches() {
         ) : (
           <>
             <LiveMatches matches={liveMatches} onEmptyAction={() => scrollTo('create-match')} />
+            <TournamentMatches />
             <OpponentTeams
               teams={opponentTeams}
               onEmptyAction={() => scrollTo('create-match')}

@@ -5,6 +5,7 @@ import PopularSearches from './popularSearches'
 import LiveStatus from './liveStatus'
 import MySection from './mySection'
 import AvailableFields from './availableFields'
+import Teams from './teams'
 import Matches from './matches'
 import Tournaments from './tournaments'
 import LiveAndNext from './liveAndNext'
@@ -29,6 +30,7 @@ export default function Landing() {
         </Hero>
         <MySection />
         <AvailableFields />
+        <Teams />
         <Matches />
         <Tournaments />
         <LiveAndNext />

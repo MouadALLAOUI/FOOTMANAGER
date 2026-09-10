@@ -17,7 +17,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
+use App\Domains\Booking\Models\TerrainBooking;
+use App\Domains\Booking\Models\TerrainImage;
+use App\Domains\Booking\Models\TerrainSchedule;
+use App\Domains\Shared\Models\City;
+use App\Domains\Shared\Support\PublicCache;
+use App\Domains\Stadium\Models\Stadium;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -416,6 +421,165 @@ class AuthController extends Controller
             'message' => 'تم تسجيل طلب حساب صاحب التيران بنجاح، بانتظار موافقة الإدارة',
             'user' => $user->makeVisible('phone', 'email')->only('id', 'name', 'email', 'phone', 'role', 'status', 'avatar_url', 'avatar_thumbnail_url'),
         ], 201);
+    }
+
+    public function registerTerrainDetails(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'user_id' => 'nullable|integer|exists:users,id',
+            'phone' => 'nullable|string',
+            'name' => 'required|string|max:255',
+            'city' => 'nullable|string|max:255',
+            'city_id' => 'nullable|integer',
+            'address' => 'nullable|string|max:255',
+            'price_per_hour' => 'nullable|numeric|min:0',
+            'open_time' => 'nullable|string',
+            'close_time' => 'nullable|string',
+            'bookings' => 'nullable|array',
+            'bookings.*.date' => 'required_with:bookings|date',
+            'bookings.*.start_time' => 'required_with:bookings|string',
+            'bookings.*.end_time' => 'required_with:bookings|string',
+            'bookings.*.customer_name' => 'nullable|string',
+            'bookings.*.customer_phone' => 'nullable|string',
+            'images' => 'nullable|array|max:10',
+            'images.*' => 'nullable',
+        ]);
+
+        $user = null;
+        if (!empty($validated['user_id'])) {
+            $user = User::where('id', $validated['user_id'])->where('role', 'terrain_owner')->first();
+        }
+        if (!$user && !empty($validated['phone'])) {
+            $user = User::where('phone', $validated['phone'])->where('role', 'terrain_owner')->first();
+        }
+
+        if (!$user) {
+            return response()->json(['message' => 'المستخدم غير موجود'], 404);
+        }
+
+        // Resolve city
+        $city = null;
+        if (!empty($validated['city_id'])) {
+            $city = City::find($validated['city_id']);
+        }
+        if (!$city && !empty($validated['city'])) {
+            $city = City::where('name', $validated['city'])->first();
+        }
+        if (!$city) {
+            $city = City::first();
+        }
+
+        $pricePerHour = $validated['price_per_hour'] ?? 300;
+        $pricePerTeam = $pricePerHour / 2;
+
+        $stadium = Stadium::where('owner_id', $user->id)->first();
+        if ($stadium) {
+            $stadium->update([
+                'name' => $validated['name'],
+                'city' => $city ? $city->name : ($validated['city'] ?? 'الدار البيضاء'),
+                'city_id' => $city ? $city->id : null,
+                'address' => $validated['address'] ?? null,
+                'price_per_hour' => $pricePerHour,
+                'total_price' => $pricePerHour,
+                'price_per_team' => $pricePerTeam,
+                'is_available' => true,
+                'is_open' => true,
+            ]);
+        } else {
+            $stadium = Stadium::create([
+                'owner_id' => $user->id,
+                'name' => $validated['name'],
+                'city' => $city ? $city->name : ($validated['city'] ?? 'الدار البيضاء'),
+                'city_id' => $city ? $city->id : null,
+                'address' => $validated['address'] ?? null,
+                'type' => 'synthetic',
+                'player_format' => '7v7',
+                'price_per_hour' => $pricePerHour,
+                'total_price' => $pricePerHour,
+                'price_per_team' => $pricePerTeam,
+                'is_available' => true,
+                'is_open' => true,
+            ]);
+        }
+
+        // Initialize active schedules for all 7 days (0 to 6) so bookings are valid
+        $openTime = !empty($validated['open_time']) ? $validated['open_time'] : '00:00';
+        $closeTime = !empty($validated['close_time']) ? $validated['close_time'] : '23:59';
+        for ($day = 0; $day < 7; $day++) {
+            TerrainSchedule::updateOrCreate(
+                ['terrain_id' => $stadium->id, 'day_of_week' => $day],
+                [
+                    'open_time' => $openTime,
+                    'close_time' => $closeTime,
+                    'slot_duration_minutes' => 60,
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        // Create initial manual guest bookings
+        if (!empty($validated['bookings']) && is_array($validated['bookings'])) {
+            foreach ($validated['bookings'] as $b) {
+                $exists = TerrainBooking::where('terrain_id', $stadium->id)
+                    ->where('booking_date', $b['date'])
+                    ->where('start_time', $b['start_time'])
+                    ->exists();
+
+                if (!$exists) {
+                    TerrainBooking::create([
+                        'terrain_id' => $stadium->id,
+                        'booking_date' => $b['date'],
+                        'start_time' => $b['start_time'],
+                        'end_time' => $b['end_time'],
+                        'booking_type' => 'private',
+                        'flow_type' => 'direct',
+                        'reservation_type' => 'single',
+                        'price' => $pricePerTeam,
+                        'status' => 'approved',
+                        'guest_name' => $b['customer_name'] ?? 'زبون عبر الهاتف',
+                        'guest_phone' => $b['customer_phone'] ?? null,
+                        'booking_reference' => TerrainBooking::generateReference(),
+                        'uuid' => (string) Str::uuid(),
+                    ]);
+                }
+            }
+        }
+
+        // Handle images (both files and base64 strings)
+        $thumbnailService = app(ImageThumbnailService::class);
+        $rawImages = $request->file('images') ?? $request->input('images');
+        if (!empty($rawImages) && is_array($rawImages)) {
+            foreach ($rawImages as $img) {
+                $thumb = null;
+                if ($img instanceof \Illuminate\Http\UploadedFile) {
+                    $thumb = $thumbnailService->storeWithThumbnail($img, 'terrains/images');
+                } elseif (is_string($img) && (str_starts_with($img, 'data:image') || strlen($img) > 100)) {
+                    $thumb = $thumbnailService->storeBase64WithThumbnail($img, 'terrains/images');
+                }
+
+                if ($thumb) {
+                    TerrainImage::create([
+                        'terrain_id' => $stadium->id,
+                        'image_path' => $thumb['path'],
+                        'thumbnail_path' => $thumb['thumbnail_path'],
+                    ]);
+
+                    if (empty($stadium->cover_image)) {
+                        $stadium->update([
+                            'cover_image' => $thumb['path'],
+                            'cover_thumbnail_path' => $thumb['thumbnail_path'],
+                        ]);
+                    }
+                }
+            }
+        }
+
+        PublicCache::flushTerrains();
+
+        return response()->json([
+            'message' => 'تم تسجيل معلومات الملعب والحجوزات بنجاح، بانتظار موافقة الإدارة',
+            'stadium' => $stadium->fresh()->load(['schedules', 'images']),
+        ], 200);
     }
 
     public function registerCommittee(Request $request): JsonResponse

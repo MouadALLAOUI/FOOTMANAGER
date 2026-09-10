@@ -22,7 +22,13 @@ export function resolveImageUrl(uri?: string | null): string | null {
   const trimmed = uri.trim();
 
   // Local / data URIs — pass straight through
-  if (trimmed.startsWith('data:') || trimmed.startsWith('file://')) {
+  if (
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('file://') ||
+    trimmed.startsWith('content://') ||
+    trimmed.startsWith('ph://') ||
+    trimmed.startsWith('blob:')
+  ) {
     return trimmed;
   }
 

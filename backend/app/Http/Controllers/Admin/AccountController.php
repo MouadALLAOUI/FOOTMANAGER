@@ -31,23 +31,97 @@ class AccountController extends Controller
         }
 
         DB::transaction(function () use ($user) {
-            $user->revokeTokens();
-
-            $user->name = 'محذوف';
-            $user->email = null;
-            $user->phone = 'deleted_'.$user->id;
-            $user->password = 'deleted';
-            $user->avatar_path = null;
-            $user->avatar_thumbnail_path = null;
-            $user->status = 'blocked';
-            $user->save();
-
-            $user->delete();
+            $this->purge($user);
         });
 
         return response()->json([
             'message' => 'تم حذف الحساب بنجاح',
         ]);
+    }
+
+    public function bulkDelete(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => 'required|array|min:1|max:100',
+            'ids.*' => 'integer|distinct',
+        ]);
+
+        $users = User::withoutGlobalScopes()
+            ->whereIn('id', $data['ids'])
+            ->get()
+            ->keyBy('id');
+
+        $deletable = [];
+        $blocked = [];
+
+        foreach ($data['ids'] as $rawId) {
+            $user = $users->get((int) $rawId);
+            if (! $user) {
+                continue;
+            }
+
+            if ($user->isAdmin()) {
+                $blocked[] = ['id' => $user->id, 'name' => $user->name, 'blockers' => ['لا يمكن حذف حساب مسؤول']];
+                continue;
+            }
+
+            $userBlockers = $user->canBeDeleted();
+            if (! empty($userBlockers)) {
+                $blocked[] = ['id' => $user->id, 'name' => $user->name, 'blockers' => $userBlockers];
+                continue;
+            }
+
+            $deletable[] = $user;
+        }
+
+        $deletedCount = 0;
+        try {
+            DB::transaction(function () use ($deletable, &$deletedCount) {
+                foreach ($deletable as $user) {
+                    $this->purge($user);
+                    $deletedCount++;
+                }
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'تعذر حذف الحسابات المحددة',
+            ], 500);
+        }
+
+        if ($deletedCount === 0) {
+            return response()->json([
+                'message' => 'لا يمكن حذف الحسابات المحددة',
+                'deleted' => 0,
+                'blockers' => collect($blocked)->flatMap(fn (array $b) => $b['blockers'])->unique()->values()->all(),
+            ], 409);
+        }
+
+        $message = "تم حذف {$deletedCount} حساب";
+        if (count($blocked) > 0) {
+            $message .= '، وتجاوزنا ' . count($blocked) . ' حساب لا يمكن حذفه';
+        }
+
+        return response()->json([
+            'message' => $message,
+            'deleted' => $deletedCount,
+            'skipped' => count($blocked) > 0 ? $blocked : null,
+        ]);
+    }
+
+    private function purge(User $user): void
+    {
+        $user->revokeTokens();
+
+        $user->name = 'محذوف';
+        $user->email = null;
+        $user->phone = 'deleted_'.$user->id;
+        $user->password = 'deleted';
+        $user->avatar_path = null;
+        $user->avatar_thumbnail_path = null;
+        $user->status = 'blocked';
+        $user->save();
+
+        $user->delete();
     }
 
     public function generateRecovery(Request $request, int $id): JsonResponse

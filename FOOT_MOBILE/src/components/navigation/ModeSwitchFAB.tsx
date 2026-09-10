@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
-import { Compass, LayoutDashboard, LogIn } from 'lucide-react-native';
+import { Home, LayoutDashboard } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useAuth } from '@/auth/AuthProvider';
@@ -40,22 +40,12 @@ export function ModeSwitchFAB(): React.JSX.Element | null {
 
   const handlePress = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
     if (inRoleDashboard) {
-      // Inside a role dashboard -> Go to Landing / Explore page
-      router.push('/(public)' as never);
-    } else if (isAuthPage) {
-      // On login/auth page -> Return to Landing page
-      router.push('/(public)' as never);
+      router.replace('/(public)');
+    } else if (sessionState === 'authenticated' && role) {
+      router.replace(homeForRole(role) as never);
     } else {
-      // On Landing / Public page
-      if (sessionState === 'authenticated' && role) {
-        // Authenticated user -> Go to role dashboard
-        router.push(homeForRole(role) as never);
-      } else {
-        // Guest user -> Go directly to login page (no flashing of protected player dashboard!)
-        router.push('/(auth)' as never);
-      }
+      router.replace('/(public)');
     }
   };
 
@@ -64,9 +54,9 @@ export function ModeSwitchFAB(): React.JSX.Element | null {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return Math.abs(gestureState.dx) > 3 || Math.abs(gestureState.dy) > 3;
+        return Math.hypot(gestureState.dx, gestureState.dy) > 10;
       },
       onPanResponderGrant: () => {
         didLongPress.current = false;
@@ -81,10 +71,9 @@ export function ModeSwitchFAB(): React.JSX.Element | null {
           didLongPress.current = true;
           void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           setShowLogs(true);
-        }, 750);
+        }, 800);
       },
       onPanResponderMove: (evt, gestureState) => {
-        // If moved significantly, cancel the long press
         if (Math.hypot(gestureState.dx, gestureState.dy) > 10 && longPressTimer.current) {
           clearTimeout(longPressTimer.current);
           longPressTimer.current = null;
@@ -93,17 +82,12 @@ export function ModeSwitchFAB(): React.JSX.Element | null {
           useNativeDriver: false,
         })(evt, gestureState);
       },
-      onPanResponderRelease: (_, gestureState) => {
+      onPanResponderRelease: () => {
         if (longPressTimer.current) {
           clearTimeout(longPressTimer.current);
           longPressTimer.current = null;
         }
-
         pan.flattenOffset();
-        // If the movement was minimal and not a long press, trigger navigation tap
-        if (!didLongPress.current && Math.hypot(gestureState.dx, gestureState.dy) < 8) {
-          handlePress();
-        }
       },
     })
   ).current;
@@ -112,13 +96,13 @@ export function ModeSwitchFAB(): React.JSX.Element | null {
     ? t('nav.goToLanding', 'الصفحة الرئيسية')
     : sessionState === 'authenticated'
       ? t('nav.goToDashboard', 'لوحة التحكم')
-      : t('auth.login', 'تسجيل الدخول');
+      : t('nav.home', 'الرئيسية');
 
   const Icon = inRoleDashboard
-    ? Compass
+    ? Home
     : sessionState === 'authenticated'
       ? LayoutDashboard
-      : LogIn;
+      : Home;
 
   return (
     <>
@@ -133,6 +117,7 @@ export function ModeSwitchFAB(): React.JSX.Element | null {
         ]}
       >
         <Pressable
+          onPress={handlePress}
           accessibilityRole="button"
           accessibilityLabel={label}
           accessibilityHint="اضغط للتنقل، اضغط مطولاً لفتح سجل الأخطاء"

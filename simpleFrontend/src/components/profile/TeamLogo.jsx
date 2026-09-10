@@ -29,6 +29,7 @@ export default function TeamLogo({
 
   const inner = imageSrc && !failed ? (
     <img
+      crossOrigin="anonymous"
       src={imageSrc}
       alt={displayName || alt || 'logo'}
       loading="lazy"

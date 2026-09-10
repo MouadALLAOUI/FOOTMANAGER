@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { Banknote, CalendarCheck, CalendarX2, CheckCircle2, Clock3, CreditCard, Hourglass, Percent, Repeat, Ticket, Wallet, XCircle } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
-import { mapHttpError } from '../../../lib/errorState'
 import { SectionError } from '../../../components/errors'
 import { Card, SectionTitle, Skeleton, Stat } from '../../../components/dashboard/ui'
 import { AreaTrend, Bars, Donut } from '../../../components/dashboard/charts'
@@ -122,7 +121,7 @@ export default function TerrainAnalytics() {
         </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !errorState && (
         <div className="mt-6 grid gap-5 lg:grid-cols-2">
           <Card
             title={isHourly ? t('terrain.analytics.trend.titleHourly') : t('terrain.analytics.trend.title')}

@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertTriangle,
   MessageSquare,
+  Shield,
 } from 'lucide-react'
 
 const POSITION_LABELS = {

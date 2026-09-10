@@ -1224,7 +1224,7 @@ function WhyUsSection() {
         </Text>
         <Text style={styles.ctaDesc}>سجّل حسابك مجاناً وانضم إلى مجتمع كرة القدم الهواة في المغرب</Text>
         <Pressable
-          onPress={() => router.push(sessionState === 'authenticated' && role ? homeForRole(role) as never : '/(auth)/register' as never)}
+          onPress={() => router.push(sessionState === 'authenticated' && role ? homeForRole(role) as never : '/(auth)/account-type' as never)}
           style={styles.ctaBtn}
         >
           <Text style={styles.ctaBtnText}>ابدأ مجاناً</Text>
@@ -1308,7 +1308,7 @@ export default function LandingScreen(): React.JSX.Element {
       {/* Sticky bottom CTA for guests */}
       {sessionState !== 'authenticated' ? (
         <View style={[styles.bottomBar, { paddingBottom: Math.max(14, insets.bottom) }]}>
-          <Link href="/(auth)/register" asChild style={{ flex: 1 }}>
+          <Link href="/(auth)/account-type" asChild style={{ flex: 1 }}>
             <Pressable style={styles.bottomBarPrimary}>
               <Text style={styles.bottomBarPrimaryText}>إنشاء حساب</Text>
             </Pressable>

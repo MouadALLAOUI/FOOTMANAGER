@@ -90,3 +90,94 @@ export function truncate(text: string, maxLength: number): string {
 export function formatBackendContent(value: string): string {
   return value;
 }
+
+/**
+ * Formats a phone number into pairs of digits separated by a space.
+ * e.g. "0123456789" -> "01 23 45 67 89"
+ */
+export function formatPhoneDisplay(value: string): string {
+  if (!value) return '';
+  // Keep only digits and limit to 10 digits (standard phone format)
+  const digits = value.replace(/\D/g, '').slice(0, 10);
+  if (!digits) return '';
+  const chunks = digits.match(/.{1,2}/g);
+  return chunks ? chunks.join(' ') : digits;
+}
+
+/**
+ * Strips whitespace and formatting characters from a phone number for API submission.
+ */
+export function cleanPhoneNumber(value: string): string {
+  if (!value) return '';
+  return value.replace(/\s+/g, '');
+}
+
+export interface PasswordStrength {
+  score: number; // 0 (empty), 1 (weak), 2 (medium), 3 (strong)
+  labelAr: string;
+  color: string;
+  feedbackAr: string;
+}
+
+/**
+ * Evaluates password strength:
+ * - Weak (score 1, red): < 6 characters or simple digits
+ * - Medium (score 2, amber): >= 6 characters with mixed characters or length >= 8
+ * - Strong (score 3, green): >= 8 characters with letters, numbers, and special symbols
+ */
+export function getPasswordStrength(password: string): PasswordStrength {
+  if (!password) {
+    return {
+      score: 0,
+      labelAr: '',
+      color: '#E2E8F0',
+      feedbackAr: '',
+    };
+  }
+
+  const length = password.length;
+  const hasLetters = /[a-zA-Z]/.test(password);
+  const hasDigits = /\d/.test(password);
+  const hasSpecial = /[^a-zA-Z0-9]/.test(password);
+  const hasMixedCase = /[a-z]/.test(password) && /[A-Z]/.test(password);
+
+  if (length < 6) {
+    return {
+      score: 1,
+      labelAr: 'ضعيفة',
+      color: '#EF4444',
+      feedbackAr: 'يجب أن تحتوي على 6 أحرف أو أرقام على الأقل',
+    };
+  }
+
+  let points = 1; // already >= 6 chars
+
+  if (length >= 8) points++;
+  if ((hasLetters && hasDigits) || (hasLetters && hasSpecial) || (hasDigits && hasSpecial)) points++;
+  if (hasMixedCase || (hasLetters && hasDigits && hasSpecial)) points++;
+
+  if (points >= 3 && length >= 8) {
+    return {
+      score: 3,
+      labelAr: 'قوية',
+      color: '#10B981',
+      feedbackAr: 'كلمة مرور قوية ومحمية بنجاح ✓',
+    };
+  }
+
+  if (points >= 2) {
+    return {
+      score: 2,
+      labelAr: 'متوسطة',
+      color: '#F59E0B',
+      feedbackAr: 'جيدة، أضف أرقاماً أو رموزاً لتصبح قوية',
+    };
+  }
+
+  return {
+    score: 1,
+    labelAr: 'ضعيفة',
+    color: '#EF4444',
+    feedbackAr: 'استخدم 8 أحرف مع أرقام ورموز لحماية أفضل',
+  };
+}

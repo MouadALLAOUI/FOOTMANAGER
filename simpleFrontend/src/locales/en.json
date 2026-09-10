@@ -3324,7 +3324,32 @@
       "viewTournament": "View tournament",
       "noLive": "No matches currently live",
       "empty": "No live tournament matches right now",
-      "emptyDesc": "Tournament matches will appear here in real time when they kick off."
+      "emptyDesc": "Tournament matches will appear here in real time when they kick off.",
+      "share": "SHARE",
+      "sharing": "Preparing…",
+      "shareSuccess": "Shared successfully!",
+      "shareImageDownloaded": "Card image downloaded & link copied!",
+      "seeAllUpcoming": "See all upcoming matches",
+      "matchDetails": "Match Details",
+      "tournament": "TOURNAMENT",
+      "venue": "VENUE"
+    },
+    "teams": {
+      "badge": "Ready for Competition",
+      "title1": "Teams Looking for",
+      "title2": "New Challenges",
+      "subtitle": "Discover competitive football teams, send a friendly match challenge or contact the team manager directly.",
+      "challenge": "Challenge Team",
+      "contact": "Contact Team",
+      "call": "Call Phone",
+      "whatsapp": "WhatsApp",
+      "viewProfile": "View Profile",
+      "manager": "Team Manager",
+      "points": "Pts",
+      "matches": "Matches",
+      "wins": "Wins",
+      "empty": "No teams available currently",
+      "emptyDesc": "Check back soon as new teams join the platform."
     },
     "why": {
       "title": "Why Aji Nqsro?",
@@ -3830,14 +3855,22 @@
       "search": "Find a match"
     },
     "live": {
-      "title": "Live matches now",
-      "subtitle": "Follow active matches minute by minute.",
-      "badge": "Live now",
-      "vs": "vs",
-      "details": "Watch details",
-      "emptyTitle": "No live matches right now",
-      "emptyDescription": "Come back later or create a new match.",
-      "emptyButton": "Create a match"
+      "title": "Live Matches",
+      "subtitle": "Follow active matches in real time.",
+      "badge": "Live Now",
+      "vs": "VS",
+      "details": "View details",
+      "emptyTitle": "No matches in progress right now",
+      "emptyDescription": "Check back later or schedule a new match.",
+      "emptyButton": "Create match"
+    },
+    "tournamentMatches": {
+      "badge": "Official Tournament Fixtures",
+      "title": "Upcoming Tournament Matches",
+      "subtitle": "Explore the official tournament schedule, kick-off dates, stadiums and upcoming clashes.",
+      "viewTournament": "View Tournament",
+      "emptyTitle": "No tournament matches scheduled currently",
+      "emptyDescription": "Upcoming tournament fixtures will appear here once scheduled."
     },
     "teams": {
       "title": "Teams looking for opponents",

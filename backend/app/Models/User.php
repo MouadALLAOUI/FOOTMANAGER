@@ -376,6 +376,13 @@ class User extends Authenticatable
      */
     public function canBeDeleted(): array
     {
+        // Rejected or blocked accounts can always be deleted, even when the
+        // team still has active matches or reservations — admin cleanup must
+        // not be blocked by resources of a denied account.
+        if (in_array($this->status, ['rejected', 'blocked'], true)) {
+            return [];
+        }
+
         $blockers = [];
 
         if ($this->isManager()) {

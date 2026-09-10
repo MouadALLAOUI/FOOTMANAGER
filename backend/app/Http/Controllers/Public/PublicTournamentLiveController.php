@@ -74,7 +74,7 @@ class PublicTournamentLiveController extends Controller
             ->limit(20)
             ->get();
 
-        $next = Fixture::query()
+        $upcoming = Fixture::query()
             ->where($scope)
             ->where('scheduled_at', '>', now())
             ->whereNotNull('home_team_id')
@@ -84,7 +84,8 @@ class PublicTournamentLiveController extends Controller
             ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])
             ->orderBy('scheduled_at')
             ->orderBy('id')
-            ->first();
+            ->limit(20)
+            ->get();
 
         $liveData = $live
             ->map(fn (Fixture $f) => (new TournamentLandingMatchResource($f))
@@ -92,16 +93,17 @@ class PublicTournamentLiveController extends Controller
                 ->toArray($request))
             ->values();
 
-        $nextData = $next
-            ? (new TournamentLandingMatchResource($next))
-                ->withTournament($lookup["{$next->competition_id}:{$next->season_id}"] ?? null)
-                ->toArray($request)
-            : null;
+        $upcomingData = $upcoming
+            ->map(fn (Fixture $f) => (new TournamentLandingMatchResource($f))
+                ->withTournament($lookup["{$f->competition_id}:{$f->season_id}"] ?? null)
+                ->toArray($request))
+            ->values();
 
         return response()->json([
             'data' => [
                 'live' => $liveData,
-                'next' => $nextData,
+                'next' => $upcomingData->first() ?? null,
+                'upcoming' => $upcomingData,
             ],
         ]);
     }

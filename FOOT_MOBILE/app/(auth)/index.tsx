@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useRouter } from 'expo-router';
 import {
   KeyboardAvoidingView,
@@ -7,29 +7,35 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
-import { ArrowLeft, ArrowRight, Eye, EyeOff } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Lock,
+  Phone,
+  Smartphone,
+} from 'lucide-react-native';
 
-import { AppText } from '@/components/ui/AppText';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
-import { BrandLogoMark } from '@/components/ui/illustrations';
+import { AjiNqssroLogo } from '@/components/ui/AjiNqssroLogo';
 import { useAuth } from '@/auth/AuthProvider';
 import { homeForRole } from '@/auth/homeForRole';
 import { useI18n } from '@/i18n/I18nProvider';
-import { palette } from '@/theme/colors';
 import { useTheme } from '@/theme/ThemeProvider';
-import { radius, sizes, spacing } from '@/theme/spacing';
+import { radius, spacing } from '@/theme/spacing';
+import { cleanPhoneNumber, formatPhoneDisplay } from '@/utils';
 
 export default function LoginScreen(): React.JSX.Element {
   const { login, getLoginErrorMessage, role } = useAuth();
-  const { t, isRTL } = useI18n();
+  const { isRTL } = useI18n();
   const { colors } = useTheme();
   const router = useRouter();
 
-  const [loginField, setLoginField] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -38,18 +44,20 @@ export default function LoginScreen(): React.JSX.Element {
   const handleSubmit = async () => {
     setError('');
 
-    if (!loginField.trim()) {
-      setError(t('auth.emailOrPhoneRequired', 'يرجى إدخال البريد الإلكتروني أو رقم الهاتف'));
+    const loginIdentifier = phone.includes('@') ? phone.trim() : cleanPhoneNumber(phone);
+
+    if (!loginIdentifier) {
+      setError('يرجى إدخال رقم الهاتف أو البريد الإلكتروني');
       return;
     }
     if (!password) {
-      setError(t('auth.passwordRequired', 'يرجى إدخال كلمة المرور'));
+      setError('يرجى إدخال كلمة المرور');
       return;
     }
 
     setLoading(true);
     try {
-      await login(loginField.trim(), password);
+      await login(loginIdentifier, password);
       router.replace(homeForRole(role));
     } catch (e: unknown) {
       setError(getLoginErrorMessage(e));
@@ -58,150 +66,146 @@ export default function LoginScreen(): React.JSX.Element {
     }
   };
 
-  const BackArrow = isRTL ? ArrowRight : ArrowLeft;
+  const ForwardArrow = isRTL ? ArrowLeft : ArrowRight;
 
   return (
-    <Screen>
+    <Screen padded={false}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
-        {/* Top Return to Landing Bar */}
-        <View style={styles.topBar}>
-          <Pressable
-            onPress={() => router.replace('/(public)')}
-            style={({ pressed }) => [styles.backButton, { opacity: pressed ? 0.7 : 1 }]}
-            accessibilityRole="button"
-            accessibilityLabel={t('nav.backToLanding', 'العودة للصفحة الرئيسية')}
-          >
-            <View style={[styles.backIconCircle, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <BackArrow size={18} color={colors.text} />
-            </View>
-            <Text style={[styles.backText, { color: colors.text }]}>
-              {t('nav.backToLanding', 'الصفحة الرئيسية')}
-            </Text>
-          </Pressable>
-        </View>
-
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Brand Header */}
-          <View style={styles.header}>
-            <BrandLogoMark size={70} />
-            <AppText variant="h1" align="center" style={styles.title}>
-              {t('auth.welcomeBack', 'مرحباً بعودتك')}
-            </AppText>
-            <AppText variant="body" muted align="center" style={styles.subtitle}>
-              {t('auth.enterCredentials', 'سجّل الدخول للمتابعة إلى حسابك')}
-            </AppText>
+          {/* Top Logo */}
+          <View style={styles.logoWrap}>
+            <AjiNqssroLogo size={58} />
           </View>
 
-          {/* Form */}
+          {/* Title */}
+          <View style={styles.titleWrap}>
+            <Text style={[styles.mainTitle, { color: colors.text }]}>
+              تسجيل الدخول
+            </Text>
+          </View>
+
+          {/* Error Banner */}
+          {error ? (
+            <View style={styles.errorAlert}>
+              <Text style={styles.errorAlertText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {/* Form Fields */}
           <View style={styles.form}>
-            {error ? (
-              <View style={[styles.errorBanner, { backgroundColor: colors.danger + '14', borderColor: colors.danger + '40' }]}>
-                <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
-              </View>
-            ) : null}
-
-            <Input
-              label={t('auth.emailOrPhone', 'البريد أو الهاتف')}
-              placeholder={t('auth.emailOrPhonePlaceholder', 'example@domain.com / 06...')}
-              value={loginField}
-              onChangeText={(v: string) => {
-                setLoginField(v);
-                setError('');
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              textContentType="username"
-              autoComplete="username"
-            />
-
-            <View>
-              <Input
-                label={t('auth.password', 'كلمة المرور')}
-                placeholder={t('auth.passwordPlaceholder', '••••••••')}
-                value={password}
-                onChangeText={(v: string) => {
-                  setPassword(v);
+            {/* Phone Number Field */}
+            <View style={styles.inputFieldBox}>
+              <TextInput
+                style={[styles.textInput, { color: colors.text, textAlign: 'right' }]}
+                placeholder="06 XX XX XX XX"
+                placeholderTextColor="#94A3B8"
+                value={phone}
+                onChangeText={(v) => {
+                  setPhone(v.includes('@') ? v : formatPhoneDisplay(v));
                   setError('');
                 }}
-                secureTextEntry={!showPassword}
-                textContentType="password"
-                autoComplete="password"
-                onSubmitEditing={handleSubmit}
-                returnKeyType="go"
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                textContentType="username"
               />
+              <View style={styles.inputIconWrap}>
+                <Phone size={20} color="#94A3B8" />
+              </View>
+            </View>
+
+            {/* Password Field */}
+            <View style={styles.inputFieldBox}>
               <Pressable
                 onPress={() => setShowPassword((prev) => !prev)}
-                hitSlop={12}
-                style={styles.passwordToggle}
+                hitSlop={10}
+                style={styles.eyeToggle}
                 accessibilityRole="button"
                 accessibilityLabel={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
               >
                 {showPassword ? (
-                  <EyeOff size={20} color={colors.textMuted} />
+                  <EyeOff size={20} color="#94A3B8" />
                 ) : (
-                  <Eye size={20} color={colors.textMuted} />
+                  <Eye size={20} color="#94A3B8" />
                 )}
               </Pressable>
+
+              <TextInput
+                style={[styles.textInput, { color: colors.text, textAlign: 'right' }]}
+                placeholder="كلمة المرور"
+                placeholderTextColor="#94A3B8"
+                value={password}
+                onChangeText={(v) => {
+                  setPassword(v);
+                  setError('');
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry={!showPassword}
+                textContentType="password"
+                onSubmitEditing={handleSubmit}
+                returnKeyType="go"
+              />
+
+              <View style={styles.inputIconWrap}>
+                <Lock size={20} color="#94A3B8" />
+              </View>
             </View>
 
-            <View style={styles.forgotRow}>
+            {/* Primary Action: دخول → */}
+            <Pressable
+              onPress={() => void handleSubmit()}
+              disabled={loading}
+              style={({ pressed }) => [
+                styles.primaryPillBtn,
+                {
+                  opacity: loading ? 0.7 : pressed ? 0.9 : 1,
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="دخول"
+            >
+              <Text style={styles.primaryPillBtnText}>
+                {loading ? 'جاري الدخول...' : 'دخول'}
+              </Text>
+              <ForwardArrow size={20} color="#FFFFFF" strokeWidth={2.4} />
+            </Pressable>
+
+            {/* Forgot Password Link */}
+            <View style={styles.forgotWrap}>
               <Link href="/(auth)/forgot-password" asChild>
                 <Pressable hitSlop={10}>
-                  <Text style={[styles.forgotText, { color: palette.primaryGreen }]}>
-                    {t('auth.forgotPassword', 'نسيت كلمة المرور؟')}
-                  </Text>
+                  <Text style={styles.forgotText}>نسيت كلمة المرور؟</Text>
                 </Pressable>
               </Link>
             </View>
-
-            <Button
-              title={t('auth.login', 'تسجيل الدخول')}
-              onPress={handleSubmit}
-              loading={loading}
-              disabled={loading}
-              fullWidth
-              size="lg"
-            />
           </View>
 
-          {/* Social Login Divider */}
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-            <Text style={[styles.dividerText, { color: colors.textMuted }]}>
-              {t('auth.orContinueWith', 'أو تابع عبر')}
+          {/* Tip Banner from the sheet */}
+          <View style={styles.tipCard}>
+            <View style={styles.tipIconWrap}>
+              <Smartphone size={22} color="#059669" />
+            </View>
+            <Text style={styles.tipText}>
+              يمكنك تفعيل حفظ بيانات الدخول على هاتفك لتسهيل الولوج لاحقاً.
             </Text>
-            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
-          {/* Social Action Tiles */}
-          <View style={styles.socialRow}>
-            <View style={[styles.socialTile, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={styles.socialIcon}>G</Text>
-              <Text style={[styles.socialLabel, { color: colors.text }]}>Google</Text>
-            </View>
-            <View style={[styles.socialTile, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-              <Text style={styles.socialIcon}></Text>
-              <Text style={[styles.socialLabel, { color: colors.text }]}>Apple</Text>
-            </View>
-          </View>
-
-          {/* Don't have an account */}
-          <View style={styles.registerRow}>
-            <Text style={[styles.registerText, { color: colors.textMuted }]}>
-              {t('auth.dontHaveAccount', 'ليس لديك حساب؟')}
+          {/* Register Link */}
+          <View style={styles.registerWrap}>
+            <Text style={[styles.registerMuted, { color: '#64748B' }]}>
+              ليس لديك حساب؟
             </Text>
             <Link href="/(auth)/account-type" asChild>
               <Pressable hitSlop={10}>
-                <Text style={[styles.registerLink, { color: palette.primaryGreen }]}>
-                  {t('auth.createAccountLink', 'إنشاء حساب جديد')}
-                </Text>
+                <Text style={styles.registerLink}>أنشئ حسابك الآن</Text>
               </Pressable>
             </Link>
           </View>
@@ -213,126 +217,135 @@ export default function LoginScreen(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xs,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: sizes.touchTarget,
-  },
-  backIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backText: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
     gap: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  header: {
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    marginTop: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    maxWidth: 320,
-  },
-  form: {
-    gap: spacing.md,
-  },
-  passwordToggle: {
-    position: 'absolute',
-    end: 14,
-    top: 38,
-    height: 36,
     justifyContent: 'center',
   },
-  forgotRow: {
-    alignItems: 'flex-end',
-    marginTop: -4,
+  logoWrap: {
+    alignItems: 'center',
+    marginBottom: spacing.xs,
   },
-  forgotText: {
-    fontSize: 13,
-    fontWeight: '700',
+  titleWrap: {
+    alignItems: 'center',
+    marginBottom: spacing.sm,
   },
-  errorBanner: {
-    borderRadius: radius.medium,
+  mainTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  errorAlert: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#F87171',
     borderWidth: 1,
+    borderRadius: 14,
     padding: spacing.md,
   },
-  errorText: {
+  errorAlertText: {
+    color: '#B91C1C',
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
   },
-  dividerRow: {
+  form: {
+    gap: spacing.md,
+  },
+  inputFieldBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginVertical: spacing.xs,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    height: 56,
+    paddingHorizontal: 16,
   },
-  dividerLine: {
+  textInput: {
     flex: 1,
-    height: StyleSheet.hairlineWidth,
+    fontSize: 15,
+    height: '100%',
   },
-  dividerText: {
-    fontSize: 12,
-    fontWeight: '600',
+  inputIconWrap: {
+    marginStart: 12,
   },
-  socialRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
+  eyeToggle: {
+    marginEnd: 12,
+    padding: 4,
   },
-  socialTile: {
-    flex: 1,
+  primaryPillBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    height: sizes.buttonHeightMd,
-    borderRadius: radius.large,
-    borderWidth: 1,
+    gap: 10,
+    backgroundColor: '#059669',
+    height: 54,
+    borderRadius: 27,
+    marginTop: spacing.xs,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  socialIcon: {
-    fontSize: 18,
+  primaryPillBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '800',
   },
-  socialLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  registerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: spacing.xs,
+  forgotWrap: {
     alignItems: 'center',
+    marginTop: 4,
+  },
+  forgotText: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: '#F0FDF4',
+    borderColor: '#BBF7D0',
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     marginTop: spacing.sm,
   },
-  registerText: {
+  tipIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#DCFCE7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipText: {
+    flex: 1,
+    color: '#166534',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  registerWrap: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.md,
+  },
+  registerMuted: {
     fontSize: 14,
   },
   registerLink: {
+    color: '#059669',
     fontSize: 14,
     fontWeight: '800',
   },
 });
-

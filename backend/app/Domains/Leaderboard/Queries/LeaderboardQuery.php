@@ -18,9 +18,13 @@ class LeaderboardQuery
                 'primary_color', 'secondary_color', 'member_count',
                 'manager_id', 'primary_stadium_id',
             ])
-            ->where('visibility', 'public')
-            ->whereHas('manager', function ($q) {
-                $q->where('status', 'approved');
+            ->where(function ($q) {
+                $q->where('visibility', '!=', 'private')
+                    ->orWhereNull('visibility');
+            })
+            ->where(function ($q) {
+                $q->whereHas('manager', fn ($m) => $m->where('status', 'approved'))
+                    ->orWhereDoesntHave('manager');
             });
     }
 

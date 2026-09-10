@@ -263,11 +263,67 @@ export default function Teams() {
     onChallenge: (target) => setChallengeTarget(target),
   })
 
-  const { data, loading } = useApi(() =>
-    api.get('/v1/leaderboard', { params: { per_page: 8 } }).then((r) => r.data)
-  )
+  const { data, loading } = useApi(async () => {
+    const [lbRes, matchRes, homeRes] = await Promise.allSettled([
+      api.get('/v1/leaderboard', { params: { per_page: 12 } }),
+      api.get('/v1/matches', { params: { per_page: 12 } }),
+      api.get('/v1/home'),
+    ])
 
-  const teams = data?.data || []
+    const teamsMap = new Map()
+
+    const addTeam = (t) => {
+      if (!t || !t.id) return
+      const existing = teamsMap.get(t.id)
+      if (!existing) {
+        teamsMap.set(t.id, {
+          ...t,
+          points: t.points ?? 0,
+          matches_played: t.matches_played ?? 0,
+          wins: t.wins ?? 0,
+        })
+      } else {
+        teamsMap.set(t.id, {
+          ...t,
+          ...existing,
+          points: existing.points ?? t.points ?? 0,
+          matches_played: existing.matches_played ?? t.matches_played ?? 0,
+          wins: existing.wins ?? t.wins ?? 0,
+          city: existing.city || t.city || '',
+          level: existing.level || t.level || 'intermediate',
+          manager: existing.manager || t.manager,
+          logo_url: existing.logo_url || t.logo_url,
+        })
+      }
+    }
+
+    if (lbRes.status === 'fulfilled' && lbRes.value?.data?.data) {
+      const list = Array.isArray(lbRes.value.data.data) ? lbRes.value.data.data : []
+      list.forEach(addTeam)
+    }
+
+    if (matchRes.status === 'fulfilled' && matchRes.value?.data?.data) {
+      const list = Array.isArray(matchRes.value.data.data) ? matchRes.value.data.data : []
+      list.forEach((m) => {
+        if (m.host_team) addTeam(m.host_team)
+        if (m.opponent_team) addTeam(m.opponent_team)
+      })
+    }
+
+    if (homeRes.status === 'fulfilled' && homeRes.value?.data?.data?.latest_matches) {
+      const list = homeRes.value.data.data.latest_matches
+      if (Array.isArray(list)) {
+        list.forEach((m) => {
+          if (m.host_team) addTeam(m.host_team)
+          if (m.opponent_team) addTeam(m.opponent_team)
+        })
+      }
+    }
+
+    return Array.from(teamsMap.values())
+  })
+
+  const teams = Array.isArray(data) ? data : (data?.data || [])
 
   return (
     <section id="teams" className="bg-[#f8fafc] py-[100px] lg:py-[120px]">

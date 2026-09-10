@@ -31,11 +31,16 @@ export default function MatchRequestModal({ open, onClose, team }) {
       setError(t('publicActions.matchDateRequired'))
       return
     }
+    const targetTeamId = Number(team?.teamId ?? team?.id)
+    if (!targetTeamId) {
+      setError('معرف الفريق غير صالح')
+      return
+    }
     setBusy(true)
     setError('')
     try {
       await api.post('/manager/challenges', {
-        target_team_id: team?.teamId,
+        target_team_id: targetTeamId,
         stadium_id: form.stadium_id || undefined,
         match_datetime: form.match_datetime,
         notes: form.notes || undefined,

@@ -41,18 +41,13 @@ function makeEcho() {
     enabledTransports: ['ws', 'wss'],
     authEndpoint: `${baseUrl()}/broadcasting/auth`,
     auth: {
-      headers: {},
+      headers: {
+        Authorization: `Bearer ${token()}`,
+        Accept: 'application/json',
+      },
     },
     authTransport: 'ajax',
   })
-}
-
-function authHeader(echoInstance) {
-  echoInstance.connector.pusher.config.auth = {
-    headers: {
-      Authorization: `Bearer ${token()}`,
-    },
-  }
 }
 
 /**
@@ -67,7 +62,6 @@ export function connectRealtime({ onNotification, onReconnected }) {
   }
 
   echo = makeEcho()
-  authHeader(echo)
 
   const userId = (() => {
     try {

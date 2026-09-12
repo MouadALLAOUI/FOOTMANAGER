@@ -50,9 +50,15 @@ export default function LoginForm() {
     setBusy(true)
     try {
       await login(loginValue, password)
-      const pending = consumeAction()
-      if (pending?.type === 'book' && pending.id) navigate('/fields?book=' + pending.id)
-      else navigate('/')
+      const inviteRedirect = sessionStorage.getItem('match_invite_redirect')
+      if (inviteRedirect) {
+        sessionStorage.removeItem('match_invite_redirect')
+        navigate(inviteRedirect)
+      } else {
+        const pending = consumeAction()
+        if (pending?.type === 'book' && pending.id) navigate('/fields?book=' + pending.id)
+        else navigate('/')
+      }
     } catch (err) {
       const fe = getFieldErrors(err)
       if (Object.keys(fe).length > 0) {

@@ -201,8 +201,8 @@ export function Toggle({ checked, onChange, disabled, label, title }) {
       }`}
     >
       <span
-        className={`absolute top-1 size-5 rounded-full bg-white shadow transition-all duration-300 ${
-          checked ? 'start-6' : 'start-1'
+        className={`absolute top-1 start-1 size-5 rounded-full bg-white shadow transition-transform duration-300 ${
+          checked ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0'
         }`}
       />
     </button>
@@ -267,7 +267,11 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
           </button>
         </div>
         <div className="px-6 py-5">{children}</div>
-        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">{footer}</div>}
+        {footer && (
+          <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-white px-6 py-4 sm:rounded-b-3xl">
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body,

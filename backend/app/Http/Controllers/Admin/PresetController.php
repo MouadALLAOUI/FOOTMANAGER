@@ -80,6 +80,63 @@ class PresetController extends Controller
         ], 201);
     }
 
+    public function storeBulk(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'category' => 'required|in:team_logo,profile_avatar',
+            'images' => 'required|array|min:1',
+            'images.*' => 'required|image|mimes:jpeg,png,jpg,webp|max:4096',
+            'names' => 'nullable|array',
+            'names.*' => 'nullable|string|max:120',
+        ]);
+
+        $category = $validated['category'];
+        $uploadedFiles = $request->file('images', []);
+        $names = $request->input('names', []);
+
+        $maxSortOrder = (int) Preset::query()->where('category', $category)->max('sort_order');
+        $created = [];
+        $thumbnailService = app(ImageThumbnailService::class);
+
+        foreach ($uploadedFiles as $index => $file) {
+            if (!$file instanceof \Illuminate\Http\UploadedFile) {
+                continue;
+            }
+
+            // Name priority: provided name -> filename without extension
+            $customName = isset($names[$index]) && trim($names[$index]) !== ''
+                ? trim($names[$index])
+                : pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+
+            // Clean up: replace multiple dashes/underscores with space, trim
+            $cleanName = trim(preg_replace('/[_\-]+/', ' ', $customName));
+            if ($cleanName === '') {
+                $cleanName = $customName;
+            }
+
+            $result = $thumbnailService->storeWithThumbnail($file, 'presets');
+
+            $maxSortOrder++;
+
+            $preset = Preset::query()->create([
+                'name' => $cleanName,
+                'category' => $category,
+                'image_path' => $result['path'],
+                'image_thumbnail_path' => $result['thumbnail_path'],
+                'is_active' => true,
+                'sort_order' => $maxSortOrder,
+            ]);
+
+            $created[] = $this->payload($preset);
+        }
+
+        return response()->json([
+            'message' => 'تم رفع ' . count($created) . ' صورة بنجاح',
+            'count' => count($created),
+            'presets' => $created,
+        ], 201);
+    }
+
     public function update(Request $request, int $id): JsonResponse
     {
         $preset = Preset::findOrFail($id);

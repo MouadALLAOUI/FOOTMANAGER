@@ -38,6 +38,12 @@ class MatchRequest extends Model
         'players_needed',
         'positions_needed',
         'started_at',
+        'invitation_token',
+        'is_guest',
+        'guest_team_name',
+        'guest_contact_name',
+        'guest_phone',
+        'guest_notes',
     ];
 
     protected $appends = [
@@ -45,6 +51,15 @@ class MatchRequest extends Model
         'players_remaining',
         'players_full',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function ($matchRequest) {
+            if (empty($matchRequest->invitation_token)) {
+                $matchRequest->invitation_token = \Illuminate\Support\Str::random(32);
+            }
+        });
+    }
 
     protected function casts(): array
     {
@@ -57,6 +72,7 @@ class MatchRequest extends Model
             'players_needed' => 'integer',
             'positions_needed' => 'array',
             'started_at' => 'datetime',
+            'is_guest' => 'boolean',
         ];
     }
 
@@ -118,6 +134,11 @@ class MatchRequest extends Model
     public function footballMatch(): HasOne
     {
         return $this->hasOne(FootballMatch::class, 'match_request_id');
+    }
+
+    public function proposals(): HasMany
+    {
+        return $this->hasMany(MatchChallengeProposal::class, 'match_request_id');
     }
 
     public function getPlayersJoinedAttribute(): int

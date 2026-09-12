@@ -343,8 +343,8 @@ export default function Team() {
             <div className="flex items-center gap-4">
               <TeamLogo team={team} className="size-16" rounded="rounded-2xl" ring="ring-1 ring-slate-200" fontSize="text-lg" />
               <div className="min-w-0 flex-1">
-                <Button variant="outline" size="sm" className="w-full" disabled={uploading} onClick={() => fileRef.current?.click()}>
-                  {uploading ? t('dash.uploading') : t('dash.uploadNewLogo')}
+                <Button variant="outline" size="sm" className="w-full" onClick={() => setLogoModalOpen(true)}>
+                  {t('dash.changeLogo')}
                 </Button>
                 <p className="mt-1.5 text-[10px] font-semibold text-slate-400">
                   {t('dash.theLogoAppearsOnTeamCardsAndTheLeaderboard')}

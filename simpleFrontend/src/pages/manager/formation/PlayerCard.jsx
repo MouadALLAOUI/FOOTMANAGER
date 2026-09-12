@@ -1,5 +1,6 @@
 import { GripVertical, Plus, UserRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { photoThumb } from '../../../lib/thumb'
 
 /**
  * Compact tactical card for a team player in the roster list.
@@ -54,7 +55,11 @@ export default function PlayerCard({
         <GripVertical className="size-4" aria-hidden="true" />
       </span>
       <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-emerald-600/10 text-sm font-black text-emerald-700">
-        {player.number ?? <UserRound className="size-4" aria-hidden="true" />}
+        {photoThumb(player) ? (
+          <img src={photoThumb(player)} alt="" className="size-full object-cover" />
+        ) : (
+          player.number ?? <UserRound className="size-4" aria-hidden="true" />
+        )}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-bold text-slate-800">{player.name}</span>

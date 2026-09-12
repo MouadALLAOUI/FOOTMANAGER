@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Manager;
 
 use App\Domains\Booking\Models\TerrainBooking;
+use App\Domains\Match\Models\MatchChallengeProposal;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Match\Services\FriendlyMatchService;
 use App\Domains\Match\Services\MatchMembershipService;
@@ -704,6 +705,117 @@ class MatchRequestController extends Controller
             'opponent_players' => $players->where('team_id', $opponentTeamId)->values(),
             'events' => $footballMatch?->events ?? [],
         ]);
+    }
+
+    public function challengeProposals(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $team = $this->resolver->for($user);
+
+        $matchRequest = MatchRequest::where('id', $id)
+            ->where('host_team_id', $team->id)
+            ->firstOrFail();
+
+        $proposals = $matchRequest->proposals()
+            ->with(['team.manager:id,name,phone,is_whatsapp', 'user:id,name,phone,is_whatsapp'])
+            ->latest()
+            ->get();
+
+        return response()->json([
+            'proposals' => $proposals,
+            'match' => $matchRequest->load(['hostTeam', 'stadium']),
+        ]);
+    }
+
+    public function confirmProposal(Request $request, int $id, int $proposalId): JsonResponse
+    {
+        $user = $request->user();
+        $team = $this->resolver->for($user);
+
+        return DB::transaction(function () use ($id, $proposalId, $team, $user) {
+            $matchRequest = MatchRequest::where('id', $id)
+                ->where('host_team_id', $team->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($matchRequest->status !== 'open') {
+                return response()->json(['message' => 'هذه المباراة ليست في حالة استقبال تحديات'], 422);
+            }
+
+            $proposal = MatchChallengeProposal::where('id', $proposalId)
+                ->where('match_request_id', $matchRequest->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($proposal->status !== 'pending') {
+                return response()->json(['message' => 'هذا الطلب لم يعد متاحاً للتأكيد'], 422);
+            }
+
+            if ($proposal->type === 'registered') {
+                $opponentTeam = Team::findOrFail($proposal->team_id);
+
+                if (! empty($matchRequest->stadium_id)) {
+                    $terrain = Stadium::find($matchRequest->stadium_id);
+                    $dateTime = Carbon::parse($matchRequest->match_datetime);
+                    $endTime = $dateTime->copy()->addHours((int) Setting::get('default_match_hours', 2))->format('H:i');
+
+                    TerrainBooking::create([
+                        'terrain_id' => $matchRequest->stadium_id,
+                        'manager_id' => $opponentTeam->manager_id ?? $user->id,
+                        'team_id' => $opponentTeam->id,
+                        'booking_type' => 'match',
+                        'flow_type' => 'amical',
+                        'reservation_type' => 'single',
+                        'match_request_id' => $matchRequest->id,
+                        'booking_date' => $dateTime->toDateString(),
+                        'start_time' => $dateTime->format('H:i'),
+                        'end_time' => $endTime,
+                        'price' => $terrain->price_per_team ?? 0,
+                        'status' => 'pending',
+                    ]);
+                }
+
+                $matchRequest->update([
+                    'opponent_team_id' => $opponentTeam->id,
+                    'is_guest' => false,
+                    'status' => 'accepted',
+                ]);
+
+                if ($opponentTeam->manager_id) {
+                    NotificationService::push(
+                        (int) $opponentTeam->manager_id,
+                        'challenge_accepted',
+                        'تم قبول طلب التحدي الخاص بفريقك!',
+                        "وافق مسير فريق {$team->name} على التحدي للمباراة في {$matchRequest->match_datetime}",
+                        ['match_request_id' => $matchRequest->id],
+                        '/dashboard',
+                    );
+                }
+            } else {
+                $matchRequest->update([
+                    'opponent_team_id' => null,
+                    'is_guest' => true,
+                    'guest_team_name' => $proposal->guest_team_name,
+                    'guest_contact_name' => $proposal->guest_contact_name,
+                    'guest_phone' => $proposal->guest_phone,
+                    'guest_notes' => $proposal->notes,
+                    'status' => 'accepted',
+                ]);
+            }
+
+            $proposal->update(['status' => 'accepted']);
+
+            MatchChallengeProposal::where('match_request_id', $matchRequest->id)
+                ->where('id', '!=', $proposal->id)
+                ->where('status', 'pending')
+                ->update(['status' => 'declined']);
+
+            return response()->json([
+                'message' => 'تم تأكيد المنافس بنجاح!',
+                'match' => $matchRequest->fresh()->load(['hostTeam', 'opponentTeam', 'stadium']),
+                'confirmed_proposal' => $proposal,
+            ]);
+        });
     }
 
     public function destroy(Request $request, int $id): JsonResponse

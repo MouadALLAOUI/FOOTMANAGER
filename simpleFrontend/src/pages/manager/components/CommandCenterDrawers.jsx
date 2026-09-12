@@ -674,31 +674,64 @@ export function CreateMatchDrawer() {
   const { t } = useTranslation()
   const { toast, reload, createOpen, setCreateOpen } = useCommandCenter()
   const { data: stadiumsData } = useStadiums({ per_page: 50 }, { enabled: Boolean(createOpen) })
+
+  const today = (() => {
+    const d = new Date()
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  })()
+
   const [mode, setMode] = useState('stadium')
-  const [form, setForm] = useState({})
+  const [form, setForm] = useState({ date: today })
   const [needsPlayers, setNeedsPlayers] = useState(false)
   const [playersNeeded, setPlayersNeeded] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (createOpen && !form.date) {
+      setForm((f) => ({ ...f, date: today }))
+    }
+  }, [createOpen, today])
+
   const stadiums = stadiumsData?.data || []
 
-  const matchDate = form.match_datetime ? form.match_datetime.slice(0, 10) : null
+  const date = form.date || today
   const hasStadium = mode === 'stadium' && form.stadium_id
-  const { availableStartTimes, disabledStartTimes, loading } = useTerrainSlots(hasStadium ? form.stadium_id : null, matchDate)
+  const { availableStartTimes, disabledStartTimes, loading } = useTerrainSlots(hasStadium ? form.stadium_id : null, date)
   const avail = hasStadium && availableStartTimes.length ? availableStartTimes : buildTimeSlots('08:00', '23:00', 30)
   const dis = hasStadium ? disabledStartTimes : []
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
   const submit = async () => {
+    if (mode === 'stadium' && !form.stadium_id) {
+      setError(t('ov.drawers.chooseStadiumPlaceholder', 'يرجى اختيار ملعب'))
+      return
+    }
+    if (mode === 'custom' && !form.custom_terrain_name?.trim()) {
+      setError(t('ov.drawers.stadiumNameRequired', 'يرجى كتابة اسم الملعب'))
+      return
+    }
+    const matchDate = form.date || date
+    if (!matchDate) {
+      setError(t('ov.newMatch.selectDateRequired', 'يرجى تحديد تاريخ المباراة'))
+      return
+    }
+    if (!form.start_time) {
+      setError(t('ov.drawers.startTimeRequired', 'يرجى تحديد وقت بداية المباراة'))
+      return
+    }
+
     setBusy(true)
     setError('')
     try {
       await api.post('/manager/match-requests', {
         stadium_id: mode === 'stadium' && form.stadium_id ? form.stadium_id : undefined,
         custom_terrain_name: mode === 'custom' ? form.custom_terrain_name : undefined,
-        match_datetime: form.match_datetime,
+        match_datetime: `${matchDate}T${form.start_time}`,
         start_time: form.start_time,
         notes: form.notes || undefined,
         needs_players: needsPlayers,
@@ -715,7 +748,18 @@ export function CreateMatchDrawer() {
   }
 
   return (
-    <Drawer open={Boolean(createOpen)} onClose={() => setCreateOpen(false)} title={t('ov.hero.newMatch')} subtitle={t('ov.drawers.createSubtitle')} size="xl">
+    <Drawer
+      open={Boolean(createOpen)}
+      onClose={() => setCreateOpen(false)}
+      title={t('ov.hero.newMatch')}
+      subtitle={t('ov.drawers.createSubtitle')}
+      size="xl"
+      footer={
+        <Button className="w-full" disabled={busy} onClick={submit}>
+          {busy ? t('ov.drawers.publishing') : t('ov.drawers.publishRequest')}
+        </Button>
+      }
+    >
       <div className="space-y-4">
         <div className="flex gap-2 rounded-2xl bg-slate-100 p-1">
           {[
@@ -752,21 +796,34 @@ export function CreateMatchDrawer() {
           </Field>
         )}
 
-        <Field label={t('ov.drawers.matchDateTime')} required>
-          <input type="datetime-local" className={inputClass} value={form.match_datetime || ''} onChange={set('match_datetime')} />
-        </Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label={t('ov.drawers.date', 'تاريخ المباراة')} required>
+            <div className="relative">
+              <CalendarDays className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="date"
+                min={today}
+                className={`${inputClass} ps-10`}
+                value={form.date || ''}
+                onChange={set('date')}
+                required
+              />
+            </div>
+          </Field>
 
-        <Field label={t('ov.drawers.startTime')} required>
-          <TimeSlotPicker
-            selectedTime={form.start_time || ''}
-            onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
-            availableSlots={avail}
-            disabledSlots={dis}
-            loading={loading}
-            label={t('ov.drawers.startTime')}
-            required
-          />
-        </Field>
+          <Field label={t('ov.drawers.startTime')} required>
+            <TimeSlotPicker
+              compact
+              selectedTime={form.start_time || ''}
+              onChange={(v) => setForm((f) => ({ ...f, start_time: v }))}
+              availableSlots={avail}
+              disabledSlots={dis}
+              loading={loading}
+              placeholder={t('ov.drawers.startTime')}
+              required
+            />
+          </Field>
+        </div>
 
         <Field label={t('ov.common.notes')}>
           <textarea rows={3} className={`${inputClass} h-auto py-3`} value={form.notes || ''} onChange={set('notes')} />
@@ -775,10 +832,6 @@ export function CreateMatchDrawer() {
         <NeedPlayersField enabled={needsPlayers} count={playersNeeded} onEnabled={setNeedsPlayers} onCount={setPlayersNeeded} />
 
         {error && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-600">{error}</p>}
-
-        <Button className="w-full" disabled={busy} onClick={submit}>
-          {busy ? t('ov.drawers.publishing') : t('ov.drawers.publishRequest')}
-        </Button>
       </div>
     </Drawer>
   )

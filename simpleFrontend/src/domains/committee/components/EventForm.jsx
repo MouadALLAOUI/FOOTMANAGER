@@ -213,10 +213,31 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
       )}
 
       {(type === 'yellow_card' || type === 'second_yellow' || type === 'red_card' || type === 'foul') && (
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-bold text-slate-700">{type === 'foul' ? t('committee.result.foulReason') : t('committee.result.cardReason')}</span>
-          <input value={form.reason} onChange={setField('reason')} className={inputClass} />
-        </label>
+        <div className="space-y-1.5">
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold text-slate-700">{type === 'foul' ? t('committee.result.foulReason') : t('committee.result.cardReason')}</span>
+            <input value={form.reason} onChange={setField('reason')} className={inputClass} placeholder={type === 'foul' ? t('committee.result.foulReasonPlaceholder', 'مثال: خطأ بسيط، ضربة حرة، لمسة يد...') : ''} />
+          </label>
+          {type === 'foul' && (
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {[
+                { key: 'simple', label: t('public.matchDetail.eventTypes.foulSimple', t('public.matchDetail.events.foulSimple', 'خطأ بسيط')) },
+                { key: 'freeKick', label: t('public.matchDetail.eventTypes.foulFreeKick', t('public.matchDetail.events.foulFreeKick', 'ضربة حرة')) },
+                { key: 'handball', label: t('public.matchDetail.eventTypes.foulHandball', t('public.matchDetail.events.foulHandball', 'لمسة يد')) },
+                { key: 'tackle', label: t('public.matchDetail.eventTypes.foulTackle', t('public.matchDetail.events.foulTackle', 'عرقلة')) },
+              ].map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, reason: p.label }))}
+                  className={`rounded-lg border px-2 py-1 text-[11px] font-bold transition-colors ${form.reason === p.label ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {validation && (

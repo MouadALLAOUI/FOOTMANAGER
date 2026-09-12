@@ -350,10 +350,16 @@ class LineupService
             return 7;
         }
 
+        if (preg_match('/^(\d+)v\d+$/i', $playerFormat, $matches)) {
+            return (int) $matches[1];
+        }
+
         return match ($playerFormat) {
             '5v5' => 5,
+            '6v6' => 6,
             '7v7' => 7,
             '8v8' => 8,
+            '9v9' => 9,
             '11v11' => 11,
             default => 7,
         };

@@ -18,6 +18,7 @@ import {
 } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
+import { photoThumb } from '../../../lib/thumb'
 import FootballPitch from './FootballPitch'
 import PlayerCard from './PlayerCard'
 import {
@@ -258,8 +259,11 @@ export default function FormationPage() {
       const y = (clientY - pitchRect.top) / pitchRect.height
       if (x >= -0.02 && x <= 1.02 && y >= -0.02 && y <= 1.02) {
         // A token near the pointer means "replace this starter".
-        const radius = pitchRect.width * 0.075
+        // Skip self when dragging an existing starter to allow fine adjustments without reverting
+        const currentDragId = dragRef.current?.playerId
+        const radius = pitchRect.width * 0.045
         for (const starter of stateRef.current.starters) {
+          if (starter.player_id === currentDragId) continue
           const tokenX = pitchRect.left + starter.x * pitchRect.width
           const tokenY = pitchRect.top + starter.y * pitchRect.height
           if (Math.hypot(clientX - tokenX, clientY - tokenY) < radius) {
@@ -327,8 +331,18 @@ export default function FormationPage() {
       return
     }
 
-    if (over?.type === 'subs' && isStarter) {
-      toSubstitutes(d.playerId)
+    if (over?.type === 'subs') {
+      if (isStarter) {
+        toSubstitutes(d.playerId)
+      } else {
+        update((prev) => {
+          if (prev.substitutes.includes(d.playerId)) return {}
+          return {
+            substitutes: [...prev.substitutes, d.playerId],
+          }
+        })
+      }
+      return
     }
     // Dropped nowhere valid: placement reverts silently.
   }, [addStarter, moveStarter, replaceStarter, t, toast, toSubstitutes, update])
@@ -939,11 +953,15 @@ export default function FormationPage() {
           <div className="space-y-5">
             <Card noPadding bodyClassName="">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-3.5">
-                <div className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-extrabold text-slate-900">
                   <Goal className="size-4 text-emerald-600" aria-hidden="true" />
                   {state.name?.trim() || t('formation.defaultName')}
                   <Badge variant="neutral">{state.format}</Badge>
                   {state.presetLabel && <Badge variant="success">{state.presetLabel}</Badge>}
+                  <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                    <Shield className="size-3" />
+                    {t('formation.pitchOrientationHint', 'مرمانا بالأعلى ⭣ مرمى الخصم بالأسفل')}
+                  </span>
                 </div>
                 <span className={`text-xs font-black ${lineupFull ? 'text-emerald-600' : 'text-slate-500'}`}>
                   {t('formation.lineupCounter', { current: state.starters.length, max: maxStarters })}
@@ -961,6 +979,17 @@ export default function FormationPage() {
                   onTokenSelect={onTokenSelect}
                   onTokenKeyDown={onTokenKeyDown}
                   roleOf={roleOf}
+                  dragGhost={
+                    drag?.moved && drag?.over?.type === 'pitch'
+                      ? {
+                          x: drag.over.x,
+                          y: drag.over.y,
+                          number: playersById[drag.playerId]?.number,
+                          name: playersById[drag.playerId]?.name,
+                          avatar: photoThumb(playersById[drag.playerId]),
+                        }
+                      : null
+                  }
                 />
 
                 {selectedStarter && (
@@ -1039,9 +1068,9 @@ export default function FormationPage() {
             >
               <div
                 ref={subsRef}
-                className={`flex min-h-[76px] flex-wrap items-center gap-2 rounded-2xl border-2 border-dashed p-3 transition-colors ${
-                  drag?.over?.type === 'subs' && drag.from === 'pitch'
-                    ? 'border-amber-400 bg-amber-50'
+                className={`flex min-h-[84px] flex-wrap items-center gap-2 rounded-2xl border-2 border-dashed p-3 transition-colors ${
+                  drag?.over?.type === 'subs'
+                    ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-300/50'
                     : 'border-slate-200 bg-slate-50/60'
                 }`}
               >
@@ -1066,8 +1095,12 @@ export default function FormationPage() {
                         }}
                         className="flex touch-auto cursor-grab items-center gap-1.5 rounded-full border border-slate-200 bg-white py-1 ps-2 pe-1 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                       >
-                        <span className="grid size-6 place-items-center rounded-full bg-amber-100 text-[11px] font-black text-amber-700">
-                          {player?.number ?? '?'}
+                        <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full bg-amber-100 text-[11px] font-black text-amber-700">
+                          {photoThumb(player) ? (
+                            <img src={photoThumb(player)} alt="" className="size-full object-cover" />
+                          ) : (
+                            player?.number ?? '?'
+                          )}
                         </span>
                         <span className="max-w-[110px] truncate text-xs font-bold text-slate-700">{player?.name}</span>
                         <button

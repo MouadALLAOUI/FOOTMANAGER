@@ -123,7 +123,7 @@ export default function Navbar() {
   }
 
   const linkClass = (key) =>
-    `relative text-sm font-semibold transition-colors duration-300 ${
+    `relative text-xs lg:text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${
       active === key ? 'text-white' : 'text-white/70 hover:text-green-400'
     }`
 
@@ -162,7 +162,7 @@ export default function Navbar() {
           </a>
         </div>
 
-        <nav className="mx-auto hidden items-center gap-6 md:flex lg:gap-12">
+        <nav className="mx-auto hidden items-center gap-3.5 md:flex lg:gap-8 xl:gap-12">
           {links.map((key) => (
             <button
               key={key}
@@ -191,11 +191,11 @@ export default function Navbar() {
           </button>
 
           {user ? (
-            <div className="hidden items-center gap-2 lg:flex">
+            <div className="hidden items-center gap-2 md:flex">
               <button
                 type="button"
                 onClick={() => navigate(homeForRole(user.role))}
-                className="flex h-11 items-center gap-2 rounded-2xl bg-green-500 px-6 text-sm font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 active:translate-y-0"
+                className="flex h-10 items-center gap-2 rounded-2xl bg-green-500 px-4 text-xs font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 active:translate-y-0 whitespace-nowrap lg:h-11 lg:px-6 lg:text-sm"
               >
                 <FontAwesomeIcon icon={faGaugeHigh} className="size-4" />
                 {t('landing.nav.dashboard')}
@@ -203,18 +203,18 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex h-11 items-center gap-2 rounded-2xl border border-white/20 px-4 text-sm font-semibold text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white"
+                className="flex h-10 items-center gap-2 rounded-2xl border border-white/20 px-3 text-xs font-semibold text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white whitespace-nowrap lg:h-11 lg:px-4 lg:text-sm"
               >
                 <FontAwesomeIcon icon={faArrowRightFromBracket} className="size-4" />
                 {t('landing.nav.logout')}
               </button>
             </div>
           ) : (
-            <div className="hidden items-center gap-2 lg:flex">
+            <div className="hidden items-center gap-2 md:flex">
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="flex h-11 items-center gap-2 rounded-[14px] border border-white/20 px-5 text-sm font-semibold text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/10 active:translate-y-0"
+                className="flex h-10 items-center gap-2 rounded-[14px] border border-white/20 px-4 text-xs font-semibold text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/10 active:translate-y-0 whitespace-nowrap lg:h-11 lg:px-5 lg:text-sm"
               >
                 <FontAwesomeIcon icon={faUser} className="size-4" />
                 {t('landing.nav.login')}
@@ -223,7 +223,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => navigate('/register')}
-                className="hidden h-11 items-center gap-2 rounded-2xl bg-green-500 px-7 py-4 text-sm font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 hover:shadow-[0_18px_45px_rgba(22,163,74,0.55)] active:translate-y-0 md:flex"
+                className="flex h-10 items-center gap-2 rounded-2xl bg-green-500 px-4 text-xs font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 hover:shadow-[0_18px_45px_rgba(22,163,74,0.55)] active:translate-y-0 whitespace-nowrap lg:h-11 lg:px-7 lg:text-sm"
               >
                 <FontAwesomeIcon icon={faPlus} className="size-4" />
                 {t('landing.nav.addField')}

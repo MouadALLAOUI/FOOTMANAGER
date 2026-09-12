@@ -6,8 +6,10 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  UploadCloud,
 } from 'lucide-react'
 import api from '../../../api/client'
+import BulkUploadModal from './BulkUploadModal'
 import { useApi } from '../../../hooks/useApi'
 import DataTable from '../../../components/admin/DataTable'
 import {
@@ -39,6 +41,7 @@ export default function Presets() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [formOpen, setFormOpen] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(emptyForm())
   const [imageFile, setImageFile] = useState(null)
@@ -280,10 +283,16 @@ export default function Presets() {
         title={t('admin.presets.title')}
         subtitle={t('admin.presets.subtitle')}
         actions={
-          <Button onClick={openCreate}>
-            <ImagePlus className="size-4" />
-            {t('admin.presets.add')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setBulkOpen(true)}>
+              <UploadCloud className="size-4" />
+              {t('admin.presets.bulkAdd')}
+            </Button>
+            <Button onClick={openCreate}>
+              <ImagePlus className="size-4" />
+              {t('admin.presets.add')}
+            </Button>
+          </div>
         }
       />
 
@@ -393,6 +402,13 @@ export default function Presets() {
           </Field>
         </div>
       </Modal>
+
+      <BulkUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onSuccess={refetch}
+        defaultCategory={categoryFilter !== 'all' ? categoryFilter : 'team_logo'}
+      />
 
       <ConfirmDialog
         open={confirm.open}

@@ -43,7 +43,7 @@ function TeamBadge({ team, logo, sub, align = 'start', onClick }) {
 
 export function MatchCard({ match, actions, onClick, onTeamClick }) {
   const { t } = useTranslation()
-  const isHost = Boolean(match.opponent_team)
+  const isHost = Boolean(match.opponent_team || match.is_guest)
   const datetime = match.match_datetime ? new Date(match.match_datetime) : null
   const hasScore = match.host_score !== null && match.host_score !== undefined
 
@@ -100,13 +100,27 @@ export function MatchCard({ match, actions, onClick, onTeamClick }) {
             <span className="text-[10px] font-bold text-green-600">{t('ov.common.lookingOpponent')}</span>
           </div>
         )}
-        <TeamBadge
-          team={match.opponent_team}
-          logo={logoThumb(match.opponent_team)}
-          sub={isHost ? match.opponent_team?.city : match.target_team?.name || t('ov.common.potentialOpponent')}
-          align="end"
-          onClick={onTeamClick}
-        />
+        {match.is_guest ? (
+          <div className="flex min-w-0 items-center gap-2.5 flex-row-reverse text-end">
+            <div className="grid size-9 place-items-center rounded-2xl bg-amber-100 font-black text-amber-700 text-xs">
+              <UserRound className="size-4" />
+            </div>
+            <div className="min-w-0 items-end">
+              <p className="truncate text-sm font-extrabold text-slate-900">
+                {match.guest_team_name || 'فريق ضيف'}
+              </p>
+              <p className="truncate text-[11px] font-semibold text-amber-600">ضيف (مباراة ودية)</p>
+            </div>
+          </div>
+        ) : (
+          <TeamBadge
+            team={match.opponent_team}
+            logo={logoThumb(match.opponent_team)}
+            sub={isHost ? match.opponent_team?.city : match.target_team?.name || t('ov.common.potentialOpponent')}
+            align="end"
+            onClick={onTeamClick}
+          />
+        )}
       </div>
 
 

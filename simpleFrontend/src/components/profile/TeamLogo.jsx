@@ -15,6 +15,7 @@ export default function TeamLogo({
   rounded = 'rounded-xl',
   fontSize = 'text-xs',
   ring = '',
+  bg = '',
   onClick,
   alt = '',
 }) {
@@ -31,10 +32,10 @@ export default function TeamLogo({
     <img
       src={imageSrc}
       alt={displayName || alt || 'logo'}
-      loading="lazy"
+      loading="eager"
       decoding="async"
       onError={() => setFailed(true)}
-      className={`shrink-0 bg-slate-100 object-contain ${rounded} ${className} ${ring}`}
+      className={`shrink-0 object-contain ${bg || 'bg-slate-100'} ${rounded} ${className} ${ring}`}
     />
   ) : (
     <span

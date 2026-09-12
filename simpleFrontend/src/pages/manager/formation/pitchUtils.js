@@ -2,10 +2,11 @@
 // Coordinates are always normalized 0.0 - 1.0 (never pixels); the pitch maps
 // them onto whatever size it is rendered at.
 
-export const FORMATS = ['5v5', '7v7', '8v8', '11v11']
+export const FORMATS = ['5v5', '6v6', '7v7', '8v8', '9v9', '11v11']
 
 export const maxStartersFor = (format) =>
-  ({ '5v5': 5, '7v7': 7, '8v8': 8, '11v11': 11 })[format] || 7
+  ({ '5v5': 5, '6v6': 6, '7v7': 7, '8v8': 8, '9v9': 9, '11v11': 11 })[format] ||
+  (parseInt(format, 10) || 7)
 
 export const clamp01 = (value) => Math.min(1, Math.max(0, value))
 

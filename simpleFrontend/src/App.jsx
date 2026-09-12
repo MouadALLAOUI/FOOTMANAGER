@@ -22,6 +22,7 @@ const Faq = lazy(() => import('./pages/faq'))
 const Pricing = lazy(() => import('./pages/pricing'))
 const Fields = lazy(() => import('./pages/fields'))
 const Matches = lazy(() => import('./pages/matches'))
+const MatchInvitePage = lazy(() => import('./pages/matches/invite'))
 const PublicTournaments = lazy(() => import('./pages/tournaments'))
 const PublicTournamentDetail = lazy(() => import('./pages/tournaments/detail'))
 const Login = lazy(() => import('./pages/auth/login'))
@@ -71,6 +72,7 @@ function App() {
                 <Route path="/pricing" element={<PageMaintenanceGate><Pricing /></PageMaintenanceGate>} />
                 <Route path="/fields" element={<PageMaintenanceGate><Fields /></PageMaintenanceGate>} />
                 <Route path="/matches" element={<PageMaintenanceGate><Matches /></PageMaintenanceGate>} />
+                <Route path="/matches/invite/:token" element={<PageMaintenanceGate><MatchInvitePage /></PageMaintenanceGate>} />
                 <Route path="/tournaments" element={<PageMaintenanceGate><PublicTournaments /></PageMaintenanceGate>} />
                 <Route path="/tournaments/:slug" element={<PageMaintenanceGate><PublicTournamentDetail /></PageMaintenanceGate>} />
                 <Route path="*" element={<NotFound />} />

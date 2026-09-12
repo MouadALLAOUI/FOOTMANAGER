@@ -36,7 +36,7 @@ class TeamFormationService
         return TeamFormation::query()
             ->where('team_id', $team->id)
             ->when($tournamentId, fn ($q) => $q->where('tournament_id', $tournamentId), fn ($q) => $q->whereNull('tournament_id'))
-            ->with(['players.player:id,name,position,team_id,number'])
+            ->with(['players.player:id,name,position,team_id,number,photo_path,photo_thumbnail_path,user_id'])
             ->orderByDesc('is_active')
             ->orderByDesc('updated_at')
             ->get()
@@ -45,7 +45,7 @@ class TeamFormationService
 
     public function get(Team $team): TeamFormation
     {
-        $formation = $team->formation()->with(['players.player:id,name,position,team_id,number', 'captain:id,name,number', 'viceCaptain:id,name,number'])->first();
+        $formation = $team->formation()->with(['players.player:id,name,position,team_id,number,photo_path,photo_thumbnail_path,user_id', 'captain:id,name,number,photo_path,photo_thumbnail_path,user_id', 'viceCaptain:id,name,number,photo_path,photo_thumbnail_path,user_id'])->first();
 
         if ($formation) {
             return $formation;
@@ -67,7 +67,7 @@ class TeamFormationService
     {
         return TeamFormation::query()
             ->where('team_id', $team->id)
-            ->with(['players.player:id,name,position,team_id,number', 'captain:id,name,number', 'viceCaptain:id,name,number'])
+            ->with(['players.player:id,name,position,team_id,number,photo_path,photo_thumbnail_path,user_id', 'captain:id,name,number,photo_path,photo_thumbnail_path,user_id', 'viceCaptain:id,name,number,photo_path,photo_thumbnail_path,user_id'])
             ->findOrFail($formationId);
     }
 

@@ -1,10 +1,18 @@
+// Converts full backend storage URLs (http://localhost:8000/storage/...)
+// to relative path /storage/... so requests pass through same-origin Vite proxy
+export function normalizeImageUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  return url.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1):8000\/storage\//, '/storage/');
+}
+
 // Returns the thumbnail URL when available, falling back to the full image.
 // Thumbnail fields follow the backend convention: `<field>_url` -> `<field>_thumbnail_url`
 // (e.g. logo_url -> logo_thumbnail_url, image_url -> thumbnail_url).
 export function thumb(record, field, fallback = '') {
   if (!record) return fallback || '';
   const thumbField = field.replace(/_url$/, '_thumbnail_url');
-  return record[thumbField] || record[field] || fallback || '';
+  const raw = record[thumbField] || record[field] || fallback || '';
+  return normalizeImageUrl(raw);
 }
 
 export function logoThumb(team, fallback = '') {

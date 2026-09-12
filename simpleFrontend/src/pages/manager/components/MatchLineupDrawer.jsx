@@ -14,6 +14,7 @@ import {
 } from '../../../api/queries'
 import api from '../../../api/client'
 import { toastApiError } from '../../../lib/errors'
+import { photoThumb } from '../../../lib/thumb'
 import { positionLabels } from './shared'
 import FootballPitch from '../formation/FootballPitch'
 import { clamp01, defaultTacticalKey, firstFreeSlot, maxStartersFor, round3 } from '../formation/pitchUtils'
@@ -477,11 +478,23 @@ export default function MatchLineupDrawer({ matchRequestId, open, onClose }) {
   // Map for FootballPitch name/number lookups (drawer starter tokens carry id/name).
   const drawPlayersById = useMemo(() => {
     const map = {}
+    const rosterById = new Map((roster || []).map((p) => [p.id, p]))
     ;[...starters, ...bench].forEach((s) => {
-      map[s.id] = { id: s.id, name: s.name, number: s.shirt_number, position: s.position }
+      const p = rosterById.get(s.id) || {}
+      map[s.id] = {
+        id: s.id,
+        name: s.name || p.name,
+        number: s.shirt_number ?? p.number ?? p.shirt_number,
+        position: s.position || p.position,
+        photo_url: p.photo_url || s.photo_url,
+        photo_thumbnail_url: p.photo_thumbnail_url || s.photo_thumbnail_url,
+        avatar_url: p.avatar_url || s.avatar_url,
+        photo_path: p.photo_path || s.photo_path,
+        photo_thumbnail_path: p.photo_thumbnail_path || s.photo_thumbnail_path,
+      }
     })
     return map
-  }, [starters, bench])
+  }, [starters, bench, roster])
 
   const selectedStarter = starters.find((s) => s.id === selectedId)
 
@@ -542,6 +555,17 @@ export default function MatchLineupDrawer({ matchRequestId, open, onClose }) {
                 onTokenKeyDown={onTokenKeyDown}
                 roleOf={(playerId) =>
                   ROLE_KEYS.map(({ key, idKey }) => (roleRef.current[idKey] === playerId ? key : null)).filter(Boolean)
+                }
+                dragGhost={
+                  drag?.moved && drag?.over?.type === 'pitch'
+                    ? {
+                        x: drag.over.x,
+                        y: drag.over.y,
+                        number: drawPlayersById[drag.playerId]?.number ?? drawPlayersById[drag.playerId]?.shirt_number,
+                        name: drawPlayersById[drag.playerId]?.name,
+                        avatar: photoThumb(drawPlayersById[drag.playerId]),
+                      }
+                    : null
                 }
               />
 

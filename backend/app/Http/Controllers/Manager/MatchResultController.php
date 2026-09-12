@@ -238,7 +238,7 @@ class MatchResultController extends Controller
                 ]);
             }
 
-            if ($recordsAlreadyApplied) {
+            if ($recordsAlreadyApplied || $match->is_guest || ! $match->opponent_team_id) {
                 return;
             }
 

@@ -21,8 +21,12 @@ import { useToast } from '../../components/ui/Toast'
 import Carousel from '../../components/Carousel'
 import Reveal from './reveal'
 
+const TRANSPARENT_PIXEL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAEASTN7V4='
+
 function ShareButton({ cardRef, title, text, t }) {
   const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState(false)
   const { toast } = useToast()
 
   const handleShare = async () => {
@@ -36,9 +40,12 @@ function ShareButton({ cardRef, title, text, t }) {
       if (cardRef?.current) {
         try {
           const blob = await toBlob(cardRef.current, {
-            cacheBust: true,
+            cacheBust: false,
+            skipFonts: true,
+            imagePlaceholder: TRANSPARENT_PIXEL,
             pixelRatio: 2,
             filter: (node) => !node?.classList?.contains?.('no-share-capture'),
+            onImageErrorHandler: () => TRANSPARENT_PIXEL,
           })
           if (blob) {
             const cleanName = (title || 'tournament-match')
@@ -47,8 +54,8 @@ function ShareButton({ cardRef, title, text, t }) {
               .replace(/-+/g, '-')
             imageFile = new File([blob], `${cleanName}.png`, { type: 'image/png' })
           }
-        } catch {
-          // fallback to link sharing
+        } catch (captureErr) {
+          console.warn('tournament match capture failed:', captureErr)
         }
       }
 

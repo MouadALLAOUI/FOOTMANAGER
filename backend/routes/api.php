@@ -197,6 +197,9 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/managers/{managerId}', [PublicManagerController::class, 'show']);
 
+    Route::get('/match-invitations/{token}', [\App\Http\Controllers\Public\MatchInvitationController::class, 'show']);
+    Route::post('/match-invitations/{token}/apply-guest', [\App\Http\Controllers\Public\MatchInvitationController::class, 'applyGuest'])->middleware('throttle:match');
+
     Route::get('/teams/{team}/profile', [PublicTeamProfileController::class, 'show']);
     Route::get('/players/{player}/profile', [PublicPlayerProfileController::class, 'show']);
     Route::get('/terrain-owners/{id}/profile', [TerrainOwnerProfileController::class, 'show']);
@@ -522,7 +525,12 @@ Route::get('/cities/{city}', [CityController::class, 'show']);
 
 Route::get('/settings/public', [SettingsController::class, 'publicSettings']);
 
+// Public match invitation routes (accessible directly via /api/match-invitations/{token})
+Route::get('/match-invitations/{token}', [\App\Http\Controllers\Public\MatchInvitationController::class, 'show']);
+Route::post('/match-invitations/{token}/apply-guest', [\App\Http\Controllers\Public\MatchInvitationController::class, 'applyGuest'])->middleware('throttle:match');
+
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/match-invitations/{token}/apply-team', [\App\Http\Controllers\Public\MatchInvitationController::class, 'applyTeam']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/me/subscription', [MySubscriptionController::class, 'show']);
@@ -657,6 +665,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
             Route::get('/presets', [PresetController::class, 'index']);
             Route::post('/presets', [PresetController::class, 'store']);
+            Route::post('/presets/bulk', [PresetController::class, 'storeBulk']);
             Route::put('/presets/{id}', [PresetController::class, 'update']);
             Route::patch('/presets/{id}/toggle-active', [PresetController::class, 'toggleActive']);
             Route::delete('/presets/{id}', [PresetController::class, 'destroy']);
@@ -945,6 +954,9 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::middleware(['activity.not_locked', 'throttle:match'])->group(function () {
                 Route::post('/manager/match-requests/{id}/accept', [MatchFeedController::class, 'accept']);
                 Route::post('/manager/match-requests/{id}/start', [MatchRequestController::class, 'start']);
+                Route::get('/manager/match-requests/{id}/proposals', [MatchRequestController::class, 'challengeProposals']);
+                Route::post('/manager/match-requests/{id}/confirm-proposal/{proposalId}', [MatchRequestController::class, 'confirmProposal']);
+                Route::post('/manager/match-invitations/{token}/apply-team', [\App\Http\Controllers\Public\MatchInvitationController::class, 'applyTeam']);
             });
 
             Route::get('/manager/matches/pending-scores', [MatchResultController::class, 'pendingScores']);

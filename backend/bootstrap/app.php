@@ -18,6 +18,9 @@ use App\Http\Middleware\EnsureUserApproved;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Support\Facades\Broadcast;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -26,6 +29,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
         health: '/up',
+        then: function () {
+            Broadcast::routes(['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum']]);
+        },
     )
     ->withEvents(discover: [
         Events::class => Listeners::class,
@@ -37,6 +43,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+
+        $middleware->redirectGuestsTo(fn (Request $request) => null);
 
         $middleware->api(append: [
             AddSecurityHeaders::class,
@@ -58,6 +66,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            return response()->json([
+                'message' => 'Unauthenticated.',
+            ], 401);
+        });
+
         $exceptions->render(function (DomainException $e) {
             $code = $e->getCode() >= 400 ? $e->getCode() : 422;
             $errors = method_exists($e, 'getErrorPayload') ? $e->getErrorPayload() : [];

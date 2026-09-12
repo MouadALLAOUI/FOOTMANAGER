@@ -8,8 +8,10 @@ import {
   Play,
   Plus,
   Radio,
+  Share2,
   Shield,
   Trophy,
+  Users,
   XCircle,
 } from 'lucide-react'
 import api from '../../../api/client'
@@ -19,6 +21,7 @@ import { useAuth } from '../../../context/AuthContext'
 import { useTeam } from '../../../context/TeamContext'
 import { toastApiError } from '../../../lib/errors'
 import NewMatchModal from '../../../domains/manager/components/NewMatchModal'
+import MatchProposalsModal from '../../../domains/manager/components/MatchProposalsModal'
 import ScoreModal from '../../../domains/manager/components/ScoreModal'
 import MatchDetail from '../../../domains/manager/components/MatchDetail'
 import OpponentProfileModal from '../../../domains/manager/components/OpponentProfileModal'
@@ -63,6 +66,7 @@ export default function Matches() {
   const [confirmMatch, setConfirmMatch] = useState(null)
   const [detail, setDetail] = useState(null)
   const [lineupMatch, setLineupMatch] = useState(null)
+  const [proposalsMatch, setProposalsMatch] = useState(null)
   const [inspectTeam, setInspectTeam] = useState(null)
   const [busy, setBusy] = useState(false)
   const { toast } = useToast()
@@ -151,6 +155,36 @@ export default function Matches() {
 
   const actionsFor = (m) => (
     <>
+      {m.status === 'open' && myTeamIds.has(m.host_team_id) && (
+        <>
+          <Button
+            size="sm"
+            className="bg-emerald-600 text-white hover:bg-emerald-700"
+            onClick={() => setProposalsMatch(m)}
+          >
+            <Users className="size-3.5" />
+            طلبات التحدي
+            {m.pending_proposals_count > 0 && (
+              <span className="ms-1.5 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-black text-emerald-700">
+                {m.pending_proposals_count}
+              </span>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              const inviteUrl = `${window.location.origin}/matches/invite/${m.invitation_token}`
+              navigator.clipboard.writeText(inviteUrl)
+              toast.success('تم نسخ رابط التحدي بنجاح!')
+            }}
+            title="نسخ رابط التحدي لمشاركته"
+          >
+            <Share2 className="size-3.5" />
+            مشاركة التحدي
+          </Button>
+        </>
+      )}
       {(m.status === 'open' || m.status === 'accepted') && (
         <Button size="sm" variant="soft" onClick={() => { setDetail(null); setLineupMatch(m) }}>
           <Shield className="size-3.5" />
@@ -293,6 +327,15 @@ export default function Matches() {
       />
       <MatchLineupDrawer matchRequestId={lineupMatch?.id} open={Boolean(lineupMatch)} onClose={() => setLineupMatch(null)} />
       <OpponentProfileModal teamId={inspectTeam?.id} open={Boolean(inspectTeam)} onClose={() => setInspectTeam(null)} />
+      <MatchProposalsModal
+        open={Boolean(proposalsMatch)}
+        onClose={() => setProposalsMatch(null)}
+        match={proposalsMatch}
+        onConfirmed={() => {
+          refetch()
+          setProposalsMatch(null)
+        }}
+      />
     </div>
   )
 }

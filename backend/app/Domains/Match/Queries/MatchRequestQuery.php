@@ -24,7 +24,10 @@ class MatchRequestQuery
                 'footballMatch.events.player',
                 'footballMatch.events.assistPlayer',
             ])
-            ->withCount(['playerApplications as players_joined_count' => fn ($q) => $q->where('status', 'accepted')])
+            ->withCount([
+                'playerApplications as players_joined_count' => fn ($q) => $q->where('status', 'accepted'),
+                'proposals as pending_proposals_count' => fn ($q) => $q->where('status', 'pending'),
+            ])
             ->where(fn (Builder $q) => $q->where('host_team_id', $teamId)->orWhere('opponent_team_id', $teamId))
             ->when($status && $status !== 'all', fn (Builder $q) => $q->where('status', $status))
             ->latest('match_datetime');

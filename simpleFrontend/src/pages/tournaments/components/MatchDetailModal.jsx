@@ -33,6 +33,7 @@ import { logoThumb } from '../../../lib/thumb'
 import { validateImages } from '../../committee/tournaments/export/collectImages'
 import MatchPdfDocument from './MatchPdfDocument'
 import { sortMatchEvents, minuteText, sideOf, eventText } from '../matchEvents'
+import MatchGlassModal from '../../../components/matches/MatchGlassModal'
 
 const EVENT_STYLE = {
   goal: 'bg-emerald-50 text-emerald-600',
@@ -310,179 +311,18 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
-        <div className="flex items-center justify-between gap-3 px-6 pb-2 pt-6">
-          <p className="text-sm font-black text-slate-900">{t('public.matchDetail.title')}</p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid size-9 place-items-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-            aria-label={t('common.close')}
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 pb-6">
-          {detailQuery.loading && (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Loader2 className="size-6 animate-spin text-slate-300" />
-              <p className="text-xs font-semibold text-slate-400">{t('common.loading')}</p>
-            </div>
-          )}
-
-          {detailQuery.error && (
-            <div className="rounded-2xl border border-dashed border-slate-200 py-16 text-center">
-              <p className="text-xs font-bold text-slate-500">{detailQuery.error}</p>
-            </div>
-          )}
-
-          {m && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-center gap-4">
-                <TeamSide
-                  team={m.home_team}
-                  winner={m.is_finished && m.winner_team_id === m.home_team?.id}
-                  isLive={m.is_live}
-                  onOpen={m.home_team?.id != null ? () => openTeam(m.home_team) : undefined}
-                />
-                <div className="shrink-0 text-center">
-                  <p className="text-3xl font-black tracking-widest text-slate-900">
-                    {m.is_finished || m.is_live ? `${m.home_score ?? 0} - ${m.away_score ?? 0}` : 'VS'}
-                  </p>
-                  {hasPenalties && (
-                    <p className="mt-1 text-[10px] font-black text-slate-400">({m.home_penalties} - {m.away_penalties})</p>
-                  )}
-                  <span
-                    className={`mt-2 inline-block rounded-full px-2.5 py-1 text-[10px] font-black ${
-                      m.is_live
-                        ? 'bg-rose-50 text-rose-600'
-                        : m.is_finished
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    {m.is_live ? (liveLabel && `● ${liveLabel}${m.current_minute ? ` • ${m.current_minute}'` : ''}`) : t(`public.tournamentPage.matchStatus.${m.status}`)}
-                  </span>
-                </div>
-                <TeamSide
-                  team={m.away_team}
-                  winner={m.is_finished && m.winner_team_id === m.away_team?.id}
-                  isLive={m.is_live}
-                  onOpen={m.away_team?.id != null ? () => openTeam(m.away_team) : undefined}
-                />
-              </div>
-
-              {(m.stadium || m.round || m.group || m.scheduled_at) && (
-                <div className="flex flex-wrap items-center justify-center gap-1.5">
-                  {m.scheduled_at && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                      <CalendarDays className="size-3 text-slate-400" />
-                      {new Date(m.scheduled_at).toLocaleString()}
-                    </span>
-                  )}
-                  {m.stadium?.name && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                      <MapPin className="size-3 text-slate-400" />
-                      {m.stadium.name}
-                    </span>
-                  )}
-                  {(m.round?.name || m.group?.name) && (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-500">
-                      <Crown className="size-3 text-slate-400" />
-                      {m.round?.name || m.group?.name}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              <div>
-                <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-slate-400">{t('public.matchDetail.events')}</p>
-                {events.length > 0 ? (
-                  <div className="flex flex-col gap-1.5">
-                    {events.map((e, i) => (
-                      <TimelineRow key={e.id ?? e.uuid ?? i} event={e} side={sides[i]} homeTeam={m.home_team} awayTeam={m.away_team} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="rounded-2xl border border-dashed border-slate-200 py-8 text-center text-xs font-semibold text-slate-400">
-                    {t('public.matchDetail.noEvents')}
-                  </p>
-                )}
-              </div>
-
-              {(m.player_penalties?.length > 0 || m.penalty_awards?.length > 0) && (
-                <div>
-                  <p className="mb-2 text-[11px] font-black uppercase tracking-wide text-slate-400">{t('public.matchDetail.penalties')}</p>
-                  <div className="flex flex-col gap-1.5">
-                    {(m.player_penalties || []).map((p) => (
-                      <div key={p.id} className="flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
-                        <Timer className="size-3.5 shrink-0" />
-                        <span className="min-w-0 flex-1 truncate">
-                          {p.player?.name || '—'} <span className="text-rose-400">#{p.player?.number || '—'}</span>
-                        </span>
-                        <span className="shrink-0 text-[10px] font-black text-rose-500">{minuteText({ minute: p.start_minute })} → {minuteText({ minute: p.end_minute })}</span>
-                      </div>
-                    ))}
-                    {(m.penalty_awards || []).map((a) => (
-                      <div key={a.id} className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800">
-                        <span className="shrink-0 text-sm">⚽</span>
-                        <span className="min-w-0 flex-1 truncate">{a.team_name || '—'}</span>
-                        <span className="shrink-0 text-[10px] font-black text-amber-500">{minuteText({ minute: a.minute })} • {t(`public.matchDetail.penaltyOutcome.${a.status}`)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {isFinished && !previewUrl && (
-                <button
-                  type="button"
-                  onClick={handlePdf}
-                  disabled={pdfBusy}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-bold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {pdfBusy ? <Loader2 className="size-4 animate-spin" /> : <Flag className="size-4" />}
-                  {pdfBusy ? t('public.matchDetail.generatingPdf') : t('public.matchDetail.previewPdf')}
-                </button>
-              )}
-
-              {previewUrl && (
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-[11px] font-black text-slate-500">{t('public.matchDetail.previewTitle')}</p>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={handleDownload}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-green-700"
-                      >
-                        <Download className="size-3.5" />
-                        {t('public.matchDetail.downloadPdf')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={closePreview}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:bg-slate-100"
-                      >
-                        <X className="size-3.5" />
-                        {t('public.matchDetail.closePreview')}
-                      </button>
-                    </div>
-                  </div>
-                  <iframe
-                    title={t('public.matchDetail.previewTitle')}
-                    src={previewUrl}
-                    className="h-[420px] w-full bg-white"
-                  />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    <MatchGlassModal
+      open={open}
+      onClose={onClose}
+      match={m}
+      loading={detailQuery.loading}
+      error={detailQuery.error}
+      onPdf={isFinished ? handlePdf : null}
+      pdfBusy={pdfBusy}
+      previewUrl={previewUrl}
+      onClosePreview={closePreview}
+      onDownloadPdf={handleDownload}
+      onTeamClick={(team) => (team?.id != null ? openTeam(team) : undefined)}
+    />
   )
 }

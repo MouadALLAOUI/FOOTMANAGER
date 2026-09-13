@@ -27,7 +27,7 @@ function Row({ icon: Icon, label, value }) {
 export default function TeamProfileModal({ team, onClose }) {
   const { t } = useTranslation()
   const teamId = team?.id
-  const { data, isLoading, isError, error } = usePublicTeamProfile(teamId, { enabled: !!teamId })
+  const { data, isLoading, error } = usePublicTeamProfile(teamId, { enabled: !!teamId })
   const info = data?.team
   const display = info || team || {}
   // 404 = the team's manager account is unavailable; treat it like private.
@@ -41,16 +41,18 @@ export default function TeamProfileModal({ team, onClose }) {
           <Skeleton className="h-20 rounded-2xl" />
           <Skeleton className="h-28 rounded-2xl" />
         </div>
-      ) : isError && !info && !team ? (
-        <p className="py-12 text-center text-sm font-semibold text-slate-400">{t('profile.public.loadFailed')}</p>
-      ) : isHidden && !display.name ? (
-        <div className="py-12 text-center">
-          <span className="mx-auto grid size-14 place-items-center rounded-3xl bg-slate-100 text-slate-400">
-            <Shield className="size-7" />
-          </span>
-          <p className="mt-4 text-sm font-bold text-slate-700">{t('profile.public.teamPrivate')}</p>
-          <p className="mx-auto mt-1 max-w-xs text-xs text-slate-400">{t('profile.public.teamPrivateDesc')}</p>
-        </div>
+      ) : !info && !team ? (
+        error?.response?.status === 404 ? (
+          <div className="py-12 text-center">
+            <span className="mx-auto grid size-14 place-items-center rounded-3xl bg-slate-100 text-slate-400">
+              <Shield className="size-7" />
+            </span>
+            <p className="mt-4 text-sm font-bold text-slate-700">{t('profile.public.teamPrivate')}</p>
+            <p className="mx-auto mt-1 max-w-xs text-xs text-slate-400">{t('profile.public.teamPrivateDesc')}</p>
+          </div>
+        ) : (
+          <p className="py-12 text-center text-sm font-semibold text-slate-400">{t('profile.public.loadFailed')}</p>
+        )
       ) : (
         <div className="space-y-5">
           {/* Identity header — always visible, even for private teams */}
@@ -81,7 +83,7 @@ export default function TeamProfileModal({ team, onClose }) {
                 <Row icon={CalendarDays} label={t('profile.public.founded')} value={display.founded_year ?? '—'} />
               </div>
             </>
-          ) : (
+          ) : info ? (
             <>
               <div className="grid grid-cols-3 gap-2.5">
                 <Stat label={t('profile.public.points')} value={info.points} accent="text-emerald-600" />
@@ -131,6 +133,8 @@ export default function TeamProfileModal({ team, onClose }) {
                 </div>
               )}
             </>
+          ) : (
+            <p className="py-6 text-center text-xs font-semibold text-slate-400">{t('profile.public.loadFailed')}</p>
           )}
         </div>
       )}

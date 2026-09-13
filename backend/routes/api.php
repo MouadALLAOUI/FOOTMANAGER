@@ -954,6 +954,8 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::middleware(['activity.not_locked', 'throttle:match'])->group(function () {
                 Route::post('/manager/match-requests/{id}/accept', [MatchFeedController::class, 'accept']);
                 Route::post('/manager/match-requests/{id}/start', [MatchRequestController::class, 'start']);
+                Route::post('/manager/match-requests/{id}/cancel', [MatchRequestController::class, 'cancel']);
+                Route::post('/manager/match-requests/{id}/reopen', [MatchRequestController::class, 'reopen']);
                 Route::get('/manager/match-requests/{id}/proposals', [MatchRequestController::class, 'challengeProposals']);
                 Route::post('/manager/match-requests/{id}/confirm-proposal/{proposalId}', [MatchRequestController::class, 'confirmProposal']);
                 Route::post('/manager/match-invitations/{token}/apply-team', [\App\Http\Controllers\Public\MatchInvitationController::class, 'applyTeam']);

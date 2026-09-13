@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Play,
   Plus,
+  RefreshCw,
   Share2,
   Shield,
   Trophy,
@@ -25,6 +26,7 @@ import ScoreModal from '../../../domains/manager/components/ScoreModal'
 import MatchDetail from '../../../domains/manager/components/MatchDetail'
 import OpponentProfileModal from '../../../domains/manager/components/OpponentProfileModal'
 import MatchLineupDrawer from '../components/MatchLineupDrawer'
+import MatchReasonModal from './matchReasonModal'
 import {
   Button,
   Empty,
@@ -69,6 +71,9 @@ export default function Matches() {
   const [lineupMatchId, setLineupMatchId] = useState(null)
   const [proposalsMatchId, setProposalsMatchId] = useState(null)
   const [inspectTeamId, setInspectTeamId] = useState(null)
+  // { mode: 'cancel' | 'reopen', matchId } — confirmed-match actions that ask
+  // the manager for a reason before hitting the API.
+  const [reasonAction, setReasonAction] = useState(null)
   const [busy, setBusy] = useState(false)
   const { toast } = useToast()
 
@@ -155,6 +160,23 @@ export default function Matches() {
     }
   }
 
+  // Called by MatchReasonModal with the chosen reason; resolves to the right
+  // endpoint for cancel (confirmed match) vs reopen (change opponent).
+  const submitReason = async (reason) => {
+    const action = reasonAction?.mode === 'reopen' ? 'reopen' : 'cancel'
+    setBusy(true)
+    try {
+      const res = await api.post(`/manager/match-requests/${reasonAction.matchId}/${action}`, { reason })
+      toast.success(res.data?.message || t(action === 'reopen' ? 'dash.opponentReleased' : 'dash.matchCancelled'))
+      refetch()
+    } catch (e) {
+      toastApiError(e, t)
+      throw e
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const actionsFor = (m) => (
     <>
       {m.status === 'open' && myTeamIds.has(m.host_team_id) && (
@@ -209,6 +231,31 @@ export default function Matches() {
         <Button size="sm" variant="soft" onClick={() => setConfirmMatchId(m.id)}>
           <CheckCircle2 className="size-3.5" />
           {t('dash.reviewScore')}
+        </Button>
+      )}
+      {/* Confirmed matches: either side can cancel with a reason, and the
+          host can release the opponent and reopen the request. */}
+      {m.status === 'accepted' &&
+        (myTeamIds.has(m.host_team_id) || myTeamIds.has(m.opponent_team_id)) && (
+          <Button
+            size="sm"
+            variant="dangerSoft"
+            disabled={busy}
+            onClick={() => setReasonAction({ mode: 'cancel', matchId: m.id })}
+          >
+            <XCircle className="size-3.5" />
+            {t('dash.cancelConfirmedMatch')}
+          </Button>
+        )}
+      {m.status === 'accepted' && myTeamIds.has(m.host_team_id) && (
+        <Button
+          size="sm"
+          variant="soft"
+          disabled={busy}
+          onClick={() => setReasonAction({ mode: 'reopen', matchId: m.id })}
+        >
+          <RefreshCw className="size-3.5" />
+          {t('dash.changeOpponent')}
         </Button>
       )}
       {/* Deletable until the opponent is confirmed: open, or started live
@@ -310,6 +357,12 @@ export default function Matches() {
       )}
 
       <NewMatchModal open={newOpen} onClose={() => setNewOpen(false)} onSaved={refetch} />
+      <MatchReasonModal
+        open={Boolean(reasonAction)}
+        mode={reasonAction?.mode}
+        onClose={() => setReasonAction(null)}
+        onSubmit={submitReason}
+      />
       {scoreMatch && (
         <ScoreModal match={scoreMatch} mode="submit" onClose={() => setScoreMatchId(null)} onSaved={refetch} />
       )}

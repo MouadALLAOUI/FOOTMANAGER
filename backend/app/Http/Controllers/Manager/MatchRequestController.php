@@ -858,6 +858,157 @@ class MatchRequestController extends Controller
     }
 
     /**
+     * Cancel a match that already has a confirmed opponent (or is still open,
+     * mirroring destroy()). Allowed for either side; requires a reason
+     * (rain, opponent gave up, ...). Not allowed once the match is live with
+     * an opponent or completed.
+     */
+    public function cancel(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:500',
+        ]);
+
+        $managedTeamIds = $user->managedTeams()->pluck('id');
+
+        $matchRequest = MatchRequest::with(['hostTeam.manager', 'opponentTeam.manager'])
+            ->where('id', $id)
+            ->where(function ($q) use ($managedTeamIds) {
+                $q->whereIn('host_team_id', $managedTeamIds)
+                    ->orWhereIn('opponent_team_id', $managedTeamIds);
+            })
+            ->firstOrFail();
+
+        $cancellable = in_array($matchRequest->status, ['open', 'accepted'])
+            || ($matchRequest->status === 'live' && ! $matchRequest->opponent_team_id);
+
+        if (! $cancellable) {
+            return response()->json([
+                'message' => 'لا يمكن إلغاء هذه المباراة في حالتها الحالية',
+            ], 422);
+        }
+
+        $myTeamId = $this->resolver->for($user)->id;
+        $when = $matchRequest->match_datetime?->format('Y-m-d H:i');
+        $reason = $validated['reason'];
+
+        return DB::transaction(function () use ($matchRequest, $myTeamId, $when, $reason) {
+            if ($matchRequest->status === 'live') {
+                FootballMatch::where('match_request_id', $matchRequest->id)
+                    ->update(['status' => MatchStatus::Cancelled->value]);
+            }
+
+            $matchRequest->update([
+                'status' => 'cancelled',
+                'status_reason' => $reason,
+                'cancelled_at' => now(),
+                'cancelled_by_team_id' => $myTeamId,
+            ]);
+
+            // Release the terrain slot: detach every booking tied to this
+            // match (the host's and, for confirmed matches, the opponent's).
+            TerrainBooking::where('match_request_id', $matchRequest->id)
+                ->update([
+                    'match_request_id' => null,
+                    'flow_type' => 'direct',
+                ]);
+
+            $recipients = [];
+            if ($matchRequest->hostTeam?->manager && $myTeamId != $matchRequest->host_team_id) {
+                $recipients[] = $matchRequest->hostTeam->manager;
+            }
+            if ($matchRequest->opponentTeam?->manager && $myTeamId != $matchRequest->opponent_team_id) {
+                $recipients[] = $matchRequest->opponentTeam->manager;
+            }
+
+            foreach ($recipients as $manager) {
+                NotificationService::push(
+                    (int) $manager->id,
+                    'match_cancelled',
+                    'تم إلغاء المباراة',
+                    "أُلغيت المباراة المؤكدة في {$when}. السبب: {$reason}",
+                    ['match_request_id' => $matchRequest->id],
+                    '/dashboard',
+                );
+            }
+
+            return response()->json([
+                'message' => 'تم إلغاء المباراة بنجاح',
+                'match_request' => $matchRequest->fresh()->load(['hostTeam', 'opponentTeam', 'stadium']),
+            ]);
+        });
+    }
+
+    /**
+     * Change the opponent of a confirmed match: release the current opponent
+     * (with a reason) and reopen the request so other teams can accept it.
+     * Host team only.
+     */
+    public function reopen(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'reason' => 'required|string|min:3|max:500',
+        ]);
+
+        $managedTeamIds = $user->managedTeams()->pluck('id');
+
+        $matchRequest = MatchRequest::with(['opponentTeam.manager'])
+            ->where('id', $id)
+            ->whereIn('host_team_id', $managedTeamIds)
+            ->where('status', 'accepted')
+            ->firstOrFail();
+
+        $oldOpponentTeamId = $matchRequest->opponent_team_id;
+        $oldOpponentManager = $matchRequest->opponentTeam?->manager;
+        $when = $matchRequest->match_datetime?->format('Y-m-d H:i');
+        $reason = $validated['reason'];
+
+        return DB::transaction(function () use ($matchRequest, $oldOpponentTeamId, $oldOpponentManager, $when, $reason) {
+            $matchRequest->update([
+                'status' => 'open',
+                'opponent_team_id' => null,
+                'status_reason' => $reason,
+                'needs_players' => false,
+                'players_needed' => null,
+                'is_guest' => false,
+                'guest_team_name' => null,
+                'guest_contact_name' => null,
+                'guest_phone' => null,
+                'guest_notes' => null,
+            ]);
+
+            if ($oldOpponentTeamId) {
+                TerrainBooking::where('match_request_id', $matchRequest->id)
+                    ->where('team_id', $oldOpponentTeamId)
+                    ->update([
+                        'match_request_id' => null,
+                        'flow_type' => 'direct',
+                    ]);
+            }
+
+            if ($oldOpponentManager) {
+                NotificationService::push(
+                    (int) $oldOpponentManager->id,
+                    'match_opponent_changed',
+                    'تم تغيير منافس المباراة',
+                    "تم إلغاء مباراتكم المؤكدة في {$when}. السبب: {$reason}",
+                    ['match_request_id' => $matchRequest->id],
+                    '/dashboard',
+                );
+            }
+
+            return response()->json([
+                'message' => 'تم تحرير المنافس وإعادة فتح المباراة للفرق الأخرى',
+                'match_request' => $matchRequest->fresh()->load(['hostTeam', 'opponentTeam', 'stadium']),
+            ]);
+        });
+    }
+
+    /**
      * Throws PLAN_LIMIT_REACHED / PLAN_FEATURE_REQUIRED when the team's plan
      * does not allow another active friendly match request.
      */

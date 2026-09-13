@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CloudRain, Flag, PenLine, Stadium, XCircle } from 'lucide-react'
+import { CloudRain, Flag, Landmark, PenLine, XCircle } from 'lucide-react'
 import { Button, Modal, inputClass } from '../../../components/dashboard/ui'
 
 const REASONS = [
   { key: 'rain', icon: CloudRain },
   { key: 'opponent_gave_up', icon: Flag },
-  { key: 'field_issue', icon: Stadium },
+  { key: 'field_issue', icon: Landmark },
   { key: 'other', icon: PenLine },
 ]
 

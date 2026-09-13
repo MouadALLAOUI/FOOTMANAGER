@@ -11,10 +11,20 @@ class TeamProfileController extends Controller
     public function show(Team $team): JsonResponse
     {
         if ($team->visibility !== 'public') {
+            // Private teams keep a public identity (name, logo, city, category)
+            // so opponents can recognize them; everything else stays gated.
             return response()->json([
                 'team' => [
                     'id' => $team->id,
                     'name' => $team->name,
+                    'city' => $team->city,
+                    'category' => $team->category,
+                    'level' => $team->level,
+                    'founded_year' => $team->founded_year,
+                    'logo_url' => $team->logo_url,
+                    'logo_thumbnail_url' => $team->logo_thumbnail_url,
+                    'primary_color' => $team->primary_color,
+                    'secondary_color' => $team->secondary_color,
                     'visibility' => $team->visibility,
                 ],
             ]);

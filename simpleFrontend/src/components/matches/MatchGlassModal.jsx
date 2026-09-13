@@ -340,7 +340,12 @@ export default function MatchGlassModal({
 
   // Normalize match data whether from a tournament fixture or friendly match
   const homeTeam = match?.home_team || match?.host_team
-  const awayTeam = match?.away_team || match?.opponent_team
+  // Guest challenges have no team account: the opponent is only the guest
+  // name stored on the request (is_guest), so synthesize a display-only team.
+  const awayTeam =
+    match?.away_team ||
+    match?.opponent_team ||
+    (match?.is_guest ? { name: match?.guest_team_name, is_guest: true } : null)
   const homeId = homeTeam?.id ?? match?.home_team_id ?? match?.host_team_id
   const awayId = awayTeam?.id ?? match?.away_team_id ?? match?.opponent_team_id
 
@@ -428,7 +433,9 @@ export default function MatchGlassModal({
     (match?.stage ? t(`tournament.stages.${match.stage}`, { defaultValue: match.stage }) : null)
 
   const homeSubtitle = homeTeam?.rank ? `المركز ${homeTeam.rank}` : homeTeam?.city || ''
-  const awaySubtitle = awayTeam?.rank ? `المركز ${awayTeam.rank}` : awayTeam?.city || ''
+  const awaySubtitle = awayTeam?.rank
+    ? `المركز ${awayTeam.rank}`
+    : awayTeam?.city || (awayTeam?.is_guest ? 'فريق ضيف (مباراة ودية)' : '')
 
   const rawEvents = match?.events || match?.football_match?.events || match?.footballMatch?.events || []
   const { home: homeEvents, away: awayEvents } = useMemo(

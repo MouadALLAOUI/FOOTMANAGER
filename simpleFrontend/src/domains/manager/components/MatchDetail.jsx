@@ -1,5 +1,5 @@
 import React from 'react'
-import { MessageSquare, Shield, Users } from 'lucide-react'
+import { MessageSquare, Phone, Shield, Users } from 'lucide-react'
 import MatchGlassModal from '../../../components/matches/MatchGlassModal'
 import { ManagerContact } from '../../../components/dashboard/cards'
 
@@ -59,6 +59,27 @@ export default function MatchDetail({ match, onClose, onActions, onLineup, onTea
             <p className="text-xs font-extrabold text-white">{opponentManager.name || 'غير متاح'}</p>
           </div>
           <ManagerContact manager={opponentManager} />
+        </div>
+      )}
+
+      {/* Guest challenge contact: no team/manager account exists, only the
+          guest details the challenger left on the invite link. */}
+      {!opponentManager && match.is_guest && match.guest_contact_name && (
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-500/25 bg-emerald-950/40 px-4 py-3 backdrop-blur-md">
+          <div>
+            <p className="text-[10px] font-bold text-emerald-300/70">تواصل مع الضيف</p>
+            <p className="text-xs font-extrabold text-white">{match.guest_contact_name}</p>
+          </div>
+          {match.guest_phone && (
+            <a
+              href={`tel:${match.guest_phone}`}
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-green-400 hover:text-green-300"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Phone className="size-3.5" />
+              {match.guest_phone}
+            </a>
+          )}
         </div>
       )}
 

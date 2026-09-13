@@ -34,14 +34,14 @@ const levelColors = {
 // API caps per_page at 100, so extra pages are fetched when there are more teams.
 const LEADERBOARD_PER_PAGE = 100
 
-async function fetchAllLeaderboard() {
-  const first = await api.get('/v1/leaderboard', { params: { managed: 1, per_page: LEADERBOARD_PER_PAGE } })
+async function fetchLeaderboardPages(params) {
+  const first = await api.get('/v1/leaderboard', { params: { ...params, per_page: LEADERBOARD_PER_PAGE } })
   const lastPage = first.data?.meta?.last_page ?? 1
   if (lastPage <= 1) return first
 
   const rest = await Promise.all(
     Array.from({ length: lastPage - 1 }, (_, i) =>
-      api.get('/v1/leaderboard', { params: { managed: 1, per_page: LEADERBOARD_PER_PAGE, page: i + 2 } })
+      api.get('/v1/leaderboard', { params: { ...params, per_page: LEADERBOARD_PER_PAGE, page: i + 2 } })
     )
   )
 
@@ -53,6 +53,18 @@ async function fetchAllLeaderboard() {
       ],
     },
   }
+}
+
+async function fetchAllLeaderboard() {
+  // Prefer managed teams only, but never leave the section empty: environments
+  // whose teams have no approved manager fall back to the full leaderboard.
+  try {
+    const managed = await fetchLeaderboardPages({ managed: 1 })
+    if (managed.data?.data?.length) return managed
+  } catch {
+    // managed filter unavailable — fall through to the full list
+  }
+  return fetchLeaderboardPages({})
 }
 
 function ContactModal({ team, open, onClose, onOpenProfile }) {

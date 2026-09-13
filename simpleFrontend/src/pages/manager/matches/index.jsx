@@ -1,13 +1,12 @@
 import i18n from '../../../i18n'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
   CheckCircle2,
   Play,
   Plus,
-  Radio,
   Share2,
   Shield,
   Trophy,
@@ -47,7 +46,6 @@ const tabs = () => [
 
 export default function Matches() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
   const { t } = useTranslation()
   const { user } = useAuth()
   const { currentTeam, teams } = useTeam()
@@ -134,28 +132,12 @@ export default function Matches() {
     try {
       const res = await api.post(`/manager/match-requests/${m.id}/start`)
       toast.success(res.data.message || t('dash.matchStartedSuccessfully'))
-      const liveId = res.data?.live_match_id
-      if (liveId) {
-        navigate(`/dashboard/live/${liveId}`)
-      } else {
-        refetch()
-      }
+      refetch()
     } catch (e) {
       toastApiError(e, t)
     } finally {
       setBusy(false)
     }
-  }
-
-  const openLive = (m) => {
-    const liveId = m.football_match?.id
-    if (liveId) navigate(`/dashboard/live/${liveId}`)
-  }
-
-  const isLiveOpen = (m) => {
-    const fm = m.football_match
-    if (!fm?.id) return false
-    return !['finished', 'cancelled', 'postponed'].includes(fm.status)
   }
 
   const cancelOpen = async (m) => {
@@ -234,12 +216,6 @@ export default function Matches() {
         <Button size="sm" variant="dangerSoft" disabled={busy} onClick={() => cancelOpen(m)}>
           <XCircle className="size-3.5" />
           {t('dash.cancelRequest')}
-        </Button>
-      )}
-      {m.status === 'live' && isLiveOpen(m) && (
-        <Button size="sm" variant="outline" onClick={() => openLive(m)}>
-          <Radio className="size-3.5 text-rose-500" />
-          {t('dash.live')}
         </Button>
       )}
       {m.status === 'live' && (m.score_status === 'none' || m.score_status === 'disputed') && (

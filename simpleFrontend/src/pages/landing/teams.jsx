@@ -31,6 +31,30 @@ const levelColors = {
   excellent: 'bg-purple-50 text-purple-700 border-purple-200',
 }
 
+// API caps per_page at 100, so extra pages are fetched when there are more teams.
+const LEADERBOARD_PER_PAGE = 100
+
+async function fetchAllLeaderboard() {
+  const first = await api.get('/v1/leaderboard', { params: { managed: 1, per_page: LEADERBOARD_PER_PAGE } })
+  const lastPage = first.data?.meta?.last_page ?? 1
+  if (lastPage <= 1) return first
+
+  const rest = await Promise.all(
+    Array.from({ length: lastPage - 1 }, (_, i) =>
+      api.get('/v1/leaderboard', { params: { managed: 1, per_page: LEADERBOARD_PER_PAGE, page: i + 2 } })
+    )
+  )
+
+  return {
+    data: {
+      data: [
+        ...(Array.isArray(first.data?.data) ? first.data.data : []),
+        ...rest.flatMap((res) => (Array.isArray(res.data?.data) ? res.data.data : [])),
+      ],
+    },
+  }
+}
+
 function ContactModal({ team, open, onClose, onOpenProfile }) {
   const { t } = useTranslation()
   if (!open || !team) return null
@@ -272,9 +296,18 @@ export default function Teams() {
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [contactTeam, setContactTeam] = useState(null)
 
+  // Only logged-in users have a team of their own; a stale active_team_id
+  // left in storage must not mark a team as theirs for guests.
   const activeHeaderId =
-    typeof localStorage !== 'undefined' ? Number(localStorage.getItem('active_team_id')) : null
+    user && typeof localStorage !== 'undefined'
+      ? Number(localStorage.getItem('active_team_id'))
+      : null
   const ownTeamId = user?.team?.id ?? user?.team_id ?? activeHeaderId
+
+  // A manager may own several teams; every team they manage counts as their own.
+  const isOwnTeam = (team) =>
+    (ownTeamId != null && Number(ownTeamId) === Number(team.id)) ||
+    (user?.id != null && team.manager?.id != null && Number(team.manager.id) === Number(user.id))
 
   const { openChallenge } = usePublicActions({
     onChallenge: (target) => setChallengeTarget(target),
@@ -282,7 +315,7 @@ export default function Teams() {
 
   const { data, loading } = useApi(async () => {
     const [lbRes, matchRes, homeRes] = await Promise.allSettled([
-      api.get('/v1/leaderboard', { params: { per_page: 12 } }),
+      fetchAllLeaderboard(),
       api.get('/v1/matches', { params: { per_page: 12 } }),
       api.get('/v1/home'),
     ])
@@ -395,7 +428,7 @@ export default function Teams() {
                 <TeamLandingCard
                   key={team.id}
                   team={team}
-                  isOwnTeam={Boolean(ownTeamId && ownTeamId === team.id)}
+                  isOwnTeam={isOwnTeam(team)}
                   onChallenge={(tm) => openChallenge({ teamId: tm.id, teamName: tm.name })}
                   onContact={(tm) => setContactTeam(tm)}
                   onOpenProfile={(tm) =>

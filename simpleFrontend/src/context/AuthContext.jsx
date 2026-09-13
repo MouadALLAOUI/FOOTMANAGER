@@ -74,6 +74,7 @@ export function AuthProvider({ children }) {
       // ignore
     }
     persist(null, null)
+    localStorage.removeItem('active_team_id')
     try {
       queryClient.clear()
     } catch {}

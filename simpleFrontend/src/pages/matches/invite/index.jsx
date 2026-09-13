@@ -61,6 +61,7 @@ export default function MatchInvitePage() {
 
   const [submitting, setSubmitting] = useState(false)
   const [appliedSuccess, setAppliedSuccess] = useState(false)
+  const [appliedMessage, setAppliedMessage] = useState('')
 
   const isManager = user?.role === 'manager'
   const userTeam = currentTeam || user?.team
@@ -68,6 +69,14 @@ export default function MatchInvitePage() {
   useEffect(() => {
     fetchMatchDetails()
   }, [token])
+
+  // Arrived at the invite link after login: the pending redirect is consumed.
+  useEffect(() => {
+    try {
+      localStorage.removeItem('match_invite_redirect')
+    } catch {}
+    sessionStorage.removeItem('match_invite_redirect')
+  }, [])
 
   const fetchMatchDetails = async () => {
     setLoading(true)
@@ -91,7 +100,8 @@ export default function MatchInvitePage() {
 
     setSubmitting(true)
     try {
-      await api.post(`/match-invitations/${token}/apply-guest`, guestForm)
+      const res = await api.post(`/match-invitations/${token}/apply-guest`, guestForm)
+      setAppliedMessage(res.data?.message || 'تم إرسال طلب التحدي بنجاح!')
       toast.success('تم إرسال طلب التحدي بنجاح!')
       setAppliedSuccess(true)
     } catch (err) {
@@ -110,9 +120,10 @@ export default function MatchInvitePage() {
 
     setSubmitting(true)
     try {
-      await api.post(`/manager/match-invitations/${token}/apply-team`, {
+      const res = await api.post(`/manager/match-invitations/${token}/apply-team`, {
         notes: managerNotes || undefined,
       })
+      setAppliedMessage(res.data?.message || 'تم إرسال طلب التحدي بنجاح!')
       toast.success('تم إرسال طلب التحدي بفريقك بنجاح!')
       setAppliedSuccess(true)
     } catch (err) {
@@ -122,8 +133,16 @@ export default function MatchInvitePage() {
     }
   }
 
+  // localStorage (not sessionStorage) so the link survives the tab closing
+  // while the new manager waits for the admin approval before logging in.
+  const storeInviteRedirect = () => {
+    try {
+      localStorage.setItem('match_invite_redirect', `/matches/invite/${token}`)
+    } catch {}
+  }
+
   const handleLoginRedirect = () => {
-    sessionStorage.setItem('match_invite_redirect', `/matches/invite/${token}`)
+    storeInviteRedirect()
     navigate('/login')
   }
 
@@ -201,6 +220,7 @@ export default function MatchInvitePage() {
 
   const isClosed = match.status !== 'open'
   const datetime = match.match_datetime ? new Date(match.match_datetime) : null
+  const myProposalPending = match.my_proposal?.status === 'pending'
 
   // Check if current user is the host manager of this match
   const isHostManager = Boolean(
@@ -455,7 +475,7 @@ export default function MatchInvitePage() {
             </div>
             <h3 className="mt-5 text-2xl font-black text-white">تم إرسال طلب التحدي بنجاح! 🎉</h3>
             <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-lg mx-auto">
-              سيتوصل كابتن الفريق المنظم بإشعار فوري يتضمن بيانات فريقك. في حال قبول التحدي، سيتم التواصل معك مباشرة لتأكيد التفاصيل.
+              {appliedMessage || 'سيتوصل كابتن الفريق المنظم بإشعار فوري يتضمن بيانات فريقك. في حال قبول التحدي، سيتم التواصل معك مباشرة لتأكيد التفاصيل.'}
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <Link
@@ -467,6 +487,31 @@ export default function MatchInvitePage() {
               <Link
                 to="/"
                 className="rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-xs font-bold text-white hover:bg-white/10"
+              >
+                العودة للرئيسية
+              </Link>
+            </div>
+          </div>
+        ) : myProposalPending ? (
+          /* Already applied: waiting for the organizer's confirmation */
+          <div className="rounded-3xl border border-sky-500/30 bg-slate-900/90 p-8 text-center backdrop-blur-xl shadow-2xl">
+            <div className="mx-auto grid size-16 place-items-center rounded-3xl bg-sky-500/10 text-sky-400 ring-1 ring-sky-500/30">
+              <Clock className="size-8" />
+            </div>
+            <h3 className="mt-4 text-xl font-black text-white">طلبك بانتظار تأكيد المنظم</h3>
+            <p className="mt-2 text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+              تم استلام طلب تحدي فريقك بنجاح. الطلب الآن بانتظار تأكيد منظم المباراة، وسيتم إشعارك فور قبول الطلب أو رفضه.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link
+                to="/matches"
+                className="rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-black text-white shadow-lg shadow-emerald-950/50 hover:bg-emerald-500"
+              >
+                تصفح مباريات أخرى
+              </Link>
+              <Link
+                to="/"
+                className="rounded-2xl border border-white/10 bg-white/5 px-6 py-3 text-xs font-bold text-slate-300 hover:text-white"
               >
                 العودة للرئيسية
               </Link>
@@ -721,6 +766,7 @@ export default function MatchInvitePage() {
                   </button>
                   <Link
                     to="/register"
+                    onClick={storeInviteRedirect}
                     className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 py-3.5 text-xs font-bold text-white hover:bg-white/10 transition"
                   >
                     إنشاء حساب فريق جديد

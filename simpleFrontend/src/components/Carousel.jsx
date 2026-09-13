@@ -28,6 +28,8 @@ export default function Carousel({ step = 348, children, className, showDots = f
   const { i18n } = useTranslation()
   const { ref, count, active, goTo } = useSnapCarousel(children)
 
+  const isRtl = i18n.language.startsWith('ar')
+
   const scroll = (dir) => {
     const el = ref.current
     if (!el || el.children.length === 0) return
@@ -40,11 +42,11 @@ export default function Carousel({ step = 348, children, className, showDots = f
     } else if (dir < 0 && atStart) {
       el.children[el.children.length - 1].scrollIntoView({ inline: 'end', block: 'nearest', behavior: 'smooth' })
     } else {
-      el.scrollBy({ left: dir * step, behavior: 'smooth' })
+      // In RTL, scrollLeft runs negative from 0, so the scroll delta must be flipped.
+      el.scrollBy({ left: (isRtl ? -1 : 1) * dir * step, behavior: 'smooth' })
     }
   }
 
-  const isRtl = i18n.language.startsWith('ar')
   const backIcon = isRtl ? faChevronRight : faChevronLeft
   const nextIcon = isRtl ? faChevronLeft : faChevronRight
 

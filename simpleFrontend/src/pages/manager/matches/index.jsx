@@ -1,13 +1,12 @@
 import i18n from '../../../i18n'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
   CheckCircle2,
   Play,
   Plus,
-  Radio,
   Share2,
   Shield,
   Trophy,
@@ -47,7 +46,6 @@ const tabs = () => [
 
 export default function Matches() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
   const { t } = useTranslation()
   const { user } = useAuth()
   const { currentTeam, teams } = useTeam()
@@ -62,16 +60,32 @@ export default function Matches() {
   const { data: pendingScores } = useApi(() => api.get('/manager/matches/pending-scores').then((r) => r.data))
   const { data: pendingConfirms } = useApi(() => api.get('/manager/matches/pending-confirmations').then((r) => r.data))
   const [newOpen, setNewOpen] = useState(false)
-  const [scoreMatch, setScoreMatch] = useState(null)
-  const [confirmMatch, setConfirmMatch] = useState(null)
-  const [detail, setDetail] = useState(null)
-  const [lineupMatch, setLineupMatch] = useState(null)
-  const [proposalsMatch, setProposalsMatch] = useState(null)
-  const [inspectTeam, setInspectTeam] = useState(null)
+  const [scoreMatchId, setScoreMatchId] = useState(null)
+  const [confirmMatchId, setConfirmMatchId] = useState(null)
+  // Modals track the match id, not a snapshot object: after accepting an
+  // opponent the list refetches, and id-based lookup keeps the modals on
+  // fresh data instead of a stale pre-refetch copy (missing opponent, etc.).
+  const [detailId, setDetailId] = useState(null)
+  const [lineupMatchId, setLineupMatchId] = useState(null)
+  const [proposalsMatchId, setProposalsMatchId] = useState(null)
+  const [inspectTeamId, setInspectTeamId] = useState(null)
   const [busy, setBusy] = useState(false)
   const { toast } = useToast()
 
   const matches = useMemo(() => data?.match_requests || [], [data])
+  const detail = useMemo(() => matches.find((m) => m.id === detailId) ?? null, [matches, detailId])
+  const lineupMatch = useMemo(() => matches.find((m) => m.id === lineupMatchId) ?? null, [matches, lineupMatchId])
+  const proposalsMatch = useMemo(() => matches.find((m) => m.id === proposalsMatchId) ?? null, [matches, proposalsMatchId])
+  const scoreMatch = useMemo(() => matches.find((m) => m.id === scoreMatchId) ?? null, [matches, scoreMatchId])
+  const confirmMatch = useMemo(() => matches.find((m) => m.id === confirmMatchId) ?? null, [matches, confirmMatchId])
+  const inspectTeam = useMemo(() => {
+    if (inspectTeamId == null) return null
+    for (const m of matches) {
+      if (m.host_team?.id === inspectTeamId) return m.host_team
+      if (m.opponent_team?.id === inspectTeamId) return m.opponent_team
+    }
+    return { id: inspectTeamId }
+  }, [matches, inspectTeamId])
   const canSubmitIds = useMemo(() => new Set((pendingScores?.matches || []).map((m) => m.id)), [pendingScores])
   const confirmIds = useMemo(() => new Set((pendingConfirms?.matches || []).map((m) => m.id)), [pendingConfirms])
 
@@ -93,17 +107,21 @@ export default function Matches() {
   const filtered = tab === 'all' ? matches : matches.filter((m) => m.status === tab)
 
   const canSubmit = (m) =>
-    (m.status === 'accepted' || m.status === 'live') &&
-    m.match_datetime &&
-    new Date(m.match_datetime) <= new Date(Date.now() - 3600 * 1000) &&
     (m.score_status === 'none' || m.score_status === 'disputed') &&
-    canSubmitIds.has(m.id)
+    canSubmitIds.has(m.id) &&
+    // Live matches can record their result at any time; accepted ones must
+    // wait until an hour after kickoff (mirrors the backend rule).
+    (m.status === 'live' ||
+      (m.status === 'accepted' &&
+        m.match_datetime &&
+        new Date(m.match_datetime) <= new Date(Date.now() - 3600 * 1000)))
 
   const needsConfirmation = (m) =>
     (m.status === 'accepted' || m.status === 'live') && m.score_status === 'pending_confirmation' && confirmIds.has(m.id)
 
   const canStart = (m) =>
     (m.status === 'open' || m.status === 'accepted') &&
+    m.score_status !== 'pending_confirmation' &&
     m.match_datetime &&
     new Date(m.match_datetime) <= new Date() &&
     myTeamIds.size > 0 &&
@@ -115,28 +133,12 @@ export default function Matches() {
     try {
       const res = await api.post(`/manager/match-requests/${m.id}/start`)
       toast.success(res.data.message || t('dash.matchStartedSuccessfully'))
-      const liveId = res.data?.live_match_id
-      if (liveId) {
-        navigate(`/dashboard/live/${liveId}`)
-      } else {
-        refetch()
-      }
+      refetch()
     } catch (e) {
       toastApiError(e, t)
     } finally {
       setBusy(false)
     }
-  }
-
-  const openLive = (m) => {
-    const liveId = m.football_match?.id
-    if (liveId) navigate(`/dashboard/live/${liveId}`)
-  }
-
-  const isLiveOpen = (m) => {
-    const fm = m.football_match
-    if (!fm?.id) return false
-    return !['finished', 'cancelled', 'postponed'].includes(fm.status)
   }
 
   const cancelOpen = async (m) => {
@@ -160,7 +162,7 @@ export default function Matches() {
           <Button
             size="sm"
             className="bg-emerald-600 text-white hover:bg-emerald-700"
-            onClick={() => setProposalsMatch(m)}
+            onClick={() => setProposalsMatchId(m.id)}
           >
             <Users className="size-3.5" />
             طلبات التحدي
@@ -186,7 +188,7 @@ export default function Matches() {
         </>
       )}
       {(m.status === 'open' || m.status === 'accepted') && (
-        <Button size="sm" variant="soft" onClick={() => { setDetail(null); setLineupMatch(m) }}>
+        <Button size="sm" variant="soft" onClick={() => { setDetailId(null); setLineupMatchId(m.id) }}>
           <Shield className="size-3.5" />
           {t('dash.lineUp')}
         </Button>
@@ -198,40 +200,36 @@ export default function Matches() {
         </Button>
       )}
       {canSubmit(m) && (
-        <Button size="sm" onClick={() => setScoreMatch(m)}>
+        <Button size="sm" onClick={() => setScoreMatchId(m.id)}>
           <Trophy className="size-3.5" />
           {t('dash.recordScore')}
         </Button>
       )}
       {needsConfirmation(m) && (
-        <Button size="sm" variant="soft" onClick={() => setConfirmMatch(m)}>
+        <Button size="sm" variant="soft" onClick={() => setConfirmMatchId(m.id)}>
           <CheckCircle2 className="size-3.5" />
           {t('dash.reviewScore')}
         </Button>
       )}
-      {m.status === 'open' && (
+      {/* Deletable until the opponent is confirmed: open, or started live
+          while still waiting for an opponent. */}
+      {(m.status === 'open' || (m.status === 'live' && !m.opponent_team_id)) && (
         <Button size="sm" variant="dangerSoft" disabled={busy} onClick={() => cancelOpen(m)}>
           <XCircle className="size-3.5" />
           {t('dash.cancelRequest')}
         </Button>
       )}
-      {m.status === 'live' && isLiveOpen(m) && (
-        <Button size="sm" variant="outline" onClick={() => openLive(m)}>
-          <Radio className="size-3.5 text-rose-500" />
-          {t('dash.live')}
-        </Button>
-      )}
-      {m.status === 'live' && (
+      {m.status === 'live' && (m.score_status === 'none' || m.score_status === 'disputed') && (
         <Button
           size="sm"
           className="bg-emerald-600 text-white hover:bg-emerald-700"
-          onClick={() => (m.football_match?.id ? navigate(`/dashboard/live/${m.football_match.id}`) : setScoreMatch(m))}
+          onClick={() => setScoreMatchId(m.id)}
         >
           <Trophy className="size-3.5" />
           تحديث النتيجة
         </Button>
       )}
-      <Button size="sm" variant="outline" onClick={() => setDetail(m)}>
+      <Button size="sm" variant="outline" onClick={() => setDetailId(m.id)}>
         <CalendarDays className="size-3.5" />
         {t('dash.details')}
       </Button>
@@ -303,9 +301,9 @@ export default function Matches() {
             <MatchCard
               key={m.id}
               match={m}
-              onClick={() => setDetail(m)}
+              onClick={() => setDetailId(m.id)}
               actions={actionsFor(m)}
-              onTeamClick={(team) => setInspectTeam(team)}
+              onTeamClick={(team) => setInspectTeamId(team?.id ?? null)}
             />
           ))}
         </div>
@@ -313,27 +311,27 @@ export default function Matches() {
 
       <NewMatchModal open={newOpen} onClose={() => setNewOpen(false)} onSaved={refetch} />
       {scoreMatch && (
-        <ScoreModal match={scoreMatch} mode="submit" onClose={() => setScoreMatch(null)} onSaved={refetch} />
+        <ScoreModal match={scoreMatch} mode="submit" onClose={() => setScoreMatchId(null)} onSaved={refetch} />
       )}
       {confirmMatch && (
-        <ScoreModal match={confirmMatch} mode="confirm" onClose={() => setConfirmMatch(null)} onSaved={refetch} />
+        <ScoreModal match={confirmMatch} mode="confirm" onClose={() => setConfirmMatchId(null)} onSaved={refetch} />
       )}
       <MatchDetail
         match={detail}
-        onClose={() => setDetail(null)}
+        onClose={() => setDetailId(null)}
         onActions={actionsFor}
-        onLineup={(m) => { setDetail(null); setLineupMatch(m) }}
-        onTeamClick={(team) => setInspectTeam(team)}
+        onLineup={(m) => { setDetailId(null); setLineupMatchId(m.id) }}
+        onTeamClick={(team) => setInspectTeamId(team?.id ?? null)}
       />
-      <MatchLineupDrawer matchRequestId={lineupMatch?.id} open={Boolean(lineupMatch)} onClose={() => setLineupMatch(null)} />
-      <OpponentProfileModal teamId={inspectTeam?.id} open={Boolean(inspectTeam)} onClose={() => setInspectTeam(null)} />
+      <MatchLineupDrawer matchRequestId={lineupMatch?.id} open={Boolean(lineupMatch)} onClose={() => setLineupMatchId(null)} />
+      <OpponentProfileModal teamId={inspectTeam?.id} open={Boolean(inspectTeam)} onClose={() => setInspectTeamId(null)} />
       <MatchProposalsModal
         open={Boolean(proposalsMatch)}
-        onClose={() => setProposalsMatch(null)}
+        onClose={() => setProposalsMatchId(null)}
         match={proposalsMatch}
         onConfirmed={() => {
           refetch()
-          setProposalsMatch(null)
+          setProposalsMatchId(null)
         }}
       />
     </div>

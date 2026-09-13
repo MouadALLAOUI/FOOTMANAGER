@@ -43,7 +43,11 @@ export function GuestRoute({ children }) {
   if (loading) return <LoadingScreen />
   if (user) {
     if (user.status !== 'approved') return <Navigate to="/pending" replace />
-    return <Navigate to={homeForRole(user.role)} replace />
+    // A pending invite link must survive login: stay on the auth page so the
+    // login form can finish navigating back to it instead of the role home.
+    const inviteRedirect =
+      localStorage.getItem('match_invite_redirect') || sessionStorage.getItem('match_invite_redirect')
+    if (!inviteRedirect) return <Navigate to={homeForRole(user.role)} replace />
   }
 
   return children

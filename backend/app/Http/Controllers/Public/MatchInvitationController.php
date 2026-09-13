@@ -16,7 +16,7 @@ class MatchInvitationController extends Controller
         private CurrentTeamResolver $teamResolver,
     ) {}
 
-    public function show(string $token): JsonResponse
+    public function show(Request $request, string $token): JsonResponse
     {
         $match = MatchRequest::with([
             'hostTeam.manager:id,name,phone,is_whatsapp',
@@ -29,6 +29,26 @@ class MatchInvitationController extends Controller
 
         if (! $match) {
             return response()->json(['message' => 'رابط التحدي غير صالح أو غير موجود'], 404);
+        }
+
+        // Optional auth: resolve the visitor so the page can show their own proposal status.
+        $myProposal = null;
+        if ($user = $request->user('sanctum')) {
+            $teamIds = $user->managedTeams()->pluck('id');
+            $proposal = MatchChallengeProposal::where('match_request_id', $match->id)
+                ->where(function ($q) use ($user, $teamIds) {
+                    $q->whereIn('team_id', $teamIds)->orWhere('user_id', $user->id);
+                })
+                ->orderByDesc('id')
+                ->first();
+
+            if ($proposal) {
+                $myProposal = [
+                    'id' => $proposal->id,
+                    'status' => $proposal->status,
+                    'type' => $proposal->type,
+                ];
+            }
         }
 
         $matchData = [
@@ -75,6 +95,7 @@ class MatchInvitationController extends Controller
                 'image' => $match->stadium->images->first()?->image_path ?? null,
             ] : null,
             'pending_proposals_count' => $match->pending_proposals_count,
+            'my_proposal' => $myProposal,
         ];
 
         return response()->json([

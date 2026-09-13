@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Manager;
 
 use App\Domains\Booking\Models\TerrainBooking;
+use App\Domains\Match\Enums\MatchStatus;
+use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchChallengeProposal;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Match\Services\FriendlyMatchService;
@@ -297,7 +299,7 @@ class MatchRequestController extends Controller
             return response()->json(['message' => 'أحد لاعبي فريقك مشغول بمباراة أخرى في نفس التوقيت'], 422);
         }
 
-        if ($validated['target_team_id'] == $teamId) {
+        if ($user->managedTeams()->whereKey($validated['target_team_id'])->exists()) {
             return response()->json([
                 'message' => 'لا يمكنك إرسال تحدي لفريقك الخاص',
             ], 422);
@@ -642,6 +644,10 @@ class MatchRequestController extends Controller
             ->whereIn('status', ['open', 'accepted'])
             ->firstOrFail();
 
+        if ($matchRequest->score_status === 'pending_confirmation') {
+            return response()->json(['message' => 'لا يمكن بدء مباراة بانتظار تأكيد نتيجتها'], 422);
+        }
+
         $isParticipant = $user->managedTeams()->whereIn('id', [$matchRequest->host_team_id, $matchRequest->opponent_team_id])->exists();
         if (! $isParticipant) {
             return response()->json(['message' => 'غير مصرح لك ببدء هذه المباراة'], 403);
@@ -822,10 +828,20 @@ class MatchRequestController extends Controller
     {
         $user = $request->user();
 
+        // Deletable until the opponent is confirmed: still open, or started
+        // live while still waiting for an opponent.
         $matchRequest = MatchRequest::where('id', $id)
             ->whereIn('host_team_id', $user->managedTeams()->pluck('id'))
-            ->where('status', 'open')
+            ->where(function ($q) {
+                $q->where('status', 'open')
+                    ->orWhere(fn ($q2) => $q2->where('status', 'live')->whereNull('opponent_team_id'));
+            })
             ->firstOrFail();
+
+        if ($matchRequest->status === 'live') {
+            FootballMatch::where('match_request_id', $matchRequest->id)
+                ->update(['status' => MatchStatus::Cancelled->value]);
+        }
 
         $matchRequest->update(['status' => 'cancelled']);
 

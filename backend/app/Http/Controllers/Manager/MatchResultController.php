@@ -106,12 +106,18 @@ class MatchResultController extends Controller
             return response()->json(['message' => 'غير مصرح لك بتسجيل نتيجة هذه المباراة'], 403);
         }
 
-        DB::transaction(function () use ($match, $validated, $user) {
+        // A match is either live or awaiting confirmation — never both. Guest
+        // matches have no opponent manager, so their result is final instantly.
+        $wasLive = $match->status === 'live';
+        $isGuestMatch = (bool) ($match->is_guest || ! $match->opponent_team_id);
+
+        DB::transaction(function () use ($match, $validated, $user, $wasLive, $isGuestMatch) {
             $match->update([
                 'host_score' => $validated['host_score'],
                 'opponent_score' => $validated['opponent_score'],
                 'score_submitted_by' => $user->id,
-                'score_status' => 'pending_confirmation',
+                'score_status' => $isGuestMatch ? 'confirmed' : 'pending_confirmation',
+                'status' => $isGuestMatch ? 'completed' : ($wasLive ? 'accepted' : $match->status),
             ]);
 
             $footballMatch = FootballMatch::firstOrCreate(
@@ -133,6 +139,14 @@ class MatchResultController extends Controller
                 'away_score' => $validated['opponent_score'],
                 'current_period' => 'full_time',
             ]);
+
+            if ($isGuestMatch) {
+                $footballMatch->update([
+                    'status' => MatchStatus::Finished,
+                    'is_confirmed' => true,
+                    'ended_at' => now(),
+                ]);
+            }
 
             if (array_key_exists('events', $validated)) {
                 MatchEvent::where('match_id', $footballMatch->id)->delete();
@@ -170,9 +184,11 @@ class MatchResultController extends Controller
         });
 
         $isHost = $user->managedTeams()->where('id', $match->host_team_id)->exists();
-        $opponentManagerId = $isHost
-            ? $match->opponentTeam?->manager_id
-            : $match->hostTeam?->manager_id;
+        $opponentManagerId = $isGuestMatch
+            ? null
+            : ($isHost
+                ? $match->opponentTeam?->manager_id
+                : $match->hostTeam?->manager_id);
 
         if ($opponentManagerId) {
             NotificationService::push(
@@ -193,7 +209,9 @@ class MatchResultController extends Controller
         $fresh->opponentTeam?->manager?->makeVisible('phone');
 
         return response()->json([
-            'message' => 'تم تسجيل النتيجة بنجاح. في انتظار تأكيد الفريق المنافس',
+            'message' => $isGuestMatch
+                ? 'تم تسجيل نتيجة المباراة واعتمادها بنجاح'
+                : 'تم تسجيل النتيجة بنجاح. في انتظار تأكيد الفريق المنافس',
             'match' => $fresh,
         ]);
     }

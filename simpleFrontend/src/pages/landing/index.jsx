@@ -4,9 +4,9 @@ import Search from './search'
 import PopularSearches from './popularSearches'
 import LiveStatus from './liveStatus'
 import MySection from './mySection'
-import AvailableFields from './availableFields'
-import Teams from './teams'
 import Matches from './matches'
+import Teams from './teams'
+import AvailableFields from './availableFields'
 import Tournaments from './tournaments'
 import LiveAndNext from './liveAndNext'
 import WhyUs from './whyUs'
@@ -29,9 +29,9 @@ export default function Landing() {
           <LiveStatus />
         </Hero>
         <MySection />
-        <AvailableFields />
-        <Teams />
         <Matches />
+        <Teams />
+        <AvailableFields />
         <Tournaments />
         <LiveAndNext />
         <WhyUs />

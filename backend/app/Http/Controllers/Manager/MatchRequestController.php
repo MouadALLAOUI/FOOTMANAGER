@@ -644,6 +644,10 @@ class MatchRequestController extends Controller
             ->whereIn('status', ['open', 'accepted'])
             ->firstOrFail();
 
+        if ($matchRequest->score_status === 'pending_confirmation') {
+            return response()->json(['message' => 'لا يمكن بدء مباراة بانتظار تأكيد نتيجتها'], 422);
+        }
+
         $isParticipant = $user->managedTeams()->whereIn('id', [$matchRequest->host_team_id, $matchRequest->opponent_team_id])->exists();
         if (! $isParticipant) {
             return response()->json(['message' => 'غير مصرح لك ببدء هذه المباراة'], 403);

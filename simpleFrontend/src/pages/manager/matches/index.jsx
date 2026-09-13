@@ -121,6 +121,7 @@ export default function Matches() {
 
   const canStart = (m) =>
     (m.status === 'open' || m.status === 'accepted') &&
+    m.score_status !== 'pending_confirmation' &&
     m.match_datetime &&
     new Date(m.match_datetime) <= new Date() &&
     myTeamIds.size > 0 &&

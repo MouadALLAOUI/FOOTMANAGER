@@ -183,13 +183,13 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
         description: ev.description,
       }))
 
-      await api.post(`/manager/matches/${match.id}/submit-score`, {
+      const res = await api.post(`/manager/matches/${match.id}/submit-score`, {
         host_score: Number(hostScore),
         opponent_score: Number(oppScore),
         events: payloadEvents,
       })
 
-      toast.success('تم تسجيل النتيجة والأحداث بنجاح، بانتظار تأكيد الفريق المنافس')
+      toast.success(res.data?.message || 'تم تسجيل النتيجة والأحداث بنجاح، بانتظار تأكيد الفريق المنافس')
       onSaved?.()
       onClose()
     } catch (e) {

@@ -50,7 +50,12 @@ export function MatchCard({ match, actions, onClick, onTeamClick }) {
   return (
     <div
       className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-green-200 hover:shadow-[0_14px_32px_rgba(15,23,42,0.09)]"
-      onClick={onClick}
+      onClick={(e) => {
+        // Action buttons inside the card handle themselves; letting their
+        // clicks bubble would also fire the card's open-details handler.
+        if (e.target.closest('button, a')) return
+        onClick?.()
+      }}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={(e) => {

@@ -32,6 +32,10 @@ class LeaderboardResource extends JsonResource
                 'name' => $this->primaryStadium->name,
                 'city' => $this->primaryStadium->city,
             ]),
+            'manager' => $this->whenLoaded('manager', fn () => [
+                'id' => $this->manager->id,
+                'name' => $this->manager->name,
+            ]),
         ];
     }
 }

@@ -30,6 +30,10 @@ class LeaderboardQuery
 
     public static function applyFilters(Builder $query, Request $request): Builder
     {
+        if ($request->boolean('managed')) {
+            $query->whereHas('manager', fn ($m) => $m->where('status', 'approved'));
+        }
+
         if ($request->filled('category')) {
             $query->where('category', $request->query('category'));
         }

@@ -50,9 +50,17 @@ export default function LoginForm() {
     setBusy(true)
     try {
       await login(loginValue, password)
-      const inviteRedirect = sessionStorage.getItem('match_invite_redirect')
+      // Invite links are stored in localStorage so they survive the tab
+      // closing while a freshly registered manager waits for approval.
+      // Navigate first: the invite page consumes the stored link on arrival.
+      // (React Router defers navigations, so clearing the key here would let
+      // the auth-page redirect win the race back to the role home.)
+      let inviteRedirect = null
+      try {
+        inviteRedirect = localStorage.getItem('match_invite_redirect')
+      } catch {}
+      if (!inviteRedirect) inviteRedirect = sessionStorage.getItem('match_invite_redirect')
       if (inviteRedirect) {
-        sessionStorage.removeItem('match_invite_redirect')
         navigate(inviteRedirect)
       } else {
         const pending = consumeAction()

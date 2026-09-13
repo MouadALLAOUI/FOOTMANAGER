@@ -28,6 +28,9 @@ class MatchRequest extends Model
         'type',
         'match_datetime',
         'status',
+        'status_reason',
+        'cancelled_at',
+        'cancelled_by_team_id',
         'notes',
         'price_per_player',
         'host_score',
@@ -72,6 +75,8 @@ class MatchRequest extends Model
             'players_needed' => 'integer',
             'positions_needed' => 'array',
             'started_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'cancelled_by_team_id' => 'integer',
             'is_guest' => 'boolean',
         ];
     }

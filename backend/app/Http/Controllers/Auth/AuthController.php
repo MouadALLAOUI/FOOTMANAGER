@@ -58,7 +58,7 @@ class AuthController extends Controller
                 'category' => $data['team_category'] ?? 'adult',
                 'association_name' => $data['association_name'] ?? null,
                 'manager_id' => $user->id,
-                'visibility' => 'private',
+                'visibility' => 'public',
             ]);
 
             return $user;

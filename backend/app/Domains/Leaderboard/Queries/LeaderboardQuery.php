@@ -18,10 +18,9 @@ class LeaderboardQuery
                 'primary_color', 'secondary_color', 'member_count',
                 'manager_id', 'primary_stadium_id',
             ])
-            ->where(function ($q) {
-                $q->where('visibility', '!=', 'private')
-                    ->orWhereNull('visibility');
-            })
+            // No visibility filter: teams created through registration default
+            // to private, and the public listing must include them — otherwise
+            // every real team would be hidden from discovery.
             ->where(function ($q) {
                 $q->whereHas('manager', fn ($m) => $m->where('status', 'approved'))
                     ->orWhereDoesntHave('manager');

@@ -50,6 +50,41 @@ export function permissionState() {
   return null
 }
 
+/**
+ * In-page notification (plain Notification API, no service worker): fires a
+ * browser notification while the app tab is open but hidden in the
+ * background — where the in-app toast can't be seen. It complements web push
+ * (which covers the tab-closed case); it never prompts for permission and
+ * silently no-ops when unsupported, denied, or the tab is visible.
+ */
+export function showInPageNotification({ title, body = '', tag = null, url = null, important = false }) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false
+  if (!document.hidden) return false
+
+  try {
+    const notification = new Notification(title, {
+      body,
+      icon: '/logo.jpeg',
+      badge: '/logo.jpeg',
+      dir: document.documentElement?.dir || 'rtl',
+      lang: document.documentElement?.lang || 'ar',
+      ...(tag ? { tag } : {}),
+      ...(important ? { requireInteraction: true } : {}),
+      data: { url },
+    })
+
+    notification.onclick = () => {
+      window.focus()
+      notification.close()
+      if (url) window.location.assign(url)
+    }
+    return true
+  } catch {
+    /* some browsers (e.g. Chrome Android) only allow SW notifications */
+    return false
+  }
+}
+
 async function getPushSubscription() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
   const registration = await navigator.serviceWorker.ready

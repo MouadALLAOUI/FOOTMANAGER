@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { UserRound } from 'lucide-react'
 import { SectionTitle } from '../../../components/dashboard/ui'
 import NotificationPreferences from '../../../components/notifications/NotificationPreferences'
+import TeamVisibilityCard from './teamVisibilityCard'
 import { useAuth } from '../../../context/AuthContext'
 
 export default function Settings() {
@@ -14,6 +15,8 @@ export default function Settings() {
         title={t('dash.settings')}
         subtitle={t('dash.notificationPreferencesAndYourAccountInfo')}
       />
+
+      <TeamVisibilityCard />
 
       <NotificationPreferences />
 

@@ -39,11 +39,24 @@ class TeamProfileController extends Controller
             'description' => 'nullable|string|max:1000',
             'primary_color' => 'nullable|string|max:20',
             'secondary_color' => 'nullable|string|max:20',
+            'visibility' => 'sometimes|in:public,private',
         ]);
 
         $team = $this->resolver->for($request->user());
 
+        // Going public is a subscription-gated feature (same rule as TeamProfileService).
+        if (($validated['visibility'] ?? null) === 'public') {
+            app(\App\Domains\Subscription\Services\SubscriptionService::class)
+                ->authorizeFeature($request->user(), 'landing_visibility');
+        }
+
         $team->update($validated);
+
+        // Public team pages/profiles are cached; a visibility flip must not
+        // keep serving the old state.
+        if (array_key_exists('visibility', $validated)) {
+            \App\Domains\Shared\Support\TeamCache::flushTeam($team->id);
+        }
 
         $team->load(['primaryStadium', 'manager']);
         $team->manager?->makeVisible('phone', 'email', 'is_whatsapp');

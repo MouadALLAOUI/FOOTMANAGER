@@ -12,32 +12,38 @@ interface AjiNqssroLogoProps {
 
 export function AjiNqssroMark({
   size = 48,
-  color = '#059669',
+  color = '#00875A',
 }: {
   size?: number;
   color?: string;
 }): React.JSX.Element {
-  // The stylized green athlete/arch emblem with head circle and crossbar
+  // Stylized runner athlete with ball inside
   return (
     <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
-      {/* Top Head / Ball */}
-      <Circle cx="32" cy="12" r="7" fill={color} />
+      {/* Top Head */}
+      <Circle cx="32" cy="11" r="6.5" fill={color} />
 
-      {/* Main Arch / A-frame Legs */}
+      {/* Dynamic Athletic Arch */}
       <Path
-        d="M17 52 L32 23 L47 52"
-        stroke={color}
-        strokeWidth="6.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* Horizontal Crossbar */}
-      <Path
-        d="M13 39 L51 39"
+        d="M17 53 C20 33 26 23 32 23 C38 23 44 33 47 53"
         stroke={color}
         strokeWidth="5.5"
         strokeLinecap="round"
+      />
+
+      {/* Arms spreading outward */}
+      <Path
+        d="M14 36 C22 33 42 33 50 36"
+        stroke={color}
+        strokeWidth="4.5"
+        strokeLinecap="round"
+      />
+
+      {/* Soccer Ball at center */}
+      <Circle cx="32" cy="46" r="6" fill="#FFFFFF" stroke={color} strokeWidth="2" />
+      <Path
+        d="M32 43 L34 45 L33 47 L31 47 L30 45 Z"
+        fill={color}
       />
     </Svg>
   );
@@ -47,7 +53,7 @@ export function AjiNqssroLogo({
   size = 48,
   showText = true,
   layout = 'vertical',
-  color = '#059669',
+  color = '#00875A',
   textColor,
 }: AjiNqssroLogoProps): React.JSX.Element {
   const isVertical = layout === 'vertical';

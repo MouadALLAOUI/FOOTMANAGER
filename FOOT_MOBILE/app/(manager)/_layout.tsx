@@ -19,16 +19,13 @@ export default function ManagerLayout(): React.JSX.Element {
       />
       <Tabs.Screen
         name="matches"
-        options={{ title: t('nav.matches', 'المباريات'), tabBarIcon: ({ color, size }) => <Trophy size={size} color={color} /> }}
+        options={{ title: t('nav.myMatches', 'مبارياتي'), tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} /> }}
       />
       <Tabs.Screen
         name="team"
         options={{ title: t('nav.team', 'الفريق'), tabBarIcon: ({ color, size }) => <Users size={size} color={color} /> }}
       />
-      <Tabs.Screen
-        name="bookings"
-        options={{ title: t('nav.bookings', 'الحجوزات'), tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} /> }}
-      />
+      <Tabs.Screen name="bookings" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{ title: t('nav.profile', 'حسابي'), tabBarIcon: ({ color, size }) => <User size={size} color={color} /> }}

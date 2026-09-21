@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { del, get, put, upload } from '@/api/client';
+import { del, get, post, put, upload } from '@/api/client';
 import { q } from '@/api/query-keys';
 
 export type PlayerPosition = 'goalkeeper' | 'defender' | 'midfielder' | 'forward' | string;
@@ -255,3 +255,64 @@ export function useRemoveCaptain() {
     },
   });
 }
+
+export interface CreatePlayerPayload {
+  name: string;
+  position?: string;
+  number?: number | string;
+  phone?: string;
+  is_whatsapp?: boolean;
+  notes?: string;
+  role?: string;
+  preferred_foot?: string;
+  height_cm?: number;
+  weight_kg?: number;
+  photo?: { uri: string; name: string; type: string };
+}
+
+export async function createPlayer(payload: CreatePlayerPayload): Promise<SquadPlayerResponse> {
+  if (payload.photo) {
+    const formData = new FormData();
+    formData.append('photo', {
+      uri: payload.photo.uri,
+      name: payload.photo.name,
+      type: payload.photo.type,
+    } as unknown as Blob);
+    formData.append('name', payload.name);
+    if (payload.position) formData.append('position', payload.position);
+    if (payload.number != null && payload.number !== '') formData.append('number', String(payload.number));
+    if (payload.phone) formData.append('phone', payload.phone);
+    if (payload.is_whatsapp) formData.append('is_whatsapp', '1');
+    if (payload.notes) formData.append('notes', payload.notes);
+    if (payload.role) formData.append('role', payload.role);
+    if (payload.preferred_foot) formData.append('preferred_foot', payload.preferred_foot);
+    if (payload.height_cm) formData.append('height_cm', String(payload.height_cm));
+    if (payload.weight_kg) formData.append('weight_kg', String(payload.weight_kg));
+    return upload<SquadPlayerResponse>('/manager/players', formData);
+  }
+
+  return post<SquadPlayerResponse>('/manager/players', {
+    name: payload.name,
+    position: payload.position,
+    number: payload.number ? Number(payload.number) : undefined,
+    phone: payload.phone,
+    is_whatsapp: payload.is_whatsapp,
+    notes: payload.notes,
+    role: payload.role,
+    preferred_foot: payload.preferred_foot,
+    height_cm: payload.height_cm ? Number(payload.height_cm) : undefined,
+    weight_kg: payload.weight_kg ? Number(payload.weight_kg) : undefined,
+  });
+}
+
+export function useCreatePlayer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createPlayer,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['manager', 'team-members'] });
+      void queryClient.invalidateQueries({ queryKey: q.teamMembers({ scope: 'roster' }) });
+    },
+  });
+}
+

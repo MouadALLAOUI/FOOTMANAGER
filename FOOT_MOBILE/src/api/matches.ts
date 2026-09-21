@@ -185,3 +185,62 @@ export function useCancelApplication() {
     },
   });
 }
+
+export interface PublicMatchItem {
+  id: number;
+  type?: string;
+  status: string;
+  match_datetime: string;
+  notes?: string | null;
+  price_per_player?: number | null;
+  player_format?: string | null;
+  custom_terrain_name?: string | null;
+  has_custom_terrain?: boolean;
+  invitation_token?: string | null;
+  host_team?: {
+    id: number;
+    name: string;
+    city?: string | null;
+    logo_url?: string | null;
+  } | null;
+  opponent_team?: {
+    id: number;
+    name: string;
+    city?: string | null;
+    logo_url?: string | null;
+  } | null;
+  stadium?: {
+    id: number;
+    name: string;
+    city?: string | null;
+    type?: string | null;
+    player_format?: string | null;
+    cover_image_url?: string | null;
+  } | null;
+}
+
+export interface PublicMatchesResponse {
+  data: PublicMatchItem[];
+  meta?: {
+    current_page?: number;
+    last_page?: number;
+    per_page?: number;
+    total?: number;
+  };
+}
+
+export function getPublicMatches(params?: Record<string, string | number | undefined>): Promise<PublicMatchesResponse> {
+  return get<PublicMatchesResponse>('/v1/matches', {
+    auth: false,
+    params,
+  });
+}
+
+export function usePublicMatches(params?: Record<string, string | number | undefined>) {
+  return useQuery({
+    queryKey: ['public', 'matches', params],
+    queryFn: () => getPublicMatches(params),
+    staleTime: 60 * 1000,
+  });
+}
+

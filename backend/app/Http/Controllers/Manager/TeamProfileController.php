@@ -29,16 +29,16 @@ class TeamProfileController extends Controller
     public function update(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'member_count' => 'required|integer|min:1',
-            'category' => 'required|in:adult,teenager,children',
-            'association_name' => 'nullable|string|max:255',
-            'primary_stadium_id' => 'nullable|exists:stadiums,id',
-            'city' => 'nullable|string|max:255',
-            'region' => 'nullable|string|max:255',
-            'description' => 'nullable|string|max:1000',
-            'primary_color' => 'nullable|string|max:20',
-            'secondary_color' => 'nullable|string|max:20',
+            'name' => 'sometimes|required|string|max:255',
+            'member_count' => 'sometimes|required|integer|min:1',
+            'category' => 'sometimes|required|in:adult,teenager,children',
+            'association_name' => 'sometimes|nullable|string|max:255',
+            'primary_stadium_id' => 'sometimes|nullable|exists:stadiums,id',
+            'city' => 'sometimes|nullable|string|max:255',
+            'region' => 'sometimes|nullable|string|max:255',
+            'description' => 'sometimes|nullable|string|max:1000',
+            'primary_color' => 'sometimes|nullable|string|max:20',
+            'secondary_color' => 'sometimes|nullable|string|max:20',
             'visibility' => 'sometimes|in:public,private',
         ]);
 

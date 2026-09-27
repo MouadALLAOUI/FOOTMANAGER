@@ -42,9 +42,20 @@ export default function TeamVisibilityCard() {
   const toggle = async (next) => {
     if (saving || loading || next === isPublic) return
     setSaving(true)
+    const nextVisibility = next ? 'public' : 'private'
     try {
-      const res = await api.put('/manager/team-profile', { visibility: next ? 'public' : 'private' })
-      setTeam((prev) => ({ ...(prev || {}), visibility: next ? 'public' : 'private' }))
+      const payload = {
+        name: team?.name || '',
+        member_count: team?.member_count ?? 1,
+        category: team?.category || 'adult',
+        visibility: nextVisibility,
+      }
+      if (team?.city) payload.city = team.city
+      if (team?.association_name) payload.association_name = team.association_name
+      if (team?.primary_stadium_id) payload.primary_stadium_id = team.primary_stadium_id
+
+      const res = await api.put('/manager/team-profile', payload)
+      setTeam((prev) => ({ ...(prev || {}), visibility: nextVisibility }))
       toast.success(res.data?.message || t('dash.profileVisibilityUpdated'))
     } catch (e) {
       toastApiError(e, t)

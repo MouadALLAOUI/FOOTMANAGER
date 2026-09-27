@@ -34,7 +34,7 @@ const roles = [
 
 const positions = ['goalkeeper', 'defender', 'midfielder', 'forward']
 
-export default function RegisterForm() {
+export default function RegisterForm({ onRoleChange }) {
   const { t } = useTranslation()
   const { register } = useAuth()
   const navigate = useNavigate()
@@ -122,7 +122,10 @@ export default function RegisterForm() {
           <button
             key={r.id}
             type="button"
-            onClick={() => setRole(r.id)}
+            onClick={() => {
+              setRole(r.id)
+              if (onRoleChange) onRoleChange(r.id)
+            }}
             className="group flex flex-col items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 text-center transition-all duration-300 ease-out hover:-translate-y-1 hover:border-green-400 hover:shadow-[0_18px_40px_rgba(34,197,94,0.12)] active:translate-y-0"
           >
             <div className="grid size-12 place-items-center rounded-2xl bg-green-500/10 text-green-600 transition-colors duration-300 group-hover:bg-green-500 group-hover:text-white group-hover:shadow-[0_10px_24px_rgba(22,163,74,0.4)]">
@@ -145,7 +148,10 @@ export default function RegisterForm() {
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => setRole(null)}
+          onClick={() => {
+            setRole(null)
+            if (onRoleChange) onRoleChange(null)
+          }}
           className="flex items-center gap-2 text-sm font-semibold text-slate-400 transition-colors hover:text-green-600"
         >
           <FontAwesomeIcon icon={faArrowRight} className="size-3.5 ltr:rotate-180" />

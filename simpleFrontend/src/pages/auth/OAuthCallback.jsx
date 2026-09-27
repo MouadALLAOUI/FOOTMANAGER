@@ -40,6 +40,24 @@ export default function OAuthCallback() {
         if (!isMounted) return
         toast.success(t('auth.oauthSuccess', 'تم تسجيل الدخول بنجاح!'))
 
+        const isNew = searchParams.get('is_new') === '1'
+
+        // 1. Manager Onboarding check
+        if (user.role === 'manager' && !user.onboarding_completed_at) {
+          navigate('/onboarding', { replace: true })
+          return
+        }
+
+        // 2. Player Incomplete Profile check
+        if (user.role === 'player') {
+          const isIncomplete = isNew || !user.phone || !user.player_profile?.city
+          if (isIncomplete) {
+            navigate('/player/onboarding', { replace: true })
+            return
+          }
+        }
+
+        // 3. Pending account check for unapproved users
         if (user.status === 'pending') {
           navigate('/pending', { replace: true })
           return

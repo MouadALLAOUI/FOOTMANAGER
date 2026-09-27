@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+  <!-- الرئيسية / Landing Page -->
+  <url>
+    <loc>https://ajin9essro.com/</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://ajin9essro.com/" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ajin9essro.com/?lng=fr" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://ajin9essro.com/" />
+    <image:image>
+      <image:loc>https://ajin9essro.com/logo.jpeg</image:loc>
+      <image:title>أجي نقصرو - منصة تنظيم مباريات كرة القدم وحجز الملاعب بالمغرب</image:title>
+      <image:caption>منصة أجي نقصرو Aji Nqssro</image:caption>
+    </image:image>
+  </url>
+
+  <!-- المباريات والتحديات الودية / Matches & Challenges -->
+  <url>
+    <loc>https://ajin9essro.com/matches</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>always</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://ajin9essro.com/matches" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ajin9essro.com/matches?lng=fr" />
+  </url>
+
+  <!-- حجز ملاعب القرب / Fields & Stadiums -->
+  <url>
+    <loc>https://ajin9essro.com/fields</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://ajin9essro.com/fields" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ajin9essro.com/fields?lng=fr" />
+  </url>
+
+  <!-- بطولات ودوريات الهواة / Tournaments & Leagues -->
+  <url>
+    <loc>https://ajin9essro.com/tournaments</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://ajin9essro.com/tournaments" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://ajin9essro.com/tournaments?lng=fr" />
+  </url>
+
+  <!-- خطط الأسعار والاشتراكات / Pricing -->
+  <url>
+    <loc>https://ajin9essro.com/pricing</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- الأسئلة الشائعة / FAQ -->
+  <url>
+    <loc>https://ajin9essro.com/faq</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- عن المنصة / About -->
+  <url>
+    <loc>https://ajin9essro.com/about</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- اتصل بنا / Contact -->
+  <url>
+    <loc>https://ajin9essro.com/contact</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  <!-- إنشاء حساب جديد / Register -->
+  <url>
+    <loc>https://ajin9essro.com/register</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://ajin9essro.com/register" />
+  </url>
+
+  <!-- تسجيل الدخول / Login -->
+  <url>
+    <loc>https://ajin9essro.com/login</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://ajin9essro.com/login" />
+  </url>
+
+</urlset>

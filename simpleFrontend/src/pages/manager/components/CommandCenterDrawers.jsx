@@ -28,6 +28,7 @@ import { useCommandCenter } from './CommandCenterContext'
 import { bookingTypeLabels, formatDate, formatTime, initials, isHost, opponentOf } from './shared'
 import { logoThumb, photoThumb, coverThumb } from '../../../lib/thumb'
 import { toastApiError } from '../../../lib/errors'
+import { getWeeklySubscriptionDates } from '../../../lib/bookingDates'
 
 function DetailRow({ icon: Icon, label, value }) {
   return (
@@ -158,11 +159,15 @@ export function BookingDrawer() {
   const b = booking
   const terrain = b?.terrain && typeof b.terrain === 'object' && !Array.isArray(b.terrain) ? b.terrain : {}
   const isWeekly = b?.reservation_type === 'weekly_subscription'
+  const weeklyDates = isWeekly && b ? getWeeklySubscriptionDates(b) : []
+  const [selectedMatchDate, setSelectedMatchDate] = useState(null)
+  const activeDate = selectedMatchDate || (weeklyDates.find((x) => x.is_next)?.date) || weeklyDates[0]?.date || b?.booking_date
 
   const convert = async () => {
     setBusy(true)
     try {
-      const res = await api.post(`/manager/match-requests/from-booking/${b.id}`)
+      const payload = isWeekly && activeDate ? { date: activeDate } : {}
+      const res = await api.post(`/manager/match-requests/from-booking/${b.id}`, payload)
       toast.success(res.data.message || t('ov.drawers.matchRequestCreated'))
       setBooking(null)
       setCreateOpen({ fromBooking: b })
@@ -222,10 +227,51 @@ export function BookingDrawer() {
           </div>
 
           <div className="space-y-2.5">
-            <DetailRow icon={CalendarDays} label={t('ov.common.date')} value={isWeekly ? t('ov.drawers.weeklyDay', { day: b.day_of_week ?? '—' }) : formatDate(b.booking_date)} />
+            <DetailRow icon={CalendarDays} label={t('ov.common.date')} value={isWeekly && activeDate ? new Date(`${activeDate}T00:00:00`).toLocaleDateString('ar-MA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : formatDate(b.booking_date)} />
             <DetailRow icon={Clock} label={t('ov.common.time')} value={`${b.start_time} - ${b.end_time}`} />
             <DetailRow icon={Swords} label={t('ov.common.price')} value={typeof b.price === 'number' ? `${b.price} ${t('ov.common.currency')}` : '—'} />
           </div>
+
+          {isWeekly && weeklyDates.length > 0 && (
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              <div className="mb-2.5 flex items-center justify-between">
+                <p className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                  <CalendarDays className="size-4 text-green-600" />
+                  <span>مواعيد الاشتراك ({weeklyDates.length} أسابيع)</span>
+                </p>
+              </div>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pe-1">
+                {weeklyDates.map((d) => {
+                  const isChosen = activeDate === d.date
+                  return (
+                    <div
+                      key={d.date}
+                      onClick={() => !d.is_past && setSelectedMatchDate(d.date)}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                        isChosen
+                          ? 'bg-green-600 text-white shadow-xs'
+                          : d.is_today
+                          ? 'bg-green-100 text-green-800 font-bold'
+                          : d.is_next
+                          ? 'bg-emerald-50 text-emerald-700 font-bold ring-1 ring-emerald-200'
+                          : d.is_past
+                          ? 'bg-white/60 text-slate-400 line-through cursor-not-allowed'
+                          : 'bg-white text-slate-700 hover:bg-slate-100 cursor-pointer'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className={`inline-block size-1.5 rounded-full ${isChosen ? 'bg-white' : d.is_next ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                        الأسبوع {d.week_number}: {new Date(d.date + 'T00:00:00').toLocaleDateString('ar-MA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                      <span className={`text-[10px] font-bold ${isChosen ? 'text-white/90' : 'text-slate-400'}`}>
+                        {d.is_today ? 'اليوم' : d.is_next ? 'الموعد القادم' : d.is_past ? 'مضى' : ''}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {b.notes && (
             <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">

@@ -43,6 +43,13 @@ export default function PublicTournamentDetail() {
   const detailQuery = useApi(() => api.get(`/v1/tournaments/${slug}`).then((r) => r.data.data), [slug], { staleTime: 0 })
   const tour = detailQuery.data
 
+  useSeo({
+    title: tour?.name ? `${tour.name} — بطولة كرة قدم` : 'تفاصيل البطولة',
+    description: tour?.description || 'تابع جدول المباريات وترتيب الفرق ونتائج البطولة على منصة أجي نقصرو.',
+    canonical: `https://ajin9essro.com/tournaments/${slug}`,
+    image: tour?.cover_image_url,
+  })
+
   const fixturesActive = ['overview', 'matches', 'results'].includes(active)
   const standingsActive = ['overview', 'teams', 'standings'].includes(active)
   const isKnockout = ['groups_knockout', 'knockout_only'].includes(tour?.tournament_format)

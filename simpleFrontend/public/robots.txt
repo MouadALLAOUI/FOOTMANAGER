@@ -1,0 +1,21 @@
+# Robots.txt for Aji Nqssro (ajin9essro.com)
+User-agent: *
+Allow: /
+Allow: /matches
+Allow: /fields
+Allow: /terrains
+Allow: /tournaments
+Allow: /login
+Allow: /register
+
+# Disallow authenticated dashboards from search engine indexing
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /terrain/
+Disallow: /player/
+Disallow: /committee/
+Disallow: /onboarding
+Disallow: /auth/callback
+
+# Sitemap location
+Sitemap: https://ajin9essro.com/sitemap.xml

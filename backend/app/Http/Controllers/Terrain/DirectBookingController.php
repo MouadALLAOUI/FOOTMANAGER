@@ -99,7 +99,7 @@ class DirectBookingController extends Controller
 
             if ($isWeekly) {
                 $weeks = 4;
-                if ($validated['end_date']) {
+                if (! empty($validated['end_date'])) {
                     $weeks = (int) ceil(Carbon::parse($validated['start_date'])->diffInWeeks(Carbon::parse($validated['end_date'])) ?: 4);
                 }
                 $price = $price * $weeks;

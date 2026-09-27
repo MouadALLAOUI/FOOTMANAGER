@@ -580,6 +580,112 @@ class TournamentFixtureService
     }
 
     /**
+     * Generate all round-robin fixtures for a League tournament in WAITING_FOR_BOOKING state.
+     * Fixtures hold the pairwise matchups (home vs away) without fixed dates or pitches,
+     * awaiting assignment to home team bookings.
+     */
+    public function generateLeagueFixtures(Tournament $tournament, bool $regenerate = false): array
+    {
+        return DB::transaction(function () use ($tournament, $regenerate) {
+            $this->setup->buildStructure($tournament);
+
+            $competitionId = $tournament->competition_id;
+            $seasonId = $tournament->season_id;
+
+            $groupRound = Round::query()
+                ->where('competition_id', $competitionId)
+                ->where('season_id', $seasonId)
+                ->where('stage', RoundStage::Group)
+                ->firstOrFail();
+
+            if ($regenerate) {
+                $this->deleteGroupFixtures($tournament);
+            } else {
+                $existing = Fixture::query()
+                    ->where('competition_id', $competitionId)
+                    ->where('season_id', $seasonId)
+                    ->count();
+
+                if ($existing > 0) {
+                    throw new DomainException('جدول مباريات الدوري موجود مسبقاً، استخدم إعادة الإنشاء إذا أردت استبداله');
+                }
+            }
+
+            // In league, if no groups or 1 group, ensure the default group exists
+            $groups = Group::query()
+                ->where('competition_id', $competitionId)
+                ->where('season_id', $seasonId)
+                ->orderBy('name')
+                ->get();
+
+            if ($groups->isEmpty()) {
+                $group = Group::create([
+                    'competition_id' => $competitionId,
+                    'season_id' => $seasonId,
+                    'round_id' => $groupRound->id,
+                    'name' => 'الدوري',
+                ]);
+                $groups = collect([$group]);
+            }
+
+            // Auto-assign registered teams to default group if single division
+            if ($groups->count() === 1) {
+                $defaultGroup = $groups->first();
+                TournamentTeam::query()
+                    ->where('tournament_id', $tournament->id)
+                    ->where('status', TournamentTeam::STATUS_REGISTERED)
+                    ->whereNull('group_id')
+                    ->update(['group_id' => $defaultGroup->id]);
+            }
+
+            $doubleRoundRobin = ($tournament->league_mode === 'double_round_robin');
+            $created = [];
+
+            foreach ($groups as $group) {
+                $teamIds = TournamentTeam::query()
+                    ->where('tournament_id', $tournament->id)
+                    ->where('status', TournamentTeam::STATUS_REGISTERED)
+                    ->where('group_id', $group->id)
+                    ->orderBy('group_position')
+                    ->orderBy('id')
+                    ->pluck('team_id')
+                    ->all();
+
+                if (count($teamIds) < 2) {
+                    continue;
+                }
+
+                $schedules = $this->roundRobin($teamIds, $doubleRoundRobin);
+
+                foreach ($schedules as $roundIndex => $pairs) {
+                    foreach ($pairs as [$homeId, $awayId]) {
+                        $fixture = Fixture::create([
+                            'competition_id' => $competitionId,
+                            'season_id' => $seasonId,
+                            'round_id' => $groupRound->id,
+                            'matchday' => $roundIndex + 1,
+                            'group_id' => $group->id,
+                            'home_team_id' => $homeId,
+                            'away_team_id' => $awayId,
+                            'stadium_id' => null,
+                            'scheduled_at' => null,
+                            'match_id' => null,
+                            'status' => FixtureStatus::WaitingForBooking,
+                        ]);
+
+                        $created[] = $fixture;
+                    }
+                }
+            }
+
+            return [
+                'generated' => count($created),
+                'fixtures' => $created,
+            ];
+        });
+    }
+
+    /**
      * Generate the knockout fixture LAYOUT: the whole bracket (all rounds) is
      * created with its winner-source wiring but the first round and its bye
      * slots are left EMPTY so the committee fills them manually. Pairing slots

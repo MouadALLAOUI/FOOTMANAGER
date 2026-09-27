@@ -13,6 +13,7 @@ import Leaderboard from './leaderboard'
 import CommunityStats from './stats'
 import CreateMatchCta from './createMatchCta'
 import LoadingState from './loadingState'
+import SEO from '../../components/system/SEO'
 
 export default function Matches() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -59,6 +60,12 @@ export default function Matches() {
 
   return (
     <>
+      <SEO
+        title="المباريات والتحديات الودية وترتيب الفرق | أجي نقصرو"
+        description="تصفح المباريات الودية المتاحة، نظّم وتحدى فرق كرة القدم في مدينتك، وتابع جدول ترتيب الفرق والهدافين على منصة أجي نقصرو."
+        canonical="https://ajin9essro.com/matches"
+        keywords="مباريات ودية, ماتش كورة, تحدي فرق كرة القدم, جدول ترتيب الفرق, دوري الهواة, ملاعب المغرب, أجي نقصرو"
+      />
       <MatchesHero />
     <main id="main-content">
       {loading ? (

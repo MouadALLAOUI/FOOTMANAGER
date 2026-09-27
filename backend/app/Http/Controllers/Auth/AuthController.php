@@ -52,7 +52,7 @@ class AuthController extends Controller
                 'status' => 'pending',
             ]);
 
-            Team::create([
+            $team = Team::create([
                 'name' => $data['team_name'],
                 'member_count' => $data['member_count'] ?? 0,
                 'category' => $data['team_category'] ?? 'adult',
@@ -60,6 +60,10 @@ class AuthController extends Controller
                 'manager_id' => $user->id,
                 'visibility' => 'public',
             ]);
+
+            $user->current_team_id = $team->id;
+            $user->onboarding_step = 'team';
+            $user->save();
 
             return $user;
         });
@@ -73,9 +77,16 @@ class AuthController extends Controller
             'team_category' => $data['team_category'] ?? null,
         ]);
 
+        $deviceId = (string) Str::uuid();
+        $expiration = config('sanctum.expiration');
+        $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
+        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+
         return response()->json([
-            'message' => 'تم تسجيل طلب الانضمام بنجاح، بانتظار موافقة الإدارة',
-            'user' => $user->makeVisible('phone', 'email')->only('id', 'name', 'email', 'phone', 'role', 'status', 'avatar_url', 'avatar_thumbnail_url'),
+            'message' => 'تم تسجيل طلب الانضمام بنجاح، مرحباً بك في أجي نقصرو',
+            'user' => $this->userPayload($user->fresh()),
+            'token' => $token,
+            'device_id' => $deviceId,
         ], 201);
     }
 
@@ -100,9 +111,11 @@ class AuthController extends Controller
         }
 
         if ($user->status === 'pending') {
-            return response()->json([
-                'message' => 'حسابك قيد المراجعة من قبل الإدارة',
-            ], 403);
+            if ($user->role !== 'manager' || ! is_null($user->onboarding_completed_at)) {
+                return response()->json([
+                    'message' => 'حسابك قيد المراجعة من قبل الإدارة',
+                ], 403);
+            }
         }
 
         if ($user->status === 'rejected') {
@@ -306,7 +319,10 @@ class AuthController extends Controller
             'avatar_color',
             'activity_locked',
             'activity_lock_reason',
-            'activity_locked_at'
+            'activity_locked_at',
+            'current_team_id',
+            'onboarding_completed_at',
+            'onboarding_step'
         );
 
         if ($user->role === 'sub_admin') {

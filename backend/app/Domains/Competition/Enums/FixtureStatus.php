@@ -5,6 +5,8 @@ namespace App\Domains\Competition\Enums;
 enum FixtureStatus: string
 {
     case Scheduled = 'scheduled';
+    case WaitingForBooking = 'waiting_for_booking';
+    case ReschedulingRequired = 'rescheduling_required';
     case Postponed = 'postponed';
     case Cancelled = 'cancelled';
     case Played = 'played';

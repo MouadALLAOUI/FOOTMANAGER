@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Terrain;
 use App\Domains\Booking\Events\BookingApproved;
 use App\Domains\Booking\Events\BookingCancelled;
 use App\Domains\Booking\Events\BookingCompleted;
+use App\Domains\Booking\Events\BookingCreated;
 use App\Domains\Booking\Events\BookingRejected;
 use App\Domains\Booking\Models\CancellationRequest;
 use App\Domains\Booking\Models\TerrainBooking;
@@ -272,7 +273,7 @@ class BookingController extends Controller
 
             if ($isWeekly) {
                 $weeks = 4;
-                if ($validated['end_date']) {
+                if (! empty($validated['end_date'])) {
                     $weeks = (int) ceil(Carbon::parse($validated['start_date'])->diffInWeeks(Carbon::parse($validated['end_date'])) ?: 4);
                 }
                 $weekPrice = $price * $weeks;
@@ -313,6 +314,7 @@ class BookingController extends Controller
 
         $booking->load(['terrain.owner', 'team', 'manager']);
         $booking->terrain?->owner?->makeVisible('phone');
+        $booking->subscription_dates = $booking->getSubscriptionDates();
 
         event(new BookingCreated($booking));
 
@@ -772,7 +774,7 @@ class BookingController extends Controller
             $price = $terrain->price_per_team ?? 0;
             if ($isWeekly) {
                 $weeks = 4;
-                if ($validated['end_date']) {
+                if (! empty($validated['end_date'])) {
                     $weeks = (int) ceil(Carbon::parse($validated['start_date'])->diffInWeeks(Carbon::parse($validated['end_date'])) ?: 4);
                 }
                 $price = $price * $weeks;
@@ -875,6 +877,7 @@ class BookingController extends Controller
             $b->next_date = $b->displayDate()?->toDateString();
             $b->subscription_status = $this->getSubscriptionStatus($b);
             $b->occurrences_remaining = $this->getOccurrencesRemaining($b);
+            $b->subscription_dates = $b->getSubscriptionDates();
 
             return $b;
         });

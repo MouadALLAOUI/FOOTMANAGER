@@ -9,6 +9,7 @@ import BookingsPanel from '../components/BookingsPanel'
 import RecruitmentPanel from '../components/RecruitmentPanel'
 import ActivityFeed from '../components/ActivityFeed'
 import GoToSite from '../../../components/ui/GoToSite'
+import OnboardingAttentionBanner from '../components/OnboardingAttentionBanner'
 import {
   MatchDrawer,
   BookingDrawer,
@@ -27,6 +28,7 @@ export default function Overview() {
     <CommandCenterProvider>
       <div className="space-y-5">
         <GoToSite />
+        <OnboardingAttentionBanner />
         <HeroHeader />
 
         <TodayPanel />

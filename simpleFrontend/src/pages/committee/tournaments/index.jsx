@@ -21,6 +21,8 @@ const emptyForm = {
   start_date: '',
   end_date: '',
   tournament_format: 'groups_knockout',
+  league_mode: 'single_round_robin',
+  rest_days_minimum: '1',
   teams_count: '8',
   teams_per_group: '4',
   group_mode: 'fixed',
@@ -100,6 +102,8 @@ export default function Tournaments() {
       start_date: form.start_date,
       end_date: form.end_date || null,
       tournament_format: form.tournament_format,
+      league_mode: form.tournament_format === 'league' ? form.league_mode : null,
+      rest_days_minimum: form.tournament_format === 'league' ? Number(form.rest_days_minimum || 1) : null,
       teams_count: Number(form.teams_count),
       teams_per_group: isGroupFormat ? Number(form.teams_per_group) : null,
       group_mode: isGroupFormat ? form.group_mode : null,
@@ -301,6 +305,34 @@ export default function Tournaments() {
                   ))}
                 </select>
               </Field>
+              {form.tournament_format === 'league' && (
+                <div className="space-y-4 rounded-2xl border border-green-200 bg-green-50/50 p-4">
+                  <Field label="نظام مواجهات الدوري" hint="حدد طريقة التباري بين فرق الدوري">
+                    <select
+                      className={selectClass}
+                      value={form.league_mode}
+                      onChange={set('league_mode')}
+                    >
+                      <option value="single_round_robin">دوري ذهاب فقط (Single Round Robin)</option>
+                      <option value="double_round_robin">دوري ذهاب وإياب (Double Round Robin)</option>
+                    </select>
+                  </Field>
+
+                  <Field
+                    label="الحد الأدنى لأيام الراحة الإلزامية بين المباريات"
+                    hint="الفاصل الإلزامي بين كل مباراتين يخوضهما الفريق (الافتراضي: 1 يوم كامل - مثلاً الثلاثاء ثم الخميس)"
+                  >
+                    <input
+                      type="number"
+                      min="0"
+                      max="14"
+                      className={inputClass}
+                      value={form.rest_days_minimum}
+                      onChange={set('rest_days_minimum')}
+                    />
+                  </Field>
+                </div>
+              )}
               <FieldRow cols={2}>
                 <Field label={t('committee.tournaments.form.teamsCount')}>
                   <input type="number" min="2" max="64" className={inputClass} value={form.teams_count} onChange={set('teams_count')} />

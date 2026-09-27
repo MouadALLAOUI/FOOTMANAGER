@@ -36,6 +36,7 @@ import { BookingCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
 import TimeSlotPicker from '../../../components/TimeSlotPicker'
 import useTerrainSlots from '../../../hooks/useTerrainSlots'
+import { getWeeklySubscriptionDates } from '../../../lib/bookingDates'
 
 const typeLabels = { get training() { return i18n.t('dash.training') }, get private() { return i18n.t('dash.privateBooking') }, get match() { return i18n.t('dash.match') } }
 const dayLabels = { get 0() { return i18n.t('dash.sunday') }, get 1() { return i18n.t('dash.monday') }, get 2() { return i18n.t('dash.tuesday') }, get 3() { return i18n.t('dash.wednesday') }, get 4() { return i18n.t('dash.thursday') }, get 5() { return i18n.t('dash.friday') }, get 6() { return i18n.t('dash.saturday') } }
@@ -77,14 +78,72 @@ function NewBookingModal({ open, onClose, onSaved }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const { availableStartTimes, disabledStartTimes, loading, closed, closedReason } = useTerrainSlots(form.terrain_id, form.booking_date)
+  const isWeekly = form.reservation_type === 'weekly_subscription'
+  const slotDate = isWeekly ? form.start_date : form.booking_date
+  const { availableStartTimes, disabledStartTimes, loading, closed, closedReason } = useTerrainSlots(form.terrain_id, slotDate)
 
   const stadiums = stadiumsData?.data || []
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-  const isWeekly = form.reservation_type === 'weekly_subscription'
   const endAvail = form.start_time ? availableStartTimes.filter((s) => s > form.start_time) : availableStartTimes
   const endDisabled = form.start_time ? disabledStartTimes.filter((s) => s > form.start_time) : disabledStartTimes
+
+  const handleReservationTypeChange = (type) => {
+    setForm((f) => {
+      if (type === 'weekly_subscription') {
+        const initialDate = f.booking_date || f.start_date || new Date().toISOString().split('T')[0]
+        const d = new Date(initialDate + 'T00:00:00')
+        const dow = isNaN(d.getTime()) ? '' : String(d.getDay())
+        return {
+          ...f,
+          reservation_type: type,
+          start_date: f.start_date || initialDate,
+          day_of_week: f.day_of_week || dow,
+        }
+      } else {
+        return {
+          ...f,
+          reservation_type: type,
+          booking_date: f.booking_date || f.start_date || new Date().toISOString().split('T')[0],
+        }
+      }
+    })
+  }
+
+  const handleStartDateChange = (e) => {
+    const val = e.target.value
+    if (!val) {
+      setForm((f) => ({ ...f, start_date: '', day_of_week: '' }))
+      return
+    }
+    const d = new Date(val + 'T00:00:00')
+    const dow = isNaN(d.getTime()) ? '' : String(d.getDay())
+    setForm((f) => ({
+      ...f,
+      start_date: val,
+      day_of_week: dow,
+    }))
+  }
+
+  const handleDayOfWeekChange = (e) => {
+    const dow = e.target.value
+    if (dow === '') {
+      setForm((f) => ({ ...f, day_of_week: '' }))
+      return
+    }
+    const targetDow = Number(dow)
+    const base = form.start_date ? new Date(form.start_date + 'T00:00:00') : new Date()
+    const currentDow = base.getDay()
+    const diff = (targetDow - currentDow + 7) % 7
+    const targetDate = new Date(base)
+    targetDate.setDate(base.getDate() + diff)
+    const dateStr = targetDate.toISOString().split('T')[0]
+    setForm((f) => ({
+      ...f,
+      day_of_week: dow,
+      start_date: dateStr,
+    }))
+  }
 
   const submit = async () => {
     setBusy(true)
@@ -98,7 +157,7 @@ function NewBookingModal({ open, onClose, onSaved }) {
         end_time: form.end_time,
         notes: form.notes || undefined,
         ...(isWeekly
-          ? { day_of_week: Number(form.day_of_week), start_date: form.start_date, end_date: form.end_date || undefined }
+          ? { day_of_week: Number(form.day_of_week), start_date: form.start_date, end_date: form.end_date || null }
           : { booking_date: form.booking_date }),
       }
       const res = await api.post('/manager/bookings/training', payload)
@@ -161,7 +220,7 @@ function NewBookingModal({ open, onClose, onSaved }) {
               <button
                 key={t.value}
                 type="button"
-                onClick={() => setForm((f) => ({ ...f, reservation_type: t.value }))}
+                onClick={() => handleReservationTypeChange(t.value)}
                 className={`flex-1 rounded-xl border px-3 py-2.5 text-xs font-bold transition-all ${
                   form.reservation_type === t.value
                     ? 'border-green-500 bg-green-50 text-green-700'
@@ -177,7 +236,7 @@ function NewBookingModal({ open, onClose, onSaved }) {
         {isWeekly ? (
           <FieldRow cols={3}>
             <Field label={t('dash.dayOfWeek')} required>
-              <select className={selectClass} value={form.day_of_week} onChange={set('day_of_week')}>
+              <select className={selectClass} value={form.day_of_week} onChange={handleDayOfWeekChange}>
                 <option value="">{t('dash.chooseADay')}</option>
                 {Object.entries(dayLabels).map(([k, v]) => (
                   <option key={k} value={k}>
@@ -187,7 +246,7 @@ function NewBookingModal({ open, onClose, onSaved }) {
               </select>
             </Field>
             <Field label={t('dash.startDate')} required>
-              <input type="date" className={inputClass} value={form.start_date} onChange={set('start_date')} />
+              <input type="date" className={inputClass} value={form.start_date} onChange={handleStartDateChange} />
             </Field>
             <Field label={t('dash.endDate')}>
               <input type="date" className={inputClass} value={form.end_date} onChange={set('end_date')} />
@@ -209,6 +268,15 @@ function NewBookingModal({ open, onClose, onSaved }) {
               loading={loading}
               label={t('dash.startTime')}
               required
+              emptyText={
+                !form.terrain_id
+                  ? t('dash.chooseAFieldFirst', 'يرجى اختيار الملعب أولاً')
+                  : !slotDate
+                  ? t('dash.chooseDateFirst', 'يرجى تحديد التاريخ أولاً')
+                  : closed
+                  ? (closedReason || t('dash.stadiumClosed', 'الملعب مغلق'))
+                  : undefined
+              }
             />
           </Field>
           <Field label={t('dash.endTime')} required>
@@ -220,7 +288,15 @@ function NewBookingModal({ open, onClose, onSaved }) {
               loading={loading}
               label={t('dash.endTime')}
               required
-              emptyText={closed ? closedReason || 'الملعب مغلق' : undefined}
+              emptyText={
+                !form.terrain_id
+                  ? t('dash.chooseAFieldFirst', 'يرجى اختيار الملعب أولاً')
+                  : !slotDate
+                  ? t('dash.chooseDateFirst', 'يرجى تحديد التاريخ أولاً')
+                  : closed
+                  ? (closedReason || t('dash.stadiumClosed', 'الملعب مغلق'))
+                  : undefined
+              }
             />
           </Field>
         </FieldRow>
@@ -294,6 +370,11 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
   const { t } = useTranslation()
   const terrain = booking?.terrain && typeof booking.terrain === 'object' && !Array.isArray(booking.terrain) ? booking.terrain : {}
   const isWeekly = booking?.reservation_type === 'weekly_subscription'
+  const weeklyDates = isWeekly && booking ? getWeeklySubscriptionDates(booking) : []
+  const [selectedMatchDate, setSelectedMatchDate] = useState(null)
+
+  const activeDate = selectedMatchDate || (weeklyDates.find((x) => x.is_next)?.date) || weeklyDates[0]?.date || booking?.booking_date
+
   return (
     <Drawer open={Boolean(booking)} onClose={onClose} title={t('dash.bookingDetails')} subtitle={`حجز ${terrain.name || t('dash.field3')}`} size="460">
       {booking && (
@@ -354,6 +435,50 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
             ))}
           </div>
 
+          {isWeekly && weeklyDates.length > 0 && (
+            <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+              <div className="mb-2.5 flex items-center justify-between">
+                <p className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                  <CalendarDays className="size-4 text-green-600" />
+                  <span>جميع مواعيد الاشتراك ({weeklyDates.length} أسابيع)</span>
+                </p>
+                <span className="text-[10px] font-bold text-slate-400">
+                  {booking.day_of_week !== null && booking.day_of_week !== undefined ? dayLabels[booking.day_of_week] : ''}
+                </span>
+              </div>
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pe-1">
+                {weeklyDates.map((d) => {
+                  const isChosen = activeDate === d.date
+                  return (
+                    <div
+                      key={d.date}
+                      onClick={() => !d.is_past && setSelectedMatchDate(d.date)}
+                      className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+                        isChosen
+                          ? 'bg-green-600 text-white shadow-xs'
+                          : d.is_today
+                          ? 'bg-green-100 text-green-800 font-bold'
+                          : d.is_next
+                          ? 'bg-emerald-50 text-emerald-700 font-bold ring-1 ring-emerald-200'
+                          : d.is_past
+                          ? 'bg-white/60 text-slate-400 line-through cursor-not-allowed'
+                          : 'bg-white text-slate-700 hover:bg-slate-100 cursor-pointer'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <span className={`inline-block size-1.5 rounded-full ${isChosen ? 'bg-white' : d.is_next ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                        الأسبوع {d.week_number}: {new Date(d.date + 'T00:00:00').toLocaleDateString('ar-MA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                      <span className={`text-[10px] font-bold ${isChosen ? 'text-white/90' : 'text-slate-400'}`}>
+                        {d.is_today ? 'اليوم' : d.is_next ? 'الموعد القادم' : d.is_past ? 'مضى' : ''}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {booking.notes && (
             <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
               <p className="text-[10px] font-bold text-slate-400">{t('dash.notes')}</p>
@@ -368,7 +493,7 @@ function BookingDetail({ booking, onClose, onCancel, onConvert }) {
                   <XCircle className="size-4" />
                   {t('dash.cancelBooking')}
                 </Button>
-                <Button className="flex-1" onClick={() => onConvert(booking)}>
+                <Button className="flex-1" onClick={() => onConvert(booking, activeDate)}>
                   <Swords className="size-4" />
                   {t('dash.convertToMatch')}
                 </Button>
@@ -420,11 +545,12 @@ export default function Bookings() {
     [bookings, type],
   )
 
-  const convert = async (b) => {
+  const convert = async (b, dateOverride) => {
     if (!window.confirm(t('dash.convertThisBookingIntoAMatchRequestLookingForAnOpponent'))) return
     setBusyId(b.id)
     try {
-      const res = await api.post(`/manager/match-requests/from-booking/${b.id}`)
+      const payload = dateOverride ? { date: dateOverride } : {}
+      const res = await api.post(`/manager/match-requests/from-booking/${b.id}`, payload)
       toast.success(res.data.message || t('dash.matchRequestCreated'))
       refetch()
     } catch (e) {
@@ -434,7 +560,8 @@ export default function Bookings() {
     }
   }
 
-  const actionsFor = (b) => {
+  const actionsFor = (b) => ({ selectedDate } = {}) => {
+    const targetDate = selectedDate || b.next_date || b.booking_date
     if (category === 'past' || category === 'cancelled') {
       return (
         <span className="text-[11px] font-bold text-slate-400">
@@ -451,7 +578,7 @@ export default function Bookings() {
               <XCircle className="size-3.5" />
               {t('dash.cancelBooking')}
             </Button>
-            <Button size="sm" disabled={busyId === b.id} onClick={() => convert(b)}>
+            <Button size="sm" disabled={busyId === b.id} onClick={() => convert(b, targetDate)}>
               <Swords className="size-3.5" />
               {t('dash.convertToMatch')}
             </Button>
@@ -585,9 +712,9 @@ export default function Bookings() {
           setCancelBooking(b)
           setDetail(null)
         }}
-        onConvert={(b) => {
+        onConvert={(b, date) => {
           setDetail(null)
-          convert(b)
+          convert(b, date)
         }}
       />
     </div>

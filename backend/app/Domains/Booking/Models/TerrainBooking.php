@@ -24,6 +24,8 @@ class TerrainBooking extends Model
         'booking_type',
         'flow_type',
         'reservation_type',
+        'source',
+        'custom_pitch_name',
         'match_request_id',
         'booking_date',
         'day_of_week',
@@ -222,6 +224,55 @@ class TerrainBooking extends Model
         }
 
         return $this->booking_date?->copy();
+    }
+
+    public function getSubscriptionDates(): array
+    {
+        if (! $this->isWeeklySubscription()) {
+            return $this->booking_date ? [[
+                'week_number' => 1,
+                'date' => $this->booking_date->toDateString(),
+                'is_past' => $this->booking_date->lt(Carbon::today()),
+                'is_today' => $this->booking_date->isToday(),
+                'is_next' => true,
+            ]] : [];
+        }
+
+        $today = Carbon::today();
+        $start = $this->start_date ? $this->start_date->copy() : ($this->booking_date ? $this->booking_date->copy() : $today->copy());
+        $dow = $this->day_of_week ?? $start->dayOfWeek;
+
+        $diff = ($dow - $start->dayOfWeek + 7) % 7;
+        $cursor = $start->copy()->addDays($diff);
+
+        if ($this->end_date) {
+            $end = $this->end_date->copy();
+        } else {
+            $end = $cursor->copy()->addWeeks(3);
+        }
+
+        $dates = [];
+        $weekNum = 1;
+        while ($cursor->lte($end) && count($dates) < 52) {
+            $dates[] = [
+                'week_number' => $weekNum++,
+                'date' => $cursor->toDateString(),
+                'is_past' => $cursor->lt($today),
+                'is_today' => $cursor->isToday(),
+                'is_next' => false,
+            ];
+            $cursor = $cursor->addWeek();
+        }
+
+        $nextFound = false;
+        foreach ($dates as &$d) {
+            if (! $nextFound && ! $d['is_past']) {
+                $d['is_next'] = true;
+                $nextFound = true;
+            }
+        }
+
+        return $dates;
     }
 
     public static function checkConflict(int $terrainId, string $date, string $startTime, string $endTime, ?int $excludeId = null): bool

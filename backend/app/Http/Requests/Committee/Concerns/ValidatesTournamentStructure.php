@@ -25,7 +25,7 @@ trait ValidatesTournamentStructure
      */
     protected function effectiveValue(string $key): mixed
     {
-        if ($this->has($key) && $this->input($key) !== null) {
+        if ($this->has($key)) {
             return $this->input($key);
         }
 
@@ -43,6 +43,7 @@ trait ValidatesTournamentStructure
         $knockout = $this->effectiveValue('knockout_teams');
 
         $isGroupFormat = in_array($format, ['groups_knockout', 'groups_only'], true);
+        $hasKnockout = in_array($format, ['groups_knockout', 'knockout_only'], true);
         $perGroupInt = max(2, (int) ($perGroup ?? 2));
         $effectiveGroups = $this->effectiveGroups($teams, $perGroupInt, $groups);
 
@@ -85,7 +86,7 @@ trait ValidatesTournamentStructure
         }
 
         // Knockout slots can never exceed the total number of teams.
-        if ($knockout !== null && (int) $knockout > $teams) {
+        if ($hasKnockout && $knockout !== null && (int) $knockout > $teams) {
             $validator->errors()->add('knockout_teams', 'عدد فرق الإقصاء المباشر يجب ألا يتجاوز العدد الكلي للفرق');
         }
 

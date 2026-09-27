@@ -11,31 +11,66 @@ function setMeta(attr, key, content) {
   el.setAttribute('content', content)
 }
 
+function setLink(rel, href) {
+  if (!href) return
+  let el = document.head.querySelector(`link[rel="${rel}"]`)
+  if (!el) {
+    el = document.createElement('link')
+    el.setAttribute('rel', rel)
+    document.head.appendChild(el)
+  }
+  el.setAttribute('href', href)
+}
+
 function removeMeta(attr, key) {
   document.head.querySelectorAll(`meta[${attr}="${key}"]`).forEach((el) => el.remove())
 }
 
-// Lightweight SEO helper: sets document title + meta description + Open Graph tags.
-// No external framework — reuses the app's existing single-page architecture.
-export default function useSeo({ title, description, image }) {
+// Lightweight SEO hook: sets document title, meta description, keywords, canonical, and Open Graph / Twitter tags.
+export default function useSeo({
+  title,
+  description,
+  keywords,
+  canonical,
+  image = 'https://ajin9essro.com/logo.jpeg',
+}) {
   useEffect(() => {
     const previousTitle = document.title
-    const hadDescription = Boolean(document.head.querySelector('meta[name="description"]'))
+    const baseBrand = 'أجي نقصرو'
+    const fullTitle = title
+      ? (title.includes(baseBrand) ? title : `${title} | ${baseBrand}`)
+      : 'أجي نقصرو | أول منصة لتنظيم مباريات كرة القدم وحجز ملاعب القرب بالمغرب'
 
-    if (title) document.title = title
-    setMeta('name', 'description', description)
-    setMeta('property', 'og:title', title)
-    setMeta('property', 'og:description', description)
+    document.title = fullTitle
+
+    if (description) {
+      setMeta('name', 'description', description)
+      setMeta('property', 'og:description', description)
+      setMeta('name', 'twitter:description', description)
+    }
+
+    if (keywords) {
+      setMeta('name', 'keywords', keywords)
+    }
+
+    setMeta('property', 'og:title', fullTitle)
+    setMeta('name', 'twitter:title', fullTitle)
     setMeta('property', 'og:type', 'website')
-    if (image) setMeta('property', 'og:image', image)
+    setMeta('name', 'twitter:card', 'summary_large_image')
+
+    if (image) {
+      setMeta('property', 'og:image', image)
+      setMeta('name', 'twitter:image', image)
+    }
+
+    if (canonical) {
+      setLink('canonical', canonical)
+      setMeta('property', 'og:url', canonical)
+      setMeta('name', 'twitter:url', canonical)
+    }
 
     return () => {
       document.title = previousTitle
-      removeMeta('property', 'og:title')
-      removeMeta('property', 'og:description')
-      removeMeta('property', 'og:type')
-      removeMeta('property', 'og:image')
-      if (!hadDescription) removeMeta('name', 'description')
     }
-  }, [title, description, image])
+  }, [title, description, keywords, canonical, image])
 }

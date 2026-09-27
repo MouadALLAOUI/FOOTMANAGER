@@ -107,13 +107,29 @@ class OAuthController extends Controller
             $name = $socialUser->getName() ?: 'مستخدم';
             $idColumn = $provider . '_id';
 
-            // 1. Search for existing user with this provider ID
-            $user = User::where($idColumn, $providerId)->first();
+            $hasIdColumn = false;
+            try {
+                $hasIdColumn = Schema::hasColumn('users', $idColumn);
+            } catch (\Throwable) {
+                $hasIdColumn = false;
+            }
+
+            // 1. Search for existing user (including soft deleted) with this provider ID
+            $user = null;
+            if ($hasIdColumn && $providerId) {
+                $user = User::withTrashed()->where($idColumn, $providerId)->first();
+            }
 
             // 2. If not found by provider ID, match by verified email
             if (! $user && $email) {
-                $user = User::where('email', $email)->first();
-                if ($user) {
+                $user = User::withTrashed()->where('email', $email)->first();
+            }
+
+            if ($user) {
+                if ($user->trashed()) {
+                    $user->restore();
+                }
+                if ($hasIdColumn && $user->{$idColumn} !== $providerId) {
                     $user->update([$idColumn => $providerId]);
                 }
             }
@@ -122,7 +138,14 @@ class OAuthController extends Controller
 
             // 3. If still not found, register new user
             if (! $user) {
-                if (! Setting::get('registration_open', true)) {
+                $regOpen = true;
+                try {
+                    $regOpen = Setting::get('registration_open', true);
+                } catch (\Throwable) {
+                    $regOpen = true;
+                }
+
+                if (! $regOpen) {
                     return redirect()->away($frontendUrl . '/login?error=' . urlencode('التسجيل مغلق حالياً'));
                 }
 
@@ -133,56 +156,76 @@ class OAuthController extends Controller
                 $status = in_array($role, ['manager', 'terrain_owner', 'committee'], true) ? 'pending' : 'approved';
                 $avatarUrl = $socialUser->getAvatar();
 
-                $user = DB::transaction(function () use ($name, $email, $idColumn, $providerId, $role, $status, $avatarUrl) {
+                $user = DB::transaction(function () use ($name, $email, $idColumn, $providerId, $role, $status, $avatarUrl, $hasIdColumn) {
                     $userData = [
                         'name' => $name,
                         'email' => $email,
                         'phone' => null,
                         'is_whatsapp' => false,
                         'password' => bcrypt(Str::random(32)),
-                        $idColumn => $providerId,
                         'role' => $role,
                         'status' => $status,
                         'email_verified_at' => now(),
                     ];
 
-                    if (Schema::hasColumn('users', 'avatar_path')) {
-                        $userData['avatar_path'] = $avatarUrl;
+                    if ($hasIdColumn) {
+                        $userData[$idColumn] = $providerId;
                     }
+
+                    try {
+                        if (Schema::hasColumn('users', 'avatar_path')) {
+                            $userData['avatar_path'] = $avatarUrl;
+                        }
+                    } catch (\Throwable) {}
 
                     $newUser = User::create($userData);
 
                     if ($role === 'player') {
-                        PlayerProfile::create([
-                            'user_id' => $newUser->id,
-                            'position' => 'midfielder',
-                            'city' => null,
-                        ]);
+                        try {
+                            PlayerProfile::create([
+                                'user_id' => $newUser->id,
+                                'position' => 'midfielder',
+                                'city' => null,
+                            ]);
+                        } catch (\Throwable $pe) {
+                            Log::warning("Could not auto-create player profile: " . $pe->getMessage());
+                        }
                     } elseif ($role === 'manager') {
-                        $team = Team::create([
-                            'name' => 'فريق ' . $name,
-                            'manager_id' => $newUser->id,
-                            'visibility' => 'private',
-                            'category' => 'adult',
-                        ]);
-                        if (Schema::hasColumn('users', 'current_team_id')) {
-                            $newUser->current_team_id = $team->id;
+                        try {
+                            $team = Team::create([
+                                'name' => 'فريق ' . $name,
+                                'manager_id' => $newUser->id,
+                                'visibility' => 'private',
+                                'category' => 'adult',
+                                'member_count' => 11,
+                            ]);
+                            try {
+                                if (Schema::hasColumn('users', 'current_team_id')) {
+                                    $newUser->current_team_id = $team->id;
+                                }
+                                if (Schema::hasColumn('users', 'onboarding_step')) {
+                                    $newUser->onboarding_step = 'team';
+                                }
+                                $newUser->save();
+                            } catch (\Throwable) {}
+                        } catch (\Throwable $te) {
+                            Log::warning("Could not auto-create manager team: " . $te->getMessage());
                         }
-                        if (Schema::hasColumn('users', 'onboarding_step')) {
-                            $newUser->onboarding_step = 'team';
-                        }
-                        $newUser->save();
                     } elseif ($role === 'terrain_owner') {
-                        Stadium::create([
-                            'owner_id' => $newUser->id,
-                            'name' => 'ملعب ' . $name,
-                            'city' => 'الدار البيضاء',
-                            'price_per_hour' => 300,
-                            'total_price' => 300,
-                            'price_per_team' => 150,
-                            'is_available' => true,
-                            'is_open' => true,
-                        ]);
+                        try {
+                            Stadium::create([
+                                'owner_id' => $newUser->id,
+                                'name' => 'ملعب ' . $name,
+                                'city' => 'الدار البيضاء',
+                                'price_per_hour' => 300,
+                                'total_price' => 300,
+                                'price_per_team' => 150,
+                                'is_available' => true,
+                                'is_open' => true,
+                            ]);
+                        } catch (\Throwable $se) {
+                            Log::warning("Could not auto-create stadium: " . $se->getMessage());
+                        }
                     }
 
                     return $newUser;
@@ -190,13 +233,17 @@ class OAuthController extends Controller
 
                 $isNewUser = true;
 
-                $this->notifyAdminOfNewRegistration([
-                    'type' => $role,
-                    'name' => $name,
-                    'phone' => null,
-                    'email' => $email,
-                    'team_name' => $role === 'manager' ? ('فريق ' . $name) : null,
-                ]);
+                try {
+                    $this->notifyAdminOfNewRegistration([
+                        'type' => $role,
+                        'name' => $name,
+                        'phone' => null,
+                        'email' => $email,
+                        'team_name' => $role === 'manager' ? ('فريق ' . $name) : null,
+                    ]);
+                } catch (\Throwable $ne) {
+                    Log::warning("OAuth registration notification failed: " . $ne->getMessage());
+                }
             }
 
             // Check account approval status
@@ -228,7 +275,8 @@ class OAuthController extends Controller
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return redirect()->away($frontendUrl . '/login?error=' . urlencode('حدث خطأ أثناء معالجة حسابك. يرجى المحاولة لاحقاً.'));
+            $detail = $e->getMessage();
+            return redirect()->away($frontendUrl . '/login?error=' . urlencode('حدث خطأ أثناء معالجة حسابك: ' . $detail));
         }
     }
 
@@ -261,11 +309,27 @@ class OAuthController extends Controller
             $avatarUrl = $socialUser->getAvatar();
             $idColumn = $provider . '_id';
 
-            $user = User::where($idColumn, $providerId)->first();
+            $hasIdColumn = false;
+            try {
+                $hasIdColumn = Schema::hasColumn('users', $idColumn);
+            } catch (\Throwable) {
+                $hasIdColumn = false;
+            }
+
+            $user = null;
+            if ($hasIdColumn && $providerId) {
+                $user = User::withTrashed()->where($idColumn, $providerId)->first();
+            }
 
             if (! $user && $email) {
-                $user = User::where('email', $email)->first();
-                if ($user) {
+                $user = User::withTrashed()->where('email', $email)->first();
+            }
+
+            if ($user) {
+                if ($user->trashed()) {
+                    $user->restore();
+                }
+                if ($hasIdColumn && $user->{$idColumn} !== $providerId) {
                     $user->update([$idColumn => $providerId]);
                 }
             }
@@ -273,7 +337,14 @@ class OAuthController extends Controller
             $isNewUser = false;
 
             if (! $user) {
-                if (! Setting::get('registration_open', true)) {
+                $regOpen = true;
+                try {
+                    $regOpen = Setting::get('registration_open', true);
+                } catch (\Throwable) {
+                    $regOpen = true;
+                }
+
+                if (! $regOpen) {
                     return response()->json(['message' => 'التسجيل مغلق حالياً'], 403);
                 }
 
@@ -283,56 +354,76 @@ class OAuthController extends Controller
                 }
                 $status = in_array($role, ['manager', 'terrain_owner', 'committee'], true) ? 'pending' : 'approved';
 
-                $user = DB::transaction(function () use ($name, $email, $idColumn, $providerId, $role, $status, $avatarUrl) {
+                $user = DB::transaction(function () use ($name, $email, $idColumn, $providerId, $role, $status, $avatarUrl, $hasIdColumn) {
                     $userData = [
                         'name' => $name,
                         'email' => $email,
                         'phone' => null,
                         'is_whatsapp' => false,
                         'password' => bcrypt(Str::random(32)),
-                        $idColumn => $providerId,
                         'role' => $role,
                         'status' => $status,
                         'email_verified_at' => now(),
                     ];
 
-                    if (Schema::hasColumn('users', 'avatar_path')) {
-                        $userData['avatar_path'] = $avatarUrl;
+                    if ($hasIdColumn) {
+                        $userData[$idColumn] = $providerId;
                     }
+
+                    try {
+                        if (Schema::hasColumn('users', 'avatar_path')) {
+                            $userData['avatar_path'] = $avatarUrl;
+                        }
+                    } catch (\Throwable) {}
 
                     $newUser = User::create($userData);
 
                     if ($role === 'player') {
-                        PlayerProfile::create([
-                            'user_id' => $newUser->id,
-                            'position' => 'midfielder',
-                            'city' => null,
-                        ]);
+                        try {
+                            PlayerProfile::create([
+                                'user_id' => $newUser->id,
+                                'position' => 'midfielder',
+                                'city' => null,
+                            ]);
+                        } catch (\Throwable $pe) {
+                            Log::warning("Could not auto-create player profile: " . $pe->getMessage());
+                        }
                     } elseif ($role === 'manager') {
-                        $team = Team::create([
-                            'name' => 'فريق ' . $name,
-                            'manager_id' => $newUser->id,
-                            'visibility' => 'private',
-                            'category' => 'adult',
-                        ]);
-                        if (Schema::hasColumn('users', 'current_team_id')) {
-                            $newUser->current_team_id = $team->id;
+                        try {
+                            $team = Team::create([
+                                'name' => 'فريق ' . $name,
+                                'manager_id' => $newUser->id,
+                                'visibility' => 'private',
+                                'category' => 'adult',
+                                'member_count' => 11,
+                            ]);
+                            try {
+                                if (Schema::hasColumn('users', 'current_team_id')) {
+                                    $newUser->current_team_id = $team->id;
+                                }
+                                if (Schema::hasColumn('users', 'onboarding_step')) {
+                                    $newUser->onboarding_step = 'team';
+                                }
+                                $newUser->save();
+                            } catch (\Throwable) {}
+                        } catch (\Throwable $te) {
+                            Log::warning("Could not auto-create manager team: " . $te->getMessage());
                         }
-                        if (Schema::hasColumn('users', 'onboarding_step')) {
-                            $newUser->onboarding_step = 'team';
-                        }
-                        $newUser->save();
                     } elseif ($role === 'terrain_owner') {
-                        Stadium::create([
-                            'owner_id' => $newUser->id,
-                            'name' => 'ملعب ' . $name,
-                            'city' => 'الدار البيضاء',
-                            'price_per_hour' => 300,
-                            'total_price' => 300,
-                            'price_per_team' => 150,
-                            'is_available' => true,
-                            'is_open' => true,
-                        ]);
+                        try {
+                            Stadium::create([
+                                'owner_id' => $newUser->id,
+                                'name' => 'ملعب ' . $name,
+                                'city' => 'الدار البيضاء',
+                                'price_per_hour' => 300,
+                                'total_price' => 300,
+                                'price_per_team' => 150,
+                                'is_available' => true,
+                                'is_open' => true,
+                            ]);
+                        } catch (\Throwable $se) {
+                            Log::warning("Could not auto-create stadium: " . $se->getMessage());
+                        }
                     }
 
                     return $newUser;
@@ -340,13 +431,17 @@ class OAuthController extends Controller
 
                 $isNewUser = true;
 
-                $this->notifyAdminOfNewRegistration([
-                    'type' => $role,
-                    'name' => $name,
-                    'phone' => null,
-                    'email' => $email,
-                    'team_name' => $role === 'manager' ? ('فريق ' . $name) : null,
-                ]);
+                try {
+                    $this->notifyAdminOfNewRegistration([
+                        'type' => $role,
+                        'name' => $name,
+                        'phone' => null,
+                        'email' => $email,
+                        'team_name' => $role === 'manager' ? ('فريق ' . $name) : null,
+                    ]);
+                } catch (\Throwable $ne) {
+                    Log::warning("OAuth registration notification failed: " . $ne->getMessage());
+                }
             }
 
             if ($user->status === 'blocked') {
@@ -373,7 +468,7 @@ class OAuthController extends Controller
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-            return response()->json(['message' => 'حدث خطأ أثناء معالجة الحساب. يرجى المحاولة لاحقاً.'], 500);
+            return response()->json(['message' => 'حدث خطأ أثناء معالجة الحساب: ' . $e->getMessage()], 500);
         }
     }
 

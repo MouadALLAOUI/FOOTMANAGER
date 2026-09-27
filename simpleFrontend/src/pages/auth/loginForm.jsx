@@ -35,7 +35,13 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('error') || ''
+    } catch {
+      return ''
+    }
+  })
   const [fieldErrors, setFieldErrors] = useState({})
   const [busy, setBusy] = useState(false)
 

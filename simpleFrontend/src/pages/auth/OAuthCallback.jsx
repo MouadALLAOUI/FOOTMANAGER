@@ -22,7 +22,7 @@ export default function OAuthCallback() {
       const decoded = decodeURIComponent(error)
       setErrorMsg(decoded)
       toast.error(decoded)
-      const timer = setTimeout(() => navigate('/login', { replace: true }), 3000)
+      const timer = setTimeout(() => navigate('/login?error=' + encodeURIComponent(decoded), { replace: true }), 3500)
       return () => clearTimeout(timer)
     }
 

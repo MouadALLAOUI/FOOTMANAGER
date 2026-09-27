@@ -214,33 +214,66 @@ class OnboardingController extends Controller
 
         $validated = $request->validate([
             'has_regular_time' => 'required|boolean',
-            'day_of_week' => 'nullable|required_if:has_regular_time,true|integer|between:0,6',
-            'start_time' => 'nullable|required_if:has_regular_time,true|string|max:10',
+            'day_of_week' => 'nullable|integer|between:0,6',
+            'start_time' => 'nullable|string|max:10',
             'end_time' => 'nullable|string|max:10',
             'pitch_name' => 'nullable|string|max:255',
+            'schedules' => 'nullable|array',
+            'schedules.*.day_of_week' => 'required|integer|between:0,6',
+            'schedules.*.start_time' => 'required|string|max:10',
+            'schedules.*.end_time' => 'nullable|string|max:10',
+            'schedules.*.pitch_name' => 'nullable|string|max:255',
         ]);
 
         if ($validated['has_regular_time']) {
-            // Delete previous manual onboarding schedule for this team to keep single clean entry or replace
+            // Delete previous manual onboarding schedule for this team to keep clean entries
             TerrainBooking::query()
                 ->where('team_id', $team->id)
                 ->where('source', 'imported_manual')
                 ->delete();
 
-            TerrainBooking::create([
-                'team_id' => $team->id,
-                'manager_id' => $user->id,
-                'booking_type' => 'training',
-                'flow_type' => 'amical',
-                'reservation_type' => 'weekly',
-                'source' => 'imported_manual',
-                'custom_pitch_name' => $validated['pitch_name'] ?: 'ملعب اعتيادي',
-                'day_of_week' => $validated['day_of_week'],
-                'start_time' => $validated['start_time'],
-                'end_time' => $validated['end_time'] ?? null,
-                'booking_date' => now()->toDateString(),
-                'status' => 'confirmed',
-            ]);
+            $items = [];
+            if (! empty($validated['schedules']) && is_array($validated['schedules'])) {
+                foreach ($validated['schedules'] as $s) {
+                    if (isset($s['day_of_week']) && ! empty($s['start_time'])) {
+                        $items[] = [
+                            'day_of_week' => (int) $s['day_of_week'],
+                            'start_time' => $s['start_time'],
+                            'end_time' => $s['end_time'] ?? null,
+                            'pitch_name' => ! empty($s['pitch_name']) ? trim($s['pitch_name']) : 'ملعب اعتيادي',
+                        ];
+                    }
+                }
+            } elseif (isset($validated['day_of_week']) && ! empty($validated['start_time'])) {
+                $items[] = [
+                    'day_of_week' => (int) $validated['day_of_week'],
+                    'start_time' => $validated['start_time'],
+                    'end_time' => $validated['end_time'] ?? null,
+                    'pitch_name' => ! empty($validated['pitch_name']) ? trim($validated['pitch_name']) : 'ملعب اعتيادي',
+                ];
+            }
+
+            foreach ($items as $item) {
+                TerrainBooking::create([
+                    'team_id' => $team->id,
+                    'manager_id' => $user->id,
+                    'booking_type' => 'training',
+                    'flow_type' => 'amical',
+                    'reservation_type' => 'weekly',
+                    'source' => 'imported_manual',
+                    'custom_pitch_name' => $item['pitch_name'],
+                    'day_of_week' => $item['day_of_week'],
+                    'start_time' => $item['start_time'],
+                    'end_time' => $item['end_time'] ?? null,
+                    'booking_date' => now()->toDateString(),
+                    'status' => 'confirmed',
+                ]);
+            }
+        } else {
+            TerrainBooking::query()
+                ->where('team_id', $team->id)
+                ->where('source', 'imported_manual')
+                ->delete();
         }
 
         $user->onboarding_step = 'tournament';

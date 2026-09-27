@@ -20,6 +20,7 @@ export default function AuthPage({ initialTab = 'login' }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [tab, setTab] = useState(initialTab)
+  const [selectedRole, setSelectedRole] = useState(null)
 
   useSeo({
     title: tab === 'register' ? 'إنشاء حساب جديد | أجي نقصرو' : 'تسجيل الدخول | أجي نقصرو',
@@ -33,10 +34,12 @@ export default function AuthPage({ initialTab = 'login' }) {
 
   useEffect(() => {
     setTab(initialTab)
+    if (initialTab !== 'register') setSelectedRole(null)
   }, [initialTab])
 
   const select = (id) => {
     setTab(id)
+    if (id !== 'register') setSelectedRole(null)
     navigate(id === 'register' ? '/register' : '/login', { replace: true })
   }
 
@@ -55,7 +58,7 @@ export default function AuthPage({ initialTab = 'login' }) {
           <LanguageSelector />
 
           <div className="fade-in my-auto w-full" style={{ animationDelay: '140ms' }}>
-            <div className="mb-8 flex flex-col items-center gap-2 lg:hidden" onClick={(e) => navigate('/')}>
+            <div className="mb-8 flex flex-col items-center gap-2 lg:hidden cursor-pointer" onClick={() => navigate('/')}>
               <img
                 src="/logo.jpeg"
                 alt=""
@@ -101,9 +104,18 @@ export default function AuthPage({ initialTab = 'login' }) {
               })}
             </div>
 
-            <div className="mt-7">{tab === 'login' ? <LoginForm /> : <RegisterForm />}</div>
+            <div className="mt-7">
+              {tab === 'login' ? (
+                <LoginForm />
+              ) : (
+                <RegisterForm onRoleChange={setSelectedRole} />
+              )}
+            </div>
 
-            <SocialLogin />
+            <SocialLogin
+              mode={tab}
+              role={tab === 'register' ? selectedRole : null}
+            />
             <SecurityCard />
 
             <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">

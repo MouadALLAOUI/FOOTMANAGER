@@ -145,6 +145,8 @@ class OnboardingController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:30',
+            'is_whatsapp' => 'nullable|boolean',
             'city' => 'nullable|string|max:255',
             'category' => 'nullable|in:adult,teenager,children',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:3072',
@@ -157,6 +159,14 @@ class OnboardingController extends Controller
         }
         if (isset($validated['category'])) {
             $team->category = $validated['category'];
+        }
+
+        if (! empty($validated['phone'])) {
+            $user->phone = $validated['phone'];
+            if (isset($validated['is_whatsapp'])) {
+                $user->is_whatsapp = (bool) $validated['is_whatsapp'];
+            }
+            $user->save();
         }
 
         if ($request->hasFile('logo')) {

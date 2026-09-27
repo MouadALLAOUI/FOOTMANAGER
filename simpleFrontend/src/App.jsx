@@ -37,6 +37,7 @@ const ManagerDashboard = lazy(() => import('./pages/manager'))
 const TerrainDashboard = lazy(() => import('./pages/terrain'))
 const AdminDashboard = lazy(() => import('./pages/admin'))
 const PlayerDashboard = lazy(() => import('./pages/player'))
+const PlayerOnboarding = lazy(() => import('./pages/player/onboarding'))
 const CommitteeDashboard = lazy(() => import('./pages/committee'))
 
 function RouteFallback() {
@@ -93,6 +94,7 @@ function App() {
               <Route path="/dashboard/*" element={<ProtectedRoute role="manager"><PageMaintenanceGate><ManagerDashboard /></PageMaintenanceGate></ProtectedRoute>} />
               <Route path="/terrain/*" element={<ProtectedRoute role="terrain_owner"><PageMaintenanceGate><TerrainDashboard /></PageMaintenanceGate></ProtectedRoute>} />
               <Route path="/admin/*" element={<ProtectedRoute role="admin"><PageMaintenanceGate><AdminDashboard /></PageMaintenanceGate></ProtectedRoute>} />
+              <Route path="/player/onboarding" element={<ProtectedRoute role="player"><PageMaintenanceGate><PlayerOnboarding /></PageMaintenanceGate></ProtectedRoute>} />
               <Route path="/player/*" element={<ProtectedRoute role="player"><PageMaintenanceGate><PlayerDashboard /></PageMaintenanceGate></ProtectedRoute>} />
               <Route path="/committee/*" element={<ProtectedRoute role="committee"><PageMaintenanceGate><CommitteeDashboard /></PageMaintenanceGate></ProtectedRoute>} />
             </Routes>

@@ -1,9 +1,13 @@
 import { useState } from 'react'
-import { Shield, Upload, MapPin, Check, Sparkles } from 'lucide-react'
+import { Shield, Upload, MapPin, Check, Sparkles, Phone } from 'lucide-react'
 import { Button, Field, inputClass, selectClass } from '../../components/dashboard/ui'
+import { useAuth } from '../../context/AuthContext'
 
 export default function StepTeam({ initialTeam, presets = [], onNext, busy }) {
+  const { user } = useAuth()
   const [name, setName] = useState(initialTeam?.name || '')
+  const [phone, setPhone] = useState(user?.phone || '')
+  const [isWhatsapp, setIsWhatsapp] = useState(user?.is_whatsapp ?? true)
   const [city, setCity] = useState(initialTeam?.city || '')
   const [category, setCategory] = useState(initialTeam?.category || 'adult')
   const [selectedPresetId, setSelectedPresetId] = useState(null)
@@ -36,10 +40,18 @@ export default function StepTeam({ initialTeam, presets = [], onNext, busy }) {
       setError('يرجى إدخال اسم الفريق')
       return
     }
+    if (!user?.phone && !phone.trim()) {
+      setError('يرجى إدخال رقم هاتفك لتنسيق المباريات والتواصل')
+      return
+    }
     setError('')
 
     const formData = new FormData()
     formData.append('name', name.trim())
+    if (phone.trim()) {
+      formData.append('phone', phone.trim())
+      formData.append('is_whatsapp', isWhatsapp ? '1' : '0')
+    }
     if (city.trim()) formData.append('city', city.trim())
     if (category) formData.append('category', category)
     if (logoFile) {
@@ -164,6 +176,34 @@ export default function StepTeam({ initialTeam, presets = [], onNext, busy }) {
               required
             />
           </Field>
+
+          {!user?.phone && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-50/50 p-4 space-y-3">
+              <Field label="رقم الهاتف الخاص بك (مطلوب لتنسيق المباريات والتواصل)" required>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="06XXXXXXXX أو 07XXXXXXXX"
+                    className={inputClass}
+                    dir="ltr"
+                    required
+                  />
+                  <Phone className="pointer-events-none absolute end-3.5 top-3.5 size-4 text-emerald-600" />
+                </div>
+              </Field>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-700 select-none">
+                <input
+                  type="checkbox"
+                  checked={isWhatsapp}
+                  onChange={(e) => setIsWhatsapp(e.target.checked)}
+                  className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span>رقم الهاتف هذا يتوفر على واتساب (WhatsApp)</span>
+              </label>
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="المدينة / المنطقة">

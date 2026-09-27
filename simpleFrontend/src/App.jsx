@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './layout'
-import { ProtectedRoute, GuestRoute } from './components/auth'
+import { ProtectedRoute, GuestRoute, OnboardingRoute } from './components/auth'
 import { ToastContainer } from './components/ui/Toast'
 import { ErrorBoundary, NotFound } from './components/errors'
 import MaintenanceGate from './components/system/MaintenanceGate'
@@ -28,6 +28,7 @@ const PublicTournamentDetail = lazy(() => import('./pages/tournaments/detail'))
 const Login = lazy(() => import('./pages/auth/login'))
 const Register = lazy(() => import('./pages/auth/register'))
 const Pending = lazy(() => import('./pages/auth/pending'))
+const Onboarding = lazy(() => import('./pages/onboarding'))
 const ForgotPassword = lazy(() => import('./pages/auth/forgot-password'))
 const ResetPassword = lazy(() => import('./pages/auth/reset-password'))
 const RecoveryApply = lazy(() => import('./pages/auth/recovery'))
@@ -71,6 +72,8 @@ function App() {
                 <Route path="/faq" element={<PageMaintenanceGate><Faq /></PageMaintenanceGate>} />
                 <Route path="/pricing" element={<PageMaintenanceGate><Pricing /></PageMaintenanceGate>} />
                 <Route path="/fields" element={<PageMaintenanceGate><Fields /></PageMaintenanceGate>} />
+                <Route path="/terrains" element={<Navigate to="/fields" replace />} />
+                <Route path="/stadiums" element={<Navigate to="/fields" replace />} />
                 <Route path="/matches" element={<PageMaintenanceGate><Matches /></PageMaintenanceGate>} />
                 <Route path="/matches/invite/:token" element={<PageMaintenanceGate><MatchInvitePage /></PageMaintenanceGate>} />
                 <Route path="/tournaments" element={<PageMaintenanceGate><PublicTournaments /></PageMaintenanceGate>} />
@@ -83,6 +86,7 @@ function App() {
               <Route path="/forgot-password" element={<GuestRoute><PageMaintenanceGate><ForgotPassword /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/reset-password" element={<GuestRoute><PageMaintenanceGate><ResetPassword /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/pending" element={<PageMaintenanceGate><Pending /></PageMaintenanceGate>} />
+              <Route path="/onboarding" element={<OnboardingRoute><PageMaintenanceGate><Onboarding /></PageMaintenanceGate></OnboardingRoute>} />
               <Route path="/recovery" element={<PageMaintenanceGate><RecoveryApply /></PageMaintenanceGate>} />
               <Route path="/auth/callback" element={<OAuthCallback />} />
 

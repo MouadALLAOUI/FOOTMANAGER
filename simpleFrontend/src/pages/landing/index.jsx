@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SEO from '../../components/system/SEO'
 import Hero from './hero'
 import Search from './search'
 import PopularSearches from './popularSearches'
@@ -18,6 +19,12 @@ export default function Landing() {
 
   return (
     <>
+      <SEO
+        title="أجي نقصرو | أول منصة لتنظيم مباريات كرة القدم وحجز ملاعب القرب بالمغرب"
+        description="أجي نقصرو (Aji Nqssro) — المنصة المغربية الأولى لمسيري ولاعبي كرة القدم. احجز ملاعب القرب، نظّم مباريات ودية وتحديات كروية، انضم إلى دوريات الأحياء وبطولات الهواة في كازا، الرباط، مراكش، طنجة وجميع مدن المغرب."
+        canonical="https://ajin9essro.com/"
+        keywords="أجي نقصرو, aji nqssro, ajin9essro, حجز ملاعب القرب, تيران القرب, مباريات ودية, ماتش كورة, تنظيم دوريات كرة القدم, ملاعب الدار البيضاء, ملاعب الرباط, ملاعب مراكش, ملاعب طنجة"
+      />
     <main id="main-content">
       <Hero>
           <Search

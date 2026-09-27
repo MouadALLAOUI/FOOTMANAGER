@@ -25,7 +25,12 @@ const sortTournaments = (list) =>
 
 export default function TournamentsIndex() {
   const { t, i18n } = useTranslation()
-  useSeo({ title: t('public.tournaments.title'), description: t('public.tournaments.subtitle') })
+  useSeo({
+    title: t('public.tournaments.title') || 'دوريات وبطولات كرة القدم للهواة بالمغرب',
+    description: t('public.tournaments.subtitle') || 'شارك في أفضل دوريات الأحياء وبطولات كرة القدم للهواة في المغرب. جداول المباريات، المجموعات، الأدوار الإقصائية وجدول الترتيب المباشر.',
+    canonical: 'https://ajin9essro.com/tournaments',
+    keywords: 'دوريات كرة القدم بالمغرب, بطولة أحياء, دوري الهواة, بطولات كورة, تنظيم دوري كورة, tournoi football maroc',
+  })
 
   const { data, loading, error, refetch } = useApi(
     () => api.get('/v1/tournaments', { params: { per_page: 50 } }).then((r) => r.data),

@@ -9,6 +9,7 @@ import LoginForm from './loginForm'
 import RegisterForm from './registerForm'
 import SocialLogin from './socialLogin'
 import SecurityCard from './securityCard'
+import useSeo from '../../hooks/useSeo'
 
 const tabs = [
   { id: 'login', labelKey: 'auth.loginTab', icon: faRightToBracket },
@@ -19,6 +20,16 @@ export default function AuthPage({ initialTab = 'login' }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [tab, setTab] = useState(initialTab)
+
+  useSeo({
+    title: tab === 'register' ? 'إنشاء حساب جديد | أجي نقصرو' : 'تسجيل الدخول | أجي نقصرو',
+    description:
+      tab === 'register'
+        ? 'انضم إلى منصة أجي نقصرو كمدير فريق، لاعب، أو صاحب ملعب وابدأ تنظيم مبارياتك اليوم.'
+        : 'سجل دخولك إلى حسابك في منصة أجي نقصرو لإدارة فريقك ومبارياتك وحجوزات الملاعب.',
+    canonical: `https://ajin9essro.com/${tab === 'register' ? 'register' : 'login'}`,
+    keywords: 'تسجيل دخول أجي نقصرو, إنشاء حساب مدير فريق, تسجيل لاعب كورة, aji nqssro login',
+  })
 
   useEffect(() => {
     setTab(initialTab)

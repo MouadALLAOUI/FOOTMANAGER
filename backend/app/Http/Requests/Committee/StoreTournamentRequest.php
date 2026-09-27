@@ -40,6 +40,8 @@ class StoreTournamentRequest extends FormRequest
             'first_half_extra_minutes' => 'nullable|integer|min:0|max:30',
             'second_half_extra_minutes' => 'nullable|integer|min:0|max:30',
             'matches_per_day' => 'nullable|integer|min:1|max:30',
+            'rest_days_minimum' => 'nullable|integer|min:0|max:14',
+            'league_mode' => 'nullable|string|in:single_round_robin,double_round_robin,multi_group',
             'knockout_teams' => 'nullable|integer|min:2|max:64',
             'qualify_per_group' => 'nullable|integer|min:1|max:16',
             'points_for_win' => 'required|integer|min:0|max:10',

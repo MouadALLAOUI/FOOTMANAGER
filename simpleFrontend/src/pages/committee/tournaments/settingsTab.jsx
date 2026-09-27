@@ -55,6 +55,8 @@ export default function SettingsTab({ tournament, refresh }) {
 
   const [name, setName] = useState(tournament.name ?? '')
   const [format, setFormat] = useState(tournament.tournament_format ?? 'groups_knockout')
+  const [leagueMode, setLeagueMode] = useState(tournament.league_mode ?? 'single_round_robin')
+  const [restDaysMinimum, setRestDaysMinimum] = useState(tournament.rest_days_minimum ?? 1)
   const [teamsCount, setTeamsCount] = useState(tournament.teams_count ?? 8)
   const [teamsPerGroup, setTeamsPerGroup] = useState(tournament.teams_per_group ?? 4)
   const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(tournament.max_players_per_team ?? '')
@@ -99,14 +101,16 @@ export default function SettingsTab({ tournament, refresh }) {
       await api.put(`/committee/tournaments/${tournament.id}`, {
         name,
         tournament_format: format,
-        teams_count: teamsCount,
-        teams_per_group: isGroupFormat ? teamsPerGroup : null,
+        rest_days_minimum: format === 'league' ? (restDaysMinimum === '' ? 1 : Number(restDaysMinimum)) : null,
+        league_mode: format === 'league' ? leagueMode : null,
+        teams_count: teamsCount === '' ? null : Number(teamsCount),
+        teams_per_group: isGroupFormat ? Number(teamsPerGroup) : null,
         max_players_per_team: maxPlayersPerTeam === '' || maxPlayersPerTeam === null ? null : Number(maxPlayersPerTeam),
-        qualify_per_group: isGroupFormat ? qualifyPerGroup : null,
+        qualify_per_group: isGroupFormat ? Number(qualifyPerGroup) : null,
         knockout_teams: format === 'groups_knockout'
           ? computedKnockout
           : format === 'knockout_only'
-            ? tournament.knockout_teams || tournament.teams_count
+            ? Number(tournament.knockout_teams || tournament.teams_count)
             : null,
         group_mode: groupMode,
         match_duration_minutes: matchDuration,
@@ -395,6 +399,36 @@ export default function SettingsTab({ tournament, refresh }) {
               ))}
             </select>
           </Field>
+          {format === 'league' && (
+            <div className="space-y-4 rounded-2xl border border-green-200 bg-green-50/50 p-4">
+              <Field label="نظام مواجهات الدوري" hint="حدد طريقة التباري بين فرق الدوري">
+                <select
+                  className={selectClass}
+                  value={leagueMode}
+                  onChange={(e) => setLeagueMode(e.target.value)}
+                  disabled={!editable}
+                >
+                  <option value="single_round_robin">دوري ذهاب فقط (Single Round Robin)</option>
+                  <option value="double_round_robin">دوري ذهاب وإياب (Double Round Robin)</option>
+                </select>
+              </Field>
+
+              <Field
+                label="الحد الأدنى لأيام الراحة الإلزامية بين المباريات"
+                hint="الفاصل الإلزامي بين كل مباراتين يخوضهما الفريق (الافتراضي: 1 يوم كامل - مثلاً الثلاثاء ثم الخميس)"
+              >
+                <input
+                  type="number"
+                  min="0"
+                  max="14"
+                  className={inputClass}
+                  value={restDaysMinimum}
+                  onChange={(e) => setRestDaysMinimum(e.target.value)}
+                  disabled={!editable}
+                />
+              </Field>
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             {modes.map(({ key, icon: Icon, label, desc }) => {
               const selected = groupMode === key

@@ -11,6 +11,13 @@ class BookingCancelledListener
     public function handle(BookingCancelled $event): void
     {
         $booking = $event->booking;
+        $fixtureId = $booking->fixture_id ?? $booking->fresh()?->fixture_id;
+
+        if ($fixtureId) {
+            $booking = $booking->fresh() ?? $booking;
+            app(\App\Domains\Tournament\Services\LeagueAssignmentService::class)->handleBookingCancellation($booking);
+        }
+
         $by = $event->by;
         $owner = $booking->terrain?->owner;
         $manager = $booking->manager;

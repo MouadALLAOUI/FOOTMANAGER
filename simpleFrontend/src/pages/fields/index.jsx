@@ -15,6 +15,7 @@ import FieldsGrid from './fieldsGrid'
 import Pagination from './pagination'
 import EmptyState from './emptyState'
 import LoadingState from './loadingState'
+import SEO from '../../components/system/SEO'
 
 const PAGE_SIZE = 12
 const emptyFilters = { type: 'all', surface: 'all', cover: 'all' }
@@ -153,6 +154,12 @@ export default function Fields() {
 
   return (
     <>
+      <SEO
+        title="حجز ملاعب القرب وملاعب كرة القدم في المغرب | أجي نقصرو"
+        description="استعرض واحجز أفضل ملاعب القرب وملاعب العشب الاصطناعي والطبيعي في كازا، الرباط، مراكش، طنجة، فاس وأكادير بأفضل الأسعار وبضغطة زر على أجي نقصرو."
+        canonical="https://ajin9essro.com/fields"
+        keywords="حجز ملاعب القرب, تيران القرب, ملاعب كورة المغرب, حجز تيران كازا, ملاعب الرباط, ملاعب مراكش, ملاعب طنجة, ملاعب معشوشبة, reservation terrain foot maroc"
+      />
       <FieldsHero />
       <FieldsSearchPanel values={{ city, date, time, type: panelType }} onChange={handlePanelChange} onSearch={handleSearch} cities={citiesOptions} />
 

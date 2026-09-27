@@ -202,7 +202,13 @@ export default function TournamentsListScreen(): React.JSX.Element {
         {/* Section 3: آخر النتائج */}
         <View style={[styles.sectionWrap, { marginBottom: 30 }]}>
           <View style={styles.sectionHeader}>
-            <TouchableOpacity style={styles.seeAllBtn}>
+            <TouchableOpacity
+              style={styles.seeAllBtn}
+              onPress={() => {
+                const targetTournamentId = ongoingTournaments[0]?.id || upcomingTournaments[0]?.id || 1;
+                router.push(`/(public)/tournaments/${targetTournamentId}/matches` as any);
+              }}
+            >
               <ChevronLeft size={16} color="#00875A" />
               <Text style={styles.seeAllText}>عرض الكل</Text>
             </TouchableOpacity>
@@ -213,69 +219,77 @@ export default function TournamentsListScreen(): React.JSX.Element {
           </View>
 
           {recentResults.length > 0 ? (
-            recentResults.map((m, idx) => (
-              <View key={m.id || idx} style={styles.resultCard}>
-                <View style={styles.resultTopBar}>
-                  <View style={[styles.roundBadge, m.status === 'live' && { backgroundColor: '#DCFCE7' }]}>
-                    <Text style={[styles.roundBadgeText, m.status === 'live' && { color: '#00875A' }]}>
-                      {m.status === 'live' ? 'مباشر' : 'مباراة'}
-                    </Text>
-                  </View>
-                  <Text style={styles.resultTournamentTitle}>{m.tournament_name || 'البطولة'}</Text>
-                  <Text style={styles.resultDate}>
-                    {m.scheduled_at
-                      ? new Date(m.scheduled_at).toLocaleDateString('ar-MA', {
-                          day: 'numeric',
-                          month: 'short',
-                        })
-                      : 'قريباً'}
-                  </Text>
-                </View>
-
-                <View style={styles.resultTeamsRow}>
-                  {/* Team A */}
-                  <View style={styles.resultTeamCol}>
-                    {m.home_team?.logo_url ? (
-                      <Image
-                        source={{ uri: resolveImageUrl(m.home_team.logo_url) || undefined }}
-                        style={styles.teamResultLogo}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={[styles.shieldBox, { backgroundColor: '#00875A' }]}>
-                        <Shield size={18} color="#FFFFFF" />
-                      </View>
-                    )}
-                    <Text style={styles.resultTeamName}>{m.home_team?.name || 'الفريق الأول'}</Text>
-                  </View>
-
-                  {/* Score Box */}
-                  <View style={styles.scorePill}>
-                    <Text style={styles.scoreText}>
-                      {m.home_score !== null && m.home_score !== undefined && m.away_score !== null && m.away_score !== undefined
-                        ? `${m.home_score} - ${m.away_score}`
-                        : 'VS'}
+            recentResults.map((m, idx) => {
+              const targetTournamentId = ongoingTournaments[0]?.id || upcomingTournaments[0]?.id || 1;
+              return (
+                <TouchableOpacity
+                  key={m.id || idx}
+                  style={styles.resultCard}
+                  onPress={() => router.push(`/(public)/tournaments/${targetTournamentId}/match/${m.id}` as any)}
+                  activeOpacity={0.88}
+                >
+                  <View style={styles.resultTopBar}>
+                    <View style={[styles.roundBadge, m.status === 'live' && { backgroundColor: '#DCFCE7' }]}>
+                      <Text style={[styles.roundBadgeText, m.status === 'live' && { color: '#00875A' }]}>
+                        {m.status === 'live' ? 'مباشر' : 'مباراة'}
+                      </Text>
+                    </View>
+                    <Text style={styles.resultTournamentTitle}>{m.tournament_name || 'البطولة'}</Text>
+                    <Text style={styles.resultDate}>
+                      {m.scheduled_at
+                        ? new Date(m.scheduled_at).toLocaleDateString('ar-MA', {
+                            day: 'numeric',
+                            month: 'short',
+                          })
+                        : 'قريباً'}
                     </Text>
                   </View>
 
-                  {/* Team B */}
-                  <View style={styles.resultTeamCol}>
-                    {m.away_team?.logo_url ? (
-                      <Image
-                        source={{ uri: resolveImageUrl(m.away_team.logo_url) || undefined }}
-                        style={styles.teamResultLogo}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={[styles.shieldBox, { backgroundColor: '#EF4444' }]}>
-                        <Shield size={18} color="#FFFFFF" />
-                      </View>
-                    )}
-                    <Text style={styles.resultTeamName}>{m.away_team?.name || 'الفريق الثاني'}</Text>
+                  <View style={styles.resultTeamsRow}>
+                    {/* Team A */}
+                    <View style={styles.resultTeamCol}>
+                      {m.home_team?.logo_url ? (
+                        <Image
+                          source={{ uri: resolveImageUrl(m.home_team.logo_url) || undefined }}
+                          style={styles.teamResultLogo}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.shieldBox, { backgroundColor: '#00875A' }]}>
+                          <Shield size={18} color="#FFFFFF" />
+                        </View>
+                      )}
+                      <Text style={styles.resultTeamName}>{m.home_team?.name || 'الفريق الأول'}</Text>
+                    </View>
+
+                    {/* Score Box */}
+                    <View style={styles.scorePill}>
+                      <Text style={styles.scoreText}>
+                        {m.home_score !== null && m.home_score !== undefined && m.away_score !== null && m.away_score !== undefined
+                          ? `${m.home_score} - ${m.away_score}`
+                          : 'VS'}
+                      </Text>
+                    </View>
+
+                    {/* Team B */}
+                    <View style={styles.resultTeamCol}>
+                      {m.away_team?.logo_url ? (
+                        <Image
+                          source={{ uri: resolveImageUrl(m.away_team.logo_url) || undefined }}
+                          style={styles.teamResultLogo}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={[styles.shieldBox, { backgroundColor: '#EF4444' }]}>
+                          <Shield size={18} color="#FFFFFF" />
+                        </View>
+                      )}
+                      <Text style={styles.resultTeamName}>{m.away_team?.name || 'الفريق الثاني'}</Text>
+                    </View>
                   </View>
-                </View>
-              </View>
-            ))
+                </TouchableOpacity>
+              );
+            })
           ) : (
             <View style={styles.emptyResultsCard}>
               <Trophy size={32} color="#CBD5E1" />

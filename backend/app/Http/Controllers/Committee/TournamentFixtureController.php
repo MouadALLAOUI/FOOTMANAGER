@@ -284,6 +284,15 @@ class TournamentFixtureController extends Controller
         $stage = $data['stage'] ?? 'group';
         $strategy = $data['conflict_strategy'] ?? TournamentFixtureService::STRATEGY_ABORT;
 
+        if ($tournament->tournament_format === 'league' || $stage === 'league') {
+            $result = $this->fixtures->generateLeagueFixtures($tournament, $request->boolean('regenerate'));
+
+            return response()->json([
+                'data' => $result,
+                'message' => "تم إنشاء {$result['generated']} مواجهة في الدوري بنجاح — في انتظار ربطها بحجوزات الفرق المضيفة",
+            ], 201);
+        }
+
         if ($stage === 'knockout') {
             $existingKnockout = Fixture::query()
                 ->where('competition_id', $tournament->competition_id)

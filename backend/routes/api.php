@@ -74,6 +74,7 @@ use App\Http\Controllers\Committee\TournamentBrandingController;
 use App\Http\Controllers\Committee\TournamentController;
 use App\Http\Controllers\Committee\TournamentDrawController;
 use App\Http\Controllers\Committee\TournamentFixtureController;
+use App\Http\Controllers\Committee\TournamentLeagueController;
 use App\Http\Controllers\Committee\TournamentGalleryController;
 use App\Http\Controllers\Committee\TournamentMatchEventController;
 use App\Http\Controllers\Committee\TournamentPenaltyController;
@@ -92,6 +93,7 @@ use App\Http\Controllers\Manager\ManagerLineupController;
 use App\Http\Controllers\Manager\MatchRequestController;
 use App\Http\Controllers\Manager\MatchResultController;
 use App\Http\Controllers\Manager\ManagerTeamController;
+use App\Http\Controllers\Manager\OnboardingController;
 use App\Http\Controllers\Manager\PlayerController;
 use App\Http\Controllers\Manager\PlayerRecruitController;
 use App\Http\Controllers\Manager\PublicTeamController;
@@ -242,6 +244,16 @@ Route::prefix('v1')->group(function () {
         Route::get('/upcoming', [V1BookingController::class, 'upcoming']);
         Route::get('/{booking}', [V1BookingController::class, 'show']);
         Route::get('/{booking}/receipt', [V1BookingController::class, 'receipt']);
+    });
+
+    // Manager onboarding wizard (accessible immediately after registration)
+    Route::middleware(['auth:sanctum'])->prefix('manager/onboarding')->group(function () {
+        Route::get('/status', [OnboardingController::class, 'status']);
+        Route::post('/team', [OnboardingController::class, 'updateTeam']);
+        Route::post('/schedule', [OnboardingController::class, 'saveSchedule']);
+        Route::post('/tournament-agreement', [OnboardingController::class, 'saveTournamentAgreement']);
+        Route::post('/players', [OnboardingController::class, 'savePlayers']);
+        Route::post('/complete', [OnboardingController::class, 'complete']);
     });
 
     Route::middleware(['auth:sanctum', 'manager.approved', 'module.maintenance:teams'])->prefix('manager/team')->group(function () {
@@ -557,6 +569,16 @@ Route::middleware(['auth:sanctum', 'throttle:device'])->prefix('devices')->group
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/recovery/apply', [AccountController::class, 'applyRecovery'])->middleware('throttle:password');
+
+    // Manager onboarding wizard (accessible immediately after registration)
+    Route::prefix('manager/onboarding')->group(function () {
+        Route::get('/status', [OnboardingController::class, 'status']);
+        Route::post('/team', [OnboardingController::class, 'updateTeam']);
+        Route::post('/schedule', [OnboardingController::class, 'saveSchedule']);
+        Route::post('/tournament-agreement', [OnboardingController::class, 'saveTournamentAgreement']);
+        Route::post('/players', [OnboardingController::class, 'savePlayers']);
+        Route::post('/complete', [OnboardingController::class, 'complete']);
+    });
 });
 
 // Web push subscriptions — available to any authenticated user, any role.
@@ -848,6 +870,13 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/fixtures/knockout-qualified', [TournamentFixtureController::class, 'knockoutQualified']);
             Route::get('/match-rounds', [TournamentFixtureController::class, 'matchRounds']);
             Route::get('/live', [TournamentFixtureController::class, 'live']);
+
+            Route::get('/league/suggestions', [TournamentLeagueController::class, 'suggestions']);
+
+            Route::middleware('activity.not_locked')->group(function () {
+                Route::post('/league/assign', [TournamentLeagueController::class, 'assign']);
+                Route::post('/league/unassign', [TournamentLeagueController::class, 'unassign']);
+            });
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/fixtures/{fixture}/start', [TournamentResultController::class, 'start']);

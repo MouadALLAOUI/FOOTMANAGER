@@ -68,6 +68,29 @@ export default function Pending() {
         </div>
       </div>
 
+      {user.role === 'manager' && !user.onboarding_completed_at && (
+        <div className="mt-6 w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-5 text-start">
+          <div className="flex items-start gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-base">
+              ⚽
+            </span>
+            <div>
+              <h3 className="text-sm font-bold text-white">استغل وقت المراجعة لضبط فريقك</h3>
+              <p className="mt-1 text-xs leading-relaxed text-white/60">
+                يمكنك ضبط الشعار، وتحديد مواعيد مبارياتكم المعتادة، وإضافة تشكيلة اللاعبين لتكون جاهزاً فور تفعيل حسابك.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/onboarding')}
+            className="mt-4 flex h-11 w-full items-center justify-center rounded-xl bg-emerald-500 font-bold text-slate-950 shadow-md transition-all hover:bg-emerald-400 active:scale-[0.99]"
+          >
+            متابعة إعداد الفريق الآن
+          </button>
+        </div>
+      )}
+
       <p className="mt-8 text-xs text-white/40">أجي نقصرو © 2026</p>
     </div>
   )

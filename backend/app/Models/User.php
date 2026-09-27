@@ -21,6 +21,7 @@ use App\Models\AccountRecovery;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -54,6 +55,8 @@ class User extends Authenticatable
         'activity_locked_by',
         'activity_locked_at',
         'current_team_id',
+        'onboarding_completed_at',
+        'onboarding_step',
     ];
 
     protected $appends = [
@@ -95,6 +98,7 @@ class User extends Authenticatable
             'is_whatsapp' => 'boolean',
             'activity_locked' => 'boolean',
             'activity_locked_at' => 'datetime',
+            'onboarding_completed_at' => 'datetime',
         ];
     }
 

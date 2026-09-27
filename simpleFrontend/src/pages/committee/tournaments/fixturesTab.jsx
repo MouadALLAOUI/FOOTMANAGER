@@ -40,6 +40,7 @@ import RoundNav from '../../../domains/committee/components/RoundNav'
 import SummaryChips from '../../../domains/committee/components/SummaryChips'
 import KnockoutOptionModal from '../../../domains/committee/components/KnockoutOptionModal'
 import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
+import LeagueAssignmentPanel from '../../../domains/committee/components/LeagueAssignmentPanel'
 
 
 function fixtureStatus(f) {
@@ -1213,6 +1214,23 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       )}
     </>
   )
+
+  if (tournament.tournament_format === 'league') {
+    return (
+      <>
+        <LeagueAssignmentPanel
+          tournament={tournament}
+          onRefresh={() => {
+            refresh()
+            refetchStructure()
+            refetchFixtures()
+          }}
+          refreshKey={refreshKey}
+        />
+        {overlays}
+      </>
+    )
+  }
 
   if (!hasAnyFixtures) {
     return (

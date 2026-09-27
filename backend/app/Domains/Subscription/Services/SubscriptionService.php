@@ -67,9 +67,13 @@ class SubscriptionService
         return $subscription;
     }
 
-    public function getCurrentPlan(User $user): Plan
+    public function getCurrentPlan(User $user): ?Plan
     {
         $plan = $this->getActiveSubscription($user)?->plan ?? Plan::free();
+
+        if (! $plan) {
+            return null;
+        }
 
         return $this->plans()->firstWhere('slug', $plan->slug) ?? $plan;
     }
@@ -115,7 +119,9 @@ class SubscriptionService
      */
     public function getFeature(User $user, string $featureKey): ?array
     {
-        return $this->effectiveConfig($this->getCurrentPlan($user), $featureKey);
+        $plan = $this->getCurrentPlan($user);
+
+        return $plan ? $this->effectiveConfig($plan, $featureKey) : null;
     }
 
     public function hasFeature(User $user, string $featureKey): bool
@@ -147,6 +153,11 @@ class SubscriptionService
     public function getEffectiveFeatures(User $user): array
     {
         $plan = $this->getCurrentPlan($user);
+
+        if (! $plan) {
+            return [];
+        }
+
         $result = [];
 
         foreach ($this->allAttachedFeatureKeys() as $featureKey) {
@@ -166,7 +177,20 @@ class SubscriptionService
      */
     public function canCreateResource(User $user, string $featureKey, int $currentUsage): SubscriptionLimitResult
     {
-        $config = $this->effectiveConfig($this->getCurrentPlan($user), $featureKey);
+        $plan = $this->getCurrentPlan($user);
+
+        if (! $plan) {
+            return new SubscriptionLimitResult(
+                allowed: true,
+                feature: $featureKey,
+                currentUsage: max($currentUsage, 0),
+                limit: null,
+                unlimited: true,
+                requiredPlan: null,
+            );
+        }
+
+        $config = $this->effectiveConfig($plan, $featureKey);
 
         if (! $config || ! $config['enabled']) {
             return new SubscriptionLimitResult(

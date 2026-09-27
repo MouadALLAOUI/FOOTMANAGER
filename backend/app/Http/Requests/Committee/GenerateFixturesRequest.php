@@ -14,7 +14,7 @@ class GenerateFixturesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'stage' => 'nullable|in:group,knockout',
+            'stage' => 'nullable|in:group,knockout,league',
             'conflict_strategy' => 'nullable|in:abort,auto_roll,skip',
             'starts_on' => 'nullable|date',
             'stadium_ids' => 'nullable|array|max:32',

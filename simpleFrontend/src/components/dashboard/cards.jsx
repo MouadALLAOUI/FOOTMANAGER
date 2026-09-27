@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   CalendarDays,
   Clock,
@@ -13,6 +14,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { Button, StatusBadge } from './ui'
 import { logoThumb, photoThumb } from '../../lib/thumb'
+import { getWeeklySubscriptionDates } from '../../lib/bookingDates'
 import TeamLogo from '../profile/TeamLogo'
 
 function TeamBadge({ team, logo, sub, align = 'start', onClick }) {
@@ -185,8 +187,15 @@ export function BookingCard({ booking, actions }) {
   const terrain = booking.terrain && typeof booking.terrain === 'object' && !Array.isArray(booking.terrain) ? booking.terrain : {}
   const start = booking.start_time
   const end = booking.end_time
-  const date = booking.next_date || booking.booking_date
   const isWeekly = booking.reservation_type === 'weekly_subscription'
+  const weeklyDates = isWeekly ? getWeeklySubscriptionDates(booking) : []
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (!isWeekly) return booking.next_date || booking.booking_date
+    const next = weeklyDates.find((d) => d.is_next)
+    return next?.date || weeklyDates[0]?.date || booking.next_date || booking.booking_date
+  })
+
+  const activeDate = isWeekly && selectedDate ? selectedDate : (booking.next_date || booking.booking_date)
   const subscriptionStatus = typeof booking.subscription_status === 'string' ? booking.subscription_status : null
   const occurrencesRemaining = typeof booking.occurrences_remaining === 'number' ? booking.occurrences_remaining : null
 
@@ -226,9 +235,9 @@ export function BookingCard({ booking, actions }) {
             </div>
           </div>
           <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500">
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 font-bold text-slate-800">
               <CalendarDays className="size-3.5 text-green-500" />
-              {date ? new Date(`${date}T00:00:00`).toLocaleDateString('ar-MA', { weekday: 'long', day: 'numeric', month: 'long' }) : '—'}
+              {activeDate ? new Date(`${activeDate}T00:00:00`).toLocaleDateString('ar-MA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '—'}
             </span>
             {start && (
               <span className="inline-flex items-center gap-1.5">
@@ -237,12 +246,54 @@ export function BookingCard({ booking, actions }) {
               </span>
             )}
             {isWeekly && (
-              <span className="inline-flex items-center gap-1 text-violet-600">
+              <span className="inline-flex items-center gap-1 text-violet-600 font-bold">
                 <Repeat className="size-3" />
                 أسبوعي
               </span>
             )}
           </div>
+
+          {isWeekly && weeklyDates.length > 1 && (
+            <div className="mt-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-2.5">
+              <div className="mb-1.5 flex items-center justify-between px-1">
+                <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+                  <CalendarDays className="size-3.5 text-green-600" />
+                  <span>تحديد موعد من الاشتراك ({weeklyDates.length} أسابيع):</span>
+                </span>
+                <span className="text-[10px] font-black text-green-700">
+                  الأسبوع {weeklyDates.find((d) => d.date === activeDate)?.week_number || 1}
+                </span>
+              </div>
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                {weeklyDates.map((d) => {
+                  const isSelected = activeDate === d.date
+                  return (
+                    <button
+                      key={d.date}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedDate(d.date)
+                      }}
+                      className={`shrink-0 rounded-xl px-2.5 py-1 text-[11px] font-bold transition-all ${
+                        isSelected
+                          ? 'bg-green-600 text-white shadow-xs'
+                          : d.is_today
+                          ? 'bg-green-100 text-green-800 ring-1 ring-green-300'
+                          : d.is_past
+                          ? 'bg-white text-slate-400 line-through'
+                          : 'bg-white text-slate-600 hover:bg-green-50 hover:text-green-700 border border-slate-200/60'
+                      }`}
+                    >
+                      {new Date(d.date + 'T00:00:00').toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' })}
+                      {d.is_today ? ' (اليوم)' : d.is_next ? ' • القادم' : ''}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
             {typeof booking.price === 'number' && booking.price > 0 && (
               <p className="text-sm font-black text-slate-900">
@@ -259,7 +310,9 @@ export function BookingCard({ booking, actions }) {
         </div>
       </div>
       {actions && (
-        <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">{actions}</div>
+        <div className="flex flex-wrap gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3.5">
+          {typeof actions === 'function' ? actions({ selectedDate: activeDate, booking }) : actions}
+        </div>
       )}
     </div>
   )

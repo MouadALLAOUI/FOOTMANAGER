@@ -32,12 +32,16 @@ class TournamentTeam extends Model
         'group_position',
         'status',
         'payment_status',
+        'rules_accepted_at',
+        'rules_accepted_by',
+        'rules_version',
     ];
 
     protected function casts(): array
     {
         return [
             'group_position' => 'integer',
+            'rules_accepted_at' => 'datetime',
         ];
     }
 
@@ -54,5 +58,10 @@ class TournamentTeam extends Model
     public function group(): BelongsTo
     {
         return $this->belongsTo(Group::class);
+    }
+
+    public function rulesAcceptedBy(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\User::class, 'rules_accepted_by');
     }
 }

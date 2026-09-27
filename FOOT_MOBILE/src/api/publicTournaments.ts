@@ -244,3 +244,133 @@ export function useTournamentTeams(id: number | string | undefined) {
   });
 }
 
+export interface MatchEventItem {
+  id: number;
+  type: string;
+  minute?: number | null;
+  added_time?: number | null;
+  period?: string | null;
+  description?: string | null;
+  team_name?: string | null;
+  player_name?: string | null;
+  assist_player_name?: string | null;
+}
+
+export interface MatchDetailData {
+  id: number;
+  status: string;
+  is_live: boolean;
+  is_finished: boolean;
+  current_period?: string | null;
+  current_minute?: number | null;
+  home_team?: {
+    id: number;
+    name: string;
+    logo_url?: string | null;
+  } | null;
+  away_team?: {
+    id: number;
+    name: string;
+    logo_url?: string | null;
+  } | null;
+  home_score?: number | null;
+  away_score?: number | null;
+  stadium?: {
+    id: number;
+    name: string;
+  } | null;
+  round?: {
+    id: number;
+    name: string;
+    stage?: string | null;
+  } | null;
+  group?: {
+    id: number;
+    name: string;
+  } | null;
+  scheduled_at?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  events?: MatchEventItem[];
+  referee_name?: string | null;
+}
+
+export function getTournamentMatchDetail(
+  tournamentId: number | string,
+  matchId: number | string
+): Promise<{ data: MatchDetailData }> {
+  return get<{ data: MatchDetailData }>(`/v1/tournaments/${tournamentId}/matches/${matchId}`, {
+    auth: false,
+  });
+}
+
+export function useTournamentMatchDetail(
+  tournamentId: number | string | undefined,
+  matchId: number | string | undefined
+) {
+  return useQuery({
+    queryKey: ['public', 'tournament-match-detail', String(tournamentId), String(matchId)],
+    queryFn: () => getTournamentMatchDetail(tournamentId!, matchId!),
+    enabled: Boolean(tournamentId && matchId),
+    staleTime: 30 * 1000,
+    refetchInterval: 15 * 1000,
+  });
+}
+
+export interface TeamSquadMember {
+  id: number;
+  name: string;
+  position?: string | null;
+  number?: number | null;
+  role?: string | null;
+  avatar_url?: string | null;
+}
+
+export interface TeamPageData {
+  team: {
+    id: number;
+    name: string;
+    logo_url?: string | null;
+    cover_image_url?: string | null;
+    city?: string | null;
+    category?: string | null;
+    manager?: string | null;
+  };
+  stats?: {
+    points?: number;
+    matches_played?: number;
+    wins?: number;
+    draws?: number;
+    losses?: number;
+    goals_for?: number;
+    goals_against?: number;
+    goal_difference?: number;
+  };
+  squad?: TeamSquadMember[];
+  recent_matches?: Array<{
+    id: number;
+    home_score?: number | null;
+    away_score?: number | null;
+    started_at?: string | null;
+    ended_at?: string | null;
+    homeTeam?: { id: number; name: string; logo_path?: string | null };
+    awayTeam?: { id: number; name: string; logo_path?: string | null };
+  }>;
+}
+
+export function getTeamPage(teamId: number | string): Promise<{ data: TeamPageData }> {
+  return get<{ data: TeamPageData }>(`/v1/teams/${teamId}/page`, {
+    auth: false,
+  });
+}
+
+export function useTeamPage(teamId: number | string | undefined) {
+  return useQuery({
+    queryKey: ['public', 'team-page', String(teamId)],
+    queryFn: () => getTeamPage(teamId!),
+    enabled: Boolean(teamId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+

@@ -85,13 +85,32 @@ export default function RegisterForm() {
             <span className="text-xs text-slate-500">تم استلام جميع المعلومات بنجاح</span>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate('/pending')}
-          className="mt-6 flex h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-extrabold text-white transition-colors hover:bg-slate-800"
-        >
-          متابعة
-        </button>
+        {role === 'manager' ? (
+          <div className="mt-6 flex w-full flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => navigate('/onboarding')}
+              className="flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-600 text-sm font-extrabold text-white shadow-lg shadow-emerald-600/25 transition-all hover:bg-emerald-500 active:scale-[0.99]"
+            >
+              ابدأ إعداد الفريق والتشكيلة ⚽
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/pending')}
+              className="flex h-10 w-full items-center justify-center rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              متابعة حالة الحساب لاحقاً
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => navigate('/pending')}
+            className="mt-6 flex h-12 w-full items-center justify-center rounded-2xl bg-slate-900 text-sm font-extrabold text-white transition-colors hover:bg-slate-800"
+          >
+            متابعة
+          </button>
+        )}
       </div>
     )
   }

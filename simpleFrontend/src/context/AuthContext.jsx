@@ -64,8 +64,11 @@ export function AuthProvider({ children }) {
         : role === 'player' ? '/register-player'
         : '/register-committee'
     const { data } = await api.post(url, payload)
+    if (data.token && data.user) {
+      persist(data.token, data.user)
+    }
     return data
-  }, [])
+  }, [persist])
 
   const logout = useCallback(async () => {
     try {

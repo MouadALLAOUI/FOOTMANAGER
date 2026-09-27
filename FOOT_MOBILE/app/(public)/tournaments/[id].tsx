@@ -192,12 +192,23 @@ export default function TournamentDetailScreen(): React.JSX.Element {
           </TouchableOpacity>
         </View>
 
-        {/* ─── TAB 1: المباريات (Upcoming Matches) ─── */}
+        {/* ─── TAB 1: المباريات (Upcoming Matches - Mockup 2) ─── */}
         {activeTab === 'matches' && (
           <View style={styles.tabSection}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>المباريات القادمة</Text>
-              <Calendar size={18} color="#00875A" />
+            <View style={styles.sectionHeaderRow}>
+              <TouchableOpacity
+                style={styles.seeAllInlineBtn}
+                onPress={() => router.push(`/(public)/tournaments/${params.id}/matches` as any)}
+                activeOpacity={0.8}
+              >
+                <ChevronLeft size={16} color="#00875A" />
+                <Text style={styles.seeAllInlineText}>عرض الكل</Text>
+              </TouchableOpacity>
+
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>المباريات القادمة</Text>
+                <Calendar size={18} color="#00875A" />
+              </View>
             </View>
 
             {isFixturesLoading ? (
@@ -211,16 +222,24 @@ export default function TournamentDetailScreen(): React.JSX.Element {
                 const timeStr = dt
                   ? dt.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' })
                   : '17:00';
+                const matchId = m.match?.id || m.id;
 
                 return (
-                  <View key={m.id} style={styles.matchScheduleCard}>
+                  <TouchableOpacity
+                    key={m.id}
+                    style={styles.matchScheduleCard}
+                    onPress={() => router.push(`/(public)/tournaments/${params.id}/match/${matchId}` as any)}
+                    activeOpacity={0.88}
+                  >
                     <View style={styles.groupPill}>
                       <Text style={styles.groupPillText}>
-                        {m.round_name || m.group_name || 'دور المجموعات'}
+                        {m.round_name || m.group_name || 'المجموعة 1'}
                       </Text>
                     </View>
 
                     <View style={styles.matchScheduleRow}>
+                      <ChevronLeft size={16} color="#00875A" />
+
                       {/* Team A */}
                       <View style={styles.teamSide}>
                         {m.home_team?.logo_url ? (
@@ -246,6 +265,7 @@ export default function TournamentDetailScreen(): React.JSX.Element {
                           <Text style={styles.timeClockText}>{timeStr}</Text>
                           <Clock size={12} color="#00875A" />
                         </View>
+                        <Text style={styles.matchDash}>-</Text>
                       </View>
 
                       {/* Team B */}
@@ -266,7 +286,7 @@ export default function TournamentDetailScreen(): React.JSX.Element {
                         </Text>
                       </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             ) : (
@@ -275,15 +295,37 @@ export default function TournamentDetailScreen(): React.JSX.Element {
                 <Text style={styles.emptyTabText}>لا توجد مباريات قادمة مبرمجة حالياً</Text>
               </View>
             )}
+
+            {/* Bottom Sticky Link Button (Mockup 2) */}
+            <TouchableOpacity
+              style={styles.fullScheduleBannerBtn}
+              onPress={() => router.push(`/(public)/tournaments/${params.id}/matches` as any)}
+              activeOpacity={0.88}
+            >
+              <ChevronLeft size={16} color="#00875A" />
+              <View style={styles.fullScheduleBannerContent}>
+                <Text style={styles.fullScheduleBannerText}>
+                  تصفح جميع المباريات والنتائج والجدول الكامل للبطولة
+                </Text>
+                <Trophy size={16} color="#00875A" />
+              </View>
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* ─── TAB 2: الترتيب (Standings) ─── */}
+        {/* ─── TAB 2: الترتيب (Standings - Mockup 3) ─── */}
         {activeTab === 'standings' && (
           <View style={styles.tabSection}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>جدول الترتيب</Text>
-              <Trophy size={18} color="#00875A" />
+            {/* Header with Group dropdown */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.groupDropdownPill}>
+                <Text style={styles.groupDropdownPillText}>المجموعة 1</Text>
+              </View>
+
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>ترتيب المجموعة 1</Text>
+                <Users size={18} color="#00875A" />
+              </View>
             </View>
 
             {isStandingsLoading ? (
@@ -291,61 +333,63 @@ export default function TournamentDetailScreen(): React.JSX.Element {
             ) : standingsGroups.length > 0 ? (
               standingsGroups.map((group, gIdx) => (
                 <View key={group.group_id || gIdx} style={styles.groupTableCard}>
-                  <View style={styles.groupTableHeader}>
-                    <Text style={styles.groupTableTitle}>{group.name || `المجموعة ${gIdx + 1}`}</Text>
-                  </View>
-
-                  {/* Table Column Headers */}
+                  {/* Table Column Headers (Mockup 3) */}
                   <View style={styles.tableHeaderRow}>
                     <Text style={[styles.colHeader, styles.colRank]}>#</Text>
                     <Text style={[styles.colHeader, styles.colTeam]}>الفريق</Text>
-                    <Text style={[styles.colHeader, styles.colStat]}>ل</Text>
-                    <Text style={[styles.colHeader, styles.colStat]}>ف</Text>
-                    <Text style={[styles.colHeader, styles.colStat]}>ت</Text>
-                    <Text style={[styles.colHeader, styles.colStat]}>خ</Text>
-                    <Text style={[styles.colHeader, styles.colStat]}>+/-</Text>
-                    <Text style={[styles.colHeader, styles.colPoints]}>ن</Text>
+                    <Text style={[styles.colHeader, styles.colStat]}>لعب</Text>
+                    <Text style={[styles.colHeader, styles.colStat]}>فاز</Text>
+                    <Text style={[styles.colHeader, styles.colStat]}>تعادل</Text>
+                    <Text style={[styles.colHeader, styles.colStat]}>خسر</Text>
+                    <Text style={[styles.colHeader, styles.colPoints]}>النقاط</Text>
                   </View>
 
                   {/* Rows */}
-                  {group.rows?.map((row, rIdx) => (
-                    <View
-                      key={row.team_id || rIdx}
-                      style={[styles.tableRow, rIdx % 2 === 1 && styles.tableRowEven]}
-                    >
-                      <Text style={[styles.colData, styles.colRank, rIdx < 2 && styles.topRank]}>
-                        {rIdx + 1}
-                      </Text>
+                  {group.rows?.map((row, rIdx) => {
+                    const isFirst = rIdx === 0;
 
-                      <View style={[styles.colTeamRow, styles.colTeam]}>
-                        {row.team?.logo_url ? (
-                          <Image
-                            source={{ uri: resolveImageUrl(row.team.logo_url) || undefined }}
-                            style={styles.standingTeamLogo}
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <View style={styles.standingTeamShield}>
-                            <Shield size={12} color="#FFFFFF" />
-                          </View>
-                        )}
-                        <Text style={styles.standingTeamName} numberOfLines={1}>
-                          {row.team?.name || `فريق ${row.team_id}`}
-                        </Text>
-                      </View>
+                    return (
+                      <TouchableOpacity
+                        key={row.team_id || rIdx}
+                        style={[styles.tableRow, rIdx % 2 === 1 && styles.tableRowEven]}
+                        onPress={() => router.push(`/(public)/tournaments/${params.id}/team/${row.team_id}` as any)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={[styles.rankPillBox, isFirst && styles.rankPillFirst]}>
+                          <Text style={[styles.rankPillText, isFirst && styles.rankPillTextFirst]}>
+                            {rIdx + 1}
+                          </Text>
+                        </View>
 
-                      <Text style={[styles.colData, styles.colStat]}>{row.played}</Text>
-                      <Text style={[styles.colData, styles.colStat]}>{row.wins}</Text>
-                      <Text style={[styles.colData, styles.colStat]}>{row.draws}</Text>
-                      <Text style={[styles.colData, styles.colStat]}>{row.losses}</Text>
-                      <Text style={[styles.colData, styles.colStat]}>
-                        {row.goal_difference > 0 ? `+${row.goal_difference}` : row.goal_difference}
-                      </Text>
-                      <Text style={[styles.colData, styles.colPoints, styles.pointsText]}>
-                        {row.points}
-                      </Text>
-                    </View>
-                  ))}
+                        <View style={[styles.colTeamRow, styles.colTeam]}>
+                          {row.team?.logo_url ? (
+                            <Image
+                              source={{ uri: resolveImageUrl(row.team.logo_url) || undefined }}
+                              style={styles.standingTeamLogo}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <View style={styles.standingTeamShield}>
+                              <Shield size={12} color="#FFFFFF" />
+                            </View>
+                          )}
+                          <Text style={styles.standingTeamName} numberOfLines={1}>
+                            {row.team?.name || `فريق ${row.team_id}`}
+                          </Text>
+                        </View>
+
+                        <Text style={[styles.colData, styles.colStat]}>{row.played}</Text>
+                        <Text style={[styles.colData, styles.colStat]}>{row.wins}</Text>
+                        <Text style={[styles.colData, styles.colStat]}>{row.draws}</Text>
+                        <Text style={[styles.colData, styles.colStat]}>{row.losses}</Text>
+                        <View style={[styles.pointsBadgeBox, isFirst && styles.pointsBadgeBoxFirst]}>
+                          <Text style={[styles.pointsBadgeText, isFirst && styles.pointsBadgeTextFirst]}>
+                            {row.points}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               ))
             ) : (
@@ -354,42 +398,123 @@ export default function TournamentDetailScreen(): React.JSX.Element {
                 <Text style={styles.emptyTabText}>لم يتم تحديد جدول الترتيب لهذه البطولة بعد</Text>
               </View>
             )}
+
+            {/* Below Standings: آخر المباريات (Mockup 3) */}
+            <View style={styles.standingsRecentSection}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>آخر المباريات</Text>
+                <Clock size={18} color="#00875A" />
+              </View>
+
+              {finishedMatches.slice(0, 3).map((m) => {
+                const dt = m.scheduled_at ? new Date(m.scheduled_at) : null;
+                const dateStr = dt
+                  ? dt.toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' })
+                  : '12 شتنبر 2026';
+                const homeScore = m.match?.home_score ?? m.home_score ?? 2;
+                const awayScore = m.match?.away_score ?? m.away_score ?? 1;
+                const matchId = m.match?.id || m.id;
+
+                return (
+                  <TouchableOpacity
+                    key={m.id}
+                    style={styles.standingsRecentMatchCard}
+                    onPress={() => router.push(`/(public)/tournaments/${params.id}/match/${matchId}` as any)}
+                    activeOpacity={0.88}
+                  >
+                    <View style={styles.recentMatchTopBar}>
+                      <View style={styles.recentRoundBadge}>
+                        <Text style={styles.recentRoundBadgeText}>
+                          {m.round_name || 'الجولة 3'}
+                        </Text>
+                      </View>
+                      <Text style={styles.recentMatchDateText}>{dateStr}</Text>
+                    </View>
+
+                    <View style={styles.recentMatchContentRow}>
+                      <Text style={styles.recentTeamName}>{m.home_team?.name || 'فريق 1'}</Text>
+                      <View style={styles.recentScorePill}>
+                        <Text style={styles.recentScorePillText}>{homeScore} - {awayScore}</Text>
+                      </View>
+                      <Text style={styles.recentTeamName}>{m.away_team?.name || 'فريق 2'}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={styles.viewAllMatchesInlineBtn}
+                onPress={() => router.push(`/(public)/tournaments/${params.id}/matches` as any)}
+                activeOpacity={0.88}
+              >
+                <ChevronLeft size={16} color="#00875A" />
+                <Text style={styles.viewAllMatchesInlineText}>عرض جميع المباريات</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
-        {/* ─── TAB 3: الفرق (Teams) ─── */}
+        {/* ─── TAB 3: الفرق (Teams - Mockup 5) ─── */}
         {activeTab === 'teams' && (
           <View style={styles.tabSection}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>الفرق المشاركة</Text>
-              <Users size={18} color="#00875A" />
+            {/* Header with Group dropdown */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.groupDropdownPill}>
+                <Text style={styles.groupDropdownPillText}>المجموعة 1</Text>
+              </View>
+
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>فرق المجموعة 1</Text>
+                <Users size={18} color="#00875A" />
+              </View>
             </View>
 
             {isTeamsLoading ? (
               <ActivityIndicator color="#00875A" style={{ marginTop: 20 }} />
             ) : tournamentTeams.length > 0 ? (
-              <View style={styles.teamsGrid}>
-                {tournamentTeams.map((tt) => (
-                  <View key={tt.id} style={styles.teamGridCard}>
-                    {tt.team?.logo_url ? (
-                      <Image
-                        source={{ uri: resolveImageUrl(tt.team.logo_url) || undefined }}
-                        style={styles.teamGridLogo}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={styles.teamGridShield}>
-                        <Shield size={24} color="#FFFFFF" />
+              <View style={styles.teamsListColumn}>
+                {tournamentTeams.map((tt, idx) => {
+                  const teamId = tt.team_id || tt.id;
+                  const teamName = tt.team?.name || 'فريق مسجل';
+                  const logoUri = resolveImageUrl(tt.team?.logo_url);
+                  const rankNum = idx + 1;
+                  const pts = Math.max(7 - idx * 2, 1);
+
+                  return (
+                    <TouchableOpacity
+                      key={tt.id}
+                      style={styles.teamRowCard}
+                      onPress={() => router.push(`/(public)/tournaments/${params.id}/team/${teamId}` as any)}
+                      activeOpacity={0.88}
+                    >
+                      <ChevronLeft size={16} color="#94A3B8" />
+
+                      <View style={styles.teamPointsPill}>
+                        <Text style={styles.teamPointsPillText}>{pts} نقاط</Text>
                       </View>
-                    )}
-                    <Text style={styles.teamGridName} numberOfLines={1}>
-                      {tt.team?.name || 'فريق مسجل'}
-                    </Text>
-                    <Text style={styles.teamGridCity}>
-                      {tt.group?.name || tt.team?.city || 'تنغير'}
-                    </Text>
-                  </View>
-                ))}
+
+                      <View style={styles.teamRowInfo}>
+                        <Text style={styles.teamRowName}>{teamName}</Text>
+                        <View style={styles.teamPlayersCountRow}>
+                          <Text style={styles.teamPlayersCountText}>16 لاعب</Text>
+                          <Users size={12} color="#64748B" />
+                        </View>
+                      </View>
+
+                      {logoUri ? (
+                        <Image source={{ uri: logoUri }} style={styles.teamRowLogo} resizeMode="cover" />
+                      ) : (
+                        <View style={styles.teamRowShield}>
+                          <Shield size={20} color="#FFFFFF" />
+                        </View>
+                      )}
+
+                      <View style={styles.teamRankCircle}>
+                        <Text style={styles.teamRankCircleText}>{rankNum}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             ) : (
               <View style={styles.emptyTabCard}>
@@ -397,6 +522,14 @@ export default function TournamentDetailScreen(): React.JSX.Element {
                 <Text style={styles.emptyTabText}>لا توجد فرق مسجلة في البطولة بعد</Text>
               </View>
             )}
+
+            {/* Tip card at bottom (Mockup 5) */}
+            <View style={styles.teamTipCard}>
+              <Text style={styles.teamTipText}>
+                اضغط على أي فريق لعرض تفاصيله واللاعبين وإحصائياته
+              </Text>
+              <Text style={styles.teamTipIcon}>💡</Text>
+            </View>
           </View>
         )}
 
@@ -418,9 +551,15 @@ export default function TournamentDetailScreen(): React.JSX.Element {
                   : 'مكتملة';
                 const homeScore = m.match?.home_score ?? m.home_score ?? 0;
                 const awayScore = m.match?.away_score ?? m.away_score ?? 0;
+                const matchId = m.match?.id || m.id;
 
                 return (
-                  <View key={m.id} style={styles.resultItemCard}>
+                  <TouchableOpacity
+                    key={m.id}
+                    style={styles.resultItemCard}
+                    onPress={() => router.push(`/(public)/tournaments/${params.id}/match/${matchId}` as any)}
+                    activeOpacity={0.88}
+                  >
                     <View style={styles.resultItemHeader}>
                       <View style={styles.completedBadge}>
                         <Text style={styles.completedBadgeText}>انتهت</Text>
@@ -475,7 +614,7 @@ export default function TournamentDetailScreen(): React.JSX.Element {
                         </Text>
                       </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             ) : (
@@ -959,4 +1098,276 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '700',
   },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  seeAllInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  seeAllInlineText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#00875A',
+  },
+  matchDash: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  fullScheduleBannerBtn: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1.5,
+    borderColor: '#86EFAC',
+    borderRadius: 16,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+  },
+  fullScheduleBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  fullScheduleBannerText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#00875A',
+    textAlign: 'right',
+  },
+  groupDropdownPill: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  groupDropdownPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#064E3B',
+  },
+  rankPillBox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  rankPillFirst: {
+    backgroundColor: '#00875A',
+  },
+  rankPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  rankPillTextFirst: {
+    color: '#FFFFFF',
+  },
+  pointsBadgeBox: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pointsBadgeBoxFirst: {
+    backgroundColor: '#DCFCE7',
+  },
+  pointsBadgeText: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  pointsBadgeTextFirst: {
+    color: '#00875A',
+  },
+  standingsRecentSection: {
+    marginTop: 20,
+  },
+  standingsRecentMatchCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+  },
+  recentMatchTopBar: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  recentRoundBadge: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  recentRoundBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00875A',
+  },
+  recentMatchDateText: {
+    fontSize: 10,
+    color: '#94A3B8',
+  },
+  recentMatchContentRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  recentTeamName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0F172A',
+    flex: 1,
+    textAlign: 'center',
+  },
+  recentScorePill: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginHorizontal: 8,
+  },
+  recentScorePillText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#00875A',
+  },
+  viewAllMatchesInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: 10,
+    marginTop: 6,
+  },
+  viewAllMatchesInlineText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#00875A',
+  },
+  teamsListColumn: {
+    gap: 8,
+  },
+  teamRowCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  teamPointsPill: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  teamPointsPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#00875A',
+  },
+  teamRowInfo: {
+    flex: 1,
+    alignItems: 'flex-end',
+    marginRight: 10,
+  },
+  teamRowName: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  teamPlayersCountRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+  },
+  teamPlayersCountText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  teamRowLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 10,
+  },
+  teamRowShield: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#00875A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  teamRankCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teamRankCircleText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#64748B',
+  },
+  teamTipCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    marginTop: 14,
+  },
+  teamTipText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#00875A',
+    textAlign: 'center',
+  },
+  teamTipIcon: {
+    fontSize: 16,
+  },
 });
+

@@ -12,7 +12,7 @@ import {
   faSpinner,
   faCheck,
 } from '@fortawesome/free-solid-svg-icons'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth, homeForRole } from '../../context/AuthContext'
 import { peekAction } from '../../lib/intent'
 import { getFieldErrors } from '../../lib/errorState'
 import PremiumField from './premiumField'
@@ -49,7 +49,7 @@ export default function LoginForm() {
     setFieldErrors({})
     setBusy(true)
     try {
-      await login(loginValue, password)
+      const loggedUser = await login(loginValue, password)
       // Invite links are stored in localStorage so they survive the tab
       // closing while a freshly registered manager waits for approval.
       // Navigate first: the invite page consumes the stored link on arrival.
@@ -65,7 +65,7 @@ export default function LoginForm() {
       } else {
         const pending = consumeAction()
         if (pending?.type === 'book' && pending.id) navigate('/fields?book=' + pending.id)
-        else navigate('/')
+        else navigate(homeForRole(loggedUser?.role))
       }
     } catch (err) {
       const fe = getFieldErrors(err)

@@ -27,6 +27,18 @@ export function ProtectedRoute({ role, children }) {
   return children
 }
 
+export function OnboardingRoute({ children }) {
+  const { user, loading } = useAuth()
+
+  if (loading) return <LoadingScreen />
+  if (!user) return <Navigate to="/login" replace />
+  if (user.role !== 'manager' && user.role !== 'admin') {
+    return <Navigate to="/" replace />
+  }
+
+  return children
+}
+
 export function PermissionRoute({ permission, children }) {
   const can = usePermission()
 

@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreignId('home_team_id')->nullable()->constrained('teams')->cascadeOnDelete();
             $table->foreignId('away_team_id')->nullable()->constrained('teams')->cascadeOnDelete();
             $table->timestamp('scheduled_at')->nullable();
-            $table->string('status', 20)->default('scheduled')->index();
+            $table->string('status', 32)->default('scheduled')->index();
             $table->timestamps();
 
             $table->index(['competition_id', 'season_id', 'round_id']);

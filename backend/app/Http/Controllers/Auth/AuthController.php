@@ -52,13 +52,15 @@ class AuthController extends Controller
                 'status' => 'pending',
             ]);
 
+            $teamName = !empty($data['team_name']) ? $data['team_name'] : ('فريق ' . $data['name']);
+
             $team = Team::create([
-                'name' => $data['team_name'],
+                'name' => $teamName,
                 'member_count' => $data['member_count'] ?? 0,
                 'category' => $data['team_category'] ?? 'adult',
                 'association_name' => $data['association_name'] ?? null,
                 'manager_id' => $user->id,
-                'visibility' => 'public',
+                'visibility' => !empty($data['team_name']) ? 'public' : 'private',
             ]);
 
             $user->current_team_id = $team->id;
@@ -73,7 +75,7 @@ class AuthController extends Controller
             'name' => $data['name'],
             'phone' => $data['phone'],
             'email' => $data['email'] ?? null,
-            'team_name' => $data['team_name'],
+            'team_name' => $data['team_name'] ?? ('فريق ' . $data['name']),
             'team_category' => $data['team_category'] ?? null,
         ]);
 
@@ -110,13 +112,7 @@ class AuthController extends Controller
             ], 401);
         }
 
-        if ($user->status === 'pending') {
-            if ($user->role !== 'manager' || ! is_null($user->onboarding_completed_at)) {
-                return response()->json([
-                    'message' => 'حسابك قيد المراجعة من قبل الإدارة',
-                ], 403);
-            }
-        }
+        // Note: Pending users are allowed to log in so they can complete onboarding and access the dashboard preview in pending mode.
 
         if ($user->status === 'rejected') {
             return response()->json([
@@ -396,9 +392,16 @@ class AuthController extends Controller
             'email' => $validated['email'] ?? null,
         ]);
 
+        $deviceId = (string) Str::uuid();
+        $expiration = config('sanctum.expiration');
+        $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
+        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+
         return response()->json([
-            'message' => 'تم تسجيل طلب حساب اللاعب بنجاح، بانتظار موافقة الإدارة',
-            'user' => $user->makeVisible('phone', 'email')->only('id', 'name', 'email', 'phone', 'role', 'status', 'avatar_url', 'avatar_thumbnail_url'),
+            'message' => 'تم تسجيل طلب حساب اللاعب بنجاح، مرحباً بك في أجي نقصرو',
+            'user' => $this->userPayload($user->fresh()),
+            'token' => $token,
+            'device_id' => $deviceId,
         ], 201);
     }
 
@@ -433,9 +436,16 @@ class AuthController extends Controller
             'email' => $validated['email'] ?? null,
         ]);
 
+        $deviceId = (string) Str::uuid();
+        $expiration = config('sanctum.expiration');
+        $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
+        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+
         return response()->json([
-            'message' => 'تم تسجيل طلب حساب صاحب التيران بنجاح، بانتظار موافقة الإدارة',
-            'user' => $user->makeVisible('phone', 'email')->only('id', 'name', 'email', 'phone', 'role', 'status', 'avatar_url', 'avatar_thumbnail_url'),
+            'message' => 'تم تسجيل طلب حساب صاحب الملعب بنجاح، مرحباً بك في أجي نقصرو',
+            'user' => $this->userPayload($user->fresh()),
+            'token' => $token,
+            'device_id' => $deviceId,
         ], 201);
     }
 
@@ -629,9 +639,16 @@ class AuthController extends Controller
             'email' => $validated['email'] ?? null,
         ]);
 
+        $deviceId = (string) Str::uuid();
+        $expiration = config('sanctum.expiration');
+        $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
+        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+
         return response()->json([
-            'message' => 'تم تسجيل طلب حساب اللجنة المنظمة بنجاح، بانتظار موافقة الإدارة',
-            'user' => $user->makeVisible('phone', 'email')->only('id', 'name', 'email', 'phone', 'role', 'status', 'avatar_url', 'avatar_thumbnail_url'),
+            'message' => 'تم تسجيل طلب حساب اللجنة المنظمة بنجاح، مرحباً بك في أجي نقصرو',
+            'user' => $this->userPayload($user->fresh()),
+            'token' => $token,
+            'device_id' => $deviceId,
         ], 201);
     }
 

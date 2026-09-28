@@ -121,6 +121,13 @@ class OnboardingController extends Controller
                 'image_url' => $p->image_url,
             ]);
 
+        $stadiums = Stadium::query()
+            ->where('is_open', true)
+            ->where('is_available', true)
+            ->orderBy('name')
+            ->take(100)
+            ->get(['id', 'name', 'city', 'address', 'total_price', 'price_per_team']);
+
         return response()->json([
             'step' => $user->onboarding_step ?: 'team',
             'is_completed' => ! is_null($user->onboarding_completed_at),
@@ -131,6 +138,7 @@ class OnboardingController extends Controller
             'schedules' => $schedules,
             'tournaments' => $tournaments,
             'presets' => $presets,
+            'stadiums' => $stadiums,
         ]);
     }
 
@@ -218,11 +226,13 @@ class OnboardingController extends Controller
             'start_time' => 'nullable|string|max:10',
             'end_time' => 'nullable|string|max:10',
             'pitch_name' => 'nullable|string|max:255',
+            'terrain_id' => 'nullable|integer',
             'schedules' => 'nullable|array',
             'schedules.*.day_of_week' => 'required|integer|between:0,6',
             'schedules.*.start_time' => 'required|string|max:10',
             'schedules.*.end_time' => 'nullable|string|max:10',
             'schedules.*.pitch_name' => 'nullable|string|max:255',
+            'schedules.*.terrain_id' => 'nullable|integer',
         ]);
 
         if ($validated['has_regular_time']) {
@@ -241,6 +251,7 @@ class OnboardingController extends Controller
                             'start_time' => $s['start_time'],
                             'end_time' => $s['end_time'] ?? null,
                             'pitch_name' => ! empty($s['pitch_name']) ? trim($s['pitch_name']) : 'ملعب اعتيادي',
+                            'terrain_id' => ! empty($s['terrain_id']) ? (int) $s['terrain_id'] : null,
                         ];
                     }
                 }
@@ -250,6 +261,7 @@ class OnboardingController extends Controller
                     'start_time' => $validated['start_time'],
                     'end_time' => $validated['end_time'] ?? null,
                     'pitch_name' => ! empty($validated['pitch_name']) ? trim($validated['pitch_name']) : 'ملعب اعتيادي',
+                    'terrain_id' => ! empty($validated['terrain_id']) ? (int) $validated['terrain_id'] : null,
                 ];
             }
 
@@ -257,6 +269,7 @@ class OnboardingController extends Controller
                 TerrainBooking::create([
                     'team_id' => $team->id,
                     'manager_id' => $user->id,
+                    'terrain_id' => $item['terrain_id'] ?? null,
                     'booking_type' => 'training',
                     'flow_type' => 'amical',
                     'reservation_type' => 'weekly',

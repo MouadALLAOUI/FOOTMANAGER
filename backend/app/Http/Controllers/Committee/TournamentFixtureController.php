@@ -289,7 +289,7 @@ class TournamentFixtureController extends Controller
 
             return response()->json([
                 'data' => $result,
-                'message' => "تم إنشاء {$result['generated']} مواجهة في الدوري بنجاح — في انتظار ربطها بحجوزات الفرق المضيفة",
+                'message' => "تم إنشاء {$result['generated']} مواجهة في الدوري بنجاح — يمكنك الآن تحديد الملاعب والمواعيد مباشرة",
             ], 201);
         }
 
@@ -365,7 +365,9 @@ class TournamentFixtureController extends Controller
             throw new DomainException('لا يمكن حذف البرنامج بعد بدء المباريات');
         }
 
-        $deleted = $this->fixtures->deleteGroupFixtures($tournament);
+        $deleted = $tournament->tournament_format === 'league'
+            ? $this->fixtures->deleteLeagueFixtures($tournament)
+            : $this->fixtures->deleteGroupFixtures($tournament);
 
         return response()->json(['message' => "تم حذف $deleted مباراة"]);
     }
@@ -409,12 +411,17 @@ class TournamentFixtureController extends Controller
         // auto-claim. INTEGRATED mode saves a draft and releases the previous
         // reservation so the owner calendar is never double-booked.
         if (! $tournament->usesIntegratedTerrainReservations()) {
+            $existingBookingId = $this->bookings->bookingFor($fixture)?->id
+                ?? $fixture->match?->active_reservation_id;
+
             $this->fixtures->assertRescheduleAvailable(
                 $data['stadium_id'] ?? $fixture->stadium_id,
                 Carbon::parse($data['scheduled_at']),
                 (int) ($fixture->home_team_id ?? 0),
                 (int) ($fixture->away_team_id ?? 0),
                 $fixture->match_id,
+                $existingBookingId,
+                $fixture->id,
             );
         }
 

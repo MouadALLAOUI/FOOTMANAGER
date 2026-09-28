@@ -150,7 +150,7 @@ class TerrainReservationService
 
             $this->fixtures->assertStadiumsValid([$fixture->stadium_id]);
 
-            if ($this->fixtures->stadiumHasFixtureConflict($fixture->stadium_id, $datetime, $fixture->match_id)) {
+            if ($this->fixtures->stadiumHasFixtureConflict($fixture->stadium_id, $datetime, $fixture->match_id, $fixture->id)) {
                 throw new DomainException('هذا التوقيت محجوز لمباراة بطولة أخرى في هذا الملعب');
             }
 

@@ -429,37 +429,39 @@ export default function SettingsTab({ tournament, refresh }) {
               </Field>
             </div>
           )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {modes.map(({ key, icon: Icon, label, desc }) => {
-              const selected = groupMode === key
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  disabled={!editable}
-                  onClick={() => setGroupMode(key)}
-                  className={`flex items-start gap-3 rounded-2xl border p-4 text-start transition-colors ${
-                    selected ? 'border-green-400 bg-green-50/70 ring-1 ring-green-400' : 'border-slate-200 bg-white hover:border-slate-300'
-                  } ${!editable ? 'cursor-not-allowed opacity-60' : ''}`}
-                >
-                  <span
-                    className={`grid size-9 shrink-0 place-items-center rounded-xl ${
-                      selected ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-500'
-                    }`}
+          {isGroupFormat && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {modes.map(({ key, icon: Icon, label, desc }) => {
+                const selected = groupMode === key
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    disabled={!editable}
+                    onClick={() => setGroupMode(key)}
+                    className={`flex items-start gap-3 rounded-2xl border p-4 text-start transition-colors ${
+                      selected ? 'border-green-400 bg-green-50/70 ring-1 ring-green-400' : 'border-slate-200 bg-white hover:border-slate-300'
+                    } ${!editable ? 'cursor-not-allowed opacity-60' : ''}`}
                   >
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-slate-900">
-                      {t(label)}
-                      {selected && <Check className="size-4 text-green-500" />}
+                    <span
+                      className={`grid size-9 shrink-0 place-items-center rounded-xl ${
+                        selected ? 'bg-green-500 text-white' : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      <Icon className="size-4" />
                     </span>
-                    <span className="mt-0.5 block text-[11px] font-semibold text-slate-500">{t(desc)}</span>
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-slate-900">
+                        {t(label)}
+                        {selected && <Check className="size-4 text-green-500" />}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] font-semibold text-slate-500">{t(desc)}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
           <FieldRow>
             <Field label={t('committee.detail.settingsMatchDuration')}>
               <input

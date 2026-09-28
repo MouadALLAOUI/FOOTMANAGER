@@ -78,6 +78,12 @@ class TournamentController extends Controller
         if (in_array($data['tournament_format'], ['groups_knockout', 'groups_only'], true)) {
             $data['teams_per_group'] = (int) ($data['teams_per_group'] ?? 4);
             $data['groups_count'] = $this->deriveGroupsCount($data);
+        } elseif ($data['tournament_format'] === 'league') {
+            $data['teams_per_group'] = null;
+            $data['groups_count'] = 0;
+            $data['group_mode'] = null;
+            $data['knockout_teams'] = null;
+            $data['qualify_per_group'] = null;
         } else {
             $teamsCount = (int) $data['teams_count'];
             $data['teams_per_group'] = $teamsCount;
@@ -189,6 +195,12 @@ class TournamentController extends Controller
                 $data['groups_count'] = $this->deriveGroupsCount($data + ['teams_count' => $data['teams_count'] ?? $tournament->teams_count]);
 
                 $this->assertGroupLayoutFits($tournament, $data);
+            } elseif ($format === 'league') {
+                $data['groups_count'] = 0;
+                $data['teams_per_group'] = null;
+                $data['group_mode'] = null;
+                $data['knockout_teams'] = null;
+                $data['qualify_per_group'] = null;
             } else {
                 $data['groups_count'] = 1;
                 $data['teams_per_group'] = (int) ($data['teams_count'] ?? $tournament->teams_count);

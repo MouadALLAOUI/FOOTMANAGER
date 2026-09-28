@@ -130,6 +130,7 @@ Route::post('/register-terrain-details', [AuthController::class, 'registerTerrai
 Route::post('/register-player', [AuthController::class, 'registerPlayer'])->middleware('throttle:auth');
 Route::post('/register-committee', [AuthController::class, 'registerCommittee'])->middleware('throttle:auth');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+Route::post('/check-account', [AuthController::class, 'checkAccount'])->middleware('throttle:auth');
 
 // OAuth authentication (Google & Facebook)
 Route::prefix('auth')->group(function () {

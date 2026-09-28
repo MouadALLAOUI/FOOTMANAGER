@@ -93,7 +93,19 @@ class BookingController extends Controller
             })
             ->get();
 
-        $allBookings = $singleBookings->merge($weeklySubscriptions);
+        $excludeFixtureId = $request->integer('exclude_fixture_id') ?: null;
+        $excludeBookingId = $request->integer('exclude_booking_id') ?: null;
+
+        $allBookings = $singleBookings->merge($weeklySubscriptions)
+            ->filter(function ($b) use ($excludeBookingId, $excludeFixtureId) {
+                if ($excludeBookingId && $b->id === $excludeBookingId) {
+                    return false;
+                }
+                if ($excludeFixtureId && $b->fixture_id === $excludeFixtureId) {
+                    return false;
+                }
+                return true;
+            });
 
         $closures = TerrainSlotClosure::where('terrain_id', $terrainId)
             ->where('closure_date', $dateStr)
@@ -101,6 +113,7 @@ class BookingController extends Controller
 
         $fixtureConflicts = Fixture::where('stadium_id', $terrainId)
             ->whereDate('scheduled_at', $dateStr)
+            ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
             ->get(['id', 'scheduled_at']);
 
         $slotResults = collect($slots)->map(function ($slot) use ($allBookings, $closures, $fixtureConflicts) {

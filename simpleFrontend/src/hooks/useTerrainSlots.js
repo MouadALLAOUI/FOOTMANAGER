@@ -12,7 +12,8 @@ import api from '../api/client'
  *
  * The two start-time arrays feed TimeSlotPicker's availableSlots/disabledSlots.
  */
-export default function useTerrainSlots(resourceId, date) {
+export default function useTerrainSlots(resourceId, date, options = {}) {
+  const { excludeFixtureId, excludeBookingId } = options
   const [allSlots, setAllSlots] = useState([])
   const [schedule, setSchedule] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -33,7 +34,10 @@ export default function useTerrainSlots(resourceId, date) {
     setClosedReason('')
     setDayMessage('')
     try {
-      const { data } = await api.get(`/terrains/${resourceId}/slots`, { params: { date } })
+      const params = { date }
+      if (excludeFixtureId) params.exclude_fixture_id = excludeFixtureId
+      if (excludeBookingId) params.exclude_booking_id = excludeBookingId
+      const { data } = await api.get(`/terrains/${resourceId}/slots`, { params })
       setAllSlots(data.slots || [])
       setSchedule(data.schedule || null)
       setClosed(Boolean(data.terrain_closed))
@@ -44,7 +48,7 @@ export default function useTerrainSlots(resourceId, date) {
     } finally {
       setLoading(false)
     }
-  }, [resourceId, date])
+  }, [resourceId, date, excludeFixtureId, excludeBookingId])
 
   useEffect(() => {
     load()

@@ -20,7 +20,11 @@ export default function RescheduleDrawer({ fixture, tournament, stadiums, onClos
   const initialTime = fixture.scheduled_at ? fixture.scheduled_at.slice(11, 16) : '20:00'
   const [form, setForm] = useState({ date: initialDate, time: initialTime, stadium_id: fixture.stadium?.id ?? '' })
 
-  const { availableStartTimes, disabledStartTimes, loading } = useTerrainSlots(form.stadium_id || null, form.date || null)
+  const { availableStartTimes, disabledStartTimes, loading } = useTerrainSlots(
+    form.stadium_id || null,
+    form.date || null,
+    { excludeFixtureId: fixture?.id, excludeBookingId: fixture?.reservation?.active_reservation_id }
+  )
   const avail = form.stadium_id && availableStartTimes.length ? availableStartTimes : buildTimeSlots('08:00', '23:00', 30)
   const dis = form.stadium_id ? disabledStartTimes : []
 

@@ -23,6 +23,7 @@ export default function OnboardingPage() {
   const [tournaments, setTournaments] = useState([])
   const [players, setPlayers] = useState([])
   const [presets, setPresets] = useState([])
+  const [stadiums, setStadiums] = useState([])
   const [percentage, setPercentage] = useState(25)
 
   // Fetch initial onboarding state
@@ -37,6 +38,7 @@ export default function OnboardingPage() {
         setTournaments(data.tournaments || [])
         setPlayers(data.players || [])
         setPresets(data.presets || [])
+        setStadiums(data.stadiums || [])
         setPercentage(data.completion_percentage || 25)
 
         // Set initial step if in progress
@@ -188,6 +190,8 @@ export default function OnboardingPage() {
         {step === 'schedule' && (
           <StepSchedule
             initialSchedule={schedules}
+            stadiums={stadiums}
+            teamCity={team?.city}
             onNext={handleNextSchedule}
             onBack={() => setStep('team')}
             onSkip={handleSkipSchedule}

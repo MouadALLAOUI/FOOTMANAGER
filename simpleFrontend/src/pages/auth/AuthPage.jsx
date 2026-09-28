@@ -106,16 +106,18 @@ export default function AuthPage({ initialTab = 'login' }) {
 
             <div className="mt-7">
               {tab === 'login' ? (
-                <LoginForm />
+                <>
+                  <LoginForm />
+                  <SocialLogin mode="login" />
+                </>
               ) : (
-                <RegisterForm onRoleChange={setSelectedRole} />
+                <RegisterForm
+                  selectedRole={selectedRole}
+                  onRoleChange={setSelectedRole}
+                />
               )}
             </div>
 
-            <SocialLogin
-              mode={tab}
-              role={tab === 'register' ? selectedRole : null}
-            />
             <SecurityCard />
 
             <p className="mt-6 text-center text-xs leading-relaxed text-slate-400">

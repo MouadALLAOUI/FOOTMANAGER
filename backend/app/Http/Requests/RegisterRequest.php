@@ -19,7 +19,7 @@ class RegisterRequest extends FormRequest
             'phone' => 'required|string|unique:users,phone|max:20',
             'is_whatsapp' => 'boolean',
             'password' => 'required|string|min:8',
-            'team_name' => 'required|string|max:255',
+            'team_name' => 'nullable|string|max:255',
             'member_count' => 'nullable|integer|min:1',
             'team_category' => 'nullable|in:adult,teenager,children',
             'association_name' => 'nullable|string|max:255',

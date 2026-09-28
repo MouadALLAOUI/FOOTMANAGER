@@ -156,6 +156,21 @@ class TournamentStandingsService
                 ?: $a['team_id'] <=> $b['team_id'];
         });
 
+        if ($tournament->tournament_format === 'league') {
+            return [
+                'competition_id' => $tournament->competition_id,
+                'season_id' => $tournament->season_id,
+                'groups' => [
+                    [
+                        'group_id' => null,
+                        'name' => 'الدوري',
+                        'rows' => $rows,
+                    ],
+                ],
+                'total' => count($rows),
+            ];
+        }
+
         $groupRows = [];
         foreach ($rows as $row) {
             $groupRows[$row['group_id'] ?: 'unassigned'][] = $row;

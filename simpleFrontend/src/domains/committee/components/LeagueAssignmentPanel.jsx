@@ -21,7 +21,7 @@ import { Badge, Button, Card, Empty } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 
-export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKey }) {
+export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKey, onReschedule }) {
   const { toast } = useToast()
   const [activeSubTab, setActiveSubTab] = useState('suggestions') // 'suggestions' | 'fixtures'
   const [assignBusyId, setAssignBusyId] = useState(null)
@@ -132,7 +132,7 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
           <p className="mt-1 text-2xl font-black text-slate-900">{totalFixtures}</p>
         </div>
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 p-4 shadow-sm">
-          <p className="text-xs font-semibold text-amber-700">في انتظار حجز</p>
+          <p className="text-xs font-semibold text-amber-700">بانتظار تحديد الموعد</p>
           <p className="mt-1 text-2xl font-black text-amber-800">{waitingFixtures.length}</p>
         </div>
         <div className="rounded-2xl border border-green-200/80 bg-green-50/50 p-4 shadow-sm">
@@ -153,8 +153,7 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
           </div>
           <h3 className="mt-4 text-lg font-black text-slate-900">إنشاء جدول مباريات الدوري</h3>
           <p className="mx-auto mt-2 max-w-lg text-xs leading-relaxed text-slate-600">
-            سيقوم النظام بإنشاء جميع المواجهات (دوري من دور واحد أو دورين) تلقائياً بين الفرق المسجلة.
-            ستبقى المباريات في انتظار حجز الملاعب من طرف الفرق المضيفة ليتم ربطها وجدولتها باعتمادكم.
+            سيقوم النظام بإنشاء جميع المواجهات (دوري من دور واحد أو دورين) تلقائياً بين الفرق المسجلة، مع إمكانية تحديد الملاعب والمواعيد مباشرة أو اعتماد حجوزات الفرق المضيفة.
           </p>
           <div className="mt-5 flex justify-center">
             <Button
@@ -391,7 +390,7 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="all">الكل</option>
-                <option value="waiting">في انتظار حجز</option>
+                <option value="waiting">بانتظار تحديد الموعد</option>
                 <option value="scheduled">مجدولة ومثبتة</option>
                 <option value="played">ملعوبة</option>
               </select>
@@ -435,13 +434,30 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                       </div>
                     ) : (
                       <span className="rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[10px] font-bold text-amber-700">
-                        في انتظار حجز المضيف
+                        بانتظار تحديد الموعد
                       </span>
+                    )}
+
+                    {onReschedule && !isPlayed && (
+                      <Button
+                        variant={isScheduled ? 'outline' : 'default'}
+                        size="sm"
+                        className={
+                          isScheduled
+                            ? 'text-[11px] font-bold text-slate-700 hover:bg-slate-50'
+                            : 'bg-green-600 text-[11px] font-bold text-white hover:bg-green-700 shadow-sm'
+                        }
+                        onClick={() => onReschedule(fixture)}
+                      >
+                        <CalendarDays className="size-3 me-1" />
+                        {isScheduled ? 'تعديل الموعد والملعب' : 'تحديد الموعد والملعب'}
+                      </Button>
                     )}
 
                     {isScheduled && !isPlayed && (
                       <Button
                         variant="outline"
+                        size="sm"
                         className="text-[11px] font-bold text-rose-600 hover:bg-rose-50"
                         onClick={() => handleUnassign(fixture.id)}
                         disabled={isUnassigning}

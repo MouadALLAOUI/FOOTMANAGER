@@ -23,7 +23,8 @@ class TournamentTerrainBookingService
 {
     public function bookingFor(Fixture $fixture): ?TerrainBooking
     {
-        return TerrainBooking::query()->where('fixture_id', $fixture->id)->first();
+        return TerrainBooking::query()->where('fixture_id', $fixture->id)->first()
+            ?? ($fixture->match?->active_reservation_id ? TerrainBooking::find($fixture->match->active_reservation_id) : null);
     }
 
     /**
@@ -42,7 +43,11 @@ class TournamentTerrainBookingService
 
         $scheduledAt = $fixture->scheduled_at;
 
-        $booking = TerrainBooking::query()->firstOrNew(['fixture_id' => $fixture->id]);
+        $booking = TerrainBooking::query()->where('fixture_id', $fixture->id)->first()
+            ?? ($fixture->match?->active_reservation_id ? TerrainBooking::find($fixture->match->active_reservation_id) : null)
+            ?? new TerrainBooking(['fixture_id' => $fixture->id]);
+
+        $booking->fixture_id = $fixture->id;
 
         $booking->fill([
             'terrain_id' => $fixture->stadium_id,

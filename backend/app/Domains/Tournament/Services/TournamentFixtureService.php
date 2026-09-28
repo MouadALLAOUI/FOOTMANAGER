@@ -328,17 +328,25 @@ class TournamentFixtureService
         int $homeTeamId,
         int $awayTeamId,
         ?int $excludeMatchId = null,
+        ?int $excludeBookingId = null,
+        ?int $excludeFixtureId = null,
     ): void {
         if ($stadiumId !== null) {
             $this->assertStadiumsValid([$stadiumId]);
 
-            if ($this->stadiumHasFixtureConflict($stadiumId, $datetime, $excludeMatchId)) {
+            if ($this->stadiumHasFixtureConflict($stadiumId, $datetime, $excludeMatchId, $excludeFixtureId)) {
                 throw new DomainException('هذا التوقيت محجوز لمباراة بطولة أخرى في هذا الملعب');
             }
 
             $time = $datetime->format('H:i');
 
-            if (TerrainBooking::getConflictMessage($stadiumId, $datetime->toDateString(), $time, $this->endTimeFor($time))) {
+            if (TerrainBooking::getConflictMessage(
+                $stadiumId,
+                $datetime->toDateString(),
+                $time,
+                $this->endTimeFor($time),
+                excludeId: $excludeBookingId,
+            )) {
                 throw new DomainException('هذا التوقيت محجوز في الملعب المحدد');
             }
         }
@@ -599,7 +607,7 @@ class TournamentFixtureService
                 ->firstOrFail();
 
             if ($regenerate) {
-                $this->deleteGroupFixtures($tournament);
+                $this->deleteLeagueFixtures($tournament);
             } else {
                 $existing = Fixture::query()
                     ->where('competition_id', $competitionId)
@@ -611,70 +619,53 @@ class TournamentFixtureService
                 }
             }
 
-            // In league, if no groups or 1 group, ensure the default group exists
-            $groups = Group::query()
-                ->where('competition_id', $competitionId)
-                ->where('season_id', $seasonId)
-                ->orderBy('name')
-                ->get();
+            $teamIds = TournamentTeam::query()
+                ->where('tournament_id', $tournament->id)
+                ->where('status', TournamentTeam::STATUS_REGISTERED)
+                ->orderBy('group_position')
+                ->orderBy('id')
+                ->pluck('team_id')
+                ->all();
 
-            if ($groups->isEmpty()) {
-                $group = Group::create([
-                    'competition_id' => $competitionId,
-                    'season_id' => $seasonId,
-                    'round_id' => $groupRound->id,
-                    'name' => 'الدوري',
-                ]);
-                $groups = collect([$group]);
-            }
-
-            // Auto-assign registered teams to default group if single division
-            if ($groups->count() === 1) {
-                $defaultGroup = $groups->first();
-                TournamentTeam::query()
-                    ->where('tournament_id', $tournament->id)
-                    ->where('status', TournamentTeam::STATUS_REGISTERED)
-                    ->whereNull('group_id')
-                    ->update(['group_id' => $defaultGroup->id]);
+            if (count($teamIds) < 2) {
+                throw new DomainException('يجب تسجيل فريقين على الأقل في الدوري لإنشاء جدول المباريات');
             }
 
             $doubleRoundRobin = ($tournament->league_mode === 'double_round_robin');
             $created = [];
+            $schedules = $this->roundRobin($teamIds, $doubleRoundRobin);
 
-            foreach ($groups as $group) {
-                $teamIds = TournamentTeam::query()
-                    ->where('tournament_id', $tournament->id)
-                    ->where('status', TournamentTeam::STATUS_REGISTERED)
-                    ->where('group_id', $group->id)
-                    ->orderBy('group_position')
-                    ->orderBy('id')
-                    ->pluck('team_id')
-                    ->all();
+            foreach ($schedules as $roundIndex => $pairs) {
+                foreach ($pairs as [$homeId, $awayId]) {
+                    $footballMatch = FootballMatch::create([
+                        'competition_id' => $competitionId,
+                        'season_id' => $seasonId,
+                        'round_id' => $groupRound->id,
+                        'group_id' => null,
+                        'home_team_id' => $homeId,
+                        'away_team_id' => $awayId,
+                        'stadium_id' => null,
+                        'status' => MatchStatus::Scheduled,
+                        'current_period' => 'upcoming',
+                        'match_duration_minutes' => $tournament->match_duration_minutes ?: 90,
+                        'created_by' => $tournament->organizer_id,
+                    ]);
 
-                if (count($teamIds) < 2) {
-                    continue;
-                }
+                    $fixture = Fixture::create([
+                        'competition_id' => $competitionId,
+                        'season_id' => $seasonId,
+                        'round_id' => $groupRound->id,
+                        'matchday' => $roundIndex + 1,
+                        'group_id' => null,
+                        'home_team_id' => $homeId,
+                        'away_team_id' => $awayId,
+                        'stadium_id' => null,
+                        'scheduled_at' => null,
+                        'match_id' => $footballMatch->id,
+                        'status' => FixtureStatus::Scheduled,
+                    ]);
 
-                $schedules = $this->roundRobin($teamIds, $doubleRoundRobin);
-
-                foreach ($schedules as $roundIndex => $pairs) {
-                    foreach ($pairs as [$homeId, $awayId]) {
-                        $fixture = Fixture::create([
-                            'competition_id' => $competitionId,
-                            'season_id' => $seasonId,
-                            'round_id' => $groupRound->id,
-                            'matchday' => $roundIndex + 1,
-                            'group_id' => $group->id,
-                            'home_team_id' => $homeId,
-                            'away_team_id' => $awayId,
-                            'stadium_id' => null,
-                            'scheduled_at' => null,
-                            'match_id' => null,
-                            'status' => FixtureStatus::WaitingForBooking,
-                        ]);
-
-                        $created[] = $fixture;
-                    }
+                    $created[] = $fixture;
                 }
             }
 
@@ -1241,6 +1232,23 @@ class TournamentFixtureService
             ->where('competition_id', $competitionId)
             ->where('season_id', $seasonId)
             ->whereNotNull('group_id')
+            ->get();
+
+        return $this->deleteFixtureRows($fixtures);
+    }
+
+    public function deleteLeagueFixtures(Tournament $tournament): int
+    {
+        $competitionId = $tournament->competition_id;
+        $seasonId = $tournament->season_id;
+
+        if (! $competitionId || ! $seasonId) {
+            return 0;
+        }
+
+        $fixtures = Fixture::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
             ->get();
 
         return $this->deleteFixtureRows($fixtures);
@@ -1847,8 +1855,12 @@ class TournamentFixtureService
      * True when another tournament fixture already occupies the stadium within
      * the match window. Tournament schedules live on the fixtures table.
      */
-    public function stadiumHasFixtureConflict(int $stadiumId, Carbon $datetime, ?int $excludeMatchId = null): bool
-    {
+    public function stadiumHasFixtureConflict(
+        int $stadiumId,
+        Carbon $datetime,
+        ?int $excludeMatchId = null,
+        ?int $excludeFixtureId = null,
+    ): bool {
         $window = PlayerMatchGuard::MATCH_WINDOW_HOURS;
 
         return Fixture::query()
@@ -1859,6 +1871,7 @@ class TournamentFixtureService
             ->whereNotIn('status', [FixtureStatus::Postponed->value, FixtureStatus::Cancelled->value])
             ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Cancelled->value]))
             ->when($excludeMatchId, fn ($q) => $q->where('match_id', '!=', $excludeMatchId))
+            ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
             ->exists();
     }
 

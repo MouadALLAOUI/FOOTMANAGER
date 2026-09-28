@@ -142,37 +142,44 @@ export default function TournamentDetail() {
       />
 
       <div className="mb-6 flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/60">
-        {tabs.map(({ key, icon: Icon, label }) => {
-          const locked = gatedTabs.includes(key) && !canProceed
-          return (
-            <button
-              key={key}
-              type="button"
-              disabled={locked}
-              onClick={() => setActive(key)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-colors ${
-                active === key
-                  ? 'bg-green-500 text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)]'
-                  : locked
-                    ? 'cursor-not-allowed text-slate-300'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-              }`}
-            >
-              <Icon className="size-4" />
-              {t(label)}
-              {locked && <Lock className="size-3" />}
-            </button>
-          )
-        })}
+        {tabs
+          .filter((tab) => {
+            if (tour.tournament_format === 'league') {
+              return tab.key !== 'draw' && tab.key !== 'bracket'
+            }
+            return true
+          })
+          .map(({ key, icon: Icon, label }) => {
+            const locked = gatedTabs.includes(key) && !canProceed
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={locked}
+                onClick={() => setActive(key)}
+                className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-colors ${
+                  active === key
+                    ? 'bg-green-500 text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)]'
+                    : locked
+                      ? 'cursor-not-allowed text-slate-300'
+                      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <Icon className="size-4" />
+                {t(label)}
+                {locked && <Lock className="size-3" />}
+              </button>
+            )
+          })}
       </div>
 
       {active === 'overview' && <OverviewTab {...tabProps} editable={settingsEditable} setActive={setActive} />}
       {active === 'settings' && <SettingsTab {...tabProps} />}
       {active === 'teams' && <TeamsTab {...tabProps} />}
-      {renderStep('draw', DrawBoard)}
+      {tour.tournament_format !== 'league' && renderStep('draw', DrawBoard)}
       {renderStep('fixtures', FixturesTab)}
       {renderStep('standings', StandingsTab)}
-      {renderStep('bracket', BracketTab)}
+      {tour.tournament_format !== 'league' && renderStep('bracket', BracketTab)}
       {renderStep('statistics', StatisticsTab)}
       {renderStep('analytics', AnalyticsTab)}
       {active === 'content' && <ContentTab {...tabProps} />}

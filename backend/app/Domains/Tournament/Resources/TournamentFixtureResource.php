@@ -91,14 +91,14 @@ class TournamentFixtureResource extends JsonResource
      */
     private function leg(): ?string
     {
-        if (! $this->group_id || ! $this->home_team_id || ! $this->away_team_id) {
+        if (! $this->home_team_id || ! $this->away_team_id) {
             return null;
         }
 
         $otherId = Fixture::query()
             ->where('competition_id', $this->competition_id)
             ->where('season_id', $this->season_id)
-            ->where('group_id', $this->group_id)
+            ->when($this->group_id, fn ($q) => $q->where('group_id', $this->group_id))
             ->where('home_team_id', $this->away_team_id)
             ->where('away_team_id', $this->home_team_id)
             ->where('id', '!=', $this->id)

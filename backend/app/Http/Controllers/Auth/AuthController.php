@@ -149,6 +149,37 @@ class AuthController extends Controller
         ]);
     }
 
+    public function checkAccount(Request $request): JsonResponse
+    {
+        $request->validate([
+            'identifier' => 'required|string|max:255',
+        ]);
+
+        $identifier = trim((string) $request->input('identifier'));
+
+        $user = User::where('phone', $identifier)
+            ->orWhere('email', $identifier)
+            ->first();
+
+        $isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false;
+
+        if ($user) {
+            return response()->json([
+                'exists' => true,
+                'role' => $user->role,
+                'name' => $user->name,
+                'is_email' => $isEmail,
+                'identifier' => $identifier,
+            ]);
+        }
+
+        return response()->json([
+            'exists' => false,
+            'is_email' => $isEmail,
+            'identifier' => $identifier,
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();

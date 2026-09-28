@@ -1220,6 +1220,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       <>
         <LeagueAssignmentPanel
           tournament={tournament}
+          onReschedule={(fixture) => setRescheduleFixture(fixture)}
           onRefresh={() => {
             refresh()
             refetchStructure()

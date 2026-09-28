@@ -33,8 +33,10 @@ class TournamentSetupService
             $season = $this->ensureSeason($tournament);
 
             $groupRound = $this->ensureGroupRound($tournament, $season);
-            $groups = $this->ensureGroups($tournament, $season, $groupRound, $tournament->group_mode !== 'free');
-            $this->ensureKnockoutRoundsWhenReady($tournament, $season);
+            if ($tournament->tournament_format !== 'league') {
+                $groups = $this->ensureGroups($tournament, $season, $groupRound, $tournament->group_mode !== 'free');
+                $this->ensureKnockoutRoundsWhenReady($tournament, $season);
+            }
 
             $tournament->competition_id = $competition->id;
             $tournament->season_id = $season->id;
@@ -54,7 +56,7 @@ class TournamentSetupService
         $competition = Competition::create([
             'name' => $tournament->name,
             'slug' => $tournament->slug.'-cup',
-            'type' => CompetitionType::Cup,
+            'type' => $tournament->tournament_format === 'league' ? CompetitionType::League : CompetitionType::Cup,
             'description' => $tournament->description,
             'active' => true,
             'settings' => [
@@ -89,6 +91,7 @@ class TournamentSetupService
     public function ensureGroupRound(Tournament $tournament, Season $season): Round
     {
         $competitionId = $this->ensureCompetition($tournament)->id;
+        $name = $tournament->tournament_format === 'league' ? 'الدوري' : 'دور المجموعات';
 
         return Round::query()->firstOrCreate(
             [
@@ -97,7 +100,7 @@ class TournamentSetupService
                 'stage' => RoundStage::Group,
             ],
             [
-                'name' => 'دور المجموعات',
+                'name' => $name,
                 'order_index' => 1,
             ],
         );
@@ -125,6 +128,10 @@ class TournamentSetupService
      */
     public function ensureGroups(Tournament $tournament, Season $season, Round $groupRound, bool $createMissing = true)
     {
+        if ($tournament->tournament_format === 'league') {
+            return collect();
+        }
+
         $competitionId = $this->ensureCompetition($tournament)->id;
 
         $existing = Group::query()

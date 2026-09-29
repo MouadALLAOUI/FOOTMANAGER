@@ -109,7 +109,7 @@ class TournamentController extends Controller
                 'groups_count' => $data['groups_count'],
                 'teams_per_group' => $data['teams_per_group'],
                 'max_players_per_team' => $data['max_players_per_team'] ?? null,
-                'group_mode' => $data['group_mode'] ?? 'fixed',
+                'group_mode' => $data['tournament_format'] === 'league' ? null : ($data['group_mode'] ?? 'fixed'),
                 'match_duration_minutes' => $data['match_duration_minutes'] ?? 90,
                 'half_duration_minutes' => $data['half_duration_minutes'] ?? null,
                 'first_half_extra_minutes' => $data['first_half_extra_minutes'] ?? 0,

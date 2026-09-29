@@ -18,6 +18,7 @@ import {
   ArrowLeftRight,
   X,
   Zap,
+  Eye,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
@@ -25,7 +26,14 @@ import { Badge, Button, Card, Empty } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 
-export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKey, onReschedule }) {
+export default function LeagueAssignmentPanel({
+  tournament,
+  onRefresh,
+  refreshKey,
+  onReschedule,
+  onResult,
+  onDetails,
+}) {
   const { toast } = useToast()
   const [activeSubTab, setActiveSubTab] = useState('suggestions') // 'suggestions' | 'fixtures'
   const [assignBusyId, setAssignBusyId] = useState(null)
@@ -537,6 +545,8 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
             {filteredFixtures.map((fixture) => {
               const isScheduled = Boolean(fixture.scheduled_at) && fixture.status !== 'waiting_for_booking'
               const isPlayed = fixture.status === 'played' || fixture.match?.status === 'finished'
+              const isLive = ['kickoff', 'first_half', 'halftime', 'second_half', 'extra_time', 'penalties'].includes(fixture.match?.status)
+              const hasScore = isPlayed || isLive || (fixture.match?.home_score !== null && fixture.match?.home_score !== undefined)
               const isUnassigning = unassignBusyId === fixture.id
               const isBorrowed = Boolean(fixture.match?.notes?.includes('توقيت مستعار'))
               const hasExceptionReason = Boolean(fixture.unscheduled_reason)
@@ -552,9 +562,31 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                     </span>
                     <div className="flex items-center gap-2 font-bold text-xs text-slate-900">
                       <span>{fixture.home_team?.name || 'فريق مضيف'}</span>
-                      <span className="text-slate-400">vs</span>
+                      {hasScore ? (
+                        <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-black text-white">
+                          {fixture.match?.home_score ?? 0} - {fixture.match?.away_score ?? 0}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">vs</span>
+                      )}
                       <span>{fixture.away_team?.name || 'فريق ضيف'}</span>
                     </div>
+
+                    {/* Played Badge */}
+                    {isPlayed && (
+                      <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+                        <CheckCircle2 className="size-3 text-emerald-600" />
+                        انتهت المباراة
+                      </span>
+                    )}
+
+                    {/* Live Badge */}
+                    {isLive && (
+                      <span className="rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 flex items-center gap-1">
+                        <span className="size-1.5 rounded-full bg-rose-600 animate-pulse" />
+                        مباشر الآن
+                      </span>
+                    )}
 
                     {/* Borrowed Slot Badge */}
                     {isBorrowed && (
@@ -573,9 +605,9 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                     {isScheduled ? (
-                      <div className="text-end">
+                      <div className="text-end me-1">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                           <MapPin className="size-3 text-slate-400" />
                           <span>{fixture.stadium?.name || 'الملعب'}</span>
@@ -591,6 +623,46 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                           بانتظار تحديد الموعد
                         </span>
                       )
+                    )}
+
+                    {/* Enter Result & Live Events Button */}
+                    {onResult && !isPlayed && (
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 text-white hover:bg-emerald-700 text-[11px] font-bold shadow-xs flex items-center"
+                        onClick={() => onResult(fixture)}
+                      >
+                        <Play className="size-3 me-1 fill-current" />
+                        تسجيل النتيجة والأحداث
+                      </Button>
+                    )}
+
+                    {/* Played: View Details & Edit Result */}
+                    {isPlayed && (
+                      <>
+                        {onDetails && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+                            onClick={() => onDetails(fixture)}
+                          >
+                            <Eye className="size-3 me-1 text-slate-500" />
+                            عرض التفاصيل
+                          </Button>
+                        )}
+                        {onResult && (
+                          <Button
+                            variant="soft"
+                            size="sm"
+                            className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
+                            onClick={() => onResult(fixture)}
+                          >
+                            <Play className="size-3 me-1 text-emerald-600" />
+                            تعديل النتيجة والأحداث
+                          </Button>
+                        )}
+                      </>
                     )}
 
                     {/* Change Opponent Button */}

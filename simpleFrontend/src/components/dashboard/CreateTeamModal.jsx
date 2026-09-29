@@ -4,11 +4,14 @@ import { Shield, Plus } from 'lucide-react'
 import { Modal, Field, FieldRow, Button, inputClass, selectClass } from './ui'
 import { useTeam } from '../../context/TeamContext'
 import { useToast } from '../ui/Toast'
+import { useCitiesSelect } from '../../api/queries'
 
 export default function CreateTeamModal({ open, onClose }) {
   const { t } = useTranslation()
   const { createTeam } = useTeam()
   const { toast } = useToast()
+  const { data: citiesData, isLoading: citiesLoading } = useCitiesSelect()
+  const cities = citiesData?.cities || []
 
   const [form, setForm] = useState({
     name: '',
@@ -91,12 +94,22 @@ export default function CreateTeamModal({ open, onClose }) {
           </Field>
 
           <Field label="المدينة">
-            <input
-              className={inputClass}
-              placeholder="مثال: الدار البيضاء"
-              value={form.city}
-              onChange={set('city')}
-            />
+            <select className={selectClass} value={form.city} onChange={set('city')}>
+              <option value="">
+                {citiesLoading && cities.length === 0 ? 'جارِ تحميل المدن...' : 'اختر المدينة'}
+              </option>
+              {cities.map((c) => {
+                const label =
+                  c.name_ar && c.name && c.name_ar !== c.name
+                    ? `${c.name_ar} (${c.name})`
+                    : (c.localized_name || c.name_ar || c.name)
+                return (
+                  <option key={c.id || c.name} value={c.name}>
+                    {label}
+                  </option>
+                )
+              })}
+            </select>
           </Field>
         </FieldRow>
 

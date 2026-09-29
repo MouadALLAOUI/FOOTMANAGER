@@ -23,11 +23,21 @@ export default function StepRoster({ initialPlayers = [], onNext, onBack, onSkip
       setError('يرجى إدخال اسم اللاعب')
       return
     }
+
+    let numVal = null
+    if (number !== '') {
+      numVal = parseInt(number, 10)
+      if (isNaN(numVal) || numVal < 1 || numVal > 99) {
+        setError('رقم القميص يجب أن يكون بين 1 و 99')
+        return
+      }
+    }
+
     setError('')
 
     const newPlayer = {
       name: name.trim(),
-      number: number ? parseInt(number, 10) : null,
+      number: numVal,
       position: position || 'forward',
       phone: phone.trim() || null,
     }
@@ -47,9 +57,18 @@ export default function StepRoster({ initialPlayers = [], onNext, onBack, onSkip
     // If user filled in the input fields but didn't press "Add", auto-add it before submitting
     let finalPlayers = [...players]
     if (name.trim()) {
+      let numVal = null
+      if (number !== '') {
+        numVal = parseInt(number, 10)
+        if (isNaN(numVal) || numVal < 1 || numVal > 99) {
+          setError('رقم القميص يجب أن يكون بين 1 و 99')
+          return
+        }
+      }
+
       finalPlayers.push({
         name: name.trim(),
-        number: number ? parseInt(number, 10) : null,
+        number: numVal,
         position: position || 'forward',
         phone: phone.trim() || null,
       })
@@ -105,7 +124,19 @@ export default function StepRoster({ initialPlayers = [], onNext, onBack, onSkip
                 min="1"
                 max="99"
                 value={number}
-                onChange={(e) => setNumber(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val === '') {
+                    setNumber('')
+                    return
+                  }
+                  const n = parseInt(val, 10)
+                  if (!isNaN(n)) {
+                    if (n > 99) setNumber('99')
+                    else if (n < 1) setNumber('1')
+                    else setNumber(String(n))
+                  }
+                }}
                 placeholder="الرقم #"
                 className={inputClass}
               />

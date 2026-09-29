@@ -129,8 +129,18 @@ export default function PlayerFormModal({ player, onClose, onSaved }) {
                   type="number"
                   name="number"
                   value={form.number}
-                  onChange={handleChange}
-                  min="0"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '') {
+                      setForm({ ...form, number: '' });
+                      return;
+                    }
+                    const n = parseInt(val, 10);
+                    if (!isNaN(n)) {
+                      setForm({ ...form, number: n > 99 ? '99' : (n < 1 ? '1' : String(n)) });
+                    }
+                  }}
+                  min="1"
                   max="99"
                   placeholder="—"
                   className="w-full pe-10 ps-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none"

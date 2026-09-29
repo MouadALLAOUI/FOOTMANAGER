@@ -5,13 +5,16 @@ namespace App\Http\Controllers\Manager;
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Base\Controller;
+use App\Domains\Shared\Models\City;
 use App\Domains\Shared\Services\ImageThumbnailService;
 use App\Domains\Shared\Support\CurrentTeamResolver;
+use App\Domains\Stadium\Models\Stadium;
 use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Services\TournamentRegistrationService;
 use App\Models\Preset;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -128,6 +131,18 @@ class OnboardingController extends Controller
             ->take(100)
             ->get(['id', 'name', 'city', 'address', 'total_price', 'price_per_team']);
 
+        $cities = City::query()
+            ->active()
+            ->ordered()
+            ->get(['id', 'name', 'name_ar', 'name_fr', 'name_en', 'slug'])
+            ->map(fn (City $c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'name_ar' => $c->name_ar,
+                'localized_name' => $c->localized_name,
+                'slug' => $c->slug,
+            ]);
+
         return response()->json([
             'step' => $user->onboarding_step ?: 'team',
             'is_completed' => ! is_null($user->onboarding_completed_at),
@@ -139,6 +154,7 @@ class OnboardingController extends Controller
             'tournaments' => $tournaments,
             'presets' => $presets,
             'stadiums' => $stadiums,
+            'cities' => $cities,
         ]);
     }
 
@@ -246,20 +262,30 @@ class OnboardingController extends Controller
             if (! empty($validated['schedules']) && is_array($validated['schedules'])) {
                 foreach ($validated['schedules'] as $s) {
                     if (isset($s['day_of_week']) && ! empty($s['start_time'])) {
+                        $startTime = $s['start_time'];
+                        $endTime = ! empty($s['end_time'])
+                            ? $s['end_time']
+                            : self::calculateEndTime($startTime);
+
                         $items[] = [
                             'day_of_week' => (int) $s['day_of_week'],
-                            'start_time' => $s['start_time'],
-                            'end_time' => $s['end_time'] ?? null,
+                            'start_time' => $startTime,
+                            'end_time' => $endTime,
                             'pitch_name' => ! empty($s['pitch_name']) ? trim($s['pitch_name']) : 'ملعب اعتيادي',
                             'terrain_id' => ! empty($s['terrain_id']) ? (int) $s['terrain_id'] : null,
                         ];
                     }
                 }
             } elseif (isset($validated['day_of_week']) && ! empty($validated['start_time'])) {
+                $startTime = $validated['start_time'];
+                $endTime = ! empty($validated['end_time'])
+                    ? $validated['end_time']
+                    : self::calculateEndTime($startTime);
+
                 $items[] = [
                     'day_of_week' => (int) $validated['day_of_week'],
-                    'start_time' => $validated['start_time'],
-                    'end_time' => $validated['end_time'] ?? null,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
                     'pitch_name' => ! empty($validated['pitch_name']) ? trim($validated['pitch_name']) : 'ملعب اعتيادي',
                     'terrain_id' => ! empty($validated['terrain_id']) ? (int) $validated['terrain_id'] : null,
                 ];
@@ -277,7 +303,7 @@ class OnboardingController extends Controller
                     'custom_pitch_name' => $item['pitch_name'],
                     'day_of_week' => $item['day_of_week'],
                     'start_time' => $item['start_time'],
-                    'end_time' => $item['end_time'] ?? null,
+                    'end_time' => $item['end_time'],
                     'booking_date' => now()->toDateString(),
                     'status' => 'confirmed',
                 ]);
@@ -405,5 +431,14 @@ class OnboardingController extends Controller
             'players_count' => $playersCount,
             'team' => $team,
         ]);
+    }
+
+    private static function calculateEndTime(string $startTime): string
+    {
+        try {
+            return Carbon::parse($startTime)->addHour()->format('H:i');
+        } catch (\Throwable) {
+            return '21:00';
+        }
     }
 }

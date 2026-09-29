@@ -1,13 +1,34 @@
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Heart, MapPin, Star, ArrowLeft, ArrowRight, Zap, Building2 } from 'lucide-react'
 import { useCommandCenter } from './CommandCenterContext'
 import { Skeleton } from '../../../components/dashboard/ui'
+import { coverThumb } from '../../../lib/thumb'
 
 export default function ProductionNearbyStadiums() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { stadiums, loadingBy } = useCommandCenter()
+
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('fav_stadiums') || '[]')
+    } catch {
+      return []
+    }
+  })
+
+  const toggleFavorite = (id, e) => {
+    e.stopPropagation()
+    setFavorites((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      try {
+        localStorage.setItem('fav_stadiums', JSON.stringify(next))
+      } catch {}
+      return next
+    })
+  }
 
   const isRtl = i18n.language?.startsWith('ar')
   const ArrowIcon = isRtl ? ArrowLeft : ArrowRight
@@ -75,10 +96,11 @@ export default function ProductionNearbyStadiums() {
         /* 3 Real Stadiums Grid */
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
           {displayStadiums.map((stadium, idx) => {
-            const imgSrc = stadium.cover_image || stadium.image || `/stadium_sample_${(idx % 3) + 1}.png`
+            const realThumb = coverThumb(stadium)
             const price = stadium.price_per_hour || 0
             const rating = stadium.rating ? Number(stadium.rating).toFixed(1) : null
             const city = stadium.city || stadium.region || ''
+            const isFav = favorites.includes(stadium.id)
 
             return (
               <div
@@ -88,14 +110,41 @@ export default function ProductionNearbyStadiums() {
                 <div>
                   {/* Photo */}
                   <div className="relative h-28 w-full overflow-hidden bg-slate-100">
-                    <img
-                      src={imgSrc}
-                      alt={stadium.name}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        e.target.src = '/stadium_sample_1.png'
-                      }}
-                    />
+                    {realThumb ? (
+                      <img
+                        src={realThumb}
+                        alt={stadium.name}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                          const placeholder = e.currentTarget.parentElement?.querySelector('.stadium-placeholder')
+                          if (placeholder) {
+                            placeholder.classList.remove('hidden')
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`stadium-placeholder ${
+                        realThumb ? 'hidden ' : ''
+                      }absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-100 to-emerald-100/50 text-slate-400`}
+                    >
+                      <Building2 className="size-8 text-emerald-600/50" />
+                    </div>
+
+                    {/* Favorite Heart Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => toggleFavorite(stadium.id, e)}
+                      aria-label={isRtl ? 'إضافة إلى المفضلة' : 'Favorite'}
+                      className="absolute top-2 end-2 grid size-7 place-items-center rounded-full bg-white/90 backdrop-blur-xs text-slate-600 hover:text-rose-500 hover:bg-white shadow-xs transition-colors"
+                    >
+                      <Heart
+                        className={`size-3.5 transition-colors ${
+                          isFav ? 'fill-rose-500 text-rose-500' : 'text-slate-500 hover:text-rose-500'
+                        }`}
+                      />
+                    </button>
                   </div>
 
                   {/* Info */}
@@ -111,7 +160,12 @@ export default function ProductionNearbyStadiums() {
                           {isRtl ? 'ملعب جديد' : 'New venue'}
                         </span>
                       )}
-                      {city && <span className="text-[11px] font-semibold text-slate-400">{city}</span>}
+                      {city && (
+                        <span className="flex items-center gap-0.5 text-[11px] font-semibold text-slate-400 truncate">
+                          <MapPin className="size-3" />
+                          <span>{city}</span>
+                        </span>
+                      )}
                     </div>
 
                     <h3 className="text-sm font-black text-slate-900 truncate">

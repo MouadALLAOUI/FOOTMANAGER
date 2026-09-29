@@ -102,7 +102,7 @@ export default function QuickBooking() {
                 key={s.id}
                 className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5 transition-colors hover:border-green-200 hover:bg-white"
               >
-                {s.cover_image_url ? (
+                {coverThumb(s) ? (
                   <img loading="lazy" decoding="async" src={coverThumb(s)} alt="" className="size-12 shrink-0 rounded-2xl object-cover" />
                 ) : (
                   <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white text-green-600 shadow-sm">

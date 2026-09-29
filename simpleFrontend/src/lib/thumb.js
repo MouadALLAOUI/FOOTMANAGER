@@ -2,7 +2,11 @@
 // to relative path /storage/... so requests pass through same-origin Vite proxy
 export function normalizeImageUrl(url) {
   if (!url || typeof url !== 'string') return '';
-  return url.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1):8000\/storage\//, '/storage/');
+  const cleaned = url.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1):8000\/storage\//, '/storage/');
+  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://') && !cleaned.startsWith('/') && !cleaned.startsWith('data:')) {
+    return `/storage/${cleaned}`;
+  }
+  return cleaned;
 }
 
 // Returns the thumbnail URL when available, falling back to the full image.
@@ -29,5 +33,15 @@ export function avatarThumb(user, fallback = '') {
 
 export function coverThumb(record, fallback = '') {
   if (!record) return fallback || '';
-  return record.cover_thumbnail_url || record.cover_image_url || fallback || '';
+  const raw =
+    record.thumbnail_url ||
+    record.cover_thumbnail_url ||
+    record.cover_image_url ||
+    record.image_url ||
+    (Array.isArray(record.images) && (record.images[0]?.thumbnail_url || record.images[0]?.image_url || (typeof record.images[0] === 'string' ? record.images[0] : null))) ||
+    record.cover_image ||
+    record.image ||
+    fallback ||
+    '';
+  return normalizeImageUrl(raw);
 }

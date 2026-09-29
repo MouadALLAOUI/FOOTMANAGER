@@ -54,7 +54,60 @@ class TournamentLeagueController extends Controller
         $booking = TerrainBooking::with(['terrain', 'team'])->findOrFail($validated['booking_id']);
         $allowBorrowed = $request->boolean('allow_borrowed', false);
 
-        $result = $this->leagueAssignment->assign($tournament, $fixture, $booking, $allowBorrowed);
+        $slotDate = $request->input('date');
+
+        $result = $this->leagueAssignment->assign($tournament, $fixture, $booking, $allowBorrowed, $slotDate);
+
+        return response()->json([
+            'data' => $result,
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Pre-check scheduling capacity against available slots.
+     */
+    public function capacityCheck(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $result = $this->leagueAssignment->capacityCheck($tournament);
+
+        return response()->json([
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Automatically schedule Single Round Robin league fixtures into available booking slots.
+     */
+    public function autoSchedule(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $result = $this->leagueAssignment->autoSchedule($tournament);
+
+        return response()->json([
+            'data' => $result,
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Swap opponent for a league fixture with backend validation.
+     */
+    public function changeOpponent(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'new_opponent_id' => 'required|integer|exists:teams,id',
+        ], [
+            'new_opponent_id.required' => 'معرف الفريق الخصم الجديد مطلوب',
+            'new_opponent_id.exists' => 'الفريق المحدد غير موجود',
+        ]);
+
+        $result = $this->leagueAssignment->changeOpponent($tournament, $fixture, $validated['new_opponent_id']);
 
         return response()->json([
             'data' => $result,

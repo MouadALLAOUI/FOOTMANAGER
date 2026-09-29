@@ -30,6 +30,7 @@ class Fixture extends Model
         'source_away_fixture_id',
         'scheduled_at',
         'status',
+        'unscheduled_reason',
     ];
 
     protected function casts(): array

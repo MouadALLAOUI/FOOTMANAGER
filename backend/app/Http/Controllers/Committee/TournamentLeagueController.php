@@ -52,8 +52,9 @@ class TournamentLeagueController extends Controller
 
         $fixture = Fixture::findOrFail($validated['fixture_id']);
         $booking = TerrainBooking::with(['terrain', 'team'])->findOrFail($validated['booking_id']);
+        $allowBorrowed = $request->boolean('allow_borrowed', false);
 
-        $result = $this->leagueAssignment->assign($tournament, $fixture, $booking);
+        $result = $this->leagueAssignment->assign($tournament, $fixture, $booking, $allowBorrowed);
 
         return response()->json([
             'data' => $result,

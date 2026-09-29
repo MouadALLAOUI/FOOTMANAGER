@@ -637,20 +637,6 @@ class TournamentFixtureService
 
             foreach ($schedules as $roundIndex => $pairs) {
                 foreach ($pairs as [$homeId, $awayId]) {
-                    $footballMatch = FootballMatch::create([
-                        'competition_id' => $competitionId,
-                        'season_id' => $seasonId,
-                        'round_id' => $groupRound->id,
-                        'group_id' => null,
-                        'home_team_id' => $homeId,
-                        'away_team_id' => $awayId,
-                        'stadium_id' => null,
-                        'status' => MatchStatus::Scheduled,
-                        'current_period' => 'upcoming',
-                        'match_duration_minutes' => $tournament->match_duration_minutes ?: 90,
-                        'created_by' => $tournament->organizer_id,
-                    ]);
-
                     $fixture = Fixture::create([
                         'competition_id' => $competitionId,
                         'season_id' => $seasonId,
@@ -661,8 +647,8 @@ class TournamentFixtureService
                         'away_team_id' => $awayId,
                         'stadium_id' => null,
                         'scheduled_at' => null,
-                        'match_id' => $footballMatch->id,
-                        'status' => FixtureStatus::Scheduled,
+                        'match_id' => null,
+                        'status' => FixtureStatus::WaitingForBooking,
                     ]);
 
                     $created[] = $fixture;

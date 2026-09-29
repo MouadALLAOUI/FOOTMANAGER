@@ -11,7 +11,7 @@ export default function ProductionHeroHeader() {
   const isRtl = i18n.language?.startsWith('ar')
   const ArrowIcon = isRtl ? ArrowLeft : ArrowRight
 
-  const firstName = user?.name ? user.name.split(' ')[0] : (isRtl ? 'محمد' : 'Manager')
+  const firstName = user?.name ? user.name.split(' ')[0] : (isRtl ? 'كابتن' : 'Captain')
 
   const cards = [
     {

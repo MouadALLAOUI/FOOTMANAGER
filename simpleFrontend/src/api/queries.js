@@ -52,6 +52,7 @@ export const q = {
   cities: () => ['cities'],
   citiesSelect: () => ['cities', 'select'],
   publicSettings: () => ['public', 'settings'],
+  openTournaments: (params) => ['v1', 'tournaments', params],
 }
 
 function useTypedQuery(key, fetcher, options) {
@@ -148,6 +149,9 @@ export const usePublicSettings = (options) =>
     staleTime: 5 * 60 * 1000,
     ...options,
   })
+
+export const useOpenTournaments = (params, options) =>
+  useTypedQuery(q.openTournaments(params), () => get('/v1/tournaments', params), options)
 
 export function prefetchQuery(key, fetcher) {
   return queryClient.prefetchQuery({ queryKey: key, queryFn: fetcher, ...DEFAULTS })

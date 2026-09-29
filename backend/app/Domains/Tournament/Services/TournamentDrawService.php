@@ -27,6 +27,11 @@ class TournamentDrawService
     {
         return DB::transaction(function () use ($tournament) {
             $this->assertNotConfirmed($tournament);
+
+            if ($tournament->tournament_format === 'league') {
+                throw new DomainException('نظام الدوري لا يحتوي على قرعة مجموعات — يتم توليد جدول المباريات مباشرة');
+            }
+
             $this->setup->buildStructure($tournament);
 
             if ($tournament->group_mode === 'free') {

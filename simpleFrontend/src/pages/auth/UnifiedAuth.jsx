@@ -15,11 +15,23 @@ import {
   faChevronLeft,
 } from '@fortawesome/free-solid-svg-icons'
 import { faFacebook, faWhatsapp } from '@fortawesome/free-brands-svg-icons'
-import api from '../../api/client'
+import api, { takeAuthRedirect } from '../../api/client'
 import { useAuth, homeForRole } from '../../context/AuthContext'
 import { useToast } from '../../components/ui/Toast'
 import RoleIcon from './RoleIcon'
 import PremiumField from './premiumField'
+
+const ADMIN_ROLE = {
+  id: 'admin',
+  titleKey: 'auth.unified.roles.admin.title',
+  defaultTitle: 'مسؤول النظام',
+  descKey: 'auth.unified.roles.admin.desc',
+  defaultDesc: 'لوحة تحكم الإدارة والمشرفين',
+  badge: '🛡️ الإدارة',
+  accentColor: 'indigo',
+  cardBorder: 'hover:border-indigo-500 hover:shadow-[0_18px_40px_rgba(99,102,241,0.16)]',
+  badgeClass: 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200/80',
+}
 
 const ROLES = [
   {
@@ -207,6 +219,12 @@ export default function UnifiedAuth() {
         return
       }
 
+      const redirect = takeAuthRedirect()
+      if (redirect) {
+        navigate(redirect, { replace: true })
+        return
+      }
+
       navigate(homeForRole(loggedUser.role), { replace: true })
     } catch (err) {
       const msg =
@@ -305,7 +323,7 @@ export default function UnifiedAuth() {
     }
   }
 
-  const roleObj = ROLES.find((r) => r.id === selectedRole) || ROLES[0]
+  const roleObj = selectedRole === 'admin' ? ADMIN_ROLE : (ROLES.find((r) => r.id === selectedRole) || ROLES[0])
   const currentRoleTitle = t(roleObj.titleKey, roleObj.defaultTitle)
 
   // =========================================================================
@@ -375,6 +393,22 @@ export default function UnifiedAuth() {
               </button>
             )
           })}
+        </div>
+
+        {/* Admin / Staff Access Shortcut */}
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedRole('admin')
+              setSubStep('check_identifier')
+              setError('')
+            }}
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+          >
+            <FontAwesomeIcon icon={faLock} className="size-3" />
+            <span>{isRtl ? 'حساب إداري؟ تسجيل دخول المشرفين والإدارة' : 'Staff account? Admin sign in'}</span>
+          </button>
         </div>
       </div>
     )
@@ -564,6 +598,11 @@ export default function UnifiedAuth() {
       {subStep === 'existing_login' && (
         <form onSubmit={handleLoginSubmit} className="space-y-4">
           <div className="text-center sm:text-start">
+            {(accountInfo?.role === 'admin' || accountInfo?.role === 'sub_admin') && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700 ring-1 ring-indigo-200/80 mb-2">
+                <span>🛡️ {isRtl ? 'حساب مسؤول النظام' : 'Administrator Account'}</span>
+              </span>
+            )}
             <h2 className="text-xl font-black text-slate-900">
               {isRtl
                 ? `مرحباً بعودتك${accountInfo?.name ? ` يا ${accountInfo.name}` : ''} 👋`

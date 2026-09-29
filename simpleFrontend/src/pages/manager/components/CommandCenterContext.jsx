@@ -17,6 +17,7 @@ import {
   useStadiums,
   useTeamProfile,
   useCitiesSelect,
+  useOpenTournaments,
 } from '../../../api/queries'
 import { isSameDay } from './shared'
 
@@ -37,6 +38,7 @@ export function CommandCenterProvider({ children }) {
   const boardQ = useLeaderboard({ per_page: 100 })
   const stadiumQ = useStadiums({ per_page: 100 })
   const citiesQ = useCitiesSelect()
+  const tournamentsQ = useOpenTournaments({ status: 'open_for_registration', per_page: 5 })
 
   const team = teamQ.data?.team ?? null
   const requests = requestsQ.data?.match_requests || []
@@ -50,6 +52,7 @@ export function CommandCenterProvider({ children }) {
   const board = boardQ.data?.data || []
   const stadiums = stadiumQ.data?.data || []
   const cities = (citiesQ.data?.cities || []).map((c) => c.localized_name)
+  const tournaments = tournamentsQ.data?.data || []
 
   const loadingBy = {
     team: teamQ.isLoading,
@@ -62,6 +65,7 @@ export function CommandCenterProvider({ children }) {
     recruits: recruitQ.isLoading,
     board: boardQ.isLoading,
     stadiums: stadiumQ.isLoading,
+    tournaments: tournamentsQ.isLoading,
   }
 
   const loading =
@@ -178,8 +182,9 @@ export function CommandCenterProvider({ children }) {
       board,
       stadiums,
       cities,
+      tournaments,
     }),
-    [team, requests, bookings, players, notifs, unread, challenges, market, recruits, board, stadiums, cities],
+    [team, requests, bookings, players, notifs, unread, challenges, market, recruits, board, stadiums, cities, tournaments],
   )
 
   const value = {
@@ -203,6 +208,7 @@ export function CommandCenterProvider({ children }) {
     upcomingBookings,
     cities,
     stadiums,
+    tournaments,
     notifs,
     unread,
     challenges,

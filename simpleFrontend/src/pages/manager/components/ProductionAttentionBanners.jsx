@@ -1,20 +1,69 @@
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Calendar, ChevronRight, ChevronLeft, Download, Shield, Sparkles, ArrowLeft, ArrowRight } from 'lucide-react'
+import { Calendar, ChevronRight, ChevronLeft, Download, Shield, Sparkles, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react'
 import { useCommandCenter } from './CommandCenterContext'
 import { formatDate } from './shared'
 
 export default function ProductionAttentionBanners() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { nextMatch, requests, setMatch } = useCommandCenter()
+  const { nextMatch, requests, tournaments, setMatch, myTeamId } = useCommandCenter()
 
   const isRtl = i18n.language?.startsWith('ar')
   const ArrowIcon = isRtl ? ArrowLeft : ArrowRight
   const ChevronIcon = isRtl ? ChevronLeft : ChevronRight
 
   // Find incoming challenge or pending request if available
-  const pendingChallenge = requests?.find((r) => r.status === 'open' || r.status === 'pending')
+  const pendingChallenge = requests?.find(
+    (r) => (r.status === 'open' && r.host_team_id !== myTeamId) || r.status === 'pending',
+  )
+  const openTournament = tournaments && tournaments.length > 0 ? tournaments[0] : null
+
+  // Active alerts list
+  const alerts = []
+
+  if (nextMatch) {
+    const oppName = nextMatch.opponent_team?.name || nextMatch.host_team?.name || (isRtl ? 'الخصم' : 'Opponent')
+    alerts.push({
+      id: 'match',
+      type: 'rose',
+      icon: Calendar,
+      title: isRtl ? 'مباراة قريبة' : 'Upcoming Match',
+      desc: isRtl ? `مباراة ضد ${oppName}` : `Match vs ${oppName}`,
+      sub: nextMatch.match_datetime ? formatDate(nextMatch.match_datetime) : '',
+      actionText: isRtl ? 'عرض التفاصيل' : 'View Details',
+      action: () => setMatch(nextMatch),
+    })
+  }
+
+  if (pendingChallenge) {
+    const challengerName = pendingChallenge.host_team?.name || (isRtl ? 'فريق رياضي' : 'Opponent Team')
+    alerts.push({
+      id: 'challenge',
+      type: 'amber',
+      icon: Download,
+      title: isRtl ? 'طلب تحدي متاح' : 'Challenge Request',
+      desc: isRtl ? `طلب مباراة من ${challengerName}` : `Match request from ${challengerName}`,
+      sub: isRtl ? 'بانتظار التأكيد' : 'Awaiting confirmation',
+      actionText: isRtl ? 'مشاهدة الطلب' : 'View Request',
+      action: () => navigate('/dashboard/feed'),
+    })
+  }
+
+  if (openTournament) {
+    alerts.push({
+      id: 'tournament',
+      type: 'sky',
+      icon: Shield,
+      title: isRtl ? 'التسجيل في بطولة' : 'Tournament Registration',
+      desc: openTournament.name,
+      sub: openTournament.registration_deadline
+        ? (isRtl ? `آخر أجل: ${new Date(openTournament.registration_deadline).toLocaleDateString('ar-MA', { day: 'numeric', month: 'short' })}` : `Deadline: ${new Date(openTournament.registration_deadline).toLocaleDateString()}`)
+        : (isRtl ? 'باب التسجيل مفتوح' : 'Registration Open'),
+      actionText: isRtl ? 'عرض البطولة' : 'View Tournament',
+      action: () => navigate(openTournament.slug ? `/tournaments/${openTournament.slug}` : '/dashboard/tournaments'),
+    })
+  }
 
   return (
     <div className="space-y-3">
@@ -38,116 +87,99 @@ export default function ProductionAttentionBanners() {
         </Link>
       </div>
 
-      {/* 3 Alert Cards (Stacked on Mobile, 3 Columns on Desktop) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {/* Alert 1: Upcoming Match */}
-        <div className="relative flex flex-col justify-between rounded-2xl border border-rose-100/90 bg-rose-50/50 p-4 transition-all hover:bg-rose-50/80 hover:shadow-xs">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-rose-100 text-rose-600">
-                <Calendar className="size-5" />
-              </div>
-              <div>
-                <span className="text-[11px] font-black text-rose-600 block">
-                  {isRtl ? 'مباراة قريبة' : 'Upcoming Match'}
-                </span>
-                <p className="mt-0.5 text-xs font-black text-slate-800 line-clamp-1">
-                  {nextMatch
-                    ? (isRtl ? `مباراة ضد ${nextMatch.opponent_team?.name || nextMatch.host_team?.name || 'الخصم'}` : `Match vs ${nextMatch.opponent_team?.name || 'Opponent'}`)
-                    : (isRtl ? 'مباراة ضد شباب المدينة' : 'Match vs Shabab Al Madina')}
-                </p>
-                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  {nextMatch?.match_datetime
-                    ? formatDate(nextMatch.match_datetime)
-                    : (isRtl ? 'السبت 28 شتنبر • 18:00' : 'Saturday 28 Sep • 18:00')}
-                </p>
-              </div>
+      {alerts.length === 0 ? (
+        /* All clear clean state */
+        <div className="flex items-center justify-between rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700">
+              <CheckCircle2 className="size-5" />
             </div>
-            <ChevronIcon className="size-4 text-rose-400 shrink-0 mt-1" />
-          </div>
-
-          <div className="mt-3 pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (nextMatch) setMatch(nextMatch)
-                else navigate('/dashboard/matches')
-              }}
-              className="w-full rounded-xl bg-rose-100/80 hover:bg-rose-200/80 py-1.5 text-xs font-black text-rose-700 transition-colors"
-            >
-              {isRtl ? 'عرض التفاصيل' : 'View Details'}
-            </button>
-          </div>
-        </div>
-
-        {/* Alert 2: New Challenge Request */}
-        <div className="relative flex flex-col justify-between rounded-2xl border border-amber-100/90 bg-amber-50/50 p-4 transition-all hover:bg-amber-50/80 hover:shadow-xs">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-700">
-                <Download className="size-5" />
-              </div>
-              <div>
-                <span className="text-[11px] font-black text-amber-700 block">
-                  {isRtl ? 'طلب تحدي جديد' : 'New Challenge Request'}
-                </span>
-                <p className="mt-0.5 text-xs font-black text-slate-800 line-clamp-1">
-                  {isRtl
-                    ? (pendingChallenge?.host_team?.name ? `فريق ${pendingChallenge.host_team.name} يرغب في مواجهتك` : 'فريق نجوم السلام يرغب في مواجهة فريقك')
-                    : 'Noujoum Salam team wants to challenge you'}
-                </p>
-                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  {isRtl ? 'بانتظار موافقتك' : 'Awaiting your confirmation'}
-                </p>
-              </div>
+            <div>
+              <h3 className="text-xs font-black text-slate-800">
+                {isRtl ? 'كل الأمور تحت السيطرة' : 'All clear'}
+              </h3>
+              <p className="text-[11px] font-semibold text-slate-500">
+                {isRtl ? 'لا توجد طلبات أو تنبيهات عاجلة تتطلب تدخلك الآن.' : 'No urgent alerts or pending requests right now.'}
+              </p>
             </div>
-            <ChevronIcon className="size-4 text-amber-500 shrink-0 mt-1" />
           </div>
-
-          <div className="mt-3 pt-2">
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard/feed')}
-              className="w-full rounded-xl bg-amber-100/80 hover:bg-amber-200/80 py-1.5 text-xs font-black text-amber-800 transition-colors"
-            >
-              {isRtl ? 'مشاهدة الطلب' : 'View Request'}
-            </button>
-          </div>
+          <Link
+            to="/dashboard/feed"
+            className="rounded-xl bg-white px-3 py-1.5 text-xs font-black text-emerald-700 border border-emerald-200 hover:bg-emerald-50 shadow-2xs transition-colors shrink-0"
+          >
+            {isRtl ? 'تحدي فريق جديد' : 'Challenge Team'}
+          </Link>
         </div>
+      ) : (
+        /* Real Alert Cards Grid */
+        <div className={`grid grid-cols-1 ${alerts.length === 2 ? 'md:grid-cols-2' : alerts.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-1'} gap-3.5`}>
+          {alerts.map((al) => {
+            const Icon = al.icon
+            const colorClasses = {
+              rose: {
+                card: 'border-rose-100/90 bg-rose-50/50 hover:bg-rose-50/80',
+                iconBg: 'bg-rose-100 text-rose-600',
+                badge: 'text-rose-600',
+                btn: 'bg-rose-100/80 hover:bg-rose-200/80 text-rose-700',
+                chevron: 'text-rose-400',
+              },
+              amber: {
+                card: 'border-amber-100/90 bg-amber-50/50 hover:bg-amber-50/80',
+                iconBg: 'bg-amber-100 text-amber-700',
+                badge: 'text-amber-700',
+                btn: 'bg-amber-100/80 hover:bg-amber-200/80 text-amber-800',
+                chevron: 'text-amber-500',
+              },
+              sky: {
+                card: 'border-sky-100/90 bg-sky-50/50 hover:bg-sky-50/80',
+                iconBg: 'bg-sky-100 text-sky-700',
+                badge: 'text-sky-700',
+                btn: 'bg-sky-100/80 hover:bg-sky-200/80 text-sky-800',
+                chevron: 'text-sky-400',
+              },
+            }[al.type]
 
-        {/* Alert 3: Tournament Registration */}
-        <div className="relative flex flex-col justify-between rounded-2xl border border-sky-100/90 bg-sky-50/50 p-4 transition-all hover:bg-sky-50/80 hover:shadow-xs">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-100 text-sky-700">
-                <Shield className="size-5" />
-              </div>
-              <div>
-                <span className="text-[11px] font-black text-sky-700 block">
-                  {isRtl ? 'التسجيل في بطولة' : 'Tournament Registration'}
-                </span>
-                <p className="mt-0.5 text-xs font-black text-slate-800 line-clamp-1">
-                  {isRtl ? 'الدوري المحلي 2024' : 'Local League 2024'}
-                </p>
-                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                  {isRtl ? 'ينتهي التسجيل بعد 5 أيام' : 'Registration ends in 5 days'}
-                </p>
-              </div>
-            </div>
-            <ChevronIcon className="size-4 text-sky-400 shrink-0 mt-1" />
-          </div>
+            return (
+              <div
+                key={al.id}
+                className={`relative flex flex-col justify-between rounded-2xl border p-4 transition-all hover:shadow-xs ${colorClasses.card}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`grid size-10 shrink-0 place-items-center rounded-xl ${colorClasses.iconBg}`}>
+                      <Icon className="size-5" />
+                    </div>
+                    <div>
+                      <span className={`text-[11px] font-black block ${colorClasses.badge}`}>
+                        {al.title}
+                      </span>
+                      <p className="mt-0.5 text-xs font-black text-slate-800 line-clamp-1">
+                        {al.desc}
+                      </p>
+                      {al.sub && (
+                        <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                          {al.sub}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <ChevronIcon className={`size-4 shrink-0 mt-1 ${colorClasses.chevron}`} />
+                </div>
 
-          <div className="mt-3 pt-2">
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard/tournaments')}
-              className="w-full rounded-xl bg-sky-100/80 hover:bg-sky-200/80 py-1.5 text-xs font-black text-sky-800 transition-colors"
-            >
-              {isRtl ? 'عرض البطولة' : 'View Tournament'}
-            </button>
-          </div>
+                <div className="mt-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={al.action}
+                    className={`w-full rounded-xl py-1.5 text-xs font-black transition-colors ${colorClasses.btn}`}
+                  >
+                    {al.actionText}
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -36,11 +36,17 @@ class TournamentSetupService
             if ($tournament->tournament_format !== 'league') {
                 $groups = $this->ensureGroups($tournament, $season, $groupRound, $tournament->group_mode !== 'free');
                 $this->ensureKnockoutRoundsWhenReady($tournament, $season);
+                $tournament->knockout_teams = $this->resolveKnockoutTeams($tournament);
+            } else {
+                $tournament->knockout_teams = 0;
+                $tournament->groups_count = 0;
+                $tournament->teams_per_group = null;
+                $tournament->group_mode = null;
+                $tournament->qualify_per_group = null;
             }
 
             $tournament->competition_id = $competition->id;
             $tournament->season_id = $season->id;
-            $tournament->knockout_teams = $this->resolveKnockoutTeams($tournament);
             $tournament->save();
 
             return $tournament->fresh();
@@ -50,7 +56,12 @@ class TournamentSetupService
     public function ensureCompetition(Tournament $tournament): Competition
     {
         if ($tournament->competition_id && $tournament->competition) {
-            return $tournament->competition;
+            $competition = $tournament->competition;
+            if ($tournament->tournament_format === 'league' && $competition->type !== CompetitionType::League) {
+                $competition->forceFill(['type' => CompetitionType::League])->save();
+            }
+
+            return $competition;
         }
 
         $competition = Competition::create([
@@ -114,6 +125,10 @@ class TournamentSetupService
      */
     public function ensureGroupSet(Tournament $tournament)
     {
+        if ($tournament->tournament_format === 'league') {
+            return collect();
+        }
+
         $season = $this->ensureSeason($tournament);
         $groupRound = $this->ensureGroupRound($tournament, $season);
 

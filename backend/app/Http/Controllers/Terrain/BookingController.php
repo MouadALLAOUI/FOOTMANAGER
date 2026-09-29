@@ -74,7 +74,7 @@ class BookingController extends Controller
         // Get single bookings for this specific date
         $singleBookings = TerrainBooking::where('terrain_id', $terrainId)
             ->where('booking_date', $request->date)
-            ->whereIn('status', ['pending', 'approved'])
+            ->whereIn('status', ['pending', 'confirmed', 'approved'])
             ->get();
 
         // Get active weekly subscriptions that cover this day_of_week
@@ -82,7 +82,7 @@ class BookingController extends Controller
         $weeklySubscriptions = TerrainBooking::where('terrain_id', $terrainId)
             ->where('reservation_type', 'weekly_subscription')
             ->where('day_of_week', $dayOfWeek)
-            ->whereIn('status', ['pending', 'approved'])
+            ->whereIn('status', ['pending', 'confirmed', 'approved'])
             ->where(function ($q) use ($dateStr) {
                 $q->where(function ($sq) use ($dateStr) {
                     $sq->whereNull('start_date')->orWhere('start_date', '<=', $dateStr);
@@ -852,7 +852,7 @@ class BookingController extends Controller
             ->whereNull('match_request_id');
 
         $query = match ($filter) {
-            'upcoming' => $query->whereIn('status', ['pending', 'approved'])
+            'upcoming' => $query->whereIn('status', ['pending', 'confirmed', 'approved'])
                 ->whereNull('archived_at')
                 ->where(function ($q) use ($today) {
                     $q->where('reservation_type', 'single')
@@ -865,7 +865,7 @@ class BookingController extends Controller
                                 });
                         });
                 }),
-            'past' => $query->whereIn('status', ['approved', 'completed'])
+            'past' => $query->whereIn('status', ['confirmed', 'approved', 'completed'])
                 ->where(function ($q) use ($today) {
                     $q->where(function ($sq) use ($today) {
                         $sq->where('reservation_type', 'single')
@@ -878,8 +878,8 @@ class BookingController extends Controller
                         });
                 }),
             'cancelled' => $query->whereIn('status', ['cancelled', 'rejected']),
-            'all' => $query->whereIn('status', ['pending', 'approved', 'completed', 'cancelled', 'rejected']),
-            default => $query->whereIn('status', ['pending', 'approved'])->whereNull('archived_at'),
+            'all' => $query->whereIn('status', ['pending', 'confirmed', 'approved', 'completed', 'cancelled', 'rejected']),
+            default => $query->whereIn('status', ['pending', 'confirmed', 'approved'])->whereNull('archived_at'),
         };
 
         $bookings = $query->orderBy('booking_date', 'desc')
@@ -915,7 +915,7 @@ class BookingController extends Controller
             return 'not_subscription';
         }
 
-        if ($booking->status !== 'approved') {
+        if ($booking->status !== 'approved' && $booking->status !== 'confirmed') {
             return 'inactive';
         }
 
@@ -954,7 +954,7 @@ class BookingController extends Controller
         $baseQuery = TerrainBooking::where('manager_id', $managerId)
             ->whereNull('match_request_id');
 
-        $upcoming = (clone $baseQuery)->whereIn('status', ['pending', 'approved'])
+        $upcoming = (clone $baseQuery)->whereIn('status', ['pending', 'confirmed', 'approved'])
             ->whereNull('archived_at')
             ->where(function ($q) use ($today) {
                 $q->where('reservation_type', 'single')
@@ -968,7 +968,7 @@ class BookingController extends Controller
                     });
             })->count();
 
-        $past = (clone $baseQuery)->whereIn('status', ['approved', 'completed'])
+        $past = (clone $baseQuery)->whereIn('status', ['confirmed', 'approved', 'completed'])
             ->where(function ($q) use ($today) {
                 $q->where(function ($sq) use ($today) {
                     $sq->where('reservation_type', 'single')
@@ -983,7 +983,7 @@ class BookingController extends Controller
 
         $cancelled = (clone $baseQuery)->whereIn('status', ['cancelled', 'rejected'])->count();
 
-        $all = (clone $baseQuery)->whereIn('status', ['pending', 'approved', 'completed', 'cancelled', 'rejected'])->count();
+        $all = (clone $baseQuery)->whereIn('status', ['pending', 'confirmed', 'approved', 'completed', 'cancelled', 'rejected'])->count();
 
         return [
             'upcoming' => $upcoming,

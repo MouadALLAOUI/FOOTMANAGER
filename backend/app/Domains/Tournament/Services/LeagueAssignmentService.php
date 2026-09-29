@@ -66,13 +66,15 @@ class LeagueAssignmentService
         $unscheduledFixtures = Fixture::query()
             ->where('competition_id', $tournament->competition_id)
             ->where('season_id', $tournament->season_id)
-            ->whereNull('match_id')
-            ->whereIn('status', [
-                FixtureStatus::WaitingForBooking,
-                FixtureStatus::ReschedulingRequired,
-                FixtureStatus::Scheduled, // if scheduled_at is null
-            ])
             ->whereNull('scheduled_at')
+            ->where(function ($q) {
+                $q->whereNull('match_id')
+                    ->orWhereIn('status', [
+                        FixtureStatus::WaitingForBooking,
+                        FixtureStatus::ReschedulingRequired,
+                        FixtureStatus::Scheduled,
+                    ]);
+            })
             ->with(['homeTeam', 'awayTeam'])
             ->get();
 
@@ -230,16 +232,17 @@ class LeagueAssignmentService
     /**
      * Atomically assign an existing booking to a league fixture and provision the match.
      */
-    public function assign(Tournament $tournament, Fixture $fixture, TerrainBooking $booking): array
+    public function assign(Tournament $tournament, Fixture $fixture, TerrainBooking $booking, bool $allowBorrowed = false): array
     {
-        return DB::transaction(function () use ($tournament, $fixture, $booking) {
+        return DB::transaction(function () use ($tournament, $fixture, $booking, $allowBorrowed) {
             // Re-validate consistency
             if ((int) $fixture->competition_id !== (int) $tournament->competition_id) {
                 throw new DomainException('المباراة لا تنتمي إلى هذا الدوري');
             }
 
-            if ((int) $booking->team_id !== (int) $fixture->home_team_id) {
-                throw new DomainException('الحجز يجب أن يكون تابعاً للفريق المضيف');
+            $isHomeBooking = ((int) $booking->team_id === (int) $fixture->home_team_id);
+            if (! $isHomeBooking && ! $allowBorrowed) {
+                throw new DomainException('الحجز يجب أن يكون تابعاً للفريق المضيف (أو تفعيل خيار استعارة توقيت)');
             }
 
             if ($booking->fixture_id && (int) $booking->fixture_id !== (int) $fixture->id) {
@@ -256,6 +259,11 @@ class LeagueAssignmentService
 
             $scheduledAt = Carbon::parse($bookingDateStr.' '.$booking->start_time);
 
+            $notes = null;
+            if (! $isHomeBooking) {
+                $notes = 'توقيت مستعار من فريق ' . ($booking->team?->name ?? 'آخر');
+            }
+
             // Create or update the FootballMatch entity
             $match = $fixture->match;
             if (! $match) {
@@ -271,6 +279,7 @@ class LeagueAssignmentService
                     'active_reservation_id' => $booking->id,
                     'match_duration_minutes' => $tournament->match_duration_minutes ?? 90,
                     'is_confirmed' => true,
+                    'notes' => $notes,
                     'created_by' => auth()->id(),
                 ]);
             } else {
@@ -279,6 +288,7 @@ class LeagueAssignmentService
                     'active_reservation_id' => $booking->id,
                     'status' => MatchStatus::Scheduled,
                     'is_confirmed' => true,
+                    'notes' => $notes ?? $match->notes,
                 ]);
             }
 
@@ -301,7 +311,8 @@ class LeagueAssignmentService
             return [
                 'fixture' => $fixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']),
                 'booking' => $booking->fresh(),
-                'message' => 'تم اعتماد وتثبيت المباراة وربطها بالحجز بنجاح',
+                'is_borrowed' => ! $isHomeBooking,
+                'message' => 'تم اعتماد وتثبيت المباراة وربطها بالحجز بنجاح' . (! $isHomeBooking ? ' (توقيت مستعار)' : ''),
             ];
         });
     }

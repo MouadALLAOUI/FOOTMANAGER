@@ -83,6 +83,18 @@ export default function RoleIcon({ role, className = 'size-14' }) {
         </div>
       )
 
+    case 'admin':
+    case 'sub_admin':
+      return (
+        <div className={`relative grid place-items-center rounded-2xl bg-gradient-to-br from-indigo-500 to-slate-800 text-white shadow-lg shadow-indigo-500/25 ring-1 ring-white/30 transition-transform duration-300 group-hover:scale-105 ${className}`}>
+          {/* Admin Shield */}
+          <svg className="size-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" fill="currentColor" fillOpacity="0.15" />
+            <path d="M9 12l2 2 4-4" />
+          </svg>
+        </div>
+      )
+
     default:
       return null
   }

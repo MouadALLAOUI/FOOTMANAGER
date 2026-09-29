@@ -100,15 +100,22 @@ class AuthController extends Controller
             'device_id' => 'nullable|string|max:100',
         ]);
 
-        $login = $request->login;
+        $login = trim((string) $request->login);
 
         $user = User::where('phone', $login)
             ->orWhere('email', $login)
             ->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (! $user) {
             return response()->json([
-                'message' => 'بيانات الدخول غير صحيحة',
+                'message' => 'الحساب غير مسجل لدينا، يرجى إنشاء حساب جديد',
+                'user_not_found' => true,
+            ], 404);
+        }
+
+        if (! Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'بيانات الدخول غير صحيحة، يرجى التحقق من كلمة المرور',
             ], 401);
         }
 

@@ -169,17 +169,29 @@ export default function StepSchedule({
         }
       }
 
+      const calculateEndTime = (start) => {
+        if (!start) return '21:00'
+        const parts = start.split(':')
+        const h = parseInt(parts[0], 10)
+        const m = parseInt(parts[1] || '0', 10)
+        if (isNaN(h)) return '21:00'
+        const endH = (h + 1) % 24
+        return `${String(endH).padStart(2, '0')}:${String(isNaN(m) ? 0 : m).padStart(2, '0')}`
+      }
+
       onNext({
         has_regular_time: true,
         schedules: slots.map((s) => ({
           day_of_week: s.day_of_week,
           start_time: s.start_time,
+          end_time: s.end_time || calculateEndTime(s.start_time),
           terrain_id: s.terrain_id || null,
           pitch_name: s.pitch_name?.trim() || 'ملعب معتاد',
         })),
         // Fallback for older backend endpoints
         day_of_week: slots[0].day_of_week,
         start_time: slots[0].start_time,
+        end_time: slots[0].end_time || calculateEndTime(slots[0].start_time),
         terrain_id: slots[0].terrain_id || null,
         pitch_name: slots[0].pitch_name?.trim() || 'ملعب معتاد',
       })

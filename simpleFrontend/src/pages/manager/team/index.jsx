@@ -16,7 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 import api from '../../../api/client'
-import { useTeamProfile, useStadiums } from '../../../api/queries'
+import { useTeamProfile, useStadiums, useCitiesSelect } from '../../../api/queries'
 import {
   Button,
   Field,
@@ -62,12 +62,14 @@ export default function Team() {
   const { t } = useTranslation()
   const { data, loading, refetch } = useTeamProfile()
   const { data: stadiumsData } = useStadiums({ per_page: 50 })
+  const { data: citiesData, isLoading: citiesLoading } = useCitiesSelect()
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [logoModalOpen, setLogoModalOpen] = useState(false)
 
   const team = data?.team
   const stadiums = stadiumsData?.data || []
+  const cities = citiesData?.cities || []
 
   useEffect(() => {
     if (team) {
@@ -267,7 +269,25 @@ export default function Team() {
             </FieldRow>
             <FieldRow>
               <Field label={t('dash.city')}>
-                <input className={inputClass} value={form.city || ''} onChange={set('city')} />
+                <select className={selectClass} value={form.city || ''} onChange={set('city')}>
+                  <option value="">
+                    {citiesLoading && cities.length === 0 ? 'جارِ تحميل المدن...' : 'اختر المدينة'}
+                  </option>
+                  {cities.map((c) => {
+                    const label =
+                      c.name_ar && c.name && c.name_ar !== c.name
+                        ? `${c.name_ar} (${c.name})`
+                        : (c.localized_name || c.name_ar || c.name)
+                    return (
+                      <option key={c.id || c.name} value={c.name}>
+                        {label}
+                      </option>
+                    )
+                  })}
+                  {form.city && !cities.some((c) => c.name === form.city || c.name_ar === form.city) && (
+                    <option value={form.city}>{form.city}</option>
+                  )}
+                </select>
               </Field>
               <Field label={t('dash.regionProvince')}>
                 <input className={inputClass} value={form.region || ''} onChange={set('region')} />

@@ -1,15 +1,30 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Shield, Upload, MapPin, Check, Sparkles, Phone } from 'lucide-react'
 import { Button, Field, inputClass, selectClass } from '../../components/dashboard/ui'
 import { useAuth } from '../../context/AuthContext'
+import { useCitiesSelect } from '../../api/queries'
 
-export default function StepTeam({ initialTeam, presets = [], onNext, busy }) {
+export default function StepTeam({ initialTeam, presets = [], cities: initialCities = [], onNext, busy }) {
   const { user } = useAuth()
+  const { data: citiesData, isLoading: citiesLoading } = useCitiesSelect()
+  const cities = initialCities.length > 0 ? initialCities : (citiesData?.cities || [])
+
   const [name, setName] = useState(initialTeam?.name || '')
   const [phone, setPhone] = useState(user?.phone || '')
   const [isWhatsapp, setIsWhatsapp] = useState(user?.is_whatsapp ?? true)
   const [city, setCity] = useState(initialTeam?.city || '')
   const [category, setCategory] = useState(initialTeam?.category || 'adult')
+
+  useEffect(() => {
+    if (city && cities.length > 0) {
+      const match = cities.find(
+        (c) => c.name === city || c.name_ar === city || c.localized_name === city || c.slug === city.toLowerCase()
+      )
+      if (match && match.name !== city) {
+        setCity(match.name)
+      }
+    }
+  }, [cities, city])
   const [selectedPresetId, setSelectedPresetId] = useState(null)
   const [logoFile, setLogoFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(initialTeam?.logo_url || '')
@@ -208,14 +223,30 @@ export default function StepTeam({ initialTeam, presets = [], onNext, busy }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="المدينة / المنطقة">
               <div className="relative">
-                <input
-                  type="text"
+                <select
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="مثال: الدار البيضاء، الرباط..."
-                  className={inputClass}
+                  className={selectClass}
                   dir="auto"
-                />
+                >
+                  <option value="">
+                    {citiesLoading && cities.length === 0 ? 'جارِ تحميل المدن...' : 'اختر المدينة أو المنطقة'}
+                  </option>
+                  {cities.map((c) => {
+                    const label =
+                      c.name_ar && c.name && c.name_ar !== c.name
+                        ? `${c.name_ar} (${c.name})`
+                        : (c.localized_name || c.name_ar || c.name)
+                    return (
+                      <option key={c.id || c.name} value={c.name}>
+                        {label}
+                      </option>
+                    )
+                  })}
+                  {city && !cities.some((c) => c.name === city || c.name_ar === city) && (
+                    <option value={city}>{city}</option>
+                  )}
+                </select>
                 <MapPin className="pointer-events-none absolute end-3.5 top-3.5 size-4 text-slate-400" />
               </div>
             </Field>

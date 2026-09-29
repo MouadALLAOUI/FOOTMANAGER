@@ -84,6 +84,7 @@ class CityController extends Controller
                 return [
                     'id' => $city->id,
                     'name' => $city->name,
+                    'name_ar' => $city->name_ar,
                     'localized_name' => $city->localized_name,
                     'slug' => $city->slug,
                 ];

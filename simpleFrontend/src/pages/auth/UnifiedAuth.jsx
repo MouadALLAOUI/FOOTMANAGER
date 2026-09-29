@@ -124,14 +124,11 @@ export default function UnifiedAuth() {
     setSelectedRole(null)
     setSubStep('methods')
     setError('')
-    setIdentifier('')
-    setPassword('')
-    setConfirmPassword('')
     setAccountInfo(null)
   }
 
   const handleEditIdentifier = () => {
-    setSubStep('check_identifier')
+    setSubStep('methods')
     setPassword('')
     setConfirmPassword('')
     setError('')
@@ -194,6 +191,16 @@ export default function UnifiedAuth() {
     e.preventDefault()
     setError('')
 
+    const val = identifier.trim()
+    if (!val) {
+      setError(
+        isRtl
+          ? 'يرجى إدخال رقم الهاتف أو البريد الإلكتروني'
+          : 'Please enter your phone number or email',
+      )
+      return
+    }
+
     if (!password) {
       setError(isRtl ? 'يرجى إدخال كلمة المرور' : 'Please enter your password')
       return
@@ -201,7 +208,7 @@ export default function UnifiedAuth() {
 
     setBusy(true)
     try {
-      const loggedUser = await login(identifier.trim(), password)
+      const loggedUser = await login(val, password)
       toast.success(
         isRtl
           ? `مرحباً بعودتك ${loggedUser.name || ''}! 👋`
@@ -227,6 +234,21 @@ export default function UnifiedAuth() {
 
       navigate(homeForRole(loggedUser.role), { replace: true })
     } catch (err) {
+      if (err.response?.status === 404 || err.response?.data?.user_not_found) {
+        // Account does not exist -> Automatically redirect to signing / registration page
+        setSubStep('new_register')
+        setError('')
+        toast.info(
+          isRtl
+            ? 'هذا الحساب غير مسجل لدينا، تفضل بإنشاء حسابك الجديد بسهولة ✨'
+            : 'No account found. Welcome to create your new account ✨',
+        )
+        if (password && password.length >= 8) {
+          setConfirmPassword(password)
+        }
+        return
+      }
+
       const msg =
         err.response?.data?.message ||
         (isRtl
@@ -248,6 +270,15 @@ export default function UnifiedAuth() {
     const name = fullName.trim()
     const val = identifier.trim()
     const isEmail = val.includes('@')
+
+    if (!selectedRole) {
+      setError(
+        isRtl
+          ? 'يرجى اختيار نوع الحساب (مسير فريق، لاعب، صاحب ملعب، لجنة تنظيمية)'
+          : 'Please select an account type (Team Manager, Player, Stadium Owner, Committee)',
+      )
+      return
+    }
 
     if (!name) {
       setError(isRtl ? 'يرجى إدخال الاسم الكامل' : 'Please enter your full name')
@@ -329,7 +360,7 @@ export default function UnifiedAuth() {
   // =========================================================================
   // SCREEN 1: "Who are you?" Role Selection (Clean, Responsive, No Forms)
   // =========================================================================
-  if (!selectedRole) {
+  if (!selectedRole && subStep !== 'new_register') {
     return (
       <div className="w-full max-w-xl mx-auto space-y-6 fade-in" style={{ animationDelay: '100ms' }}>
         {/* Welcome Area Header */}
@@ -395,6 +426,127 @@ export default function UnifiedAuth() {
           })}
         </div>
 
+        {/* Divider */}
+        <div className="flex items-center gap-4 py-1">
+          <span className="h-px flex-1 bg-slate-200" />
+          <span className="text-xs font-bold text-slate-400">
+            {isRtl ? 'أو تسجيل الدخول مباشرة' : 'Or Sign In Directly'}
+          </span>
+          <span className="h-px flex-1 bg-slate-200" />
+        </div>
+
+        {/* Direct Login Card */}
+        <div className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-4">
+          <div className="text-center sm:text-start">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-700 mb-2">
+              <FontAwesomeIcon icon={faLock} className="size-3 text-emerald-600" />
+              <span>{isRtl ? 'لديك حساب بالفعل؟' : 'Already have an account?'}</span>
+            </div>
+            <h3 className="text-lg font-black text-slate-900">
+              {isRtl ? 'تسجيل الدخول الفوري' : 'Instant Sign In'}
+            </h3>
+            <p className="mt-0.5 text-xs font-semibold text-slate-500">
+              {isRtl
+                ? 'أدخل رقم الهاتف أو البريد الإلكتروني مع كلمة المرور للدخول لحسابك مباشرة'
+                : 'Enter your phone or email with your password to sign in directly'}
+            </p>
+          </div>
+
+          {error && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-3.5 text-xs font-bold text-red-600 leading-relaxed">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+            <PremiumField
+              id="screen1-ident"
+              label={isRtl ? 'رقم الهاتف أو البريد الإلكتروني' : 'Phone or Email'}
+              placeholder="06XXXXXXXX أو name@example.com"
+              icon={<FontAwesomeIcon icon={faEnvelope} className="size-[18px]" />}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+              autoComplete="username"
+            />
+
+            <PremiumField
+              id="screen1-pass"
+              label={isRtl ? 'كلمة المرور' : 'Password'}
+              placeholder="••••••••"
+              type={showPassword ? 'text' : 'password'}
+              icon={<FontAwesomeIcon icon={faLock} className="size-[18px]" />}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              endAdornment={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute end-2.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="size-4" />
+                </button>
+              }
+            />
+
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-bold text-slate-500 hover:text-emerald-600 transition-colors"
+              >
+                {isRtl ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+              </Link>
+            </div>
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="btn-ripple flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {busy ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} className="size-4 animate-spin" />
+                  <span>{isRtl ? 'جاري تسجيل الدخول...' : 'Signing in...'}</span>
+                </>
+              ) : (
+                <span>{isRtl ? 'تسجيل الدخول' : 'Sign In'}</span>
+              )}
+            </button>
+          </form>
+
+          {/* Social Sign-in Alternatives */}
+          <div className="pt-3 border-t border-slate-100 space-y-2">
+            <p className="text-center text-[11px] font-bold text-slate-400">
+              {isRtl ? 'أو الدخول بنقرة واحدة عبر' : 'Or one-click sign in with'}
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => redirectToOAuth('google')}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                <svg className="size-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z" />
+                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.97 0 12s.45 3.82 1.25 5.42l4.03-3.15z" />
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z" />
+                </svg>
+                <span>Google</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => redirectToOAuth('facebook')}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#1877F2]/20 bg-[#1877F2]/5 px-3 text-xs font-bold text-[#1877F2] shadow-2xs hover:bg-[#1877F2]/10 transition-colors cursor-pointer"
+              >
+                <FontAwesomeIcon icon={faFacebook} className="size-4 shrink-0 text-[#1877F2]" />
+                <span>Facebook</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Admin / Staff Access Shortcut */}
         <div className="pt-2 text-center">
           <button
@@ -424,19 +576,21 @@ export default function UnifiedAuth() {
         <button
           type="button"
           onClick={handleBackToRoles}
-          className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-black text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-900 active:scale-95"
+          className="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-black text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-900 active:scale-95 cursor-pointer"
         >
           <FontAwesomeIcon
             icon={faArrowRight}
             className="size-3 ltr:rotate-180 rtl:rotate-0"
           />
-          <span>{isRtl ? 'تغيير الدور' : 'Change role'}</span>
+          <span>{selectedRole ? (isRtl ? 'تغيير الدور' : 'Change role') : (isRtl ? 'رجوع' : 'Back')}</span>
         </button>
 
-        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black shadow-xs ${roleObj.badgeClass}`}>
-          <RoleIcon role={roleObj.id} className="size-5 rounded-md" />
-          <span>{currentRoleTitle}</span>
-        </span>
+        {selectedRole && (
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-black shadow-xs ${roleObj.badgeClass}`}>
+            <RoleIcon role={roleObj.id} className="size-5 rounded-md" />
+            <span>{currentRoleTitle}</span>
+          </span>
+        )}
       </div>
 
       {/* SUB-STEP 1: METHOD SELECTION (Google / Facebook / Phone-Email) */}
@@ -511,19 +665,71 @@ export default function UnifiedAuth() {
             <span className="h-px flex-1 bg-slate-200" />
           </div>
 
-          {/* Button to open Phone / Email Identifier Input */}
-          <button
-            type="button"
-            onClick={() => setSubStep('check_identifier')}
-            className="flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl border border-slate-200/90 bg-slate-50 text-sm font-extrabold text-slate-700 shadow-xs transition-all duration-300 hover:border-slate-300 hover:bg-slate-100 active:scale-[0.99]"
-          >
-            <FontAwesomeIcon icon={faPhone} className="size-4 text-slate-400" />
-            <span>
-              {isRtl
-                ? 'المتابعة برقم الهاتف أو البريد الإلكتروني'
-                : 'Continue with Phone or Email'}
-            </span>
-          </button>
+          {/* Direct Login Form for Selected Role */}
+          <form onSubmit={handleLoginSubmit} className="space-y-3.5 pt-1">
+            <PremiumField
+              id="screen2-ident"
+              label={isRtl ? 'رقم الهاتف أو البريد الإلكتروني' : 'Phone or Email'}
+              placeholder="06XXXXXXXX أو name@example.com"
+              icon={<FontAwesomeIcon icon={faEnvelope} className="size-[18px]" />}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              required
+              autoComplete="username"
+            />
+
+            <PremiumField
+              id="screen2-pass"
+              label={isRtl ? 'كلمة المرور' : 'Password'}
+              placeholder="••••••••"
+              type={showPassword ? 'text' : 'password'}
+              icon={<FontAwesomeIcon icon={faLock} className="size-[18px]" />}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              endAdornment={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute end-2.5 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} className="size-4" />
+                </button>
+              }
+            />
+
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setSubStep('new_register')}
+                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+              >
+                {isRtl ? `حساب جديد كـ ${currentRoleTitle}؟` : `New ${currentRoleTitle}? Register`}
+              </button>
+              <Link
+                to="/forgot-password"
+                className="text-xs font-bold text-slate-500 hover:text-emerald-600 transition-colors"
+              >
+                {isRtl ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+              </Link>
+            </div>
+
+            <button
+              type="submit"
+              disabled={busy}
+              className="btn-ripple flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {busy ? (
+                <>
+                  <FontAwesomeIcon icon={faSpinner} className="size-4 animate-spin" />
+                  <span>{isRtl ? 'جاري تسجيل الدخول...' : 'Signing in...'}</span>
+                </>
+              ) : (
+                <span>{isRtl ? 'تسجيل الدخول' : 'Sign In'}</span>
+              )}
+            </button>
+          </form>
         </div>
       )}
 
@@ -691,9 +897,13 @@ export default function UnifiedAuth() {
               {isRtl ? 'أول مرة معانا؟ مرحباً بك 👋' : 'First time here? Welcome 👋'}
             </h2>
             <p className="mt-1 text-xs font-semibold text-slate-500">
-              {isRtl
-                ? `أكمل بياناتك البسيطة لإنشاء حسابك كـ ${currentRoleTitle}`
-                : `Complete minimal details to create your account as ${currentRoleTitle}`}
+              {selectedRole
+                ? (isRtl
+                    ? `أكمل بياناتك البسيطة لإنشاء حسابك كـ ${currentRoleTitle}`
+                    : `Complete minimal details to create your account as ${currentRoleTitle}`)
+                : (isRtl
+                    ? 'لم نجد حساباً مسجلاً بهذا المعرف. تفضل بإنشاء حسابك الجديد بسهولة'
+                    : 'No account found with this information. Welcome to create your new account')}
             </p>
           </div>
 
@@ -703,7 +913,7 @@ export default function UnifiedAuth() {
             <button
               type="button"
               onClick={handleEditIdentifier}
-              className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-600 hover:text-emerald-700 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
             >
               <FontAwesomeIcon icon={faPenToSquare} className="size-3" />
               <span>{isRtl ? 'تعديل' : 'Edit'}</span>
@@ -715,6 +925,46 @@ export default function UnifiedAuth() {
               {error}
             </div>
           )}
+
+          {/* Role Selector on Registration Form */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-slate-800">
+                {isRtl ? 'اختر نوع الحساب *' : 'Select Account Type *'}
+              </label>
+              {selectedRole && (
+                <span className="text-[11px] font-bold text-emerald-600">
+                  {currentRoleTitle}
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {ROLES.map((r) => {
+                const title = t(r.titleKey, r.defaultTitle)
+                const isChosen = selectedRole === r.id
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole(r.id)
+                      setError('')
+                    }}
+                    className={`flex items-center gap-2.5 p-2.5 sm:p-3 rounded-2xl border-2 transition-all cursor-pointer ${
+                      isChosen
+                        ? 'border-emerald-600 bg-emerald-50 text-emerald-900 shadow-xs'
+                        : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                    }`}
+                  >
+                    <RoleIcon role={r.id} className="size-7 sm:size-8 rounded-lg shrink-0" />
+                    <div className="text-start min-w-0">
+                      <p className="text-xs font-black leading-tight truncate">{title}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
           {/* Full Name */}
           <PremiumField

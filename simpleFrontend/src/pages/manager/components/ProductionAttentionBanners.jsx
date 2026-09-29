@@ -17,7 +17,7 @@ export default function ProductionAttentionBanners() {
   const pendingChallenge = requests?.find(
     (r) => (r.status === 'open' && r.host_team_id !== myTeamId) || r.status === 'pending',
   )
-  const openTournament = tournaments && tournaments.length > 0 ? tournaments[0] : null
+  const openTournament = tournaments?.find((t) => !t.is_full && t.status === 'open_for_registration') || null
 
   // Active alerts list
   const alerts = []

@@ -28,10 +28,29 @@ class TournamentSquadService
             : null;
     }
 
+    public function minPlayers(Tournament $tournament): ?int
+    {
+        if (isset($tournament->min_players_per_team) && $tournament->min_players_per_team !== null) {
+            return (int) $tournament->min_players_per_team;
+        }
+
+        return null;
+    }
+
+    public function minimumWarning(Tournament $tournament, Team $team): ?string
+    {
+        $min = $this->minPlayers($tournament);
+        if ($min !== null && $this->squadCount($tournament, $team) < $min) {
+            return 'الفريق يلعب بعدد أقل من العدد المحدد للبطولة.';
+        }
+
+        return null;
+    }
+
     /**
      * Active roster players of a team annotated with their in-squad status.
      *
-     * @return array{players: SupportCollection<int, array<string, mixed>>, squad_count: int, max: ?int}
+     * @return array{players: SupportCollection<int, array<string, mixed>>, squad_count: int, max: ?int, min: ?int, warning: ?string}
      */
     public function squad(Tournament $tournament, Team $team): array
     {
@@ -51,6 +70,8 @@ class TournamentSquadService
             'players' => $annotated->values(),
             'squad_count' => $memberIds->count(),
             'max' => $this->maxPlayers($tournament),
+            'min' => $this->minPlayers($tournament),
+            'warning' => $this->minimumWarning($tournament, $team),
         ];
     }
 

@@ -55,6 +55,7 @@ class TournamentFixtureResource extends JsonResource
                 : null,
             'scheduled_at' => $this->scheduled_at?->toDateTimeString(),
             'status' => $this->status?->value,
+            'unscheduled_reason' => $this->unscheduled_reason,
             'is_confirmed' => $this->match ? (bool) $this->match->is_confirmed : true,
             'reservation' => $this->whenLoaded('match', fn () => $this->match ? [
                 'active_reservation_id' => $this->match->active_reservation_id,

@@ -31,7 +31,17 @@ class StadiumResource extends JsonResource
             'supports_tournaments' => (bool) $this->supports_tournaments,
             'google_maps_url' => $this->google_maps_url,
             'cover_image_url' => $this->cover_image_url,
-            'images' => $this->whenLoaded('images', fn () => $this->images->pluck('image_url')),
+            'cover_thumbnail_url' => $this->cover_thumbnail_url,
+            'thumbnail_url' => $this->thumbnail_url ?: $this->cover_thumbnail_url ?: $this->cover_image_url,
+            'image_url' => $this->cover_image_url,
+            'cover_image' => $this->cover_image_url,
+            'image' => $this->cover_image_url,
+            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($img) => [
+                'id' => $img->id,
+                'image_url' => $img->image_url,
+                'thumbnail_url' => $img->thumbnail_url,
+                'is_thumbnail' => (bool) $img->is_thumbnail,
+            ])),
             'facilities' => $this->whenLoaded('facilities', fn () => $this->facilities->pluck('name')),
             'distance' => $this->when(isset($this->distance), fn () => round((float) $this->distance, 2)),
         ];

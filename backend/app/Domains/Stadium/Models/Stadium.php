@@ -53,7 +53,7 @@ class Stadium extends Model
         'cancellation_policy_id',
     ];
 
-    protected $appends = ['cover_image_url', 'cover_thumbnail_url'];
+    protected $appends = ['cover_image_url', 'cover_thumbnail_url', 'thumbnail_url'];
 
     protected function casts(): array
     {
@@ -84,7 +84,15 @@ class Stadium extends Model
     public function getCoverImageUrlAttribute(): ?string
     {
         if ($this->cover_image) {
+            if (str_starts_with($this->cover_image, 'http://') || str_starts_with($this->cover_image, 'https://')) {
+                return $this->cover_image;
+            }
             return Storage::disk('public')->url($this->cover_image);
+        }
+
+        if ($this->relationLoaded('images') && $this->images->isNotEmpty()) {
+            $img = $this->images->firstWhere('is_thumbnail', true) ?? $this->images->first();
+            return $img?->image_url;
         }
 
         return null;
@@ -93,14 +101,33 @@ class Stadium extends Model
     public function getCoverThumbnailUrlAttribute(): ?string
     {
         if ($this->cover_thumbnail_path) {
+            if (str_starts_with($this->cover_thumbnail_path, 'http://') || str_starts_with($this->cover_thumbnail_path, 'https://')) {
+                return $this->cover_thumbnail_path;
+            }
             return Storage::disk('public')->url($this->cover_thumbnail_path);
         }
-        // Fallback: if no explicit thumbnail, check if cover image has a thumbnail in the images table
+
+        // Fallback: check if images relationship has a thumbnail
+        if ($this->relationLoaded('images') && $this->images->isNotEmpty()) {
+            $thumb = $this->images->firstWhere('is_thumbnail', true) ?? $this->images->first();
+            if ($thumb?->thumbnail_url) {
+                return $thumb->thumbnail_url;
+            }
+            if ($thumb?->image_url) {
+                return $thumb->image_url;
+            }
+        }
+
         if ($this->cover_image) {
-            return Storage::disk('public')->url($this->cover_image);
+            return $this->cover_image_url;
         }
 
         return null;
+    }
+
+    public function getThumbnailUrlAttribute(): ?string
+    {
+        return $this->cover_thumbnail_url;
     }
 
     public function owner(): BelongsTo

@@ -82,6 +82,8 @@ class TournamentTeamController extends Controller
                     'payment_status' => $this->registrationService->initialPaymentStatus($tournament),
                 ]);
             }
+
+            $this->checkAndCloseIfFull($tournament);
         });
 
         return $this->teamCollection($tournament);
@@ -113,6 +115,8 @@ class TournamentTeamController extends Controller
                 'status' => TournamentTeam::STATUS_REGISTERED,
                 'payment_status' => $this->registrationService->initialPaymentStatus($tournament),
             ]);
+
+            $this->checkAndCloseIfFull($tournament);
         });
 
         return $this->teamCollection($tournament);
@@ -146,6 +150,8 @@ class TournamentTeamController extends Controller
                     'payment_status' => $this->registrationService->initialPaymentStatus($tournament),
                 ]);
             }
+
+            $this->checkAndCloseIfFull($tournament);
         });
 
         return $this->teamCollection($tournament);
@@ -280,6 +286,8 @@ class TournamentTeamController extends Controller
             $this->assertCapacity($tournament, 1);
 
             $registration->forceFill(['status' => TournamentTeam::STATUS_REGISTERED])->save();
+
+            $this->checkAndCloseIfFull($tournament);
         });
 
         return $this->teamCollection($tournament);
@@ -448,6 +456,8 @@ class TournamentTeamController extends Controller
             ->where('team_id', $teamId)
             ->delete();
 
+        $this->checkAndReopenIfSlotsAvailable($tournament);
+
         return response()->noContent();
     }
 
@@ -503,6 +513,25 @@ class TournamentTeamController extends Controller
             }
 
             $seen[$normalized] = true;
+        }
+    }
+
+    private function checkAndCloseIfFull(Tournament $tournament): void
+    {
+        $registeredNow = $tournament->tournamentTeams()->count();
+        if ($registeredNow >= (int) $tournament->teams_count && $tournament->status === Tournament::STATUS_OPEN_FOR_REGISTRATION) {
+            $tournament->update(['status' => Tournament::STATUS_REGISTRATION_CLOSED]);
+        }
+    }
+
+    private function checkAndReopenIfSlotsAvailable(Tournament $tournament): void
+    {
+        $registeredNow = $tournament->tournamentTeams()->count();
+        if ($registeredNow < (int) $tournament->teams_count
+            && $tournament->status === Tournament::STATUS_REGISTRATION_CLOSED
+            && $tournament->registrationWindowOpen()
+            && $tournament->draw_confirmed_at === null) {
+            $tournament->update(['status' => Tournament::STATUS_OPEN_FOR_REGISTRATION]);
         }
     }
 }

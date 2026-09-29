@@ -15,6 +15,10 @@ export default function ProductionOpenTournaments() {
   const isLoading = loadingBy?.tournaments
   const activeTournament = tournaments && tournaments.length > 0 ? tournaments[0] : null
 
+  const totalTeams = activeTournament?.teams_count || activeTournament?.max_teams || 0
+  const registeredTeams = activeTournament?.registered_teams_count ?? (totalTeams > 0 && activeTournament?.remaining_teams != null ? Math.max(0, totalTeams - activeTournament.remaining_teams) : 0)
+  const isFull = activeTournament?.is_full || (totalTeams > 0 && registeredTeams >= totalTeams) || activeTournament?.status === 'registration_closed'
+
   return (
     <div className="space-y-3 flex flex-col h-full">
       {/* Header */}
@@ -50,83 +54,95 @@ export default function ProductionOpenTournaments() {
           </div>
         </div>
       ) : activeTournament ? (
-        /* Real Tournament Card */
         <div className="flex flex-col justify-between flex-1 rounded-2xl border border-slate-200/90 bg-white overflow-hidden shadow-xs hover:border-emerald-300 transition-all">
-          <div>
-            {/* Banner with Badge */}
-            <div className="relative h-24 sm:h-28 w-full bg-slate-800 overflow-hidden">
-              <img
-                src={activeTournament.banner_url || activeTournament.logo_url || '/tournament_banner.png'}
-                alt={activeTournament.name}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  e.target.src = '/stadium_sample_1.png'
-                }}
-              />
-              <div className="absolute top-2.5 start-2.5">
-                <span className="rounded-full bg-emerald-500/90 backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-black text-white shadow-xs">
-                  {isRtl ? 'جاري التسجيل' : 'Registration Open'}
-                </span>
+            <div>
+              {/* Banner with Badge */}
+              <div className="relative h-24 sm:h-28 w-full bg-slate-800 overflow-hidden">
+                <img
+                  src={activeTournament.banner_url || activeTournament.logo_url || '/tournament_banner.png'}
+                  alt={activeTournament.name}
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.target.src = '/tournament_banner.png'
+                  }}
+                />
+                <div className="absolute top-2.5 start-2.5">
+                  <span
+                    className={`rounded-full backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-black text-white shadow-xs ${
+                      isFull ? 'bg-slate-700/90' : 'bg-emerald-500/90'
+                    }`}
+                  >
+                    {isFull
+                      ? (isRtl ? 'التسجيل مكتمل' : 'Registration Full')
+                      : (isRtl ? 'جاري التسجيل' : 'Registration Open')}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            {/* Details */}
-            <div className="p-4 space-y-1.5 text-center sm:text-start">
-              <h3 className="text-sm sm:text-base font-black text-slate-900 line-clamp-1">
-                {activeTournament.name}
-              </h3>
+              {/* Details */}
+              <div className="p-4 space-y-1.5 text-center sm:text-start">
+                <h3 className="text-sm sm:text-base font-black text-slate-900 line-clamp-1">
+                  {activeTournament.name}
+                </h3>
 
-              <p className="text-xs font-bold text-slate-500">
-                {activeTournament.tournament_format === 'league'
-                  ? (isRtl ? 'دوري • نظام النقاط' : 'League • Round Robin')
-                  : (isRtl ? 'بطولة مجموعات وإقصائيات' : 'Groups & Knockout')}
-                {activeTournament.max_teams ? ` • ${activeTournament.max_teams} ${isRtl ? 'فرق' : 'teams'}` : ''}
-              </p>
-
-              {activeTournament.registration_deadline && (
-                <p className="text-xs font-black text-rose-600">
-                  {isRtl ? 'آخر موعد للتسجيل: ' : 'Registration deadline: '}
-                  {new Date(activeTournament.registration_deadline).toLocaleDateString(isRtl ? 'ar-MA' : 'en-US', {
-                    day: 'numeric',
-                    month: 'short',
-                  })}
+                <p className="text-xs font-bold text-slate-500">
+                  {activeTournament.tournament_format === 'league'
+                    ? (isRtl ? 'دوري • نظام النقاط' : 'League • Round Robin')
+                    : (isRtl ? 'بطولة مجموعات وإقصائيات' : 'Groups & Knockout')}
+                  {totalTeams > 0 ? ` • ${registeredTeams} / ${totalTeams} ${isRtl ? 'فرق' : 'teams'}` : ''}
                 </p>
-              )}
 
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1 pt-1 text-[11px] font-semibold text-slate-400">
-                {activeTournament.start_date && (
-                  <span className="flex items-center gap-1">
-                    <Calendar className="size-3 text-slate-400" />
-                    <span>
-                      {new Date(activeTournament.start_date).toLocaleDateString(isRtl ? 'ar-MA' : 'en-US', {
-                        month: 'short',
-                        year: 'numeric',
-                      })}
+                {activeTournament.registration_deadline && (
+                  <p className="text-xs font-black text-rose-600">
+                    {isRtl ? 'آخر موعد للتسجيل: ' : 'Registration deadline: '}
+                    {new Date(activeTournament.registration_deadline).toLocaleDateString(isRtl ? 'ar-MA' : 'en-US', {
+                      day: 'numeric',
+                      month: 'short',
+                    })}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-3 gap-y-1 pt-1 text-[11px] font-semibold text-slate-400">
+                  {activeTournament.start_date && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="size-3 text-slate-400" />
+                      <span>
+                        {new Date(activeTournament.start_date).toLocaleDateString(isRtl ? 'ar-MA' : 'en-US', {
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
                     </span>
-                  </span>
-                )}
-                {(activeTournament.city || activeTournament.region) && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="size-3 text-emerald-600" />
-                    <span>{activeTournament.city || activeTournament.region}</span>
-                  </span>
-                )}
+                  )}
+                  {(activeTournament.city || activeTournament.region || activeTournament.location) && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="size-3 text-emerald-600" />
+                      <span>{activeTournament.city || activeTournament.region || activeTournament.location}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Action Button */}
-          <div className="p-4 pt-0">
-            <button
-              type="button"
-              onClick={() => navigate(activeTournament.slug ? `/tournaments/${activeTournament.slug}` : '/dashboard/tournaments')}
-              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 py-2.5 text-xs font-black text-white shadow-xs transition-colors"
-            >
-              {isRtl ? 'عرض تفاصيل البطولة' : 'View Tournament Details'}
-            </button>
+            {/* Action Button */}
+            <div className="p-4 pt-0">
+              <button
+                type="button"
+                disabled={isFull}
+                onClick={() => navigate(activeTournament.slug ? `/tournaments/${activeTournament.slug}` : '/dashboard/tournaments')}
+                className={`w-full rounded-xl py-2.5 text-xs font-black transition-colors shadow-xs ${
+                  isFull
+                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                }`}
+              >
+                {isFull
+                  ? (isRtl ? 'التسجيل مكتمل' : 'Registration Full')
+                  : (isRtl ? 'عرض تفاصيل البطولة والمشاركة' : 'View & Join Tournament')}
+              </button>
+            </div>
           </div>
-        </div>
-      ) : (
+        ) : (
         /* Empty State */
         <div className="flex flex-col items-center justify-center flex-1 rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center shadow-xs">
           <div className="grid size-12 place-items-center rounded-2xl bg-amber-50 text-amber-600 mb-2">

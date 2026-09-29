@@ -873,10 +873,13 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/live', [TournamentFixtureController::class, 'live']);
 
             Route::get('/league/suggestions', [TournamentLeagueController::class, 'suggestions']);
+            Route::get('/league/capacity-check', [TournamentLeagueController::class, 'capacityCheck']);
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/league/assign', [TournamentLeagueController::class, 'assign']);
                 Route::post('/league/unassign', [TournamentLeagueController::class, 'unassign']);
+                Route::post('/league/auto-schedule', [TournamentLeagueController::class, 'autoSchedule']);
+                Route::put('/league/fixtures/{fixture}/change-opponent', [TournamentLeagueController::class, 'changeOpponent']);
             });
 
             Route::middleware('activity.not_locked')->group(function () {

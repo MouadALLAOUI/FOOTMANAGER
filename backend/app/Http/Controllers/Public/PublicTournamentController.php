@@ -42,15 +42,34 @@ class PublicTournamentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Tournament::query()
-            ->with('organizer')
-            ->visible()
-            ->whereIn('status', [
+            ->with(['organizer', 'stadium'])
+            ->visible();
+
+        if ($request->filled('status')) {
+            $status = $request->query('status');
+            if ($status === Tournament::STATUS_OPEN_FOR_REGISTRATION) {
+                $query->where('status', Tournament::STATUS_OPEN_FOR_REGISTRATION)
+                    ->where(function ($q) {
+                        $q->whereNull('registration_end_at')
+                            ->orWhere('registration_end_at', '>=', now());
+                    });
+            } else {
+                $query->where('status', $status);
+            }
+        } else {
+            $query->whereIn('status', [
                 Tournament::STATUS_OPEN_FOR_REGISTRATION,
                 Tournament::STATUS_REGISTRATION_CLOSED,
                 Tournament::STATUS_IN_PROGRESS,
                 Tournament::STATUS_COMPLETED,
-            ])
-            ->latest();
+            ]);
+        }
+
+        if ($request->filled('tournament_format')) {
+            $query->where('tournament_format', $request->query('tournament_format'));
+        }
+
+        $query->latest();
 
         $perPage = min(max((int) $request->query('per_page', 20), 1), 50);
         $tournaments = $query->paginate($perPage);

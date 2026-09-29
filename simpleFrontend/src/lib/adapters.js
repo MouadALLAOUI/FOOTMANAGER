@@ -1,3 +1,5 @@
+import { coverThumb } from './thumb'
+
 const LEVEL_KEYS = ['beginner', 'intermediate', 'good', 'veryGood', 'excellent']
 
 export function cityFilterValue(city, t) {
@@ -40,13 +42,7 @@ export function relativeTime(iso, lang) {
 }
 
 export function fieldImage(stadium) {
-  return (
-    stadium?.cover_thumbnail_url ||
-    stadium?.images?.[0]?.thumbnail_url ||
-    stadium?.cover_image_url ||
-    stadium?.images?.[0] ||
-    '/backgrounds/fields/field-1.jpg'
-  )
+  return coverThumb(stadium, '/backgrounds/fields/field-1.jpg')
 }
 
 const FORMAT_FALLBACK = '5v5'

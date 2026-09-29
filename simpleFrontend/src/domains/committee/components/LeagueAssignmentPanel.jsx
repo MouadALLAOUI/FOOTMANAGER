@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   CalendarDays,
   CheckCircle2,
@@ -7,6 +7,7 @@ import {
   Sparkles,
   ShieldCheck,
   AlertCircle,
+  AlertTriangle,
   Play,
   RotateCcw,
   Unlink,
@@ -14,6 +15,9 @@ import {
   CalendarCheck,
   ChevronRight,
   Filter,
+  ArrowLeftRight,
+  X,
+  Zap,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
@@ -27,6 +31,10 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
   const [assignBusyId, setAssignBusyId] = useState(null)
   const [unassignBusyId, setUnassignBusyId] = useState(null)
   const [genBusy, setGenBusy] = useState(false)
+  const [autoScheduleBusy, setAutoScheduleBusy] = useState(false)
+  const [swapBusy, setSwapBusy] = useState(false)
+  const [opponentSwapFixture, setOpponentSwapFixture] = useState(null)
+  const [selectedNewOpponentId, setSelectedNewOpponentId] = useState('')
   const [matchdayFilter, setMatchdayFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -52,6 +60,17 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
     { staleTime: 0 }
   )
 
+  // Pre-check scheduling capacity against available slots
+  const {
+    data: capacityData,
+    loading: capacityLoading,
+    refetch: refetchCapacity,
+  } = useApi(
+    () => api.get(`/committee/tournaments/${tournament.id}/league/capacity-check`).then((r) => r.data.data),
+    [tournament.id, refreshKey],
+    { staleTime: 0 }
+  )
+
   const suggestions = suggestionsData?.data || []
   const validSuggestions = suggestions.filter((s) => s.can_assign)
 
@@ -65,11 +84,28 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
       toast.success(res.data?.message || 'تم إنشاء مواجهات الدوري بنجاح')
       refetchAllFixtures()
       refetchSuggestions()
+      refetchCapacity()
       if (onRefresh) onRefresh()
     } catch (e) {
       toastApiError(e)
     } finally {
       setGenBusy(false)
+    }
+  }
+
+  const handleAutoSchedule = async () => {
+    setAutoScheduleBusy(true)
+    try {
+      const res = await api.post(`/committee/tournaments/${tournament.id}/league/auto-schedule`)
+      toast.success(res.data?.message || 'تمت البرمجة التلقائية بنجاح')
+      refetchAllFixtures()
+      refetchSuggestions()
+      refetchCapacity()
+      if (onRefresh) onRefresh()
+    } catch (e) {
+      toastApiError(e)
+    } finally {
+      setAutoScheduleBusy(false)
     }
   }
 
@@ -79,10 +115,12 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
       const res = await api.post(`/committee/tournaments/${tournament.id}/league/assign`, {
         fixture_id: suggestion.fixture.id,
         booking_id: suggestion.booking.id,
+        date: suggestion.booking.booking_date,
       })
       toast.success(res.data?.message || 'تم اعتماد وتثبيت موعد المباراة بنجاح')
       refetchSuggestions()
       refetchAllFixtures()
+      refetchCapacity()
       if (onRefresh) onRefresh()
     } catch (e) {
       toastApiError(e)
@@ -100,6 +138,7 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
       toast.success(res.data?.message || 'تم إلغاء ربط الحجز بالمباراة')
       refetchSuggestions()
       refetchAllFixtures()
+      refetchCapacity()
       if (onRefresh) onRefresh()
     } catch (e) {
       toastApiError(e)
@@ -108,14 +147,49 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
     }
   }
 
+  const handleSwapOpponentSubmit = async () => {
+    if (!opponentSwapFixture || !selectedNewOpponentId) return
+    setSwapBusy(true)
+    try {
+      const res = await api.put(
+        `/committee/tournaments/${tournament.id}/league/fixtures/${opponentSwapFixture.id}/change-opponent`,
+        {
+          new_opponent_id: Number(selectedNewOpponentId),
+        }
+      )
+      toast.success(res.data?.message || 'تم تغيير الفريق الخصم بنجاح')
+      setOpponentSwapFixture(null)
+      setSelectedNewOpponentId('')
+      refetchAllFixtures()
+      refetchSuggestions()
+      if (onRefresh) onRefresh()
+    } catch (e) {
+      toastApiError(e)
+    } finally {
+      setSwapBusy(false)
+    }
+  }
+
+  // Derive all unique participating teams from fixtures
+  const participatingTeams = useMemo(() => {
+    const map = new Map()
+    ;(allFixtures || []).forEach((f) => {
+      if (f.home_team?.id) map.set(f.home_team.id, f.home_team)
+      if (f.away_team?.id) map.set(f.away_team.id, f.away_team)
+    })
+    return Array.from(map.values())
+  }, [allFixtures])
+
   const totalFixtures = allFixtures?.length || 0
   const scheduledFixtures = allFixtures?.filter((f) => f.scheduled_at && f.status !== 'waiting_for_booking') || []
   const waitingFixtures = allFixtures?.filter((f) => !f.scheduled_at || f.status === 'waiting_for_booking') || []
+  const exceptionsFixtures = allFixtures?.filter((f) => Boolean(f.unscheduled_reason) || f.status === 'rescheduling_required') || []
 
   // Filtered fixtures
   const filteredFixtures = (allFixtures || []).filter((f) => {
     if (matchdayFilter !== 'all' && String(f.matchday) !== String(matchdayFilter)) return false
     if (statusFilter === 'waiting' && (f.scheduled_at && f.status !== 'waiting_for_booking')) return false
+    if (statusFilter === 'unscheduled' && !f.unscheduled_reason && f.status !== 'rescheduling_required') return false
     if (statusFilter === 'scheduled' && (!f.scheduled_at || f.status === 'waiting_for_booking')) return false
     if (statusFilter === 'played' && f.status !== 'played') return false
     return true
@@ -123,25 +197,42 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
 
   const matchdays = Array.from(new Set((allFixtures || []).map((f) => f.matchday).filter(Boolean))).sort((a, b) => a - b)
 
+  const getReasonLabel = (reason) => {
+    switch (reason) {
+      case 'no_available_slots':
+        return 'عدم توفر فترات حجز كافية'
+      case 'rest_conflict':
+        return 'تعارض مع فترة الراحة الإلزامية'
+      case 'rest_or_schedule_conflict':
+        return 'تعارض في المواعيد أو فترة الراحة'
+      default:
+        return 'تتطلب تحديد موعد يدوي'
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Metric Bar */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
           <p className="text-xs font-semibold text-slate-500">إجمالي المواجهات</p>
           <p className="mt-1 text-2xl font-black text-slate-900">{totalFixtures}</p>
+        </div>
+        <div className="rounded-2xl border border-green-200/80 bg-green-50/50 p-4 shadow-sm">
+          <p className="text-xs font-semibold text-green-700">مباريات مجدولة ومثبتة</p>
+          <p className="mt-1 text-2xl font-black text-green-800">{scheduledFixtures.length}</p>
         </div>
         <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 p-4 shadow-sm">
           <p className="text-xs font-semibold text-amber-700">بانتظار تحديد الموعد</p>
           <p className="mt-1 text-2xl font-black text-amber-800">{waitingFixtures.length}</p>
         </div>
-        <div className="rounded-2xl border border-green-200/80 bg-green-50/50 p-4 shadow-sm">
-          <p className="text-xs font-semibold text-green-700">مباريات مجدولة</p>
-          <p className="mt-1 text-2xl font-black text-green-800">{scheduledFixtures.length}</p>
+        <div className="rounded-2xl border border-rose-200/80 bg-rose-50/50 p-4 shadow-sm">
+          <p className="text-xs font-semibold text-rose-700">تتطلب البرمجة (استثناءات)</p>
+          <p className="mt-1 text-2xl font-black text-rose-800">{exceptionsFixtures.length}</p>
         </div>
         <div className="rounded-2xl border border-blue-200/80 bg-blue-50/50 p-4 shadow-sm">
-          <p className="text-xs font-semibold text-blue-700">اقتراحات الربط الجاهزة</p>
-          <p className="mt-1 text-2xl font-black text-blue-800">{validSuggestions.length}</p>
+          <p className="text-xs font-semibold text-blue-700">الفترات المتاحة للحجز</p>
+          <p className="mt-1 text-2xl font-black text-blue-800">{capacityData?.available_slots ?? '-'}</p>
         </div>
       </div>
 
@@ -169,6 +260,48 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
               إنشاء المواجهات الآن
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Prominent Auto-Schedule Action Bar */}
+      {totalFixtures > 0 && waitingFixtures.length > 0 && (
+        <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/40 p-5 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="flex size-7 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                  <Zap className="size-4" />
+                </span>
+                <h4 className="text-sm font-black text-slate-900">البرمجة التلقائية لكافة المباريات</h4>
+              </div>
+              <p className="text-xs leading-relaxed text-slate-600 max-w-2xl">
+                يقوم المحرك تلقائياً بمطابقة المواجهات مع فترات الحجز المتاحة، مع اعتماد صاحب الحجز كمضيف، وتطبيق فترة الراحة الإلزامية ({tournament.rest_days_minimum ?? 1} يوم على الأقل)، واستثمار الفترات المستعارة عند راحة المالك.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <Button
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-5 py-2.5 shadow-sm"
+                onClick={handleAutoSchedule}
+                disabled={autoScheduleBusy || waitingFixtures.length === 0}
+              >
+                {autoScheduleBusy ? (
+                  <Loader2 className="me-2 size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="me-2 size-4 text-amber-300" />
+                )}
+                بدء البرمجة التلقائية ({waitingFixtures.length} مواجهة)
+              </Button>
+            </div>
+          </div>
+
+          {/* Capacity warning alert if available slots are insufficient */}
+          {capacityData?.warning && (
+            <div className="mt-3 flex items-start gap-2.5 rounded-2xl border border-amber-200 bg-amber-50/90 p-3 text-xs text-amber-900">
+              <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
+              <p className="leading-relaxed font-semibold">{capacityData.warning}</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -214,6 +347,7 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
               onClick={() => {
                 refetchSuggestions()
                 refetchAllFixtures()
+                refetchCapacity()
               }}
             >
               <RotateCcw className="me-1.5 size-3.5" />
@@ -389,9 +523,10 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="all">الكل</option>
-                <option value="waiting">بانتظار تحديد الموعد</option>
-                <option value="scheduled">مجدولة ومثبتة</option>
+                <option value="all">الكل ({totalFixtures})</option>
+                <option value="waiting">بانتظار تحديد الموعد ({waitingFixtures.length})</option>
+                <option value="unscheduled">تتطلب البرمجة (استثناءات) ({exceptionsFixtures.length})</option>
+                <option value="scheduled">مجدولة ومثبتة ({scheduledFixtures.length})</option>
                 <option value="played">ملعوبة</option>
               </select>
             </div>
@@ -403,13 +538,15 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
               const isScheduled = Boolean(fixture.scheduled_at) && fixture.status !== 'waiting_for_booking'
               const isPlayed = fixture.status === 'played' || fixture.match?.status === 'finished'
               const isUnassigning = unassignBusyId === fixture.id
+              const isBorrowed = Boolean(fixture.match?.notes?.includes('توقيت مستعار'))
+              const hasExceptionReason = Boolean(fixture.unscheduled_reason)
 
               return (
                 <div
                   key={fixture.id}
                   className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition hover:shadow"
                 >
-                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
                       ج {fixture.matchday}
                     </span>
@@ -418,9 +555,25 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                       <span className="text-slate-400">vs</span>
                       <span>{fixture.away_team?.name || 'فريق ضيف'}</span>
                     </div>
+
+                    {/* Borrowed Slot Badge */}
+                    {isBorrowed && (
+                      <span className="rounded-full bg-purple-50 border border-purple-200 px-2.5 py-0.5 text-[10px] font-bold text-purple-700 flex items-center gap-1">
+                        <Sparkles className="size-3 text-purple-500" />
+                        توقيت مستعار
+                      </span>
+                    )}
+
+                    {/* Unscheduled Exception Reason Badge */}
+                    {hasExceptionReason && !isScheduled && (
+                      <span className="rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 flex items-center gap-1">
+                        <AlertCircle className="size-3 text-rose-500" />
+                        {getReasonLabel(fixture.unscheduled_reason)}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto">
                     {isScheduled ? (
                       <div className="text-end">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
@@ -433,11 +586,30 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                         </div>
                       </div>
                     ) : (
-                      <span className="rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[10px] font-bold text-amber-700">
-                        بانتظار تحديد الموعد
-                      </span>
+                      !hasExceptionReason && (
+                        <span className="rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[10px] font-bold text-amber-700">
+                          بانتظار تحديد الموعد
+                        </span>
+                      )
                     )}
 
+                    {/* Change Opponent Button */}
+                    {!isPlayed && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-[11px] font-bold text-slate-700 hover:bg-slate-50"
+                        onClick={() => {
+                          setOpponentSwapFixture(fixture)
+                          setSelectedNewOpponentId('')
+                        }}
+                      >
+                        <ArrowLeftRight className="size-3 me-1 text-slate-500" />
+                        تبديل الخصم
+                      </Button>
+                    )}
+
+                    {/* Reschedule Button */}
                     {onReschedule && !isPlayed && (
                       <Button
                         variant={isScheduled ? 'outline' : 'default'}
@@ -450,10 +622,11 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                         onClick={() => onReschedule(fixture)}
                       >
                         <CalendarDays className="size-3 me-1" />
-                        {isScheduled ? 'تعديل الموعد والملعب' : 'تحديد الموعد والملعب'}
+                        {isScheduled ? 'تعديل الموعد' : 'تحديد الموعد'}
                       </Button>
                     )}
 
+                    {/* Unassign Button */}
                     {isScheduled && !isPlayed && (
                       <Button
                         variant="outline"
@@ -474,6 +647,89 @@ export default function LeagueAssignmentPanel({ tournament, onRefresh, refreshKe
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Opponent Swap Modal Dialog */}
+      {opponentSwapFixture && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setOpponentSwapFixture(null)}
+          />
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <ArrowLeftRight className="size-5 text-emerald-600" />
+                <h3 className="text-sm font-black text-slate-900">تبديل الفريق الخصم للمواجهة</h3>
+              </div>
+              <button
+                type="button"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                onClick={() => setOpponentSwapFixture(null)}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="my-4 space-y-4">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 text-xs">
+                <div className="flex items-center justify-between font-bold text-slate-700">
+                  <span>الفريق المضيف:</span>
+                  <span className="text-slate-900">{opponentSwapFixture.home_team?.name}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between font-bold text-slate-700">
+                  <span>الخصم الحالي:</span>
+                  <span className="text-rose-600">{opponentSwapFixture.away_team?.name}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  اختر الفريق الخصم الجديد:
+                </label>
+                <select
+                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-800 focus:border-emerald-500 focus:outline-none"
+                  value={selectedNewOpponentId}
+                  onChange={(e) => setSelectedNewOpponentId(e.target.value)}
+                >
+                  <option value="">-- اضغط للاختيار من فرق الدوري --</option>
+                  {participatingTeams
+                    .filter(
+                      (t) =>
+                        t.id !== opponentSwapFixture.home_team?.id &&
+                        t.id !== opponentSwapFixture.away_team?.id
+                    )
+                    .map((team) => (
+                      <option key={team.id} value={team.id}>
+                        {team.name}
+                      </option>
+                    ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-400 leading-relaxed">
+                  يتحقق النظام تلقائياً من قواعد الدوري (نظام دورة واحدة) وعدم وجود تعارض في مواعيد المباريات أو فترات الراحة الإلزامية.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+              <Button
+                variant="outline"
+                className="text-xs"
+                onClick={() => setOpponentSwapFixture(null)}
+              >
+                إلغاء
+              </Button>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4"
+                disabled={!selectedNewOpponentId || swapBusy}
+                onClick={handleSwapOpponentSubmit}
+              >
+                {swapBusy ? <Loader2 className="me-1.5 size-3.5 animate-spin" /> : null}
+                تأكيد تبديل الخصم
+              </Button>
+            </div>
           </div>
         </div>
       )}

@@ -674,6 +674,41 @@ class BookingController extends Controller
         return response()->json($response);
     }
 
+    public function getManagers(Request $request): JsonResponse
+    {
+        $query = User::query()
+            ->where('role', 'manager')
+            ->where('status', 'approved')
+            ->with(['team', 'activeTeam']);
+
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereHas('team', function ($tq) use ($search) {
+                        $tq->where('name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        $managers = $query->orderBy('name')->limit(100)->get()->map(function ($m) {
+            $team = $m->team ?? $m->activeTeam;
+            return [
+                'id' => $m->id,
+                'name' => $m->name,
+                'phone' => $m->phone,
+                'email' => $m->email,
+                'avatar_url' => $m->avatar_url ?? $m->avatar_thumbnail_url,
+                'team_id' => $team?->id,
+                'team_name' => $team?->name,
+                'team_logo' => $team?->logo_url ?? $team?->logo_path,
+            ];
+        });
+
+        return response()->json(['data' => $managers]);
+    }
+
     public function ownerCreateGuestBooking(Request $request, int $terrainId): JsonResponse
     {
         $user = $request->user();
@@ -682,20 +717,71 @@ class BookingController extends Controller
             ->where('owner_id', $user->id)
             ->firstOrFail();
 
+        foreach (['booking_date', 'start_date', 'end_date'] as $dateField) {
+            if ($request->filled($dateField)) {
+                try {
+                    $request->merge([
+                        $dateField => Carbon::parse($request->input($dateField))->format('Y-m-d'),
+                    ]);
+                } catch (\Exception $e) {}
+            }
+        }
+
+        if ($request->input('reservation_type') === 'weekly_subscription' && ! $request->filled('day_of_week') && $request->filled('start_date')) {
+            try {
+                $request->merge([
+                    'day_of_week' => Carbon::parse($request->input('start_date'))->dayOfWeek,
+                ]);
+            } catch (\Exception $e) {}
+        }
+
         $validated = $request->validate([
             'reservation_type' => 'required|in:single,weekly_subscription',
-            'booking_date' => 'required_if:reservation_type,single|date|after_or_equal:today',
+            'booking_date' => 'required_if:reservation_type,single|nullable|date|after_or_equal:today',
             'day_of_week' => 'required_if:reservation_type,weekly_subscription|nullable|integer|in:0,1,2,3,4,5,6',
             'start_date' => 'required_if:reservation_type,weekly_subscription|nullable|date|after_or_equal:today',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'booking_type' => 'required|in:training,private,match',
-            'guest_name' => 'required|string|max:255',
-            'guest_phone' => ['nullable', 'string', 'max:20', 'required_without:guest_email', 'regex:/^[0-9+\-() ]+$/'],
-            'guest_email' => ['nullable', 'email', 'max:255', 'required_without:guest_phone'],
+            'manager_id' => 'nullable|integer|exists:users,id',
+            'guest_name' => 'required_without:manager_id|nullable|string|max:255',
+            'guest_phone' => ['nullable', 'string', 'max:20', 'regex:/^[0-9+\-() ]+$/'],
+            'guest_email' => ['nullable', 'email', 'max:255'],
             'notes' => 'nullable|string|max:500',
         ]);
+
+        $manager = null;
+        $managerId = null;
+        $teamId = null;
+
+        if (! empty($validated['manager_id'])) {
+            $manager = User::where('id', $validated['manager_id'])
+                ->where('role', 'manager')
+                ->first();
+
+            if ($manager) {
+                $managerId = $manager->id;
+                $team = $manager->team ?? $manager->activeTeam ?? \App\Domains\Team\Models\Team::where('manager_id', $manager->id)->first();
+                $teamId = $team?->id;
+            }
+        }
+
+        $guestName = ! empty($validated['guest_name'])
+            ? trim($validated['guest_name'])
+            : ($manager?->name ?? 'زبون');
+
+        $guestPhone = ! empty($validated['guest_phone'])
+            ? trim($validated['guest_phone'])
+            : $manager?->phone;
+
+        $guestEmail = ! empty($validated['guest_email'])
+            ? trim($validated['guest_email'])
+            : $manager?->email;
+
+        if (empty($guestPhone) && empty($guestEmail)) {
+            return response()->json(['message' => 'يجب إدخال رقم الهاتف أو البريد الإلكتروني للزبون'], 422);
+        }
 
         if (! $terrain->is_available) {
             return response()->json(['message' => 'الملعب غير متاح حالياً'], 422);
@@ -713,7 +799,7 @@ class BookingController extends Controller
         $guestBooking = null;
         $conflictMsg = null;
         $unavailableMsg = null;
-        DB::transaction(function () use ($terrainId, $validated, $isWeekly, &$guestBooking, &$conflictMsg, &$unavailableMsg) {
+        DB::transaction(function () use ($terrainId, $validated, $isWeekly, $managerId, $teamId, $guestName, $guestPhone, $guestEmail, $terrain, &$guestBooking, &$conflictMsg, &$unavailableMsg) {
             \App\Domains\Stadium\Models\Stadium::where('id', $terrainId)->lockForUpdate()->first();
             $dateToLock = $isWeekly ? $validated['start_date'] : $validated['booking_date'];
             TerrainBooking::where('terrain_id', $terrainId)
@@ -795,8 +881,8 @@ class BookingController extends Controller
 
             $guestBooking = TerrainBooking::create([
                 'terrain_id' => $terrainId,
-                'manager_id' => null,
-                'team_id' => null,
+                'manager_id' => $managerId,
+                'team_id' => $teamId,
                 'booking_type' => $validated['booking_type'],
                 'flow_type' => 'direct',
                 'reservation_type' => $validated['reservation_type'],
@@ -809,9 +895,9 @@ class BookingController extends Controller
                 'price' => $price,
                 'status' => 'approved',
                 'notes' => $validated['notes'] ?? null,
-                'guest_name' => $validated['guest_name'],
-                'guest_phone' => $validated['guest_phone'] ?? null,
-                'guest_email' => $validated['guest_email'] ?? null,
+                'guest_name' => $guestName,
+                'guest_phone' => $guestPhone,
+                'guest_email' => $guestEmail,
                 'booking_reference' => TerrainBooking::generateReference(),
                 'uuid' => (string) Str::uuid(),
             ]);
@@ -826,15 +912,19 @@ class BookingController extends Controller
         }
 
         if (! $guestBooking) {
-            return response()->json(['message' => 'تعذر إنشاء الحجز الضيف'], 500);
+            return response()->json(['message' => 'تعذر إنشاء الحجز'], 500);
         }
 
-        $guestBooking->load(['terrain.owner']);
+        if ($managerId) {
+            event(new BookingApproved($guestBooking));
+        }
+
+        $guestBooking->load(['terrain.owner', 'manager', 'team']);
 
         $whatsappUrl = $this->whatsapp->buildOwnerDecisionMessage($guestBooking, 'approved');
 
         return response()->json([
-            'message' => 'تم إنشاء الحجز الضيف بنجاح',
+            'message' => 'تم إنشاء الحجز بنجاح',
             'booking' => $guestBooking,
             'whatsapp_notification_url' => $whatsappUrl ?: null,
         ], 201);

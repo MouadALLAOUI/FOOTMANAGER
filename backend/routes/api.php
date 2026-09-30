@@ -1150,6 +1150,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
         Route::get('/analytics/overview', [TerrainOwnerController::class, 'overviewAnalytics']);
         Route::get('/analytics/details', [TerrainOwnerController::class, 'analyticsDetails']);
         Route::get('/bookings', [TerrainOwnerController::class, 'upcomingBookings']);
+        Route::get('/managers', [BookingController::class, 'getManagers']);
 
         Route::middleware('activity.not_locked')->group(function () {
             Route::put('/terrains/{id}/toggle-status', [OwnerTerrainController::class, 'toggleStatus']);

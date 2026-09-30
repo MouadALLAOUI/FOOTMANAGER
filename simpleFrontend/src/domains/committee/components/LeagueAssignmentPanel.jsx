@@ -14,6 +14,8 @@ import {
   Loader2,
   CalendarCheck,
   ChevronRight,
+  ChevronDown,
+  Calendar,
   Filter,
   ArrowLeftRight,
   X,
@@ -25,6 +27,7 @@ import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Card, Empty } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
+import TournamentMatchCard from './TournamentMatchCard'
 
 export default function LeagueAssignmentPanel({
   tournament,
@@ -44,7 +47,7 @@ export default function LeagueAssignmentPanel({
   const [opponentSwapFixture, setOpponentSwapFixture] = useState(null)
   const [selectedNewOpponentId, setSelectedNewOpponentId] = useState('')
   const [matchdayFilter, setMatchdayFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('scheduled')
 
   // Fetch match suggestions
   const {
@@ -196,10 +199,15 @@ export default function LeagueAssignmentPanel({
   // Filtered fixtures
   const filteredFixtures = (allFixtures || []).filter((f) => {
     if (matchdayFilter !== 'all' && String(f.matchday) !== String(matchdayFilter)) return false
-    if (statusFilter === 'waiting' && (f.scheduled_at && f.status !== 'waiting_for_booking')) return false
-    if (statusFilter === 'unscheduled' && !f.unscheduled_reason && f.status !== 'rescheduling_required') return false
-    if (statusFilter === 'scheduled' && (!f.scheduled_at || f.status === 'waiting_for_booking')) return false
-    if (statusFilter === 'played' && f.status !== 'played') return false
+    const isScheduled = Boolean(f.scheduled_at) && f.status !== 'waiting_for_booking'
+    const isPlayed = f.status === 'played' || f.match?.status === 'finished'
+    const isWaitingOrException = !f.scheduled_at || f.status === 'waiting_for_booking' || f.status === 'postponed' || f.status === 'rescheduling_required' || Boolean(f.unscheduled_reason)
+
+    if (statusFilter === 'scheduled') return isScheduled && !isPlayed
+    if (statusFilter === 'played') return isPlayed
+    if (statusFilter === 'waiting') return isWaitingOrException && !isPlayed
+    if (statusFilter === 'unscheduled') return Boolean(f.unscheduled_reason) || f.status === 'rescheduling_required'
+    if (statusFilter === 'all') return true
     return true
   })
 
@@ -508,218 +516,90 @@ export default function LeagueAssignmentPanel({
       {/* VIEW 2: ALL FIXTURES */}
       {activeSubTab === 'fixtures' && totalFixtures > 0 && (
         <div className="space-y-4">
-          {/* Filters Bar */}
-          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500">الجولة:</span>
+          {/* Header Row: Title & Subtitle + Matchday Dropdown */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-2xs">
+                <Calendar className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">المباريات</h3>
+                <p className="text-xs font-semibold text-slate-400 mt-0.5">جدول مباريات الدوري وإدارتها</p>
+              </div>
+            </div>
+
+            <div className="relative">
               <select
-                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-800"
+                className="appearance-none rounded-xl border border-slate-200/90 bg-white py-2 ps-3.5 pe-8 text-xs font-extrabold text-slate-800 shadow-2xs hover:border-slate-300 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition cursor-pointer"
                 value={matchdayFilter}
                 onChange={(e) => setMatchdayFilter(e.target.value)}
               >
-                <option value="all">كافة الجولات</option>
-                {matchdays.map((m) => (
-                  <option key={m} value={m}>الجولة {m}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500">الحالة:</span>
-              <select
-                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-800"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
                 <option value="all">الكل ({totalFixtures})</option>
-                <option value="waiting">بانتظار تحديد الموعد ({waitingFixtures.length})</option>
-                <option value="unscheduled">تتطلب البرمجة (استثناءات) ({exceptionsFixtures.length})</option>
-                <option value="scheduled">مجدولة ومثبتة ({scheduledFixtures.length})</option>
-                <option value="played">ملعوبة</option>
+                {matchdays.map((m) => {
+                  const count = (allFixtures || []).filter((f) => String(f.matchday) === String(m)).length
+                  return (
+                    <option key={m} value={m}>
+                      الجولة {m} ({count})
+                    </option>
+                  )
+                })}
               </select>
+              <ChevronDown className="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
             </div>
           </div>
 
-          {/* Fixtures List */}
-          <div className="space-y-2.5">
-            {filteredFixtures.map((fixture) => {
-              const isScheduled = Boolean(fixture.scheduled_at) && fixture.status !== 'waiting_for_booking'
-              const isPlayed = fixture.status === 'played' || fixture.match?.status === 'finished'
-              const isLive = ['kickoff', 'first_half', 'halftime', 'second_half', 'extra_time', 'penalties'].includes(fixture.match?.status)
-              const hasScore = isPlayed || isLive || (fixture.match?.home_score !== null && fixture.match?.home_score !== undefined)
-              const isUnassigning = unassignBusyId === fixture.id
-              const isBorrowed = Boolean(fixture.match?.notes?.includes('توقيت مستعار'))
-              const hasExceptionReason = Boolean(fixture.unscheduled_reason)
-
+          {/* Segmented Filter Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+            {[
+              { id: 'scheduled', label: 'القادمة' },
+              { id: 'played', label: 'المنتهية' },
+              { id: 'waiting', label: 'المؤجلة' },
+              { id: 'all', label: 'الكل' },
+            ].map((tab) => {
+              const active = statusFilter === tab.id
               return (
-                <div
-                  key={fixture.id}
-                  className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition hover:shadow"
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`rounded-full px-4 py-1.5 text-xs font-black transition-all duration-150 ${
+                    active
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+                  }`}
                 >
-                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                    <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                      ج {fixture.matchday}
-                    </span>
-                    <div className="flex items-center gap-2 font-bold text-xs text-slate-900">
-                      <span>{fixture.home_team?.name || 'فريق مضيف'}</span>
-                      {hasScore ? (
-                        <span className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-black text-white">
-                          {fixture.match?.home_score ?? 0} - {fixture.match?.away_score ?? 0}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400">vs</span>
-                      )}
-                      <span>{fixture.away_team?.name || 'فريق ضيف'}</span>
-                    </div>
-
-                    {/* Played Badge */}
-                    {isPlayed && (
-                      <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 flex items-center gap-1">
-                        <CheckCircle2 className="size-3 text-emerald-600" />
-                        انتهت المباراة
-                      </span>
-                    )}
-
-                    {/* Live Badge */}
-                    {isLive && (
-                      <span className="rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 flex items-center gap-1">
-                        <span className="size-1.5 rounded-full bg-rose-600 animate-pulse" />
-                        مباشر الآن
-                      </span>
-                    )}
-
-                    {/* Borrowed Slot Badge */}
-                    {isBorrowed && (
-                      <span className="rounded-full bg-purple-50 border border-purple-200 px-2.5 py-0.5 text-[10px] font-bold text-purple-700 flex items-center gap-1">
-                        <Sparkles className="size-3 text-purple-500" />
-                        توقيت مستعار
-                      </span>
-                    )}
-
-                    {/* Unscheduled Exception Reason Badge */}
-                    {hasExceptionReason && !isScheduled && (
-                      <span className="rounded-full bg-rose-50 border border-rose-200 px-2.5 py-0.5 text-[10px] font-bold text-rose-700 flex items-center gap-1">
-                        <AlertCircle className="size-3 text-rose-500" />
-                        {getReasonLabel(fixture.unscheduled_reason)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-                    {isScheduled ? (
-                      <div className="text-end me-1">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
-                          <MapPin className="size-3 text-slate-400" />
-                          <span>{fixture.stadium?.name || 'الملعب'}</span>
-                          <span>·</span>
-                          <span>{fixture.scheduled_at?.slice(0, 10)}</span>
-                          <span>·</span>
-                          <span>{fixture.scheduled_at?.slice(11, 16)}</span>
-                        </div>
-                      </div>
-                    ) : (
-                      !hasExceptionReason && (
-                        <span className="rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[10px] font-bold text-amber-700">
-                          بانتظار تحديد الموعد
-                        </span>
-                      )
-                    )}
-
-                    {/* Enter Result & Live Events Button */}
-                    {onResult && !isPlayed && (
-                      <Button
-                        size="sm"
-                        className="bg-emerald-600 text-white hover:bg-emerald-700 text-[11px] font-bold shadow-xs flex items-center"
-                        onClick={() => onResult(fixture)}
-                      >
-                        <Play className="size-3 me-1 fill-current" />
-                        تسجيل النتيجة والأحداث
-                      </Button>
-                    )}
-
-                    {/* Played: View Details & Edit Result */}
-                    {isPlayed && (
-                      <>
-                        {onDetails && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-[11px] font-bold text-slate-700 hover:bg-slate-50"
-                            onClick={() => onDetails(fixture)}
-                          >
-                            <Eye className="size-3 me-1 text-slate-500" />
-                            عرض التفاصيل
-                          </Button>
-                        )}
-                        {onResult && (
-                          <Button
-                            variant="soft"
-                            size="sm"
-                            className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
-                            onClick={() => onResult(fixture)}
-                          >
-                            <Play className="size-3 me-1 text-emerald-600" />
-                            تعديل النتيجة والأحداث
-                          </Button>
-                        )}
-                      </>
-                    )}
-
-                    {/* Change Opponent Button */}
-                    {!isPlayed && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-[11px] font-bold text-slate-700 hover:bg-slate-50"
-                        onClick={() => {
-                          setOpponentSwapFixture(fixture)
-                          setSelectedNewOpponentId('')
-                        }}
-                      >
-                        <ArrowLeftRight className="size-3 me-1 text-slate-500" />
-                        تبديل الخصم
-                      </Button>
-                    )}
-
-                    {/* Reschedule Button */}
-                    {onReschedule && !isPlayed && (
-                      <Button
-                        variant={isScheduled ? 'outline' : 'default'}
-                        size="sm"
-                        className={
-                          isScheduled
-                            ? 'text-[11px] font-bold text-slate-700 hover:bg-slate-50'
-                            : 'bg-green-600 text-[11px] font-bold text-white hover:bg-green-700 shadow-sm'
-                        }
-                        onClick={() => onReschedule(fixture)}
-                      >
-                        <CalendarDays className="size-3 me-1" />
-                        {isScheduled ? 'تعديل الموعد' : 'تحديد الموعد'}
-                      </Button>
-                    )}
-
-                    {/* Unassign Button */}
-                    {isScheduled && !isPlayed && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-[11px] font-bold text-rose-600 hover:bg-rose-50"
-                        onClick={() => handleUnassign(fixture.id)}
-                        disabled={isUnassigning}
-                      >
-                        {isUnassigning ? (
-                          <Loader2 className="size-3 animate-spin" />
-                        ) : (
-                          <Unlink className="size-3 me-1" />
-                        )}
-                        إلغاء ربط الحجز
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                  {tab.label}
+                </button>
               )
             })}
           </div>
+
+          {/* Fixtures List */}
+          {filteredFixtures.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
+              <Calendar className="mx-auto size-8 text-slate-300 mb-2" />
+              <p className="text-xs font-bold text-slate-500">لا توجد مباريات مطابقة للفلتر المحدد</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredFixtures.map((fixture, idx) => (
+                <TournamentMatchCard
+                  key={fixture.id}
+                  fixture={fixture}
+                  index={idx}
+                  isUnassigning={unassignBusyId === fixture.id}
+                  onResult={onResult}
+                  onDetails={onDetails}
+                  onReschedule={onReschedule}
+                  onUnassign={handleUnassign}
+                  onSwapOpponent={(f) => {
+                    setOpponentSwapFixture(f)
+                    setSelectedNewOpponentId('')
+                  }}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

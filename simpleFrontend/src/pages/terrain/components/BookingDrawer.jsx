@@ -1,9 +1,13 @@
+import { useState } from 'react'
 import i18n from '../../../i18n'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, Clock, Mail, MessageCircle, StickyNote, UserRound, Users } from 'lucide-react'
+import { CalendarDays, Clock, Mail, MessageCircle, StickyNote, Trash2, UserRound, Users } from 'lucide-react'
 import Drawer from '../../../components/dashboard/Drawer'
 import { Button, Modal, StatusBadge } from '../../../components/dashboard/ui'
 import { ManagerProfile } from '../../../components/ui'
+import { useToast } from '../../../components/ui/Toast'
+import { toastApiError } from '../../../lib/errors'
+import api from '../../../api/client'
 import BookingTimeline, { bookingStatusLabels } from './BookingTimeline'
 
 const bookingTypeLabels = {
@@ -26,8 +30,20 @@ function formatDate(dateStr) {
   }
 }
 
-export default function BookingDrawer({ booking, onClose, onApprove, onReject, busy, variant = 'drawer' }) {
+export default function BookingDrawer({
+  booking,
+  onClose,
+  onApprove,
+  onReject,
+  onForceDelete,
+  busy,
+  variant = 'drawer',
+}) {
   const { t } = useTranslation()
+  const { toast } = useToast()
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+
   if (!booking) return null
   const manager = booking.manager || {}
   const team = booking.team || {}
@@ -42,6 +58,26 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
   ]
 
   const subtitle = `#${booking.id} • ${bookingStatusLabels[booking.status] || booking.status}`
+
+  const handleForceDelete = async () => {
+    if (!booking) return
+    setDeleteBusy(true)
+    try {
+      if (onForceDelete) {
+        await onForceDelete(booking.id)
+      } else {
+        const res = await api.delete(`/owner/bookings/${booking.id}/force`)
+        toast.success(res.data?.message || 'تم حذف الحجز إجبارياً وتحرير الموعد')
+        onClose()
+        window.dispatchEvent(new CustomEvent('booking:updated'))
+      }
+      setConfirmDeleteOpen(false)
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
 
   const guestBlock = isGuest ? (
     <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
@@ -136,10 +172,10 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
 
         {!isGuest && (booking.status === 'pending' || !booking.status) && (
           <div className="flex gap-2">
-            <Button className="flex-1" disabled={busy} onClick={onApprove}>
+            <Button className="flex-1" disabled={busy || deleteBusy} onClick={onApprove}>
               {t('dash.approveBooking')}
             </Button>
-            <Button variant="dangerSoft" className="flex-1" disabled={busy} onClick={onReject}>
+            <Button variant="dangerSoft" className="flex-1" disabled={busy || deleteBusy} onClick={onReject}>
               {t('dash.reject')}
             </Button>
           </div>
@@ -156,20 +192,72 @@ export default function BookingDrawer({ booking, onClose, onApprove, onReject, b
             {isGuest ? t('dash.messageTheCustomerViaWhatsapp') : t('dash.notifyTheManagerViaWhatsapp')}
           </a>
         )}
+
+        {/* Force Delete Button for Terrain Owner */}
+        <div className="pt-2 border-t border-slate-100">
+          <Button
+            variant="dangerSoft"
+            className="w-full flex items-center justify-center gap-1.5 text-xs font-black text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300 py-2.5 rounded-xl shadow-2xs"
+            disabled={busy || deleteBusy}
+            onClick={() => setConfirmDeleteOpen(true)}
+          >
+            <Trash2 className="size-3.5" />
+            <span>حذف الحجز إجبارياً</span>
+          </Button>
+        </div>
     </div>
   )
 
-  if (variant === 'modal') {
-    return (
-      <Modal open onClose={onClose} title={t('dash.bookingDetails')} subtitle={subtitle} size="lg">
-        {content}
-      </Modal>
-    )
-  }
-
-  return (
+  const drawerElement = variant === 'modal' ? (
+    <Modal open onClose={onClose} title={t('dash.bookingDetails')} subtitle={subtitle} size="lg">
+      {content}
+    </Modal>
+  ) : (
     <Drawer open onClose={onClose} title={t('dash.bookingDetails')} subtitle={subtitle} size="520">
       {content}
     </Drawer>
+  )
+
+  return (
+    <>
+      {drawerElement}
+
+      {/* Force Delete Confirmation Modal */}
+      <Modal
+        open={confirmDeleteOpen}
+        onClose={() => !deleteBusy && setConfirmDeleteOpen(false)}
+        title="تأكيد الحذف الإجباري للحجز"
+        subtitle={`حجز #${booking.id} • ${booking.terrain?.name || ''}`}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-rose-100 bg-rose-50 p-3 text-xs font-semibold text-rose-800 leading-relaxed">
+            ⚠️ هل أنت متأكد من رغبتك في حذف هذا الحجز إجبارياً؟
+            <br />
+            سيتم إلغاء الحجز فوراً وتحرير موعد الملعب مباشرة دون انتظار طلب الإلغاء من المدير.
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button
+              variant="danger"
+              className="flex-1 text-xs font-black"
+              loading={deleteBusy}
+              disabled={deleteBusy}
+              onClick={handleForceDelete}
+            >
+              {deleteBusy ? 'جارٍ الحذف…' : 'تأكيد الحذف الإجباري'}
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 text-xs font-bold"
+              disabled={deleteBusy}
+              onClick={() => setConfirmDeleteOpen(false)}
+            >
+              إلغاء
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
   )
 }

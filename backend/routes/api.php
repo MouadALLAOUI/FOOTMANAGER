@@ -1161,6 +1161,10 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
         Route::middleware(['activity.not_locked', 'throttle:booking-manage'])->group(function () {
             Route::put('/bookings/{bookingId}/status', [BookingController::class, 'ownerManageBooking']);
+            Route::delete('/bookings/{bookingId}/force', [BookingController::class, 'forceDeleteBooking']);
+            Route::delete('/bookings/{bookingId}', [BookingController::class, 'forceDeleteBooking']);
+            Route::delete('/terrains/{terrainId}/clear-bookings', [BookingController::class, 'bulkClearBookings']);
+            Route::post('/terrains/{terrainId}/clear-bookings', [BookingController::class, 'bulkClearBookings']);
             Route::post('/terrains/{terrainId}/guest-bookings', [BookingController::class, 'ownerCreateGuestBooking']);
             Route::put('/bookings/{id}/approve', [OwnerBookingController::class, 'approve']);
             Route::put('/bookings/{id}/reject', [OwnerBookingController::class, 'reject']);

@@ -77,6 +77,7 @@ export default function TerrainCalendarPage() {
 
   const approveBooking = useCallback((id) => act(() => api.put(`/owner/bookings/${id}/approve`), 'تم قبول الحجز'), [act])
   const rejectBooking = useCallback((id) => act(() => api.put(`/owner/bookings/${id}/reject`), 'تم رفض الحجز'), [act])
+  const forceDeleteBooking = useCallback((id) => act(() => api.delete(`/owner/bookings/${id}/force`), 'تم حذف الحجز إجبارياً وتحرير الموعد'), [act])
 
   const confirm = useConfirm()
   const confirmReject = useCallback(
@@ -213,6 +214,7 @@ export default function TerrainCalendarPage() {
         onClose={() => setSelected(null)}
         onApprove={() => selected && approveBooking(selected.id)}
         onReject={() => selected && confirmReject(selected.id)}
+        onForceDelete={forceDeleteBooking}
         busy={busy}
       />
 

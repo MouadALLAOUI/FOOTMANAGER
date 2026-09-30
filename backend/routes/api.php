@@ -81,6 +81,7 @@ use App\Http\Controllers\Committee\TournamentPenaltyController;
 use App\Http\Controllers\Committee\TournamentNewsController;
 use App\Http\Controllers\Committee\TournamentPartnerController;
 use App\Http\Controllers\Committee\TournamentResultController;
+use App\Http\Controllers\Committee\TournamentFixtureLineupController;
 use App\Http\Controllers\Committee\TournamentSquadController;
 use App\Http\Controllers\Committee\TournamentStadiumController;
 use App\Http\Controllers\Committee\TournamentStandingController;
@@ -891,6 +892,10 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             });
 
             Route::get('/fixtures/{fixture}/result', [TournamentResultController::class, 'show']);
+
+            // Player Presence Confirmation (تأكيد حضور اللاعبين)
+            Route::get('/fixtures/{fixture}/lineups', [TournamentFixtureLineupController::class, 'index']);
+            Route::middleware('activity.not_locked')->post('/fixtures/{fixture}/lineups/confirm', [TournamentFixtureLineupController::class, 'confirm']);
 
             Route::get('/fixtures/{fixture}/events', [TournamentMatchEventController::class, 'index']);
 

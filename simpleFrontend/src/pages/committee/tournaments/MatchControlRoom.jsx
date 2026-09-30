@@ -22,6 +22,7 @@ import TimelineTab from '../../../domains/committee/components/TimelineTab'
 import StatsFoulsTab from '../../../domains/committee/components/StatsFoulsTab'
 import NotesMvpTab from '../../../domains/committee/components/NotesMvpTab'
 import PlayersTab from '../../../domains/committee/components/PlayersTab'
+import PresenceTab from '../../../domains/committee/components/PresenceTab'
 import PlayerSelector from '../../../domains/committee/components/PlayerSelector'
 import { QUICK_ACTIONS, REFEREE_ROLES } from '../../../data/matchConstants'
 import useScrollLock from '../../../components/useScrollLock'
@@ -998,6 +999,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                   { id: 'timeline', icon: '⏱', labelKey: 'committee.result.events' },
                   { id: 'stats', icon: '📊', labelKey: 'committee.result.summary', badge: foulNotifCount },
                   { id: 'notes', icon: '📝', labelKey: 'committee.result.matchNotes' },
+                  { id: 'presence', icon: '✅', labelKey: 'committee.presence.tab' },
                 ]}
               />
 
@@ -1079,6 +1081,22 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                     notes={notes}
                     setNotes={setNotes}
                     refereesProps={{ referees, assigned, setAssigned, newRefName, setNewRefName, newRefPhone, setNewRefPhone, addingReferee, addReferee }}
+                    t={t}
+                  />
+                )}
+
+                {activeTab === 'presence' && (
+                  <PresenceTab
+                    homeId={homeId}
+                    homeName={homeName}
+                    homeTeam={homeTeam}
+                    awayId={awayId}
+                    awayName={awayName}
+                    awayTeam={awayTeam}
+                    homeRoster={rosters[homeId] || []}
+                    awayRoster={rosters[awayId] || []}
+                    tournamentId={tournament.id}
+                    fixtureId={fixture.id}
                     t={t}
                   />
                 )}

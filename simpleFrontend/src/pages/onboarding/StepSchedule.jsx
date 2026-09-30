@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Calendar,
   Clock,
@@ -6,15 +6,17 @@ import {
   Plus,
   Trash2,
   ArrowRight,
-  ArrowLeft,
   CheckCircle2,
   Search,
   Building2,
-  Check,
-  ChevronDown,
   X,
+  Loader2,
+  RefreshCw,
+  CalendarDays,
+  Repeat,
+  AlertCircle,
 } from 'lucide-react'
-import { Button, Field, inputClass } from '../../components/dashboard/ui'
+import { Button, inputClass } from '../../components/dashboard/ui'
 import api from '../../api/client'
 
 const DAYS = [
@@ -27,7 +29,35 @@ const DAYS = [
   { id: 6, name: 'السبت' },
 ]
 
-const QUICK_TIMES = ['19:00', '20:00', '21:00', '22:00', '23:00']
+// Fallback times shown when no terrain is selected or terrain has no schedule
+const FALLBACK_TIMES = ['19:00', '20:00', '21:00', '22:00', '23:00']
+
+/**
+ * Get the next occurrence of a given day_of_week from today.
+ * Returns a date string in YYYY-MM-DD format.
+ */
+function getNextDateForDay(dayOfWeek) {
+  const today = new Date()
+  const todayDay = today.getDay() // 0=Sunday
+  let daysAhead = dayOfWeek - todayDay
+  if (daysAhead <= 0) daysAhead += 7
+  const next = new Date(today)
+  next.setDate(today.getDate() + daysAhead)
+  return next.toISOString().split('T')[0]
+}
+
+/**
+ * Format a date string for display in Arabic-style short format
+ */
+function formatDateAr(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('ar-MA', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+}
 
 export default function StepSchedule({
   initialSchedule,
@@ -79,7 +109,13 @@ export default function StepSchedule({
         terrain_id: s.terrain_id || null,
         pitch_name: s.custom_pitch_name || (s.terrain?.name ?? ''),
         venue_mode: s.terrain_id ? 'platform' : 'custom',
+        reservation_type: s.reservation_type || 'weekly_subscription',
+        booking_date: s.booking_date || '',
         searchQuery: '',
+        // Terrain slot availability
+        terrainSlots: null,
+        loadingSlots: false,
+        slotsError: null,
       }))
     }
     return [
@@ -89,13 +125,96 @@ export default function StepSchedule({
         start_time: '20:00',
         terrain_id: null,
         pitch_name: '',
-        venue_mode: 'platform', // Default try to select from platform, can toggle to custom
+        venue_mode: 'platform',
+        reservation_type: 'weekly_subscription',
+        booking_date: '',
         searchQuery: '',
+        terrainSlots: null,
+        loadingSlots: false,
+        slotsError: null,
       },
     ]
   })
 
   const [error, setError] = useState('')
+
+  // ─── Slot Fetching Logic ───────────────────────────────────────────────
+  // Cache for terrain slots to avoid re-fetching
+  const slotsCache = useRef({})
+
+  const fetchTerrainSlots = useCallback(
+    async (slotId, terrainId, dayOfWeek) => {
+      if (!terrainId) return
+
+      const date = getNextDateForDay(dayOfWeek)
+      const cacheKey = `${terrainId}-${date}`
+
+      // Check cache first
+      if (slotsCache.current[cacheKey]) {
+        setSlots((prev) =>
+          prev.map((s) =>
+            s.id === slotId
+              ? {
+                  ...s,
+                  terrainSlots: slotsCache.current[cacheKey],
+                  loadingSlots: false,
+                  slotsError: null,
+                }
+              : s
+          )
+        )
+        return
+      }
+
+      // Set loading state
+      setSlots((prev) =>
+        prev.map((s) =>
+          s.id === slotId
+            ? { ...s, loadingSlots: true, slotsError: null }
+            : s
+        )
+      )
+
+      try {
+        const res = await api.get(`/terrains/${terrainId}/slots`, {
+          params: { date },
+        })
+        const data = res.data
+        slotsCache.current[cacheKey] = data
+
+        setSlots((prev) =>
+          prev.map((s) =>
+            s.id === slotId
+              ? {
+                  ...s,
+                  terrainSlots: data,
+                  loadingSlots: false,
+                  slotsError: data.terrain_closed
+                    ? 'الملعب مغلق حالياً'
+                    : null,
+                }
+              : s
+          )
+        )
+      } catch (err) {
+        setSlots((prev) =>
+          prev.map((s) =>
+            s.id === slotId
+              ? {
+                  ...s,
+                  terrainSlots: null,
+                  loadingSlots: false,
+                  slotsError: 'تعذر تحميل الأوقات المتاحة',
+                }
+              : s
+          )
+        )
+      }
+    },
+    []
+  )
+
+  // ─── Handlers ──────────────────────────────────────────────────────────
 
   const handleAddSlot = () => {
     const lastDay = slots[slots.length - 1]?.day_of_week ?? 3
@@ -109,7 +228,12 @@ export default function StepSchedule({
         terrain_id: null,
         pitch_name: '',
         venue_mode: 'platform',
+        reservation_type: 'weekly_subscription',
+        booking_date: '',
         searchQuery: '',
+        terrainSlots: null,
+        loadingSlots: false,
+        slotsError: null,
       },
     ])
   }
@@ -125,7 +249,21 @@ export default function StepSchedule({
     )
   }
 
+  const handleDayChange = (slotId, dayOfWeek) => {
+    setSlots((prev) =>
+      prev.map((s) =>
+        s.id === slotId ? { ...s, day_of_week: dayOfWeek, start_time: '' } : s
+      )
+    )
+    // Re-fetch slots if terrain is selected
+    const slot = slots.find((s) => s.id === slotId)
+    if (slot?.terrain_id && slot.venue_mode === 'platform') {
+      fetchTerrainSlots(slotId, slot.terrain_id, dayOfWeek)
+    }
+  }
+
   const handleSelectStadium = (slotId, stadium) => {
+    const slot = slots.find((s) => s.id === slotId)
     setSlots((prev) =>
       prev.map((s) =>
         s.id === slotId
@@ -134,10 +272,16 @@ export default function StepSchedule({
               terrain_id: stadium.id,
               pitch_name: stadium.name,
               searchQuery: stadium.name,
+              start_time: '', // Reset time when changing terrain
+              terrainSlots: null,
             }
           : s
       )
     )
+    // Fetch available slots for this terrain + day
+    if (slot) {
+      fetchTerrainSlots(slotId, stadium.id, slot.day_of_week)
+    }
   }
 
   const handleClearStadium = (slotId) => {
@@ -149,6 +293,24 @@ export default function StepSchedule({
               terrain_id: null,
               pitch_name: '',
               searchQuery: '',
+              start_time: '20:00',
+              terrainSlots: null,
+              loadingSlots: false,
+              slotsError: null,
+            }
+          : s
+      )
+    )
+  }
+
+  const handleReservationTypeChange = (slotId, type) => {
+    setSlots((prev) =>
+      prev.map((s) =>
+        s.id === slotId
+          ? {
+              ...s,
+              reservation_type: type,
+              booking_date: type === 'single' ? '' : '',
             }
           : s
       )
@@ -165,6 +327,17 @@ export default function StepSchedule({
       for (let i = 0; i < slots.length; i++) {
         if (!slots[i].start_time) {
           setError(`يرجى تحديد وقت بداية المباراة للموعد رقم ${i + 1}`)
+          return
+        }
+        // Validate booking_date for single reservations with platform terrains
+        if (
+          slots[i].reservation_type === 'single' &&
+          slots[i].terrain_id &&
+          !slots[i].booking_date
+        ) {
+          setError(
+            `يرجى تحديد تاريخ الحجز للموعد رقم ${i + 1} (حجز لمرة واحدة)`
+          )
           return
         }
       }
@@ -187,6 +360,10 @@ export default function StepSchedule({
           end_time: s.end_time || calculateEndTime(s.start_time),
           terrain_id: s.terrain_id || null,
           pitch_name: s.pitch_name?.trim() || 'ملعب معتاد',
+          reservation_type: s.terrain_id
+            ? s.reservation_type
+            : 'weekly_subscription',
+          booking_date: s.booking_date || null,
         })),
         // Fallback for older backend endpoints
         day_of_week: slots[0].day_of_week,
@@ -215,7 +392,8 @@ export default function StepSchedule({
             مواعيد مبارياتكم وملاعبكم الاعتيادية
           </h1>
           <p className="mt-1 text-xs text-slate-500">
-            حدد أوقات وملاعب لعبكم المعتادة، سواء من ملاعب المنصة أو ملاعب القرب المحلية
+            حدد أوقات وملاعب لعبكم المعتادة، سواء من ملاعب المنصة أو ملاعب
+            القرب المحلية
           </p>
         </div>
 
@@ -238,14 +416,20 @@ export default function StepSchedule({
           >
             <div
               className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${
-                hasRegular ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'
+                hasRegular
+                  ? 'border-emerald-500 bg-emerald-500 text-white'
+                  : 'border-slate-300'
               }`}
             >
               {hasRegular && <div className="size-2 rounded-full bg-white" />}
             </div>
             <div>
-              <p className="text-sm font-extrabold text-slate-900">عندنا مواعيد قارة أسبوعياً</p>
-              <p className="mt-0.5 text-xs text-slate-500">نلعب في أيام أو ملاعب محددة كل أسبوع</p>
+              <p className="text-sm font-extrabold text-slate-900">
+                عندنا مواعيد قارة أسبوعياً
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                نلعب في أيام أو ملاعب محددة كل أسبوع
+              </p>
             </div>
           </button>
 
@@ -260,14 +444,20 @@ export default function StepSchedule({
           >
             <div
               className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${
-                !hasRegular ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'
+                !hasRegular
+                  ? 'border-emerald-500 bg-emerald-500 text-white'
+                  : 'border-slate-300'
               }`}
             >
               {!hasRegular && <div className="size-2 rounded-full bg-white" />}
             </div>
             <div>
-              <p className="text-sm font-extrabold text-slate-900">ما عندناش موعد قار</p>
-              <p className="mt-0.5 text-xs text-slate-500">كنبرمجوا كل مباراة في وقتها حسب الاتفاق</p>
+              <p className="text-sm font-extrabold text-slate-900">
+                ما عندناش موعد قار
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                كنبرمجوا كل مباراة في وقتها حسب الاتفاق
+              </p>
             </div>
           </button>
         </div>
@@ -287,7 +477,24 @@ export default function StepSchedule({
                 )
               })
 
-              const selectedStadium = dbStadiums.find((s) => s.id === slot.terrain_id)
+              const selectedStadium = dbStadiums.find(
+                (s) => s.id === slot.terrain_id
+              )
+
+              // Available slots from API
+              const apiSlots = slot.terrainSlots?.slots || []
+              const availableApiSlots = apiSlots.filter(
+                (s) => s.status === 'available'
+              )
+
+              // Determine if we should show API slots or fallback times
+              const showApiSlots =
+                slot.venue_mode === 'platform' &&
+                slot.terrain_id &&
+                slot.terrainSlots &&
+                !slot.slotsError
+              const showFallbackTimes =
+                slot.venue_mode === 'custom' || !slot.terrain_id
 
               return (
                 <div
@@ -301,7 +508,9 @@ export default function StepSchedule({
                         {index + 1}
                       </span>
                       <span className="text-sm font-black text-slate-800">
-                        {slots.length > 1 ? `الموعد والمكان #${index + 1}` : 'الموعد والملعب المعتاد'}
+                        {slots.length > 1
+                          ? `الموعد والمكان #${index + 1}`
+                          : 'الموعد والملعب المعتاد'}
                       </span>
                     </div>
 
@@ -317,7 +526,7 @@ export default function StepSchedule({
                     )}
                   </div>
 
-                  {/* Day selector */}
+                  {/* ─── SECTION 1: Day Selector ──────────────────────── */}
                   <div className="mb-4">
                     <label className="mb-2 block text-xs font-bold text-slate-700">
                       اليوم المعتاد للعب:
@@ -329,11 +538,11 @@ export default function StepSchedule({
                           <button
                             key={d.id}
                             type="button"
-                            onClick={() => handleUpdateSlot(slot.id, 'day_of_week', d.id)}
+                            onClick={() => handleDayChange(slot.id, d.id)}
                             className={`h-9 rounded-xl text-xs font-bold transition-all ${
                               isSel
                                 ? 'bg-emerald-600 text-white shadow-xs'
-                                : 'bg-white text-slate-700 hover:bg-slate-100 ring-1 ring-slate-200'
+                                : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
                             }`}
                           >
                             {d.name}
@@ -343,41 +552,8 @@ export default function StepSchedule({
                     </div>
                   </div>
 
-                  {/* Time selector */}
-                  <div className="mb-5">
-                    <label className="mb-2 block text-xs font-bold text-slate-700">
-                      توقيت المباراة:
-                    </label>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {QUICK_TIMES.map((time) => (
-                        <button
-                          key={time}
-                          type="button"
-                          onClick={() => handleUpdateSlot(slot.id, 'start_time', time)}
-                          className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
-                            slot.start_time === time
-                              ? 'bg-emerald-600 text-white shadow-xs'
-                              : 'bg-white text-slate-700 hover:bg-slate-100 ring-1 ring-slate-200'
-                          }`}
-                        >
-                          {time}
-                        </button>
-                      ))}
-                      <div className="relative ms-auto w-32">
-                        <input
-                          type="time"
-                          value={slot.start_time}
-                          onChange={(e) =>
-                            handleUpdateSlot(slot.id, 'start_time', e.target.value)
-                          }
-                          className={inputClass}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Stadium / Venue Selection Mode */}
-                  <div className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
+                  {/* ─── SECTION 2: Stadium / Venue (MOVED UP) ─────── */}
+                  <div className="mb-4 rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-2xs">
                     <div className="mb-3 flex items-center justify-between">
                       <label className="text-xs font-extrabold text-slate-800">
                         مكان أو ملعب اللعب:
@@ -387,7 +563,13 @@ export default function StepSchedule({
                       <div className="inline-flex rounded-lg bg-slate-100 p-0.5 text-[11px] font-bold">
                         <button
                           type="button"
-                          onClick={() => handleUpdateSlot(slot.id, 'venue_mode', 'platform')}
+                          onClick={() =>
+                            handleUpdateSlot(
+                              slot.id,
+                              'venue_mode',
+                              'platform'
+                            )
+                          }
                           className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 transition-all ${
                             slot.venue_mode === 'platform'
                               ? 'bg-white text-emerald-700 shadow-2xs font-extrabold'
@@ -402,7 +584,7 @@ export default function StepSchedule({
                           onClick={() => {
                             handleUpdateSlot(slot.id, 'venue_mode', 'custom')
                             if (slot.terrain_id) {
-                              handleUpdateSlot(slot.id, 'terrain_id', null)
+                              handleClearStadium(slot.id)
                             }
                           }}
                           className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 transition-all ${
@@ -433,7 +615,9 @@ export default function StepSchedule({
                                 </div>
                                 <div className="text-[11px] font-medium text-slate-500">
                                   {selectedStadium.city || 'المدينة'}
-                                  {selectedStadium.address ? ` — ${selectedStadium.address}` : ''}
+                                  {selectedStadium.address
+                                    ? ` — ${selectedStadium.address}`
+                                    : ''}
                                 </div>
                               </div>
                             </div>
@@ -455,7 +639,11 @@ export default function StepSchedule({
                                 type="text"
                                 value={slot.searchQuery || ''}
                                 onChange={(e) =>
-                                  handleUpdateSlot(slot.id, 'searchQuery', e.target.value)
+                                  handleUpdateSlot(
+                                    slot.id,
+                                    'searchQuery',
+                                    e.target.value
+                                  )
                                 }
                                 placeholder="ابحث عن ملعب بالاسم أو المدينة..."
                                 className={inputClass}
@@ -465,7 +653,7 @@ export default function StepSchedule({
                             </div>
 
                             {/* Dropdown / Suggestions list */}
-                            <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50 p-1 divide-y divide-slate-100">
+                            <div className="max-h-40 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/50 p-1">
                               {loadingStadiums ? (
                                 <div className="py-4 text-center text-xs text-slate-400">
                                   جارٍ تحميل الملاعب...
@@ -475,8 +663,10 @@ export default function StepSchedule({
                                   <button
                                     key={st.id}
                                     type="button"
-                                    onClick={() => handleSelectStadium(slot.id, st)}
-                                    className="flex w-full items-center justify-between rounded-lg p-2 text-start transition-colors hover:bg-emerald-50 hover:text-emerald-900 group"
+                                    onClick={() =>
+                                      handleSelectStadium(slot.id, st)
+                                    }
+                                    className="group flex w-full items-center justify-between rounded-lg p-2 text-start transition-colors hover:bg-emerald-50 hover:text-emerald-900"
                                   >
                                     <div className="flex items-center gap-2">
                                       <Building2 className="size-3.5 text-slate-400 group-hover:text-emerald-600" />
@@ -501,12 +691,20 @@ export default function StepSchedule({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  handleUpdateSlot(slot.id, 'venue_mode', 'custom')
+                                  handleUpdateSlot(
+                                    slot.id,
+                                    'venue_mode',
+                                    'custom'
+                                  )
                                   if (slot.searchQuery) {
-                                    handleUpdateSlot(slot.id, 'pitch_name', slot.searchQuery)
+                                    handleUpdateSlot(
+                                      slot.id,
+                                      'pitch_name',
+                                      slot.searchQuery
+                                    )
                                   }
                                 }}
-                                className="text-[11px] font-bold text-emerald-600 hover:text-emerald-800 underline decoration-dotted"
+                                className="text-[11px] font-bold text-emerald-600 underline decoration-dotted hover:text-emerald-800"
                               >
                                 الملعب غير موجود في القائمة؟ اكتب اسمه يدوياً
                               </button>
@@ -522,7 +720,11 @@ export default function StepSchedule({
                             type="text"
                             value={slot.pitch_name || ''}
                             onChange={(e) =>
-                              handleUpdateSlot(slot.id, 'pitch_name', e.target.value)
+                              handleUpdateSlot(
+                                slot.id,
+                                'pitch_name',
+                                e.target.value
+                              )
                             }
                             placeholder="مثال: ملعب القرب، قاعة الحي، ملعب الفتح..."
                             className={inputClass}
@@ -530,12 +732,332 @@ export default function StepSchedule({
                           />
                           <MapPin className="pointer-events-none absolute end-3.5 top-3.5 size-4 text-slate-400" />
                         </div>
-                        <p className="text-[11px] text-slate-500 leading-tight">
-                          يمكنك كتابة اسم أي ملعب محلي أو قاعة معتادة يلعب فيها فريقكم.
+                        <p className="text-[11px] leading-tight text-slate-500">
+                          يمكنك كتابة اسم أي ملعب محلي أو قاعة معتادة يلعب فيها
+                          فريقكم.
                         </p>
                       </div>
                     )}
                   </div>
+
+                  {/* ─── SECTION 3: Reservation Type (NEW) ────────── */}
+                  {slot.venue_mode === 'platform' && slot.terrain_id && (
+                    <div className="mb-4">
+                      <label className="mb-2 block text-xs font-bold text-slate-700">
+                        نوع الحجز:
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleReservationTypeChange(
+                              slot.id,
+                              'weekly_subscription'
+                            )
+                          }
+                          className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${
+                            slot.reservation_type === 'weekly_subscription'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <Repeat className="size-3.5" />
+                          <span>أبونمان أسبوعي</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleReservationTypeChange(slot.id, 'single')
+                          }
+                          className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${
+                            slot.reservation_type === 'single'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <CalendarDays className="size-3.5" />
+                          <span>حجز مرة واحدة</span>
+                        </button>
+                      </div>
+
+                      {/* Reservation type description */}
+                      <p className="mt-1.5 text-[11px] leading-tight text-slate-500">
+                        {slot.reservation_type === 'weekly_subscription'
+                          ? 'سيتم حجز هذا التوقيت كل أسبوع بشكل تلقائي — أبونمان'
+                          : 'حجز لمرة واحدة فقط في تاريخ محدد'}
+                      </p>
+
+                      {/* Date picker for single reservations */}
+                      {slot.reservation_type === 'single' && (
+                        <div className="mt-2">
+                          <label className="mb-1 block text-[11px] font-bold text-slate-600">
+                            تاريخ الحجز:
+                          </label>
+                          <input
+                            type="date"
+                            value={slot.booking_date || ''}
+                            min={new Date().toISOString().split('T')[0]}
+                            onChange={(e) => {
+                              handleUpdateSlot(
+                                slot.id,
+                                'booking_date',
+                                e.target.value
+                              )
+                              // Re-fetch slots for the specific date
+                              if (slot.terrain_id && e.target.value) {
+                                const cacheKey = `${slot.terrain_id}-${e.target.value}`
+                                // Clear cache for this key to force re-fetch
+                                delete slotsCache.current[cacheKey]
+
+                                setSlots((prev) =>
+                                  prev.map((s) =>
+                                    s.id === slot.id
+                                      ? { ...s, loadingSlots: true, start_time: '' }
+                                      : s
+                                  )
+                                )
+                                api
+                                  .get(
+                                    `/terrains/${slot.terrain_id}/slots`,
+                                    { params: { date: e.target.value } }
+                                  )
+                                  .then((res) => {
+                                    slotsCache.current[cacheKey] = res.data
+                                    setSlots((prev) =>
+                                      prev.map((s) =>
+                                        s.id === slot.id
+                                          ? {
+                                              ...s,
+                                              terrainSlots: res.data,
+                                              loadingSlots: false,
+                                              slotsError:
+                                                res.data.terrain_closed
+                                                  ? 'الملعب مغلق حالياً'
+                                                  : null,
+                                            }
+                                          : s
+                                      )
+                                    )
+                                  })
+                                  .catch(() => {
+                                    setSlots((prev) =>
+                                      prev.map((s) =>
+                                        s.id === slot.id
+                                          ? {
+                                              ...s,
+                                              loadingSlots: false,
+                                              slotsError:
+                                                'تعذر تحميل الأوقات المتاحة',
+                                            }
+                                          : s
+                                      )
+                                    )
+                                  })
+                              }
+                            }}
+                            className={inputClass}
+                          />
+                          {slot.booking_date && (
+                            <p className="mt-1 text-[11px] font-medium text-emerald-700">
+                              📅 {formatDateAr(slot.booking_date)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ─── SECTION 4: Time Selector (DYNAMIC) ──────── */}
+                  <div className="mb-1">
+                    <label className="mb-2 flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                      <Clock className="size-3.5" />
+                      توقيت المباراة:
+                    </label>
+
+                    {/* Loading state */}
+                    {slot.loadingSlots && (
+                      <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-4">
+                        <Loader2 className="size-4 animate-spin text-emerald-600" />
+                        <span className="text-xs text-slate-500">
+                          جارٍ تحميل الأوقات المتاحة...
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Error state */}
+                    {slot.slotsError && !slot.loadingSlots && (
+                      <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 p-3">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="size-4 text-amber-600" />
+                          <span className="text-xs font-bold text-amber-800">
+                            {slot.slotsError}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            fetchTerrainSlots(
+                              slot.id,
+                              slot.terrain_id,
+                              slot.day_of_week
+                            )
+                          }
+                          className="rounded-lg p-1.5 text-amber-600 hover:bg-amber-100"
+                        >
+                          <RefreshCw className="size-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* API Slots: from terrain schedule */}
+                    {showApiSlots && !slot.loadingSlots && (
+                      <div>
+                        {apiSlots.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            {apiSlots.map((ts) => {
+                              const isAvailable = ts.status === 'available'
+                              const isBooked = ts.status === 'booked'
+                              const isClosed = ts.status === 'closed'
+                              const isSelected =
+                                slot.start_time === ts.start
+
+                              return (
+                                <button
+                                  key={ts.start}
+                                  type="button"
+                                  disabled={!isAvailable}
+                                  onClick={() =>
+                                    handleUpdateSlot(
+                                      slot.id,
+                                      'start_time',
+                                      ts.start
+                                    )
+                                  }
+                                  className={`relative rounded-xl px-3 py-2 text-xs font-bold transition-all ${
+                                    isSelected
+                                      ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-300'
+                                      : isAvailable
+                                        ? 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-emerald-50 hover:ring-emerald-300'
+                                        : isBooked
+                                          ? 'cursor-not-allowed bg-red-50 text-red-400 ring-1 ring-red-200'
+                                          : 'cursor-not-allowed bg-slate-100 text-slate-400 ring-1 ring-slate-200'
+                                  }`}
+                                  title={
+                                    isBooked
+                                      ? `محجوز ${ts.booking?.team?.name ? `— ${ts.booking.team.name}` : ''}`
+                                      : isClosed
+                                        ? `مغلق ${ts.closure?.reason ? `— ${ts.closure.reason}` : ''}`
+                                        : `متاح: ${ts.start} - ${ts.end}`
+                                  }
+                                >
+                                  <span className="block">
+                                    {ts.start}
+                                  </span>
+                                  <span
+                                    className={`block text-[10px] font-medium ${
+                                      isSelected
+                                        ? 'text-emerald-200'
+                                        : isAvailable
+                                          ? 'text-emerald-600'
+                                          : isBooked
+                                            ? 'text-red-400'
+                                            : 'text-slate-400'
+                                    }`}
+                                  >
+                                    {isAvailable
+                                      ? '✓ متاح'
+                                      : isBooked
+                                        ? '✕ محجوز'
+                                        : '⊘ مغلق'}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-slate-200 bg-white p-4 text-center text-xs text-slate-500">
+                            لا توجد فترات متاحة لهذا اليوم في هذا الملعب
+                          </div>
+                        )}
+
+                        {/* Info about which date was queried */}
+                        {slot.terrainSlots?.date && (
+                          <p className="mt-1.5 text-[10px] text-slate-400">
+                            الأوقات المعروضة ليوم{' '}
+                            {formatDateAr(slot.terrainSlots.date)}
+                            {slot.terrainSlots.schedule && (
+                              <>
+                                {' '}
+                                · ساعات العمل:{' '}
+                                {slot.terrainSlots.schedule.open_time} -{' '}
+                                {slot.terrainSlots.schedule.close_time}
+                              </>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Fallback times: for custom stadiums or when no terrain selected */}
+                    {showFallbackTimes && !slot.loadingSlots && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {FALLBACK_TIMES.map((time) => (
+                          <button
+                            key={time}
+                            type="button"
+                            onClick={() =>
+                              handleUpdateSlot(slot.id, 'start_time', time)
+                            }
+                            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition-all ${
+                              slot.start_time === time
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {time}
+                          </button>
+                        ))}
+                        <div className="relative ms-auto w-32">
+                          <input
+                            type="time"
+                            value={slot.start_time}
+                            onChange={(e) =>
+                              handleUpdateSlot(
+                                slot.id,
+                                'start_time',
+                                e.target.value
+                              )
+                            }
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Platform terrain selected but no terrain_id yet — prompt to select */}
+                    {slot.venue_mode === 'platform' &&
+                      !slot.terrain_id &&
+                      !slot.loadingSlots && (
+                        <p className="mt-1 text-[11px] text-slate-400">
+                          ⬆ اختر ملعب أولاً لعرض الأوقات المتاحة
+                        </p>
+                      )}
+                  </div>
+
+                  {/* Reservation info badge for platform terrains */}
+                  {slot.venue_mode === 'platform' &&
+                    slot.terrain_id &&
+                    slot.start_time && (
+                      <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/60 p-2.5">
+                        <p className="text-[11px] font-bold leading-relaxed text-blue-800">
+                          💡 عند المتابعة، سيتم إرسال طلب حجز{' '}
+                          {slot.reservation_type === 'weekly_subscription'
+                            ? '(أبونمان أسبوعي)'
+                            : '(مرة واحدة)'}{' '}
+                          لصاحب الملعب. سيتم تأكيد الحجز بعد موافقته.
+                        </p>
+                      </div>
+                    )}
                 </div>
               )
             })}

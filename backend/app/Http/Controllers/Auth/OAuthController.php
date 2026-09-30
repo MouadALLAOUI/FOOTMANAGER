@@ -127,9 +127,9 @@ class OAuthController extends Controller
 
             if ($user) {
                 if ($user->trashed()) {
-                    $user->restore();
-                }
-                if ($hasIdColumn && $user->{$idColumn} !== $providerId) {
+                    $user->forceDelete();
+                    $user = null;
+                } elseif ($hasIdColumn && $user->{$idColumn} !== $providerId) {
                     $user->update([$idColumn => $providerId]);
                 }
             }
@@ -327,9 +327,9 @@ class OAuthController extends Controller
 
             if ($user) {
                 if ($user->trashed()) {
-                    $user->restore();
-                }
-                if ($hasIdColumn && $user->{$idColumn} !== $providerId) {
+                    $user->forceDelete();
+                    $user = null;
+                } elseif ($hasIdColumn && $user->{$idColumn} !== $providerId) {
                     $user->update([$idColumn => $providerId]);
                 }
             }

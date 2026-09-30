@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class AccountController extends Controller
 {
@@ -112,16 +113,23 @@ class AccountController extends Controller
     {
         $user->revokeTokens();
 
-        $user->name = 'محذوف';
-        $user->email = null;
-        $user->phone = 'deleted_'.$user->id;
-        $user->password = 'deleted';
-        $user->avatar_path = null;
-        $user->avatar_thumbnail_path = null;
-        $user->status = 'blocked';
-        $user->save();
+        if ($user->avatar_path) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+        if ($user->avatar_thumbnail_path) {
+            Storage::disk('public')->delete($user->avatar_thumbnail_path);
+        }
 
-        $user->delete();
+        if ($user->isManager() && $user->team) {
+            $team = $user->team;
+            $hasMatches = $team->hostedMatches()->exists() || $team->opponentMatches()->exists();
+            $hasBookings = $team->terrainBookings()->exists();
+            if (! $hasMatches && ! $hasBookings) {
+                $team->delete();
+            }
+        }
+
+        $user->forceDelete();
     }
 
     public function generateRecovery(Request $request, int $id): JsonResponse

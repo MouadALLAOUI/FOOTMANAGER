@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LayoutGrid, List, Plus, Search, Store } from 'lucide-react'
+import { AlertTriangle, LayoutGrid, List, Plus, Search, Store, Trash2 } from 'lucide-react'
 import api from '../../../api/client'
 import { toastApiError } from '../../../lib/errors'
 import { useApi } from '../../../hooks/useApi'
@@ -67,6 +67,9 @@ export default function Terrains() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [photosTarget, setPhotosTarget] = useState(null)
+  const [clearTarget, setClearTarget] = useState(null)
+  const [clearConfirmName, setClearConfirmName] = useState('')
+  const [clearBusy, setClearBusy] = useState(false)
 
   const cities = useMemo(() => {
     const apiCities = citiesData?.cities || []
@@ -241,6 +244,27 @@ export default function Terrains() {
       toastApiError(e, t)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const confirmClearBookings = async () => {
+    if (!clearTarget || clearBusy) return
+    if (clearConfirmName.trim() !== (clearTarget.name || '').trim()) return
+    setClearBusy(true)
+    try {
+      const res = await api.delete(`/owner/terrains/${clearTarget.id}/clear-bookings`, {
+        data: { terrain_name_confirmation: clearConfirmName.trim() },
+      })
+      const count = res.data?.deleted_count ?? 0
+      toast.success(res.data?.message || `تم مسح ${count} حجز بنجاح`)
+      setClearTarget(null)
+      setClearConfirmName('')
+      window.dispatchEvent(new CustomEvent('booking:updated'))
+      refetch()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setClearBusy(false)
     }
   }
 
@@ -468,21 +492,51 @@ export default function Terrains() {
               </div>
 
             {editing && (
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="grid size-9 place-items-center rounded-xl bg-sky-50 text-sky-600">
-                    <Store className="size-4" />
-                  </span>
-                  <div>
-                    <h4 className="text-sm font-extrabold text-slate-900">صور الملعب</h4>
-                    <p className="text-[11px] font-semibold text-slate-400">حتى 6 صور</p>
+              <div className="space-y-6">
+                <div>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="grid size-9 place-items-center rounded-xl bg-sky-50 text-sky-600">
+                      <Store className="size-4" />
+                    </span>
+                    <div>
+                      <h4 className="text-sm font-extrabold text-slate-900">صور الملعب</h4>
+                      <p className="text-[11px] font-semibold text-slate-400">حتى 6 صور</p>
+                    </div>
+                  </div>
+                  <ImageGallery
+                    terrainId={editing.id}
+                    images={editing.images || []}
+                    onChanged={() => refreshDetail(editing.id)}
+                  />
+                </div>
+
+                {/* Bulk Clear Bookings Section */}
+                <div className="rounded-2xl border border-rose-200 bg-rose-50/60 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Trash2 className="size-4 text-rose-600" />
+                        <h4 className="text-sm font-extrabold text-rose-900">مسح حجوزات الملعب بالكامل</h4>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-rose-700/80">
+                        حذف كافة الحجوزات المسجلة لهذا الملعب دفعة واحدة وتفريغ جدول المواعيد بالكامل.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="dangerSoft"
+                      size="sm"
+                      className="shrink-0 self-start sm:self-auto !border-rose-300 !bg-white hover:!bg-rose-100 text-rose-700 font-extrabold shadow-sm"
+                      onClick={() => {
+                        setClearTarget(editing)
+                        setClearConfirmName('')
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                      مسح كافة الحجوزات
+                    </Button>
                   </div>
                 </div>
-                <ImageGallery
-                  terrainId={editing.id}
-                  images={editing.images || []}
-                  onChanged={() => refreshDetail(editing.id)}
-                />
               </div>
             )}
 
@@ -536,6 +590,62 @@ export default function Terrains() {
           <Button variant="outline" className="flex-1" disabled={deleting} onClick={() => setDeleteTarget(null)}>
             {t('terrain.card.cancel')}
           </Button>
+        </div>
+      </Modal>
+
+      {/* Clear all bookings confirmation modal */}
+      <Modal
+        open={!!clearTarget}
+        onClose={() => !clearBusy && setClearTarget(null)}
+        title="تأكيد مسح كافة الحجوزات"
+        subtitle="حذف جماعي وإلغاء لجميع حجوزات هذا الملعب"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5 text-amber-900">
+            <AlertTriangle className="size-5 shrink-0 text-amber-600 mt-0.5" />
+            <div className="text-xs leading-relaxed">
+              <p className="font-extrabold text-amber-950">تحذير أمني هام:</p>
+              <p className="mt-0.5">
+                سيتم مسح جميع حجوزات ملعب <strong className="font-black text-slate-900">"{clearTarget?.name}"</strong> نهائياً، وإشعار المسيرين المسجلين، وتحرير كافة المواعيد في التقويم. هذا الإجراء لا يمكن التراجع عنه.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              لتأكيد الحذف بدون خطأ، يُرجى كتابة اسم الملعب تماماً: <span className="font-black text-rose-600 select-all">"{clearTarget?.name}"</span>
+            </label>
+            <input
+              type="text"
+              dir="auto"
+              className={inputClass}
+              placeholder={`اكتب "${clearTarget?.name || ''}" هنا لتفعيل زر الحذف...`}
+              value={clearConfirmName}
+              onChange={(e) => setClearConfirmName(e.target.value)}
+              disabled={clearBusy}
+              autoFocus
+            />
+          </div>
+
+          <div className="mt-5 flex gap-2">
+            <Button
+              variant="danger"
+              className="flex-1"
+              disabled={clearBusy || clearConfirmName.trim() !== (clearTarget?.name || '').trim()}
+              loading={clearBusy}
+              onClick={confirmClearBookings}
+            >
+              {clearBusy ? 'جارٍ الحذف…' : 'تأكيد مسح كافة الحجوزات'}
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={clearBusy}
+              onClick={() => setClearTarget(null)}
+            >
+              إلغاء
+            </Button>
+          </div>
         </div>
       </Modal>
 

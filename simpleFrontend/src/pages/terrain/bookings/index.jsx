@@ -123,6 +123,7 @@ export default function Bookings() {
 
   const approve = (b) => act(() => api.put(`/owner/bookings/${b.id}/approve`), t('terrain.bookings.approvedToast'))
   const reject = (b) => act(() => api.put(`/owner/bookings/${b.id}/reject`), t('terrain.bookings.rejectedToast'))
+  const forceDeleteBooking = (id) => act(() => api.delete(`/owner/bookings/${id}/force`), 'تم حذف الحجز إجبارياً وتحرير الموعد')
 
   const confirm = useConfirm()
   const confirmReject = (b) => {
@@ -305,6 +306,7 @@ export default function Bookings() {
         onClose={() => setSelected(null)}
         onApprove={() => approve(selected)}
         onReject={() => confirmReject(selected)}
+        onForceDelete={(id) => forceDeleteBooking(id)}
         busy={busy}
         variant="modal"
       />

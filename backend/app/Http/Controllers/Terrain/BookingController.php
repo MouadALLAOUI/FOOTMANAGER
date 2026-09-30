@@ -930,6 +930,85 @@ class BookingController extends Controller
         ], 201);
     }
 
+    public function forceDeleteBooking(Request $request, int $bookingId): JsonResponse
+    {
+        $user = $request->user();
+
+        $booking = TerrainBooking::whereHas('terrain', function ($q) use ($user) {
+            $q->where('owner_id', $user->id);
+        })->where('id', $bookingId)->firstOrFail();
+
+        $booking->load(['terrain', 'manager']);
+        $terrainName = $booking->terrain?->name ?? 'الملعب';
+        $bookingDate = $booking->booking_date?->format('Y-m-d')
+            ?? ($booking->start_date ? Carbon::parse($booking->start_date)->format('Y-m-d') : '');
+
+        // If registered manager, send cancellation notification
+        if ($booking->manager_id) {
+            try {
+                NotificationService::push(
+                    (int) $booking->manager_id,
+                    'booking_cancellation',
+                    'تم إلغاء وحذف الحجز إجبارياً',
+                    "قام صاحب الملعب {$terrainName} بحذف وإلغاء الحجز رقم #{$booking->id} المقرّر بتاريخ {$bookingDate}.",
+                    ['terrain_id' => $booking->terrain_id],
+                    '/dashboard/my-reservations'
+                );
+            } catch (\Exception $e) {}
+        }
+
+        $booking->delete();
+
+        return response()->json([
+            'message' => 'تم حذف الحجز إجبارياً بنجاح وتحرير الموعد.',
+        ]);
+    }
+
+    public function bulkClearBookings(Request $request, int $terrainId): JsonResponse
+    {
+        $user = $request->user();
+
+        $terrain = Stadium::where('id', $terrainId)
+            ->where('owner_id', $user->id)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'terrain_name_confirmation' => 'required|string',
+        ]);
+
+        if (trim($validated['terrain_name_confirmation']) !== trim($terrain->name)) {
+            return response()->json([
+                'message' => 'اسم الملعب المدخل غير مطابق لتأكيد الحذف.',
+            ], 422);
+        }
+
+        // Notify affected registered managers before deletion
+        $bookings = TerrainBooking::where('terrain_id', $terrainId)
+            ->whereNotNull('manager_id')
+            ->whereIn('status', ['confirmed', 'approved', 'pending'])
+            ->get();
+
+        foreach ($bookings as $b) {
+            try {
+                NotificationService::push(
+                    (int) $b->manager_id,
+                    'booking_cancellation',
+                    'تم إلغاء الحجز',
+                    "تم إلغاء حجزك في ملعب {$terrain->name} نظراً لتفريغ جدول الحجوزات من قبل إدارة الملعب.",
+                    ['terrain_id' => $terrain->id],
+                    '/dashboard/my-reservations'
+                );
+            } catch (\Exception $e) {}
+        }
+
+        $deletedCount = TerrainBooking::where('terrain_id', $terrainId)->delete();
+
+        return response()->json([
+            'message' => "تم حذف كافة الحجوزات ({$deletedCount} حجز) بنجاح وتفريغ جدول الملعب بالكامل.",
+            'deleted_count' => $deletedCount,
+        ]);
+    }
+
     public function getManagerBookings(Request $request): JsonResponse
     {
         $user = $request->user();

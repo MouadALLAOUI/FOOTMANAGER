@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Manager;
 
+use App\Domains\Booking\Events\BookingCreated;
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Base\Controller;
@@ -249,13 +250,23 @@ class OnboardingController extends Controller
             'schedules.*.end_time' => 'nullable|string|max:10',
             'schedules.*.pitch_name' => 'nullable|string|max:255',
             'schedules.*.terrain_id' => 'nullable|integer',
+            'schedules.*.reservation_type' => 'nullable|string|in:single,weekly_subscription',
+            'schedules.*.booking_date' => 'nullable|date|after_or_equal:today',
         ]);
 
+        $createdBookings = [];
+        $warnings = [];
+
         if ($validated['has_regular_time']) {
-            // Delete previous manual onboarding schedule for this team to keep clean entries
+            // Delete previous manual and pending onboarding schedule for this team to keep clean entries
             TerrainBooking::query()
                 ->where('team_id', $team->id)
-                ->where('source', 'imported_manual')
+                ->where(function ($q) {
+                    $q->where('source', 'imported_manual')
+                        ->orWhere(function ($sq) {
+                            $sq->where('source', 'onboarding')->where('status', 'pending');
+                        });
+                })
                 ->delete();
 
             $items = [];
@@ -273,6 +284,8 @@ class OnboardingController extends Controller
                             'end_time' => $endTime,
                             'pitch_name' => ! empty($s['pitch_name']) ? trim($s['pitch_name']) : 'ملعب اعتيادي',
                             'terrain_id' => ! empty($s['terrain_id']) ? (int) $s['terrain_id'] : null,
+                            'reservation_type' => ! empty($s['reservation_type']) ? $s['reservation_type'] : 'weekly_subscription',
+                            'booking_date' => ! empty($s['booking_date']) ? $s['booking_date'] : null,
                         ];
                     }
                 }
@@ -288,30 +301,95 @@ class OnboardingController extends Controller
                     'end_time' => $endTime,
                     'pitch_name' => ! empty($validated['pitch_name']) ? trim($validated['pitch_name']) : 'ملعب اعتيادي',
                     'terrain_id' => ! empty($validated['terrain_id']) ? (int) $validated['terrain_id'] : null,
+                    'reservation_type' => 'weekly_subscription',
+                    'booking_date' => null,
                 ];
             }
 
             foreach ($items as $item) {
-                TerrainBooking::create([
-                    'team_id' => $team->id,
-                    'manager_id' => $user->id,
-                    'terrain_id' => $item['terrain_id'] ?? null,
-                    'booking_type' => 'training',
-                    'flow_type' => 'amical',
-                    'reservation_type' => 'weekly',
-                    'source' => 'imported_manual',
-                    'custom_pitch_name' => $item['pitch_name'],
-                    'day_of_week' => $item['day_of_week'],
-                    'start_time' => $item['start_time'],
-                    'end_time' => $item['end_time'],
-                    'booking_date' => now()->toDateString(),
-                    'status' => 'confirmed',
-                ]);
+                if (! empty($item['terrain_id'])) {
+                    $reservationType = $item['reservation_type'] ?? 'weekly_subscription';
+                    if ($reservationType === 'single' && ! empty($item['booking_date'])) {
+                        $bookingDate = Carbon::parse($item['booking_date'])->toDateString();
+                        $dayOfWeek = Carbon::parse($bookingDate)->dayOfWeek;
+                        $startDate = null;
+                    } else {
+                        $dayOfWeek = (int) $item['day_of_week'];
+                        $today = Carbon::today();
+                        $target = $today->isDayOfWeek($dayOfWeek) ? $today : $today->copy()->next($dayOfWeek);
+                        $bookingDate = $target->toDateString();
+                        $startDate = Carbon::today()->toDateString();
+                    }
+
+                    $conflict = TerrainBooking::getConflictMessage(
+                        (int) $item['terrain_id'],
+                        $bookingDate,
+                        $item['start_time'],
+                        $item['end_time']
+                    );
+
+                    if ($conflict) {
+                        $warnings[] = "يوجد تعارض في الموعد {$item['start_time']}: " . $conflict;
+                        continue;
+                    }
+
+                    $terrain = Stadium::find($item['terrain_id']);
+                    $price = (float) ($terrain?->price_per_team ?? 0);
+                    if ($reservationType === 'weekly_subscription') {
+                        $price = $price * 4;
+                    }
+
+                    DB::transaction(function () use ($item, $team, $user, $reservationType, $bookingDate, $startDate, $dayOfWeek, $price, &$createdBookings) {
+                        $booking = TerrainBooking::create([
+                            'team_id' => $team->id,
+                            'manager_id' => $user->id,
+                            'terrain_id' => $item['terrain_id'],
+                            'booking_type' => 'training',
+                            'flow_type' => 'direct',
+                            'reservation_type' => $reservationType,
+                            'source' => 'onboarding',
+                            'custom_pitch_name' => $item['pitch_name'],
+                            'day_of_week' => $dayOfWeek,
+                            'start_time' => $item['start_time'],
+                            'end_time' => $item['end_time'],
+                            'start_date' => $startDate,
+                            'booking_date' => $bookingDate,
+                            'price' => $price,
+                            'status' => 'pending',
+                            'booking_reference' => TerrainBooking::generateReference(),
+                        ]);
+
+                        event(new BookingCreated($booking));
+                        $createdBookings[] = $booking;
+                    });
+                } else {
+                    $booking = TerrainBooking::create([
+                        'team_id' => $team->id,
+                        'manager_id' => $user->id,
+                        'terrain_id' => null,
+                        'booking_type' => 'training',
+                        'flow_type' => 'amical',
+                        'reservation_type' => 'weekly',
+                        'source' => 'imported_manual',
+                        'custom_pitch_name' => $item['pitch_name'],
+                        'day_of_week' => $item['day_of_week'],
+                        'start_time' => $item['start_time'],
+                        'end_time' => $item['end_time'],
+                        'booking_date' => now()->toDateString(),
+                        'status' => 'confirmed',
+                    ]);
+                    $createdBookings[] = $booking;
+                }
             }
         } else {
             TerrainBooking::query()
                 ->where('team_id', $team->id)
-                ->where('source', 'imported_manual')
+                ->where(function ($q) {
+                    $q->where('source', 'imported_manual')
+                        ->orWhere(function ($sq) {
+                            $sq->where('source', 'onboarding')->where('status', 'pending');
+                        });
+                })
                 ->delete();
         }
 
@@ -321,6 +399,8 @@ class OnboardingController extends Controller
         return response()->json([
             'message' => 'تم حفظ تفاصيل المواعيد بنجاح',
             'next_step' => 'tournament',
+            'bookings' => $createdBookings,
+            'warnings' => $warnings,
         ]);
     }
 

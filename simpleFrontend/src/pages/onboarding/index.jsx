@@ -87,6 +87,9 @@ export default function OnboardingPage() {
       setPercentage((p) => Math.max(p, 75))
       setStep('tournament')
       toast.success(data.message || 'تم حفظ المواعيد')
+      if (Array.isArray(data.warnings) && data.warnings.length > 0) {
+        data.warnings.forEach((w) => toast.warning(w))
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'فشل حفظ المواعيد')
     } finally {

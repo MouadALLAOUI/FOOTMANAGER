@@ -14,6 +14,7 @@ import { matchDay, formatTime } from '../../../lib/adapters'
 import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 
 import { LIVE_STATUSES, PILL_STYLES } from '../../../data/fixtures'
+import TournamentMatchCard from './TournamentMatchCard'
 
 function fixtureStatus(f) {
   const m = f.match
@@ -40,6 +41,64 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
   const awayName = f.away_team?.name || f.slots?.away || t('committee.detail.tbd')
   const integratedRes = (tournament?.terrain_reservation_mode ?? 'independent') === 'integrated'
   const isDraftReservation = integratedRes && f.is_confirmed === false
+
+  if (!editableSlot) {
+    return (
+      <div className="space-y-1">
+        <TournamentMatchCard
+          fixture={f}
+          index={number}
+          busy={busy}
+          locked={locked}
+          customRoundLabel={
+            f.group?.name
+              ? `${t('committee.detail.groupName')} ${f.group.name} · ج ${f.matchday || number}`
+              : t('committee.detail.matchNumber', { n: number })
+          }
+          onResult={onResult}
+          onDetails={onDetails}
+          onReschedule={onReschedule}
+          onPostpone={onPostpone ? () => onPostpone(f) : undefined}
+          onCancel={onCancel ? () => onCancel(f) : undefined}
+          onRestore={onRestore ? () => onRestore(f) : undefined}
+        />
+        {prevRoundKey && (
+          <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white">
+            <button
+              type="button"
+              onClick={() => {
+                setPrevOpen((v) => !v)
+                if (!prevOpen && !prevData?.loading && !prevData?.fixtures?.length) onOpenPrev()
+              }}
+              className="flex w-full items-center justify-between gap-2 px-4 py-2 text-[11px] font-black uppercase tracking-wide text-slate-500 transition-colors hover:text-slate-700"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <History className="size-3.5 text-slate-400" />
+                {t('committee.detail.prevResults')}
+              </span>
+              <ChevronDown className={`size-4 transition-transform ${prevOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {prevOpen && (
+              <div className="space-y-1.5 border-t border-slate-50 bg-slate-50/60 px-4 py-3">
+                {prevData?.loading ? (
+                  <Skeleton className="h-10" />
+                ) : (() => {
+                  const list = f.group?.id
+                    ? (prevData.fixtures || []).filter((pf) => pf.group?.id === f.group.id)
+                    : (prevData.fixtures || [])
+                  return list.length ? (
+                    list.map((pf) => <PrevResultRow key={pf.id} f={pf} tournament={tournament} />)
+                  ) : (
+                    <p className="py-2 text-center text-[11px] font-semibold text-slate-400">{t('committee.detail.prevResultsEmpty')}</p>
+                  )
+                })()}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]">

@@ -42,6 +42,13 @@ class AuthController extends Controller
         $data = $request->validated();
 
         $user = DB::transaction(function () use ($data) {
+            if (! empty($data['email'])) {
+                User::onlyTrashed()->where('email', $data['email'])->forceDelete();
+            }
+            if (! empty($data['phone'])) {
+                User::onlyTrashed()->where('phone', $data['phone'])->forceDelete();
+            }
+
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'] ?? null,
@@ -405,23 +412,34 @@ class AuthController extends Controller
 
         $validated = $request->validated();
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'] ?? null,
-            'phone' => $validated['phone'],
-            'is_whatsapp' => $validated['is_whatsapp'] ?? false,
-            'password' => $validated['password'],
-            'role' => 'player',
-            'status' => 'pending',
-        ]);
+        $user = DB::transaction(function () use ($validated) {
+            if (! empty($validated['email'])) {
+                User::onlyTrashed()->where('email', $validated['email'])->forceDelete();
+            }
+            if (! empty($validated['phone'])) {
+                User::onlyTrashed()->where('phone', $validated['phone'])->forceDelete();
+            }
 
-        PlayerProfile::create([
-            'user_id' => $user->id,
-            'position' => $validated['position'] ?? null,
-            'skill_level' => $validated['skill_level'] ?? null,
-            'birth_year' => $validated['birth_year'] ?? null,
-            'city' => $validated['city'] ?? null,
-        ]);
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'] ?? null,
+                'phone' => $validated['phone'],
+                'is_whatsapp' => $validated['is_whatsapp'] ?? false,
+                'password' => $validated['password'],
+                'role' => 'player',
+                'status' => 'pending',
+            ]);
+
+            PlayerProfile::create([
+                'user_id' => $user->id,
+                'position' => $validated['position'] ?? null,
+                'skill_level' => $validated['skill_level'] ?? null,
+                'birth_year' => $validated['birth_year'] ?? null,
+                'city' => $validated['city'] ?? null,
+            ]);
+
+            return $user;
+        });
 
         $this->notifyAdminOfNewRegistration([
             'type' => 'player',

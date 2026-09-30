@@ -207,7 +207,7 @@ class SubAdminController extends Controller
         DB::transaction(function () use ($user) {
             $user->permissions()->detach();
             $user->revokeTokens();
-            $user->delete();
+            $user->forceDelete();
         });
 
         $this->activityService->record(

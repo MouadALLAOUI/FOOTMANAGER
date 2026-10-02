@@ -320,14 +320,16 @@ class TournamentController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->status !== Tournament::STATUS_DRAFT) {
-            throw new DomainException('البطولة منشورة بالفعل');
+        if (! in_array($tournament->status, [Tournament::STATUS_DRAFT, Tournament::STATUS_REGISTRATION_CLOSED], true)) {
+            throw new DomainException('لا يمكن فتح التسجيل من هذه الحالة');
         }
 
-        $tournament->forceFill([
-            'status' => Tournament::STATUS_OPEN_FOR_REGISTRATION,
-            'published_at' => now(),
-        ])->save();
+        $data = ['status' => Tournament::STATUS_OPEN_FOR_REGISTRATION];
+        if (! $tournament->published_at) {
+            $data['published_at'] = now();
+        }
+
+        $tournament->forceFill($data)->save();
 
         return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
     }

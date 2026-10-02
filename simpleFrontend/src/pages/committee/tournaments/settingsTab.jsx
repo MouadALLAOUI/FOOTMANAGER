@@ -328,7 +328,7 @@ export default function SettingsTab({ tournament, refresh }) {
             </div>
             <Toggle
               checked={registrationOpen}
-              disabled={!editable || tournament.status === 'registration_closed' || toggleBusy}
+              disabled={!editable || toggleBusy}
               onChange={toggleRegistration}
               title={t('committee.detail.settingsRegistrationEnabled')}
             />

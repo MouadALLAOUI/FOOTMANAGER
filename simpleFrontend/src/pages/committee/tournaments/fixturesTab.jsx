@@ -95,7 +95,7 @@ const fmtDateTime = (dateStr, timeStr) => {
 }
 
 export default function FixturesTab({ tournament, refresh, refreshKey }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { toast } = useToast()
 
   const [active, setActive] = useState(null)

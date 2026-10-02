@@ -39,6 +39,7 @@ import RescheduleDrawer from '../../../domains/committee/components/RescheduleDr
 import RoundNav from '../../../domains/committee/components/RoundNav'
 import SummaryChips from '../../../domains/committee/components/SummaryChips'
 import KnockoutOptionModal from '../../../domains/committee/components/KnockoutOptionModal'
+import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
 import LeagueAssignmentPanel from '../../../domains/committee/components/LeagueAssignmentPanel'
 import LeagueWeekSelector from '../../../domains/committee/components/LeagueWeekSelector'
 import { computeLeagueWeeks, getDefaultWeekId, groupFixturesByDay } from '../../../domains/committee/utils/leagueWeeks'

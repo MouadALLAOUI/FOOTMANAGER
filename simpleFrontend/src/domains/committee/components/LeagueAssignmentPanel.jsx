@@ -28,6 +28,8 @@ import { Badge, Button, Card, Empty } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import TournamentMatchCard from './TournamentMatchCard'
+import LeagueWeekSelector from './LeagueWeekSelector'
+import { computeLeagueWeeks, getDefaultWeekId, groupFixturesByDay } from '../utils/leagueWeeks'
 
 export default function LeagueAssignmentPanel({
   tournament,
@@ -191,25 +193,58 @@ export default function LeagueAssignmentPanel({
     return Array.from(map.values())
   }, [allFixtures])
 
+  const [activeWeekId, setActiveWeekId] = useState(null)
+
+  const { weeks: leagueWeeks, unscheduled: leagueUnscheduled, chronologicalNumberMap } = useMemo(() => {
+    return computeLeagueWeeks(allFixtures || [], 'ar')
+  }, [allFixtures])
+
+  useEffect(() => {
+    if (leagueWeeks && leagueWeeks.length > 0) {
+      if (!activeWeekId || (activeWeekId !== 'unscheduled' && !leagueWeeks.some((w) => w.id === activeWeekId))) {
+        setActiveWeekId(getDefaultWeekId(leagueWeeks, leagueUnscheduled))
+      }
+    } else if ((!leagueWeeks || leagueWeeks.length === 0) && (!activeWeekId || activeWeekId !== 'unscheduled')) {
+      setActiveWeekId('unscheduled')
+    }
+  }, [leagueWeeks, leagueUnscheduled, activeWeekId])
+
   const totalFixtures = allFixtures?.length || 0
   const scheduledFixtures = allFixtures?.filter((f) => f.scheduled_at && f.status !== 'waiting_for_booking') || []
   const waitingFixtures = allFixtures?.filter((f) => !f.scheduled_at || f.status === 'waiting_for_booking') || []
   const exceptionsFixtures = allFixtures?.filter((f) => Boolean(f.unscheduled_reason) || f.status === 'rescheduling_required') || []
 
   // Filtered fixtures
-  const filteredFixtures = (allFixtures || []).filter((f) => {
-    if (matchdayFilter !== 'all' && String(f.matchday) !== String(matchdayFilter)) return false
-    const isScheduled = Boolean(f.scheduled_at) && f.status !== 'waiting_for_booking'
-    const isPlayed = f.status === 'played' || f.match?.status === 'finished'
-    const isWaitingOrException = !f.scheduled_at || f.status === 'waiting_for_booking' || f.status === 'postponed' || f.status === 'rescheduling_required' || Boolean(f.unscheduled_reason)
+  const filteredFixtures = useMemo(() => {
+    let list = allFixtures || []
+    if (activeWeekId === 'unscheduled') {
+      list = leagueUnscheduled
+    } else if (activeWeekId) {
+      const found = leagueWeeks.find((w) => w.id === activeWeekId)
+      list = found ? found.fixtures : []
+    }
 
-    if (statusFilter === 'scheduled') return isScheduled && !isPlayed
-    if (statusFilter === 'played') return isPlayed
-    if (statusFilter === 'waiting') return isWaitingOrException && !isPlayed
-    if (statusFilter === 'unscheduled') return Boolean(f.unscheduled_reason) || f.status === 'rescheduling_required'
-    if (statusFilter === 'all') return true
-    return true
-  })
+    if (matchdayFilter !== 'all') {
+      list = list.filter((f) => String(f.matchday) === String(matchdayFilter))
+    }
+
+    return list.filter((f) => {
+      const isScheduled = Boolean(f.scheduled_at) && f.status !== 'waiting_for_booking'
+      const isPlayed = f.status === 'played' || f.match?.status === 'finished'
+      const isWaitingOrException = !f.scheduled_at || f.status === 'waiting_for_booking' || f.status === 'postponed' || f.status === 'rescheduling_required' || Boolean(f.unscheduled_reason)
+
+      if (statusFilter === 'scheduled') return isScheduled && !isPlayed
+      if (statusFilter === 'played') return isPlayed
+      if (statusFilter === 'waiting') return isWaitingOrException && !isPlayed
+      if (statusFilter === 'unscheduled') return Boolean(f.unscheduled_reason) || f.status === 'rescheduling_required'
+      if (statusFilter === 'all') return true
+      return true
+    })
+  }, [allFixtures, activeWeekId, leagueWeeks, leagueUnscheduled, matchdayFilter, statusFilter])
+
+  const dayGroups = useMemo(() => {
+    return groupFixturesByDay(filteredFixtures, 'ar')
+  }, [filteredFixtures])
 
   const matchdays = Array.from(new Set((allFixtures || []).map((f) => f.matchday).filter(Boolean))).sort((a, b) => a - b)
 
@@ -516,7 +551,7 @@ export default function LeagueAssignmentPanel({
       {/* VIEW 2: ALL FIXTURES */}
       {activeSubTab === 'fixtures' && totalFixtures > 0 && (
         <div className="space-y-4">
-          {/* Header Row: Title & Subtitle + Matchday Dropdown */}
+          {/* Header Row: Title & Subtitle */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-2xs">
@@ -524,29 +559,21 @@ export default function LeagueAssignmentPanel({
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">المباريات</h3>
-                <p className="text-xs font-semibold text-slate-400 mt-0.5">جدول مباريات الدوري وإدارتها</p>
+                <p className="text-xs font-semibold text-slate-400 mt-0.5">جدول مباريات الدوري وإدارتها بالأسابيع</p>
               </div>
             </div>
-
-            <div className="relative">
-              <select
-                className="appearance-none rounded-xl border border-slate-200/90 bg-white py-2 ps-3.5 pe-8 text-xs font-extrabold text-slate-800 shadow-2xs hover:border-slate-300 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition cursor-pointer"
-                value={matchdayFilter}
-                onChange={(e) => setMatchdayFilter(e.target.value)}
-              >
-                <option value="all">الكل ({totalFixtures})</option>
-                {matchdays.map((m) => {
-                  const count = (allFixtures || []).filter((f) => String(f.matchday) === String(m)).length
-                  return (
-                    <option key={m} value={m}>
-                      الجولة {m} ({count})
-                    </option>
-                  )
-                })}
-              </select>
-              <ChevronDown className="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
-            </div>
           </div>
+
+          {/* Week Selector */}
+          {leagueWeeks.length > 0 && (
+            <LeagueWeekSelector
+              weeks={leagueWeeks}
+              activeWeekId={activeWeekId}
+              onChangeWeek={setActiveWeekId}
+              unscheduledCount={leagueUnscheduled.length}
+              totalCount={totalFixtures}
+            />
+          )}
 
           {/* Segmented Filter Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
@@ -581,22 +608,37 @@ export default function LeagueAssignmentPanel({
               <p className="text-xs font-bold text-slate-500">لا توجد مباريات مطابقة للفلتر المحدد</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredFixtures.map((fixture, idx) => (
-                <TournamentMatchCard
-                  key={fixture.id}
-                  fixture={fixture}
-                  index={idx}
-                  isUnassigning={unassignBusyId === fixture.id}
-                  onResult={onResult}
-                  onDetails={onDetails}
-                  onReschedule={onReschedule}
-                  onUnassign={handleUnassign}
-                  onSwapOpponent={(f) => {
-                    setOpponentSwapFixture(f)
-                    setSelectedNewOpponentId('')
-                  }}
-                />
+            <div className="space-y-4">
+              {dayGroups.map((dayGroup) => (
+                <div key={dayGroup.dayKey} className="space-y-2.5">
+                  {dayGroup.headerLabel && (
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-100/90 px-4 py-2.5 text-slate-800 border border-slate-200/60 mb-1">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="size-4 text-emerald-600" />
+                        <h4 className="text-xs sm:text-sm font-black text-slate-900">{dayGroup.headerLabel}</h4>
+                      </div>
+                      <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-black text-slate-600 shadow-2xs border border-slate-200/60">
+                        {dayGroup.matches.length} مباراة
+                      </span>
+                    </div>
+                  )}
+                  {dayGroup.matches.map((fixture) => (
+                    <TournamentMatchCard
+                      key={fixture.id}
+                      fixture={fixture}
+                      index={chronologicalNumberMap.get(fixture.id) || 0}
+                      isUnassigning={unassignBusyId === fixture.id}
+                      onResult={onResult}
+                      onDetails={onDetails}
+                      onReschedule={onReschedule}
+                      onUnassign={handleUnassign}
+                      onSwapOpponent={(f) => {
+                        setOpponentSwapFixture(f)
+                        setSelectedNewOpponentId('')
+                      }}
+                    />
+                  ))}
+                </div>
               ))}
             </div>
           )}

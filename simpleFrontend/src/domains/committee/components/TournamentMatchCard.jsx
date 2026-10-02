@@ -261,9 +261,9 @@ export default function TournamentMatchCard({
           <div className="mt-2.5 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500 pt-2 border-t border-slate-100/80">
             {isScheduled && dateInfo ? (
               <>
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="size-3.5 text-slate-400" />
-                  <span>{dateInfo.time}</span>
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-2.5 py-1 text-xs sm:text-sm font-black text-slate-900 shadow-2xs">
+                  <Clock className="size-3.5 text-emerald-600" />
+                  <span className="tabular-nums tracking-wide">{dateInfo.time}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <CalendarDays className="size-3.5 text-slate-400" />

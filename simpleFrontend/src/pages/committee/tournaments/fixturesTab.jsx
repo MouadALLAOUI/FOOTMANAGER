@@ -39,8 +39,9 @@ import RescheduleDrawer from '../../../domains/committee/components/RescheduleDr
 import RoundNav from '../../../domains/committee/components/RoundNav'
 import SummaryChips from '../../../domains/committee/components/SummaryChips'
 import KnockoutOptionModal from '../../../domains/committee/components/KnockoutOptionModal'
-import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
 import LeagueAssignmentPanel from '../../../domains/committee/components/LeagueAssignmentPanel'
+import LeagueWeekSelector from '../../../domains/committee/components/LeagueWeekSelector'
+import { computeLeagueWeeks, getDefaultWeekId, groupFixturesByDay } from '../../../domains/committee/utils/leagueWeeks'
 
 
 function fixtureStatus(f) {
@@ -127,8 +128,10 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const [draft, setDraft] = useState({})
   const [slotErrors, setSlotErrors] = useState({})
   const [leagueViewMode, setLeagueViewMode] = useState('assignment') // 'assignment' | 'rounds'
+  const [activeWeekId, setActiveWeekId] = useState(null)
 
-  const hasKnockoutStage = tournament.tournament_format !== 'groups_only' && tournament.tournament_format !== 'league'
+  const isLeague = tournament.tournament_format === 'league'
+  const hasKnockoutStage = tournament.tournament_format !== 'groups_only' && !isLeague
 
   const { data: structure, loading: structureLoading, refetch: refetchStructure } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/match-rounds`).then((r) => r.data.data),
@@ -153,15 +156,37 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     if (k) setActive({ type: 'knockout', round_id: k.round_id })
   }, [structure])
 
-  const isGroup = active?.type === 'group'
+  const isGroup = !isLeague && active?.type === 'group'
   const activeKey = active ? (isGroup ? `m${active.matchday}` : `r${active.round_id}`) : null
-  const roundParams = active ? (isGroup ? { matchday: active.matchday } : { round_id: active.round_id }) : {}
+  const roundParams = isLeague
+    ? {}
+    : (active ? (isGroup ? { matchday: active.matchday } : { round_id: active.round_id }) : {})
 
   const { data: fixtures, loading: fixturesLoading, refetch: refetchFixtures } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/fixtures`, { params: roundParams }).then((r) => r.data.data),
-    [tournament.id, activeKey],
-    { queryKey: ['committee-tournament-fixtures', tournament.id, refreshKey, activeKey], enabled: Boolean(activeKey), staleTime: 0, keepPrevious: true },
+    [tournament.id, isLeague ? 'all' : activeKey],
+    {
+      queryKey: ['committee-tournament-fixtures', tournament.id, refreshKey, isLeague ? 'all' : activeKey],
+      enabled: isLeague ? true : Boolean(activeKey),
+      staleTime: 0,
+      keepPrevious: true,
+    },
   )
+
+  const { weeks: leagueWeeks, unscheduled: leagueUnscheduled, chronologicalNumberMap } = useMemo(() => {
+    if (!isLeague) return { weeks: [], unscheduled: [], chronologicalNumberMap: new Map() }
+    return computeLeagueWeeks(fixtures || [], i18n.language)
+  }, [fixtures, isLeague, i18n.language])
+
+  useEffect(() => {
+    if (isLeague && leagueWeeks && leagueWeeks.length > 0) {
+      if (!activeWeekId || (activeWeekId !== 'unscheduled' && !leagueWeeks.some((w) => w.id === activeWeekId))) {
+        setActiveWeekId(getDefaultWeekId(leagueWeeks, leagueUnscheduled))
+      }
+    } else if (isLeague && (!leagueWeeks || leagueWeeks.length === 0) && (!activeWeekId || activeWeekId !== 'unscheduled')) {
+      setActiveWeekId('unscheduled')
+    }
+  }, [isLeague, leagueWeeks, leagueUnscheduled, activeWeekId])
 
   useEffect(() => {
     setQueryInput('')
@@ -311,6 +336,14 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   const filtered = useMemo(() => {
     let list = fixtures || []
+    if (isLeague) {
+      if (activeWeekId === 'unscheduled') {
+        list = leagueUnscheduled
+      } else {
+        const found = leagueWeeks.find((w) => w.id === activeWeekId)
+        list = found ? found.fixtures : []
+      }
+    }
     if (filters.status !== 'all') list = list.filter((f) => fixtureStatus(f) === filters.status)
     if (isGroup && filters.group !== 'all') list = list.filter((f) => f.group?.id === filters.group)
     if (filters.stadium !== 'all') list = list.filter((f) => f.stadium?.id === filters.stadium)
@@ -337,9 +370,20 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       list = list.filter((f) => (f.home_team?.name || '').toLowerCase().includes(q) || (f.away_team?.name || '').toLowerCase().includes(q))
     }
     return list
-  }, [fixtures, filters, isGroup])
+  }, [fixtures, filters, isGroup, isLeague, activeWeekId, leagueWeeks, leagueUnscheduled])
 
   const sections = useMemo(() => {
+    if (isLeague) {
+      const groupedDays = groupFixturesByDay(filtered, i18n.language)
+      return groupedDays.map((dayGroup) => ({
+        dayKey: dayGroup.dayKey,
+        headerLabel: dayGroup.headerLabel,
+        items: dayGroup.matches.map((f) => ({
+          f,
+          number: chronologicalNumberMap.get(f.id) || (f.matchday || 1),
+        })),
+      }))
+    }
     if (isGroup) {
       const map = new Map()
       for (const f of filtered) {
@@ -352,7 +396,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       return entries.map(([_gid, list]) => ({ group: list[0].group, items: list.map((f) => ({ f, number: ++n })) }))
     }
     return [{ group: null, items: (filtered || []).map((f, i) => ({ f, number: i + 1 })) }]
-  }, [filtered, isGroup])
+  }, [filtered, isGroup, isLeague, i18n.language, chronologicalNumberMap])
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
   const toggleStadium = (id) => setForm((f) => ({ ...f, stadium_ids: f.stadium_ids.includes(id) ? f.stadium_ids.filter((x) => x !== id) : [...f.stadium_ids, id] }))
@@ -1321,46 +1365,71 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   return (
     <div>
       {leagueViewToggle}
-      <div className="grid gap-5 lg:grid-cols-[240px_1fr]">
-        <aside className="hidden lg:block">
-          <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto pe-1 pb-4">
-            <RoundNav structure={structure} active={active} onSelect={changeRound} />
-            {poolPanel}
-          </div>
-        </aside>
+      <div className={`grid gap-5 ${isLeague ? '' : 'lg:grid-cols-[240px_1fr]'}`}>
+        {!isLeague && (
+          <aside className="hidden lg:block">
+            <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto pe-1 pb-4">
+              <RoundNav structure={structure} active={active} onSelect={changeRound} />
+              {poolPanel}
+            </div>
+          </aside>
+        )}
 
         <div className="min-w-0 space-y-4">
-          <div className="lg:hidden">
-            <label className="mb-1.5 block text-xs font-bold text-slate-500">{t('committee.detail.stagesTitle')}</label>
-            <select
-              className={selectClass}
-              value={activeKey || ''}
-              onChange={(e) => selectByKey(e.target.value)}
-            >
-              {options.group.length > 0 && (
-                <optgroup label={t('committee.detail.groupStage')}>
-                  {options.group.map((o) => (
-                    <option key={o.key} value={o.key}>{t('committee.detail.round', { n: o.label.split(':')[1] })}</option>
-                  ))}
-                </optgroup>
-              )}
-              {options.knockout.length > 0 && (
-                <optgroup label={t('committee.detail.knockoutStages')}>
-                  {options.knockout.map((o) => (
-                    <option key={o.key} value={o.key}>{o.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </div>
+          {isLeague ? (
+            <LeagueWeekSelector
+              weeks={leagueWeeks}
+              activeWeekId={activeWeekId}
+              onChangeWeek={setActiveWeekId}
+              unscheduledCount={leagueUnscheduled.length}
+              totalCount={fixtures?.length || 0}
+            />
+          ) : (
+            <div className="lg:hidden">
+              <label className="mb-1.5 block text-xs font-bold text-slate-500">{t('committee.detail.stagesTitle')}</label>
+              <select
+                className={selectClass}
+                value={activeKey || ''}
+                onChange={(e) => selectByKey(e.target.value)}
+              >
+                {options.group.length > 0 && (
+                  <optgroup label={t('committee.detail.groupStage')}>
+                    {options.group.map((o) => (
+                      <option key={o.key} value={o.key}>{t('committee.detail.round', { n: o.label.split(':')[1] })}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {options.knockout.length > 0 && (
+                  <optgroup label={t('committee.detail.knockoutStages')}>
+                    {options.knockout.map((o) => (
+                      <option key={o.key} value={o.key}>{o.name}</option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h3 className="text-lg font-black tracking-tight text-slate-900">
-                {isGroup ? t('committee.detail.round', { n: active.matchday }) : summary?.name || ''}
-              </h3>
-              <SummaryChips summary={summary} />
-            </div>
+            {!isLeague ? (
+              <div className="min-w-0">
+                <h3 className="text-lg font-black tracking-tight text-slate-900">
+                  {isGroup ? t('committee.detail.round', { n: active.matchday }) : summary?.name || ''}
+                </h3>
+                <SummaryChips summary={summary} />
+              </div>
+            ) : (
+              <div className="min-w-0">
+                <h3 className="text-lg font-black tracking-tight text-slate-900">
+                  {activeWeekId === 'unscheduled'
+                    ? (t('committee.detail.unscheduledMatches', 'مباريات بدون موعد / بانتظار البرمجة'))
+                    : (leagueWeeks.find((w) => w.id === activeWeekId)?.fullLabel || 'مباريات الأسبوع')}
+                </h3>
+                <p className="text-xs font-bold text-slate-400 mt-0.5">
+                  {filtered.length} {t('committee.detail.matchesCount', { count: filtered.length })}
+                </p>
+              </div>
+            )}
             {(() => {
               const hasPlayed = (structure?.group_stage || []).some((s) => (s.completed || 0) > 0) || (structure?.knockout || []).some((s) => (s.completed || 0) > 0)
               return (
@@ -1489,7 +1558,18 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
               />
             ) : (
               sections.map((section) => (
-                <div key={section.group?.id ?? 'ko'} className="space-y-2.5">
+                <div key={section.dayKey ?? section.group?.id ?? 'ko'} className="space-y-2.5">
+                  {section.headerLabel && (
+                    <div className="flex items-center justify-between rounded-2xl bg-slate-100/90 px-4 py-2.5 text-slate-800 border border-slate-200/60 mb-2">
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="size-4 text-emerald-600" />
+                        <h4 className="text-xs sm:text-sm font-black text-slate-900">{section.headerLabel}</h4>
+                      </div>
+                      <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-black text-slate-600 shadow-2xs border border-slate-200/60">
+                        {section.items.length} {t('committee.detail.matchesCount', { count: section.items.length })}
+                      </span>
+                    </div>
+                  )}
                   {section.group && (
                     <div className="flex items-center justify-between px-1">
                       <p className="text-xs font-black uppercase tracking-wide text-slate-400">

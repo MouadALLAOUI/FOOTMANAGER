@@ -24,12 +24,31 @@ export function formatTime(iso) {
 export function matchDay(iso, lang) {
   if (!iso) return ''
   const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+
+  const isAr = Boolean(lang?.startsWith('ar'))
+  const locale = isAr ? 'ar-MA' : 'en-GB'
+  const dateOnly = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: isAr ? 'long' : 'short',
+  }).format(d)
+
   const now = new Date()
   const tomorrow = new Date(now)
   tomorrow.setDate(now.getDate() + 1)
-  if (d.toDateString() === now.toDateString()) return lang.startsWith('ar') ? 'اليوم' : 'Today'
-  if (d.toDateString() === tomorrow.toDateString()) return lang.startsWith('ar') ? 'غداً' : 'Tomorrow'
-  return new Intl.DateTimeFormat(lang.startsWith('ar') ? 'ar-MA' : 'en-GB', { weekday: 'long' }).format(d)
+
+  if (d.toDateString() === now.toDateString()) {
+    return isAr ? `اليوم، ${dateOnly}` : `Today, ${dateOnly}`
+  }
+  if (d.toDateString() === tomorrow.toDateString()) {
+    return isAr ? `غداً، ${dateOnly}` : `Tomorrow, ${dateOnly}`
+  }
+
+  return new Intl.DateTimeFormat(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: isAr ? 'long' : 'short',
+  }).format(d)
 }
 
 export function relativeTime(iso, lang) {

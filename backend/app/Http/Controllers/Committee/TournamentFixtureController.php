@@ -55,14 +55,25 @@ class TournamentFixtureController extends Controller
         $roundId = $request->integer('round_id');
         $stage = $request->string('stage')->toString();
 
-        if ($matchday > 0) {
-            $query->where('matchday', $matchday)->orderBy('group_id')->orderBy('id');
-        } elseif ($roundId > 0) {
-            $query->where('round_id', $roundId)->orderBy('id');
-        } elseif ($stage !== '') {
-            $query->whereHas('round', fn ($q) => $q->where('stage', $stage))->orderBy('id');
+        if ($tournament->tournament_format === 'league') {
+            $this->fixtures->syncLeagueMatchdays($tournament);
+
+            if ($matchday > 0) {
+                $query->where('matchday', $matchday);
+            }
+            $query->orderByRaw('CASE WHEN scheduled_at IS NULL THEN 1 ELSE 0 END')
+                ->orderBy('scheduled_at')
+                ->orderBy('id');
         } else {
-            $query->whereNotNull('matchday')->orderBy('matchday')->orderBy('group_id')->orderBy('id');
+            if ($matchday > 0) {
+                $query->where('matchday', $matchday)->orderBy('group_id')->orderBy('id');
+            } elseif ($roundId > 0) {
+                $query->where('round_id', $roundId)->orderBy('id');
+            } elseif ($stage !== '') {
+                $query->whereHas('round', fn ($q) => $q->where('stage', $stage))->orderBy('id');
+            } else {
+                $query->whereNotNull('matchday')->orderBy('matchday')->orderBy('group_id')->orderBy('id');
+            }
         }
 
         $fixtures = $query->get();
@@ -431,6 +442,10 @@ class TournamentFixtureController extends Controller
             Carbon::parse($data['scheduled_at']),
             $data['stadium_id'] ?? $fixture->stadium_id,
         );
+
+        if ($tournament->tournament_format === 'league') {
+            $this->fixtures->syncLeagueMatchdays($tournament);
+        }
 
         return response()->json([
             'data' => new TournamentFixtureResource($result['fixture']->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),

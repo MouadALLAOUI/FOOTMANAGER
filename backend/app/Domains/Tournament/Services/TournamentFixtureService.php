@@ -1240,6 +1240,67 @@ class TournamentFixtureService
         return $this->deleteFixtureRows($fixtures);
     }
 
+    /**
+     * Synchronize matchday numbers for a league tournament based on scheduled calendar weeks.
+     * Earliest scheduled week gets matchday 1, next week gets matchday 2, etc.
+     */
+    public function syncLeagueMatchdays(Tournament $tournament): void
+    {
+        if ($tournament->tournament_format !== 'league') {
+            return;
+        }
+
+        $competitionId = $tournament->competition_id;
+        $seasonId = $tournament->season_id;
+        if (! $competitionId || ! $seasonId) {
+            return;
+        }
+
+        $scheduledFixtures = Fixture::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
+            ->whereNotNull('scheduled_at')
+            ->orderBy('scheduled_at')
+            ->orderBy('id')
+            ->get();
+
+        if ($scheduledFixtures->isEmpty()) {
+            return;
+        }
+
+        // Group scheduled fixtures by Monday-based calendar week
+        $weekIndex = 1;
+        $weekMap = [];
+        foreach ($scheduledFixtures as $fixture) {
+            $carbon = Carbon::parse($fixture->scheduled_at);
+            $weekKey = $carbon->copy()->startOfWeek(Carbon::MONDAY)->toDateString();
+            if (! isset($weekMap[$weekKey])) {
+                $weekMap[$weekKey] = $weekIndex++;
+            }
+            $targetMatchday = $weekMap[$weekKey];
+            if ((int) $fixture->matchday !== $targetMatchday) {
+                $fixture->updateQuietly(['matchday' => $targetMatchday]);
+            }
+        }
+
+        // Keep unscheduled fixtures numbered after the scheduled weeks
+        $unscheduledFixtures = Fixture::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
+            ->whereNull('scheduled_at')
+            ->orderBy('id')
+            ->get();
+
+        if ($unscheduledFixtures->isNotEmpty()) {
+            $unassignedMatchday = max($weekIndex, 1);
+            foreach ($unscheduledFixtures as $fixture) {
+                if ((int) $fixture->matchday < $unassignedMatchday) {
+                    $fixture->updateQuietly(['matchday' => $unassignedMatchday]);
+                }
+            }
+        }
+    }
+
     public function deleteKnockoutFixtures(Tournament $tournament): int
     {
         $competitionId = $tournament->competition_id;

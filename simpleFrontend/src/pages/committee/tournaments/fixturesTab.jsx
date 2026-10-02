@@ -42,6 +42,7 @@ import KnockoutOptionModal from '../../../domains/committee/components/KnockoutO
 import LeagueAssignmentPanel from '../../../domains/committee/components/LeagueAssignmentPanel'
 import LeagueWeekSelector from '../../../domains/committee/components/LeagueWeekSelector'
 import { computeLeagueWeeks, getDefaultWeekId, groupFixturesByDay } from '../../../domains/committee/utils/leagueWeeks'
+import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
 
 
 function fixtureStatus(f) {
@@ -95,7 +96,7 @@ const fmtDateTime = (dateStr, timeStr) => {
 }
 
 export default function FixturesTab({ tournament, refresh, refreshKey }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { toast } = useToast()
 
   const [active, setActive] = useState(null)

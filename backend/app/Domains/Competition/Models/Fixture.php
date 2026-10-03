@@ -31,6 +31,9 @@ class Fixture extends Model
         'scheduled_at',
         'status',
         'unscheduled_reason',
+        'postponement_reason',
+        'postponement_note',
+        'postponed_from_date',
     ];
 
     protected function casts(): array
@@ -38,6 +41,7 @@ class Fixture extends Model
         return [
             'status' => FixtureStatus::class,
             'scheduled_at' => 'datetime',
+            'postponed_from_date' => 'datetime',
         ];
     }
 

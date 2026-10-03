@@ -607,6 +607,17 @@ class TournamentFixtureService
                 ->firstOrFail();
 
             if ($regenerate) {
+                // If any matches have finished results, preserve them and only reset/re-create remaining fixtures
+                $hasPlayed = Fixture::query()
+                    ->where('competition_id', $competitionId)
+                    ->where('season_id', $seasonId)
+                    ->whereHas('match', fn ($q) => $q->where('status', MatchStatus::Finished->value))
+                    ->exists();
+
+                if ($hasPlayed) {
+                    throw new DomainException('لا يمكن إعادة توليد جدول الدوري بالكامل لوجود مباريات مكتملة ومسجلة نتائجها');
+                }
+
                 $this->deleteLeagueFixtures($tournament);
             } else {
                 $existing = Fixture::query()

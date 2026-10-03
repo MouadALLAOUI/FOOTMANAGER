@@ -77,6 +77,7 @@ export default function TournamentMatchCard({
   onUnassign,
   onSwapOpponent,
   onPostpone,
+  onRescheduleSuggestion,
   onCancel,
   onRestore,
   isUnassigning = false,
@@ -379,12 +380,25 @@ export default function TournamentMatchCard({
           <Button
             variant="outline"
             size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            className="flex items-center gap-1.5 rounded-xl border-amber-200 bg-amber-50/50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100"
             onClick={() => onPostpone(fixture)}
             disabled={busy}
           >
-            <Clock4 className="size-3.5 text-slate-400" />
+            <Clock4 className="size-3.5 text-amber-600" />
             <span>تأجيل</span>
+          </Button>
+        )}
+
+        {/* Reschedule Postponed Match with Suggestions */}
+        {onRescheduleSuggestion && isPostponed && !isPlayed && (
+          <Button
+            size="sm"
+            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs"
+            onClick={() => onRescheduleSuggestion(fixture)}
+            disabled={busy}
+          >
+            <Sparkles className="size-3.5 text-amber-300" />
+            <span>إعادة جدولة</span>
           </Button>
         )}
 

@@ -141,6 +141,9 @@ function InfoPanel({ tour }) {
   const rows = [
     { icon: Layers, label: t('public.overview.groups'), value: tour.groups_count > 0 ? `${tour.groups_count}` : '—' },
     { icon: LayoutGrid, label: t('public.overview.format'), value: t(`committee.tournaments.formats.${tour.tournament_format}`) },
+    ...(tour.first_match_day
+      ? [{ icon: CalendarDays, label: 'اليوم الأول للمباريات', value: tour.first_match_day }]
+      : []),
     {
       icon: Landmark,
       label: t('public.overview.venueCost'),

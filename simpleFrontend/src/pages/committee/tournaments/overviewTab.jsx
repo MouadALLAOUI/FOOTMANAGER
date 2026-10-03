@@ -158,6 +158,17 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
               </p>
               {remaining > 0 && <p className="text-[11px] font-semibold text-slate-400">{t('manager.tournaments.remaining', { count: remaining })}</p>}
             </div>
+            {tournament.first_match_day && (
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 px-4 py-3.5 sm:col-span-3">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700">
+                  <CalendarDays className="size-3.5" />
+                  اليوم الأول للدوري (المعتمد للجدولة)
+                </div>
+                <p className="mt-1 text-sm font-black text-slate-900">
+                  {tournament.first_match_day}
+                </p>
+              </div>
+            )}
           </div>
         </Card>
 

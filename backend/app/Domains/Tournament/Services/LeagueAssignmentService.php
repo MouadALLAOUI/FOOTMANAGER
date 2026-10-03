@@ -18,20 +18,19 @@ use Illuminate\Support\Str;
 
 class LeagueAssignmentService
 {
-    /**
-     * Generate explainable match suggestions for a league tournament
-     * based on available active home bookings of enrolled teams.
-     *
-     * @return array<int, array<string, mixed>>
-     */
+    public function __construct(
+        private readonly ?TournamentFixtureService $fixtureService = null,
+        private readonly ?TournamentTerrainBookingService $bookingService = null,
+    ) {}
     /**
      * Project all concrete available match slots from enrolled teams' single and weekly bookings.
      *
      * @param  Tournament  $tournament
      * @param  array<int>  $teamIds
+     * @param  string|null  $customFirstDay
      * @return Collection<int, array<string, mixed>>
      */
-    public function projectAvailableSlots(Tournament $tournament, array $teamIds): Collection
+    public function projectAvailableSlots(Tournament $tournament, array $teamIds, ?string $customFirstDay = null): Collection
     {
         if (empty($teamIds)) {
             return collect();
@@ -40,8 +39,13 @@ class LeagueAssignmentService
         $allowedStadiumIds = $tournament->stadiums()->pluck('stadiums.id')->all();
 
         $today = Carbon::today();
-        $startDate = $tournament->start_date ? Carbon::parse($tournament->start_date->toDateString()) : $today->copy();
-        $effectiveMin = $startDate->lt($today) ? $today->copy() : $startDate;
+        $baseDate = $customFirstDay
+            ? Carbon::parse($customFirstDay)
+            : ($tournament->first_match_day
+                ? Carbon::parse($tournament->first_match_day->toDateString())
+                : ($tournament->start_date ? Carbon::parse($tournament->start_date->toDateString()) : $today->copy()));
+
+        $effectiveMin = $baseDate->lt($today) ? $today->copy() : $baseDate;
         $endDate = $tournament->end_date ? Carbon::parse($tournament->end_date->toDateString()) : $effectiveMin->copy()->addMonths(3);
 
         // Pre-fetch all scheduled fixtures in tournament to check occupied slots
@@ -346,11 +350,287 @@ class LeagueAssignmentService
     }
 
     /**
-     * Capacity check before running auto-scheduler.
+     * Postpone a single match with an explicit reason and optional note.
+     * Releases any active terrain reservation back to the unused pool and sets status to POSTPONED.
      *
      * @return array<string, mixed>
      */
-    public function capacityCheck(Tournament $tournament): array
+    public function postponeMatch(
+        Tournament $tournament,
+        Fixture $fixture,
+        string $reason,
+        ?string $note = null
+    ): array {
+        return DB::transaction(function () use ($tournament, $fixture, $reason, $note) {
+            if ($fixture->match && $fixture->match->status === MatchStatus::Finished) {
+                throw new DomainException('لا يمكن تأجيل مباراة مكتملة ومسجلة نتائجها');
+            }
+
+            $originalScheduledAt = $fixture->scheduled_at;
+
+            $fixture->forceFill([
+                'status' => FixtureStatus::Postponed,
+                'postponement_reason' => $reason,
+                'postponement_note' => $note,
+                'postponed_from_date' => $originalScheduledAt,
+                'scheduled_at' => null,
+            ])->save();
+
+            if ($fixture->match) {
+                $fixture->match->forceFill([
+                    'status' => MatchStatus::Postponed,
+                    'is_confirmed' => false,
+                    'active_reservation_id' => null,
+                ])->save();
+            }
+
+            // Release booking back to pool so it can be reused immediately
+            $bookingService = $this->bookingService ?? app(TournamentTerrainBookingService::class);
+            $bookingService->archiveForFixture($fixture);
+
+            // Notify both teams via in-app & WhatsApp link
+            $homeTeam = $fixture->homeTeam;
+            $awayTeam = $fixture->awayTeam;
+            $title = 'تأجيل مباراة في '.$tournament->name;
+            $reasonLabels = [
+                'rain' => 'أمطار',
+                'pitch_condition' => 'ظروف الملعب',
+                'team_circumstances' => 'ظروف أحد الفريقين',
+                'other' => 'أخرى',
+            ];
+            $reasonLabel = $reasonLabels[$reason] ?? $reason;
+            $body = "تم تأجيل مباراة {$homeTeam?->name} ضد {$awayTeam?->name} بسبب: {$reasonLabel}".($note ? " ({$note})" : '');
+
+            if ($homeTeam?->manager_id) {
+                NotificationService::push(
+                    (int) $homeTeam->manager_id,
+                    'match_postponed',
+                    $title,
+                    $body,
+                    ['tournament_id' => $tournament->id, 'fixture_id' => $fixture->id],
+                    '/dashboard'
+                );
+            }
+            if ($awayTeam?->manager_id) {
+                NotificationService::push(
+                    (int) $awayTeam->manager_id,
+                    'match_postponed',
+                    $title,
+                    $body,
+                    ['tournament_id' => $tournament->id, 'fixture_id' => $fixture->id],
+                    '/dashboard'
+                );
+            }
+
+            return [
+                'fixture' => $fixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']),
+                'message' => 'تم تأجيل المباراة بنجاح، ويمكنكم إعادة جدولتها من الاقتراحات المتاحة.',
+            ];
+        });
+    }
+
+    /**
+     * Generate suggestions for rescheduling a postponed match.
+     * Scans unused future confirmed slots of team A and team B after original date.
+     * Filters out slots breaking rest days, overlapping other matches, or blocked.
+     * Shows host team clearly based on slot ownership.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function postponementSuggestions(Tournament $tournament, Fixture $fixture): array
+    {
+        $teamAId = (int) $fixture->home_team_id;
+        $teamBId = (int) $fixture->away_team_id;
+        $involvedTeamIds = array_filter([$teamAId, $teamBId]);
+
+        if (empty($involvedTeamIds)) {
+            return [];
+        }
+
+        $minDate = $fixture->postponed_from_date
+            ? Carbon::parse($fixture->postponed_from_date->toDateString())
+            : Carbon::today();
+
+        $slots = $this->projectAvailableSlots($tournament, $involvedTeamIds, $minDate->toDateString());
+
+        // Pre-fetch other scheduled matches excluding this fixture
+        $scheduledMatches = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('id', '!=', $fixture->id)
+            ->whereNotNull('scheduled_at')
+            ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
+            ->get(['id', 'home_team_id', 'away_team_id', 'scheduled_at']);
+
+        $restDaysRequired = (int) ($tournament->rest_days_minimum ?? 1);
+        $suggestions = [];
+
+        foreach ($slots as $slot) {
+            $booking = $slot['booking'];
+            $slotOwnerId = (int) $slot['owner_team_id'];
+            $slotDate = $slot['date'];
+            $slotStart = $slot['start_time'];
+            $slotEnd = $slot['end_time'];
+            $slotDateTime = $slot['datetime'];
+
+            // Must be strictly after the original match date if postponed_from_date exists
+            if ($fixture->postponed_from_date && $slotDateTime->lte($fixture->postponed_from_date)) {
+                continue;
+            }
+
+            // Both teams must be free from overlapping matches
+            if ($this->hasConflictOnDateTime($teamAId, $slotDate, $slotStart, $slotEnd, $scheduledMatches)) {
+                continue;
+            }
+            if ($this->hasConflictOnDateTime($teamBId, $slotDate, $slotStart, $slotEnd, $scheduledMatches)) {
+                continue;
+            }
+
+            // Both teams must satisfy the rest day rule
+            if (! $this->satisfiesRestRule($teamAId, $slotDate, $restDaysRequired, $scheduledMatches)) {
+                continue;
+            }
+            if (! $this->satisfiesRestRule($teamBId, $slotDate, $restDaysRequired, $scheduledMatches)) {
+                continue;
+            }
+
+            // Slot owner is always the host team
+            $newHostId = $slotOwnerId;
+            $newGuestId = ($newHostId === $teamAId) ? $teamBId : $teamAId;
+
+            $hostTeam = ($newHostId === $teamAId) ? $fixture->homeTeam : $fixture->awayTeam;
+            $guestTeam = ($newGuestId === $teamAId) ? $fixture->homeTeam : $fixture->awayTeam;
+
+            $isHostChanged = ($newHostId !== $teamAId);
+
+            $suggestions[] = [
+                'id' => "postpone_sug_{$booking->id}_{$slot['date_str']}",
+                'booking_id' => $booking->id,
+                'date' => $slot['date_str'],
+                'day_name' => $slotDate->translatedFormat('l'),
+                'time' => $slotStart.' - '.$slotEnd,
+                'start_time' => $slotStart,
+                'end_time' => $slotEnd,
+                'datetime' => $slotDateTime->toDateTimeString(),
+                'stadium' => $booking->terrain ? [
+                    'id' => $booking->terrain->id,
+                    'name' => $booking->terrain->name,
+                    'city' => $booking->terrain->city,
+                ] : null,
+                'host_team' => $hostTeam ? [
+                    'id' => $hostTeam->id,
+                    'name' => $hostTeam->name,
+                    'logo_url' => $hostTeam->logo_url,
+                ] : null,
+                'guest_team' => $guestTeam ? [
+                    'id' => $guestTeam->id,
+                    'name' => $guestTeam->name,
+                    'logo_url' => $guestTeam->logo_url,
+                ] : null,
+                'is_host_changed' => $isHostChanged,
+                'host_changed_note' => $isHostChanged ? "المضيف سيتغير إلى {$hostTeam?->name} (صاحب الحجز)" : null,
+                'is_weekly' => $slot['is_weekly'],
+            ];
+        }
+
+        // Sorted by closest date after original date
+        usort($suggestions, fn ($a, $b) => strcmp($a['datetime'], $b['datetime']));
+
+        return $suggestions;
+    }
+
+    /**
+     * Reschedule a postponed match using a selected suggestion in one tap.
+     * Retains same fixture ID and pairing; updates date, time, stadium, slot, and host.
+     * Status becomes SCHEDULED. Week numbers are re-synchronized.
+     *
+     * @return array<string, mixed>
+     */
+    public function rescheduleWithSuggestion(
+        Tournament $tournament,
+        Fixture $fixture,
+        int $bookingId,
+        string $dateStr
+    ): array {
+        return DB::transaction(function () use ($tournament, $fixture, $bookingId, $dateStr) {
+            $booking = TerrainBooking::with(['terrain', 'team'])->findOrFail($bookingId);
+
+            $slotOwnerId = (int) $booking->team_id;
+            $teamAId = (int) $fixture->home_team_id;
+            $teamBId = (int) $fixture->away_team_id;
+
+            if ($slotOwnerId !== $teamAId && $slotOwnerId !== $teamBId) {
+                throw new DomainException('الحجز المحدد لا يتبع لأي من الفريقين المشاركين في المباراة');
+            }
+
+            // Assign slot owner as home team
+            $newHomeId = $slotOwnerId;
+            $newAwayId = ($newHomeId === $teamAId) ? $teamBId : $teamAId;
+
+            $scheduledAt = Carbon::parse($dateStr.' '.$booking->start_time);
+
+            // Update or create FootballMatch
+            $match = $fixture->match;
+            if (! $match) {
+                $match = FootballMatch::create([
+                    'competition_id' => $tournament->competition_id,
+                    'season_id' => $tournament->season_id,
+                    'round_id' => $fixture->round_id,
+                    'group_id' => $fixture->group_id,
+                    'home_team_id' => $newHomeId,
+                    'away_team_id' => $newAwayId,
+                    'stadium_id' => $booking->terrain_id,
+                    'status' => MatchStatus::Scheduled,
+                    'active_reservation_id' => $booking->id,
+                    'match_duration_minutes' => $tournament->match_duration_minutes ?? 90,
+                    'is_confirmed' => true,
+                    'created_by' => auth()->id() ?? $tournament->organizer_id,
+                ]);
+            } else {
+                $match->update([
+                    'home_team_id' => $newHomeId,
+                    'away_team_id' => $newAwayId,
+                    'stadium_id' => $booking->terrain_id,
+                    'active_reservation_id' => $booking->id,
+                    'status' => MatchStatus::Scheduled,
+                    'is_confirmed' => true,
+                ]);
+            }
+
+            // Update fixture
+            $fixture->update([
+                'home_team_id' => $newHomeId,
+                'away_team_id' => $newAwayId,
+                'match_id' => $match->id,
+                'stadium_id' => $booking->terrain_id,
+                'scheduled_at' => $scheduledAt,
+                'status' => FixtureStatus::Scheduled,
+                'unscheduled_reason' => null,
+                'postponement_reason' => null,
+                'postponement_note' => null,
+            ]);
+
+            // Link single booking
+            if (! $booking->isWeeklySubscription()) {
+                $booking->update([
+                    'fixture_id' => $fixture->id,
+                ]);
+            }
+
+            // Re-sync league week numbers dynamically
+            $fixtureService = $this->fixtureService ?? app(TournamentFixtureService::class);
+            $fixtureService->syncLeagueMatchdays($tournament);
+
+            // Notify both teams
+            $this->notifyMatchAssignment($tournament, $fixture, $booking);
+
+            return [
+                'fixture' => $fixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']),
+                'message' => 'تمت إعادة جدولة وتثبيت المباراة بنجاح.',
+            ];
+        });
+    }
+    public function capacityCheck(Tournament $tournament, ?string $customFirstDay = null): array
     {
         $registeredTeamIds = TournamentTeam::query()
             ->where('tournament_id', $tournament->id)
@@ -376,8 +656,20 @@ class LeagueAssignmentService
             ->whereNull('scheduled_at')
             ->count();
 
-        $slots = $this->projectAvailableSlots($tournament, $registeredTeamIds);
+        $slots = $this->projectAvailableSlots($tournament, $registeredTeamIds, $customFirstDay);
         $availableSlotsCount = $slots->count();
+
+        $firstSlot = $slots->first();
+        $firstAvailableDate = $firstSlot ? $firstSlot['date_str'] : null;
+        $firstAvailableTime = $firstSlot ? $firstSlot['start_time'] : null;
+
+        $targetFirstDay = $customFirstDay
+            ?: ($tournament->first_match_day?->toDateString() ?: $tournament->start_date?->toDateString());
+
+        $hasSlotOnExactFirstDay = false;
+        if ($targetFirstDay && $slots->isNotEmpty()) {
+            $hasSlotOnExactFirstDay = $slots->contains(fn ($s) => $s['date_str'] === $targetFirstDay);
+        }
 
         $sufficient = $availableSlotsCount >= $unscheduledCount;
 
@@ -386,6 +678,10 @@ class LeagueAssignmentService
             'scheduled_fixtures' => $scheduledFixtures,
             'unscheduled_fixtures' => $unscheduledCount,
             'available_slots' => $availableSlotsCount,
+            'first_available_date' => $firstAvailableDate,
+            'first_available_time' => $firstAvailableTime,
+            'has_slot_on_chosen_day' => $hasSlotOnExactFirstDay,
+            'target_first_day' => $targetFirstDay,
             'sufficient' => $sufficient,
             'warning' => $sufficient ? null : "تنبيه: عدد الفترات والحجوزات المتاحة ({$availableSlotsCount}) غير كافٍ لبرمجة كافة المباريات المتبقية ({$unscheduledCount}). المواجهات التي لا يتوفر لها موعد ستصنف كمباريات تتطلب البرمجة.",
         ];
@@ -399,11 +695,17 @@ class LeagueAssignmentService
      * 3. Borrowed slot exception: allocate available slot to unassigned pair if owner is resting/unavailable.
      * 4. Unscheduled matches move to exceptions with explicit reason.
      *
+     * @param  Tournament  $tournament
+     * @param  string|null  $firstMatchDay
      * @return array<string, mixed>
      */
-    public function autoSchedule(Tournament $tournament): array
+    public function autoSchedule(Tournament $tournament, ?string $firstMatchDay = null): array
     {
-        return DB::transaction(function () use ($tournament) {
+        return DB::transaction(function () use ($tournament, $firstMatchDay) {
+            if ($firstMatchDay) {
+                $tournament->forceFill(['first_match_day' => $firstMatchDay])->save();
+            }
+
             $registeredTeamIds = TournamentTeam::query()
                 ->where('tournament_id', $tournament->id)
                 ->where('status', TournamentTeam::STATUS_REGISTERED)
@@ -450,7 +752,7 @@ class LeagueAssignmentService
             $restDaysRequired = (int) ($tournament->rest_days_minimum ?? 1);
 
             // 3. Project available slots
-            $availableSlots = $this->projectAvailableSlots($tournament, $registeredTeamIds);
+            $availableSlots = $this->projectAvailableSlots($tournament, $registeredTeamIds, $firstMatchDay);
 
             $scheduledCount = 0;
             $borrowedCount = 0;
@@ -557,12 +859,33 @@ class LeagueAssignmentService
                 ]);
             }
 
+            $firstSlot = $availableSlots->first();
+            $firstAvailableDate = $firstSlot ? $firstSlot['date_str'] : null;
+            $firstAvailableTime = $firstSlot ? $firstSlot['start_time'] : null;
+
+            $targetFirstDay = $firstMatchDay
+                ?: ($tournament->first_match_day?->toDateString() ?: $tournament->start_date?->toDateString());
+
+            $hasSlotOnExactFirstDay = false;
+            if ($targetFirstDay && $availableSlots->isNotEmpty()) {
+                $hasSlotOnExactFirstDay = $availableSlots->contains(fn ($s) => $s['date_str'] === $targetFirstDay);
+            }
+
+            $message = "اكتملت الجدولة التلقائية: تم تحديد مواعيد {$scheduledCount} مباراة ({$borrowedCount} بتوقيت مستعار)، و{$remainingCount} مواجهة بحاجة لبرمجة يدوية.";
+            if ($targetFirstDay && ! $hasSlotOnExactFirstDay && $firstAvailableDate) {
+                $message .= " (أول موعد متاح: {$firstAvailableDate} {$firstAvailableTime})";
+            }
+
             return [
                 'scheduled_count' => $scheduledCount,
                 'unscheduled_count' => $remainingCount,
                 'borrowed_slots_count' => $borrowedCount,
                 'total_fixtures' => $unscheduledFixtures->count(),
-                'message' => "اكتملت الجدولة التلقائية: تم تحديد مواعيد {$scheduledCount} مباراة ({$borrowedCount} بتوقيت مستعار)، و{$remainingCount} مواجهة بحاجة لبرمجة يدوية.",
+                'first_available_date' => $firstAvailableDate,
+                'first_available_time' => $firstAvailableTime,
+                'has_slot_on_chosen_day' => $hasSlotOnExactFirstDay,
+                'target_first_day' => $targetFirstDay,
+                'message' => $message,
             ];
         });
     }
@@ -631,7 +954,161 @@ class LeagueAssignmentService
     }
 
     /**
+     * Return eligible opponents for swapping in a league fixture.
+     * In a single round-robin tournament, swapping with opponent C means
+     * swapping the pairing with the fixture where team A plays team C.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getEligibleOpponents(Tournament $tournament, Fixture $fixture): array
+    {
+        if ((int) $fixture->competition_id !== (int) $tournament->competition_id) {
+            throw new DomainException('المباراة لا تنتمي إلى هذا الدوري');
+        }
+
+        if ($fixture->match && $fixture->match->status === MatchStatus::Finished) {
+            return [];
+        }
+
+        $homeTeamId = (int) $fixture->home_team_id;
+        $currentOpponentId = (int) $fixture->away_team_id;
+
+        // Fetch all registered teams in tournament except current home & away teams
+        $registeredTeams = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->whereNotIn('team_id', [$homeTeamId, $currentOpponentId])
+            ->with('team')
+            ->get();
+
+        if ($registeredTeams->isEmpty()) {
+            return [];
+        }
+
+        // Pre-fetch all fixtures involving homeTeam in this tournament (excluding this fixture)
+        $homeTeamFixtures = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('id', '!=', $fixture->id)
+            ->where(function ($q) use ($homeTeamId) {
+                $q->where('home_team_id', $homeTeamId)
+                    ->orWhere('away_team_id', $homeTeamId);
+            })
+            ->with(['homeTeam', 'awayTeam', 'stadium', 'match'])
+            ->get();
+
+        // Pre-fetch scheduled fixtures for rest days and conflict checking
+        $scheduledMatches = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->whereNotNull('scheduled_at')
+            ->whereNotIn('status', [FixtureStatus::Cancelled])
+            ->get(['id', 'home_team_id', 'away_team_id', 'scheduled_at']);
+
+        $restDaysRequired = (int) ($tournament->rest_days_minimum ?? 1);
+        $fixtureScheduledAt = $fixture->scheduled_at ? Carbon::parse($fixture->scheduled_at) : null;
+
+        $results = [];
+
+        foreach ($registeredTeams as $tt) {
+            $candidateTeam = $tt->team;
+            if (! $candidateTeam) {
+                continue;
+            }
+
+            $candidateId = (int) $candidateTeam->id;
+
+            // Find the fixture where homeTeam meets candidateTeam
+            $otherFixture = $homeTeamFixtures->first(function ($f) use ($homeTeamId, $candidateId) {
+                return ((int) $f->home_team_id === $homeTeamId && (int) $f->away_team_id === $candidateId)
+                    || ((int) $f->home_team_id === $candidateId && (int) $f->away_team_id === $homeTeamId);
+            });
+
+            $isEligible = true;
+            $ineligibilityReasons = [];
+
+            // 1. If other fixture exists, check if it's already played/finished
+            if ($otherFixture) {
+                if ($otherFixture->status === FixtureStatus::Played || ($otherFixture->match && $otherFixture->match->status === MatchStatus::Finished)) {
+                    $isEligible = false;
+                    $ineligibilityReasons[] = 'المباراة المقابلة بين الفريقين ملعوبة ومسجلة نتيجتها بالفعل';
+                }
+            }
+
+            // Exclude fixture and otherFixture from conflict checks
+            $excludedIds = [$fixture->id];
+            if ($otherFixture) {
+                $excludedIds[] = $otherFixture->id;
+            }
+            $activeMatches = $scheduledMatches->reject(fn ($m) => in_array($m->id, $excludedIds));
+
+            // 2. Check Candidate Team C at Fixture 1 date (if scheduled)
+            if ($fixtureScheduledAt && $isEligible) {
+                $restOk = $this->satisfiesRestRule($candidateId, $fixtureScheduledAt, $restDaysRequired, $activeMatches);
+                if (! $restOk) {
+                    $isEligible = false;
+                    $ineligibilityReasons[] = 'تعارض مع فترة الراحة الإلزامية للفريق في موعد هذه المباراة';
+                }
+
+                $conflict = $this->hasConflictOnDateTime(
+                    $candidateId,
+                    $fixtureScheduledAt,
+                    $fixtureScheduledAt->format('H:i'),
+                    $fixtureScheduledAt->copy()->addHours(2)->format('H:i'),
+                    $activeMatches
+                );
+                if ($conflict) {
+                    $isEligible = false;
+                    $ineligibilityReasons[] = 'الفريق لديه مباراة أخرى مبرمجة في نفس توقيت هذه المباراة';
+                }
+            }
+
+            // 3. Check Current Opponent B at Other Fixture date (if scheduled)
+            if ($otherFixture && $otherFixture->scheduled_at && $isEligible) {
+                $otherScheduledAt = Carbon::parse($otherFixture->scheduled_at);
+
+                $bRestOk = $this->satisfiesRestRule($currentOpponentId, $otherScheduledAt, $restDaysRequired, $activeMatches);
+                if (! $bRestOk) {
+                    $isEligible = false;
+                    $ineligibilityReasons[] = 'الخصم الحالي لديه تعارض مع فترة الراحة في موعد المواجهة البديلة';
+                }
+
+                $bConflict = $this->hasConflictOnDateTime(
+                    $currentOpponentId,
+                    $otherScheduledAt,
+                    $otherScheduledAt->format('H:i'),
+                    $otherScheduledAt->copy()->addHours(2)->format('H:i'),
+                    $activeMatches
+                );
+                if ($bConflict) {
+                    $isEligible = false;
+                    $ineligibilityReasons[] = 'الخصم الحالي لديه مباراة أخرى مبرمجة في توقيت المواجهة البديلة';
+                }
+            }
+
+            $results[] = [
+                'team_id' => $candidateId,
+                'team_name' => $candidateTeam->name,
+                'team_logo' => $candidateTeam->logo_url ?? $candidateTeam->logo,
+                'is_eligible' => $isEligible,
+                'ineligibility_reasons' => $ineligibilityReasons,
+                'other_fixture' => $otherFixture ? [
+                    'id' => $otherFixture->id,
+                    'matchday' => $otherFixture->matchday,
+                    'scheduled_at' => $otherFixture->scheduled_at?->format('Y-m-d H:i'),
+                    'stadium_name' => $otherFixture->stadium?->name,
+                    'is_home' => (int) $otherFixture->home_team_id === $homeTeamId,
+                ] : null,
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
      * Backend validation and execution for swapping an opponent in a Single Round Robin fixture.
+     * Swapping opponent C with current opponent B swaps the pairings across the two rounds
+     * so that round-robin uniqueness and fairness are fully preserved.
      *
      * @return array<string, mixed>
      */
@@ -650,6 +1127,10 @@ class LeagueAssignmentService
                 throw new DomainException('لا يمكن تعيين الفريق المضيف كخصم لنفسه');
             }
 
+            if ((int) $fixture->away_team_id === $newOpponentId) {
+                throw new DomainException('الفريق المحدد هو الخصم الحالي بالفعل');
+            }
+
             // Check if new opponent is registered in the tournament
             $isRegistered = TournamentTeam::query()
                 ->where('tournament_id', $tournament->id)
@@ -661,51 +1142,89 @@ class LeagueAssignmentService
                 throw new DomainException('الفريق المحدد غير مسجل أو غير مؤكد في هذا الدوري');
             }
 
-            // Verify Single Round Robin constraint: Home team cannot play the same opponent twice
-            $duplicateMatch = Fixture::query()
+            $homeTeamId = (int) $fixture->home_team_id;
+            $oldOpponentId = (int) $fixture->away_team_id;
+
+            // Find the paired fixture where homeTeam and newOpponent meet in this tournament
+            $otherFixture = Fixture::query()
                 ->where('competition_id', $tournament->competition_id)
                 ->where('season_id', $tournament->season_id)
                 ->where('id', '!=', $fixture->id)
-                ->where(function ($q) use ($fixture, $newOpponentId) {
-                    $q->where(function ($sq) use ($fixture, $newOpponentId) {
-                        $sq->where('home_team_id', $fixture->home_team_id)
+                ->where(function ($q) use ($homeTeamId, $newOpponentId) {
+                    $q->where(function ($sq) use ($homeTeamId, $newOpponentId) {
+                        $sq->where('home_team_id', $homeTeamId)
                             ->where('away_team_id', $newOpponentId);
-                    })->orWhere(function ($sq) use ($fixture, $newOpponentId) {
+                    })->orWhere(function ($sq) use ($homeTeamId, $newOpponentId) {
                         $sq->where('home_team_id', $newOpponentId)
-                            ->where('away_team_id', $fixture->home_team_id);
+                            ->where('away_team_id', $homeTeamId);
                     });
                 })
-                ->exists();
+                ->first();
 
-            if ($duplicateMatch) {
-                throw new DomainException('هذان الفريقان متواجهان بالفعل في مواجهة أخرى ضمن الدوري (نظام دورة واحدة)');
+            if ($otherFixture) {
+                if ($otherFixture->status === FixtureStatus::Played || ($otherFixture->match && $otherFixture->match->status === MatchStatus::Finished)) {
+                    throw new DomainException('لا يمكن التبديل لأن المباراة المقابلة بين الفريقين ملعوبة ومسجلة نتيجتها بالفعل');
+                }
             }
 
-            // If match is already scheduled, verify rest rule for the new opponent
+            $restDaysRequired = (int) ($tournament->rest_days_minimum ?? 1);
+
+            $excludedIds = [$fixture->id];
+            if ($otherFixture) {
+                $excludedIds[] = $otherFixture->id;
+            }
+
+            $scheduledMatches = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->whereNotIn('id', $excludedIds)
+                ->whereNotNull('scheduled_at')
+                ->whereNotIn('status', [FixtureStatus::Cancelled])
+                ->get(['id', 'home_team_id', 'away_team_id', 'scheduled_at']);
+
+            // 1. Verify rest rule and time conflict for new opponent in Fixture 1
             if ($fixture->scheduled_at) {
                 $targetDate = Carbon::parse($fixture->scheduled_at);
-                $restDaysRequired = (int) ($tournament->rest_days_minimum ?? 1);
-
-                $scheduledMatches = Fixture::query()
-                    ->where('competition_id', $tournament->competition_id)
-                    ->where('season_id', $tournament->season_id)
-                    ->where('id', '!=', $fixture->id)
-                    ->whereNotNull('scheduled_at')
-                    ->whereNotIn('status', [FixtureStatus::Cancelled])
-                    ->get(['id', 'home_team_id', 'away_team_id', 'scheduled_at']);
 
                 $restOk = $this->satisfiesRestRule($newOpponentId, $targetDate, $restDaysRequired, $scheduledMatches);
                 if (! $restOk) {
-                    throw new DomainException('الفريق الجديد لديه تعارض مع قاعدة فترة الراحة الإلزامية في هذا التاريخ');
+                    throw new DomainException('الفريق الجديد لديه تعارض مع قاعدة فترة الراحة الإلزامية في موعد هذه المباراة');
                 }
 
-                $conflict = $this->hasConflictOnDateTime($newOpponentId, $targetDate, $targetDate->format('H:i'), $targetDate->copy()->addHours(2)->format('H:i'), $scheduledMatches);
+                $conflict = $this->hasConflictOnDateTime(
+                    $newOpponentId,
+                    $targetDate,
+                    $targetDate->format('H:i'),
+                    $targetDate->copy()->addHours(2)->format('H:i'),
+                    $scheduledMatches
+                );
                 if ($conflict) {
                     throw new DomainException('الفريق الجديد لديه مباراة أخرى مبرمجة في نفس التوقيت');
                 }
             }
 
-            $oldOpponentId = $fixture->away_team_id;
+            // 2. Verify rest rule and time conflict for old opponent in Other Fixture (if scheduled)
+            if ($otherFixture && $otherFixture->scheduled_at) {
+                $otherTargetDate = Carbon::parse($otherFixture->scheduled_at);
+
+                $oldRestOk = $this->satisfiesRestRule($oldOpponentId, $otherTargetDate, $restDaysRequired, $scheduledMatches);
+                if (! $oldRestOk) {
+                    throw new DomainException('الفريق الخصم السابق لديه تعارض مع قاعدة فترة الراحة الإلزامية في موعد المواجهة البديلة');
+                }
+
+                $oldConflict = $this->hasConflictOnDateTime(
+                    $oldOpponentId,
+                    $otherTargetDate,
+                    $otherTargetDate->format('H:i'),
+                    $otherTargetDate->copy()->addHours(2)->format('H:i'),
+                    $scheduledMatches
+                );
+                if ($oldConflict) {
+                    throw new DomainException('الفريق الخصم السابق لديه مباراة أخرى مبرمجة في توقيت المواجهة البديلة');
+                }
+            }
+
+            // Apply update to Fixture 1: away_team_id becomes newOpponentId
             $fixture->update([
                 'away_team_id' => $newOpponentId,
             ]);
@@ -716,11 +1235,42 @@ class LeagueAssignmentService
                 ]);
             }
 
+            // Apply update to Other Fixture (if exists in round-robin):
+            // Replace newOpponentId with oldOpponentId
+            $swappedMatchday = null;
+            if ($otherFixture) {
+                $swappedMatchday = $otherFixture->matchday;
+                if ((int) $otherFixture->home_team_id === $homeTeamId) {
+                    $otherFixture->update([
+                        'away_team_id' => $oldOpponentId,
+                    ]);
+                    if ($otherFixture->match) {
+                        $otherFixture->match->update([
+                            'away_team_id' => $oldOpponentId,
+                        ]);
+                    }
+                } else {
+                    $otherFixture->update([
+                        'home_team_id' => $oldOpponentId,
+                    ]);
+                    if ($otherFixture->match) {
+                        $otherFixture->match->update([
+                            'home_team_id' => $oldOpponentId,
+                        ]);
+                    }
+                }
+            }
+
+            $message = $swappedMatchday
+                ? "تم تبديل الفريق الخصم بنجاح ومبادلة المواجهة مع مواجهة الجولة {$swappedMatchday}"
+                : 'تم تبديل الفريق الخصم بنجاح';
+
             return [
                 'fixture' => $fixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']),
+                'other_fixture' => $otherFixture ? $otherFixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']) : null,
                 'old_opponent_id' => $oldOpponentId,
                 'new_opponent_id' => $newOpponentId,
-                'message' => 'تم تغيير الفريق الخصم بنجاح والتحقق من توافق قيود الدوري',
+                'message' => $message,
             ];
         });
     }

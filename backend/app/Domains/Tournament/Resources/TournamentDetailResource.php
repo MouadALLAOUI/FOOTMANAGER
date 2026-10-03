@@ -47,6 +47,7 @@ class TournamentDetailResource extends JsonResource
             'location' => $this->location,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),
+            'first_match_day' => $this->first_match_day?->toDateString(),
             'status' => $this->status,
             'has_result' => $finishedMatches > 0,
             'settings_editable' => ! in_array($this->status, ['completed', 'cancelled'], true) && $finishedMatches === 0,

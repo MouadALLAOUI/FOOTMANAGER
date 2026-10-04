@@ -15,7 +15,7 @@ class TournamentTeamResource extends JsonResource
             'id' => $this->id,
             'tournament_id' => $this->tournament_id,
             'team_id' => $this->team_id,
-            'team' => $this->whenLoaded('team', fn () => [
+            'team' => $this->whenLoaded('team', fn () => $this->team ? [
                 'id' => $this->team->id,
                 'name' => $this->team->name,
                 'logo_url' => $this->team->logo_url,
@@ -23,7 +23,8 @@ class TournamentTeamResource extends JsonResource
                 'category' => $this->team->category,
                 'level' => $this->team->level,
                 'is_free' => (bool) $this->team->is_free,
-            ]),
+                'is_deleted' => (bool) ($this->team->deleted_at !== null),
+            ] : null),
             'group' => $this->whenLoaded('group', fn () => $this->group ? [
                 'id' => $this->group->id,
                 'name' => $this->group->name,

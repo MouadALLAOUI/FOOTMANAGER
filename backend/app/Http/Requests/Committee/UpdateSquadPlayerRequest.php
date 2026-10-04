@@ -16,6 +16,11 @@ class UpdateSquadPlayerRequest extends FormRequest
         return [
             'name' => 'sometimes|required|string|max:120',
             'number' => 'sometimes|nullable|integer|min:0|max:99',
+            'position' => 'sometimes|nullable|string|max:100',
+            'status' => 'sometimes|nullable|string|in:active,suspended,injured,unavailable',
+            'photo' => 'sometimes|nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'remove_photo' => 'sometimes|nullable|boolean',
+            'is_essential' => 'sometimes|nullable|boolean',
         ];
     }
 
@@ -27,6 +32,8 @@ class UpdateSquadPlayerRequest extends FormRequest
             'number.integer' => 'رقم القميص يجب أن يكون رقماً',
             'number.min' => 'رقم القميص يجب أن يكون 0 أو أكثر',
             'number.max' => 'رقم القميص يجب ألا يتجاوز 99',
+            'photo.image' => 'الملف يجب أن يكون صورة',
+            'photo.max' => 'حجم الصورة يجب ألا يتجاوز 5 ميغابايت',
         ];
     }
 }

@@ -50,6 +50,27 @@ class MatchResource extends JsonResource
             'lineups' => $this->whenLoaded('lineups'),
             'performances' => PerformanceResource::collection($this->whenLoaded('performances')),
             'media' => $this->whenLoaded('media'),
+            'competition_name' => $this->competition?->name
+                ?? ($this->matchRequest ? 'مباراة ودية' : null),
+            'venue_name' => $this->stadium?->name
+                ?? $this->matchRequest?->custom_terrain_name
+                ?? null,
+            'match_datetime' => $this->matchRequest?->match_datetime?->toIso8601String()
+                ?? $this->started_at?->toIso8601String()
+                ?? $this->created_at?->toIso8601String(),
+            'format_config' => [
+                'player_format' => $this->matchRequest?->player_format ?? '7v7',
+                'starters_count' => \App\Domains\Match\Services\LineupService::startersRequired($this->matchRequest?->player_format ?? '7v7'),
+                'match_roster_limit' => match ($this->matchRequest?->player_format ?? '7v7') {
+                    '5v5' => 8,
+                    '6v6' => 9,
+                    '7v7' => 10,
+                    '8v8' => 12,
+                    '9v9' => 14,
+                    '11v11' => 18,
+                    default => \App\Domains\Match\Services\LineupService::startersRequired($this->matchRequest?->player_format ?? '7v7') + 3,
+                },
+            ],
             'started_at' => $this->started_at?->toIso8601String(),
             'kicked_off_at' => $this->kicked_off_at?->toIso8601String(),
             'ended_at' => $this->ended_at?->toIso8601String(),

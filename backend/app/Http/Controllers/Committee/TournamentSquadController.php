@@ -42,10 +42,14 @@ class TournamentSquadController extends Controller
             'name' => 'required|string|max:120',
             'number' => 'nullable|integer|min:0|max:99',
             'position' => 'nullable|string|max:100',
+            'status' => 'nullable|string|in:active,suspended,injured,unavailable',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120',
+            'is_essential' => 'nullable|boolean',
             'force' => 'sometimes|boolean',
         ]);
 
-        $result = $this->squad->addPlayer($tournament, $team, $validated);
+        $photo = $request->file('photo');
+        $result = $this->squad->addPlayer($tournament, $team, $validated, $photo);
 
         return response()->json([
             'created' => $result['created'],
@@ -76,8 +80,24 @@ class TournamentSquadController extends Controller
 
         $player = Player::query()->findOrFail($playerId);
 
-        return response()->json($this->squad->updatePlayer($tournament, $team, $player, $request->validated()) + [
-            'message' => 'تم تحديث اللاعب',
+        $data = $request->validated();
+        if ($request->hasFile('photo')) {
+            $data['photo'] = $request->file('photo');
+        }
+
+        return response()->json($this->squad->updatePlayer($tournament, $team, $player, $data) + [
+            'message' => 'تم تحديث بيانات اللاعب',
+        ]);
+    }
+
+    public function destroyPlayer(Tournament $tournament, Team $team, int $playerId): JsonResponse
+    {
+        $this->assertInTournament($tournament, $team);
+
+        $player = Player::query()->findOrFail($playerId);
+
+        return response()->json($this->squad->removePlayer($tournament, $team, $player) + [
+            'message' => 'تمت إزالة اللاعب بنجاح',
         ]);
     }
 

@@ -103,6 +103,11 @@ class FootballMatch extends Model
         return $this->belongsTo(Team::class, 'winner_team_id')->withTrashed();
     }
 
+    public function competition(): BelongsTo
+    {
+        return $this->belongsTo(\App\Domains\Competition\Models\Competition::class, 'competition_id');
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

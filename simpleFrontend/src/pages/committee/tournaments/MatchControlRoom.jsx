@@ -1063,7 +1063,17 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                     suspendedByTeam={suspendedByTeam}
                     redCardedIds={redCardedIds}
                     busyId={quickBusyId}
+                    events={events}
+                    tournament={tournament}
+                    fixture={fixture}
                     onTapPlayer={(player, teamId) => tapPlayer(player, teamId)}
+                    onActionPick={(player, teamId, type) => {
+                      setSelectedType(type)
+                      setEditingKey(null)
+                      setValidation(null)
+                      setSaveError(null)
+                      setForm(buildQuickForm(player, teamId, type))
+                    }}
                     onAddPlayer={addPlayerToTeam}
                     t={t}
                   />

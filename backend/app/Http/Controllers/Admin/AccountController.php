@@ -125,6 +125,13 @@ class AccountController extends Controller
             $hasMatches = $team->hostedMatches()->exists() || $team->opponentMatches()->exists();
             $hasBookings = $team->terrainBookings()->exists();
             if (! $hasMatches && ! $hasBookings) {
+                \App\Domains\Tournament\Models\TournamentTeam::query()
+                    ->where('team_id', $team->id)
+                    ->whereHas('tournament', function ($q) {
+                        $q->where('status', 'draft');
+                    })
+                    ->delete();
+
                 $team->delete();
             }
         }

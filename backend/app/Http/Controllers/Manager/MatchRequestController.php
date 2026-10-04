@@ -703,13 +703,78 @@ class MatchRequestController extends Controller
 
         $footballMatch = $matchRequest->footballMatch()->with([
             'events' => fn ($q) => $q->with(['team', 'player', 'assistPlayer'])->orderBy('minute')->orderBy('id'),
+            'lineups',
         ])->first();
 
+        $attendances = \App\Domains\Team\Models\Attendance::query()
+            ->where('match_request_id', $matchRequest->id)
+            ->get(['player_id', 'team_id', 'status'])
+            ->keyBy('player_id');
+
+        $lineupsByPlayer = $footballMatch
+            ? $footballMatch->lineups->keyBy('player_id')
+            : collect();
+
+        $hasAttendanceHost = $attendances->where('team_id', $hostTeamId)->isNotEmpty();
+        $hasAttendanceOpponent = $opponentTeamId ? $attendances->where('team_id', $opponentTeamId)->isNotEmpty() : false;
+
+        $mappedPlayers = $players->map(function ($p) use ($attendances, $lineupsByPlayer, $hasAttendanceHost, $hasAttendanceOpponent, $hostTeamId) {
+            $att = $attendances->get($p->id);
+            $lineup = $lineupsByPlayer->get($p->id);
+            $hasAttForTeam = (int) $p->team_id === (int) $hostTeamId ? $hasAttendanceHost : $hasAttendanceOpponent;
+
+            $attStatus = $att ? $att->status : null;
+            $isPresent = $att ? ($att->status === \App\Domains\Team\Models\Attendance::PRESENT) : (! $hasAttForTeam);
+            $isAbsent = $att ? ($att->status === \App\Domains\Team\Models\Attendance::ABSENT) : false;
+
+            return [
+                'id' => $p->id,
+                'team_id' => $p->team_id,
+                'name' => $p->name,
+                'number' => $lineup?->shirt_number ?? $p->number,
+                'position' => $lineup?->position ?? $p->position,
+                'is_essential' => (bool) $p->is_essential,
+                'attendance_status' => $attStatus,
+                'is_present' => $isPresent,
+                'is_absent' => $isAbsent,
+                'is_eligible' => $isPresent && ! $isAbsent,
+                'is_starter' => $lineup ? (bool) $lineup->is_starter : null,
+                'is_captain' => $lineup ? (bool) $lineup->is_captain : false,
+            ];
+        });
+
+        $playerFormat = $matchRequest->player_format ?? '7v7';
+        $startersCount = \App\Domains\Match\Services\LineupService::startersRequired($playerFormat);
+        $matchRosterLimit = match ($playerFormat) {
+            '5v5' => 8,
+            '6v6' => 9,
+            '7v7' => 10,
+            '8v8' => 12,
+            '9v9' => 14,
+            '11v11' => 18,
+            default => $startersCount + 3,
+        };
+
+        $tournament = null;
+        if ($footballMatch && $footballMatch->competition_id) {
+            $tournament = \App\Domains\Tournament\Models\Tournament::where('competition_id', $footballMatch->competition_id)->first();
+            if ($tournament && $tournament->max_players_per_team) {
+                $matchRosterLimit = (int) $tournament->max_players_per_team;
+            }
+        }
+
         return response()->json([
-            'players' => $players,
-            'host_players' => $players->where('team_id', $hostTeamId)->values(),
-            'opponent_players' => $players->where('team_id', $opponentTeamId)->values(),
+            'players' => $mappedPlayers,
+            'host_players' => $mappedPlayers->where('team_id', $hostTeamId)->values(),
+            'opponent_players' => $mappedPlayers->where('team_id', $opponentTeamId)->values(),
             'events' => $footballMatch?->events ?? [],
+            'format_config' => [
+                'player_format' => $playerFormat,
+                'starters_count' => $startersCount,
+                'match_roster_limit' => $matchRosterLimit,
+                'substitutes_limit' => max(0, $matchRosterLimit - $startersCount),
+                'tournament_name' => $tournament?->name,
+            ],
         ]);
     }
 

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Ban,
   CalendarClock,
+  CalendarDays,
   Check,
   CheckCheck,
   DoorClosed,

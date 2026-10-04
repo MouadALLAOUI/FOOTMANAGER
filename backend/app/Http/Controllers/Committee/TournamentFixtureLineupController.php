@@ -41,23 +41,29 @@ class TournamentFixtureLineupController extends Controller
         $lineups = MatchLineup::query()
             ->where('match_id', $match->id)
             ->whereIn('team_id', array_filter([$fixture->home_team_id, $fixture->away_team_id]))
-            ->with(['player:id,name,number,position'])
+            ->with(['player'])
             ->get();
 
         $home = $lineups->where('team_id', $fixture->home_team_id)
             ->map(fn ($l) => [
-                'player_id' => $l->player_id,
-                'name'      => $l->player?->name,
-                'number'    => $l->player?->number,
-                'position'  => $l->player?->position,
+                'player_id'  => $l->player_id,
+                'name'       => $l->player?->name,
+                'number'     => $l->player?->number,
+                'position'   => $l->player?->position,
+                'is_starter' => (bool) $l->is_starter,
+                'order_index'=> (int) $l->order_index,
+                'photo_url'  => $l->player?->photo_thumbnail_url ?? $l->player?->photo_url,
             ])->values();
 
         $away = $lineups->where('team_id', $fixture->away_team_id)
             ->map(fn ($l) => [
-                'player_id' => $l->player_id,
-                'name'      => $l->player?->name,
-                'number'    => $l->player?->number,
-                'position'  => $l->player?->position,
+                'player_id'  => $l->player_id,
+                'name'       => $l->player?->name,
+                'number'     => $l->player?->number,
+                'position'   => $l->player?->position,
+                'is_starter' => (bool) $l->is_starter,
+                'order_index'=> (int) $l->order_index,
+                'photo_url'  => $l->player?->photo_thumbnail_url ?? $l->player?->photo_url,
             ])->values();
 
         return response()->json([
@@ -80,14 +86,16 @@ class TournamentFixtureLineupController extends Controller
         $this->assertBelongsToTournament($tournament, $fixture);
 
         $validated = $request->validate([
-            'player_id' => ['required', 'integer'],
-            'team_id'   => ['required', 'integer'],
-            'confirmed' => ['required', 'boolean'],
+            'player_id'  => ['required', 'integer'],
+            'team_id'    => ['required', 'integer'],
+            'confirmed'  => ['required', 'boolean'],
+            'is_starter' => ['sometimes', 'nullable', 'boolean'],
         ]);
 
         $playerId = (int) $validated['player_id'];
         $teamId   = (int) $validated['team_id'];
         $confirmed = (bool) $validated['confirmed'];
+        $isStarter = array_key_exists('is_starter', $validated) ? (bool) $validated['is_starter'] : null;
 
         // Verify the player belongs to the team.
         $player = Player::query()
@@ -111,15 +119,18 @@ class TournamentFixtureLineupController extends Controller
         }
 
         if ($confirmed) {
+            $attributes = [];
+            if ($isStarter !== null) {
+                $attributes['is_starter'] = $isStarter;
+            }
+
             MatchLineup::query()->updateOrCreate(
                 [
                     'match_id'  => $match->id,
                     'team_id'   => $teamId,
                     'player_id' => $playerId,
                 ],
-                [
-                    'is_starter' => false,
-                ],
+                $attributes
             );
         } else {
             MatchLineup::query()

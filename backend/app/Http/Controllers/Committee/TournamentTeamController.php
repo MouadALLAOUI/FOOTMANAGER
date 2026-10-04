@@ -444,17 +444,32 @@ class TournamentTeamController extends Controller
 
         $this->assertEditable($tournament);
 
-        $teamId = (int) $teamId;
+        if (! is_numeric($teamId) || (int) $teamId <= 0) {
+            throw new DomainException('معرف الفريق غير صالح', 400);
+        }
 
-        if ($tournament->fixtures()->whereNotNull('home_team_id')->where('home_team_id', $teamId)->exists()
-            || $tournament->fixtures()->whereNotNull('away_team_id')->where('away_team_id', $teamId)->exists()) {
+        $id = (int) $teamId;
+
+        $tournamentTeam = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where(function ($q) use ($id) {
+                $q->where('team_id', $id)
+                    ->orWhere('id', $id);
+            })
+            ->first();
+
+        if (! $tournamentTeam) {
+            return response()->noContent();
+        }
+
+        $resolvedTeamId = $tournamentTeam->team_id;
+
+        if ($resolvedTeamId && ($tournament->fixtures()->whereNotNull('home_team_id')->where('home_team_id', $resolvedTeamId)->exists()
+            || $tournament->fixtures()->whereNotNull('away_team_id')->where('away_team_id', $resolvedTeamId)->exists())) {
             throw new DomainException('لا يمكن إزالة فريق له مباريات مجدولة');
         }
 
-        TournamentTeam::query()
-            ->where('tournament_id', $tournament->id)
-            ->where('team_id', $teamId)
-            ->delete();
+        $tournamentTeam->delete();
 
         $this->checkAndReopenIfSlotsAvailable($tournament);
 

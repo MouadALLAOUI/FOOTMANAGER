@@ -93,7 +93,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
     { enabled: groupOpen },
   )
 
-  const registeredIds = new Set((teams || []).map((p) => p.team?.id))
+  const registeredIds = new Set((teams || []).map((p) => p.team_id || p.team?.id).filter(Boolean))
   const available = (allTeams || []).filter((team) => !registeredIds.has(team.id))
   const expected = tournament.teams_count ?? 0
   const capped = expected > 0
@@ -129,11 +129,12 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
     }
   }
 
-  const removeTeam = async (teamId) => {
+  const removeTeam = async (targetId) => {
+    if (!targetId) return
     if (!window.confirm(t('committee.detail.removeTeamConfirm'))) return
-    setBusy('remove')
+    setBusy(`remove-${targetId}`)
     try {
-      await api.delete(`/committee/tournaments/${tournament.id}/teams/${teamId}`)
+      await api.delete(`/committee/tournaments/${tournament.id}/teams/${targetId}`)
       toast.success(t('committee.detail.teamRemoved'))
       refresh()
     } catch (e) {
@@ -148,7 +149,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
     setBusy('bulkRemove')
     try {
       await Promise.all(
-        bulkSelected.map((teamId) => api.delete(`/committee/tournaments/${tournament.id}/teams/${teamId}`)),
+        bulkSelected.map((targetId) => api.delete(`/committee/tournaments/${tournament.id}/teams/${targetId}`)),
       )
       toast.success(t('committee.detail.teamRemoved'))
       setBulkSelected([])
@@ -253,8 +254,8 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                   <Button
                     size="sm"
                     className="shrink-0"
-                    loading={busy === `respond-${r.team?.id}`}
-                    onClick={() => respond(r.team?.id, 'approve')}
+                    loading={busy === `respond-${r.team_id || r.team?.id}`}
+                    onClick={() => respond(r.team_id || r.team?.id, 'approve')}
                   >
                     <Check className="size-3.5" />
                     {t('committee.detail.approveRequest')}
@@ -263,10 +264,10 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     size="sm"
                     variant="dangerSoft"
                     className="shrink-0"
-                    loading={busy === `respond-${r.team?.id}`}
+                    loading={busy === `respond-${r.team_id || r.team?.id}`}
                     onClick={() => {
                       if (!window.confirm(t('committee.detail.rejectRequestConfirm'))) return
-                      respond(r.team?.id, 'reject')
+                      respond(r.team_id || r.team?.id, 'reject')
                     }}
                   >
                     <X className="size-3.5" />
@@ -307,23 +308,28 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {(teams || []).map((p) => {
-            const checked = bulkSelected.includes(p.team?.id)
+            const teamId = p.team_id || p.team?.id
+            const targetId = teamId || p.id
+            const checked = bulkSelected.includes(targetId)
+            const isDeleted = Boolean(p.team?.is_deleted || !p.team)
             return (
               <div
                 key={p.id}
-                onClick={() => !selectMode && setSquadTeam(p)}
+                onClick={() => !selectMode && p.team && !isDeleted && setSquadTeam(p)}
                 className={`flex items-center gap-3 rounded-3xl border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all ${
                   selectMode && checked
                     ? 'border-green-400 bg-green-50/70'
                     : selectMode
                       ? 'border-slate-200/70 bg-white'
-                      : 'cursor-pointer border-slate-200/70 bg-white hover:border-green-300 hover:shadow-md'
+                      : isDeleted
+                        ? 'border-rose-200 bg-rose-50/20'
+                        : 'cursor-pointer border-slate-200/70 bg-white hover:border-green-300 hover:shadow-md'
                 }`}
               >
                 {selectMode ? (
                   <button
                     type="button"
-                    onClick={() => toggleBulk(p.team?.id)}
+                    onClick={() => toggleBulk(targetId)}
                     className={`grid size-6 shrink-0 place-items-center rounded-lg border text-white ${
                       checked ? 'border-green-500 bg-green-500' : 'border-slate-300 bg-white'
                     }`}
@@ -336,7 +342,8 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-extrabold text-slate-900">{p.team?.name || '—'}</p>
+                    <p className="truncate text-sm font-extrabold text-slate-900">{p.team?.name || (isDeleted ? 'فريق محذوف' : '—')}</p>
+                    {isDeleted && <Badge variant="danger">محذوف</Badge>}
                     {p.team?.is_free && <Badge variant="info">{t('committee.detail.freeBadge')}</Badge>}
                   </div>
                   <p className="text-[11px] font-semibold text-slate-400">
@@ -345,15 +352,15 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                 </div>
                 {!selectMode && (
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {p.payment_status === 'pending' && (
+                    {!isDeleted && p.payment_status === 'pending' && (
                       <button
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); markPaid(p.team?.id) }}
-                        disabled={busy === `pay-${p.team?.id}`}
+                        onClick={(e) => { e.stopPropagation(); markPaid(teamId) }}
+                        disabled={busy === `pay-${teamId}`}
                         className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200 transition-colors hover:bg-amber-100 disabled:opacity-50"
                         title={t('committee.detail.markPaid')}
                       >
-                        {busy === `pay-${p.team?.id}` ? (
+                        {busy === `pay-${teamId}` ? (
                           <Check className="size-3.5 animate-pulse" />
                         ) : (
                           <Wallet className="size-3.5" />
@@ -361,7 +368,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                         {t('committee.detail.paymentPending')}
                       </button>
                     )}
-                    {p.payment_status === 'completed' && (
+                    {!isDeleted && p.payment_status === 'completed' && (
                       <span className="flex items-center gap-1.5">
                         <span className="inline-flex items-center gap-1 rounded-lg bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700 ring-1 ring-green-200">
                           <Check className="size-3" />
@@ -369,8 +376,8 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                         </span>
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); unmarkPaid(p.team?.id) }}
-                          disabled={busy === `unpay-${p.team?.id}`}
+                          onClick={(e) => { e.stopPropagation(); unmarkPaid(teamId) }}
+                          disabled={busy === `unpay-${teamId}`}
                           className="grid size-9 place-items-center rounded-xl bg-slate-50 text-slate-500 ring-1 ring-slate-200 transition-colors hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
                           title={t('committee.detail.unmarkPaid')}
                         >
@@ -378,7 +385,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                         </button>
                       </span>
                     )}
-                    {p.team?.is_free && (
+                    {!isDeleted && p.team?.is_free && (
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setEditFreeTeam(p.team) }}
@@ -391,8 +398,9 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     )}
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); removeTeam(p.team?.id) }}
-                      className="grid size-9 place-items-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50"
+                      onClick={(e) => { e.stopPropagation(); removeTeam(targetId) }}
+                      disabled={busy === `remove-${targetId}`}
+                      className="grid size-9 place-items-center rounded-xl text-rose-500 transition-colors hover:bg-rose-50 disabled:opacity-50"
                       aria-label={t('committee.detail.removeTeam')}
                     >
                       <Trash2 className="size-4" />

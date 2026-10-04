@@ -56,6 +56,6 @@ class Standing extends Model
 
     public function team(): BelongsTo
     {
-        return $this->belongsTo(Team::class);
+        return $this->belongsTo(Team::class)->withTrashed();
     }
 }

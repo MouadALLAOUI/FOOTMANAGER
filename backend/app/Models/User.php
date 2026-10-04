@@ -408,6 +408,16 @@ class User extends Authenticatable
                 if ($pendingMatches > 0) {
                     $blockers[] = "الفريق لديه {$pendingMatches} مباراة(ات) نشطة";
                 }
+
+                $activeTournaments = \App\Domains\Tournament\Models\TournamentTeam::query()
+                    ->where('team_id', $team->id)
+                    ->whereHas('tournament', function ($q) {
+                        $q->whereIn('status', ['in_progress', 'open_for_registration', 'registration_closed']);
+                    })
+                    ->count();
+                if ($activeTournaments > 0) {
+                    $blockers[] = "الفريق مسجل في {$activeTournaments} بطولة(ات) نشطة";
+                }
             }
         }
 

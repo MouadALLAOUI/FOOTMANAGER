@@ -4,6 +4,7 @@ namespace App\Domains\Tournament\Services;
 
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Shared\Services\ImageThumbnailService;
 use App\Domains\Shared\Support\ArabicPlural;
 use App\Domains\Shared\Support\PlayerCache;
 use App\Domains\Shared\Support\TeamCache;
@@ -11,8 +12,10 @@ use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentSquadMember;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection as SupportCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -21,6 +24,10 @@ use Illuminate\Validation\ValidationException;
  */
 class TournamentSquadService
 {
+    public function __construct(private readonly ?ImageThumbnailService $images = null)
+    {
+    }
+
     public function maxPlayers(Tournament $tournament): ?int
     {
         return $tournament->max_players_per_team !== null
@@ -48,7 +55,7 @@ class TournamentSquadService
     }
 
     /**
-     * Active roster players of a team annotated with their in-squad status.
+     * Active and registered roster players of a team annotated with their in-squad status.
      *
      * @return array{players: SupportCollection<int, array<string, mixed>>, squad_count: int, max: ?int, min: ?int, warning: ?string}
      */
@@ -56,7 +63,6 @@ class TournamentSquadService
     {
         $players = Player::query()
             ->where('team_id', $team->id)
-            ->active()
             ->orderBy('is_essential', 'desc')
             ->orderBy('number')
             ->orderBy('name')
@@ -85,7 +91,6 @@ class TournamentSquadService
         $player = Player::query()
             ->where('team_id', $team->id)
             ->where('id', $playerId)
-            ->active()
             ->first();
 
         if (! $player) {
@@ -117,7 +122,7 @@ class TournamentSquadService
      *
      * @return array{created: bool, player: ?array, duplicates: Collection, squad_count: int, max: ?int}
      */
-    public function addPlayer(Tournament $tournament, Team $team, array $data): array
+    public function addPlayer(Tournament $tournament, Team $team, array $data, ?UploadedFile $photo = null): array
     {
         $name = trim((string) ($data['name'] ?? ''));
 
@@ -138,12 +143,21 @@ class TournamentSquadService
 
         $this->assertUnderMax($tournament, $team);
 
-        $player = Player::query()->create([
+        $photoData = [];
+        if ($photo && $this->images) {
+            $stored = $this->images->storeWithThumbnail($photo, 'players/photos');
+            $photoData['photo_path'] = $stored['path'];
+            $photoData['photo_thumbnail_path'] = $stored['thumbnail_path'];
+        }
+
+        $player = Player::query()->create(array_merge([
             'team_id' => $team->id,
             'name' => $name,
-            'number' => isset($data['number']) ? (int) $data['number'] : null,
+            'number' => isset($data['number']) && $data['number'] !== '' ? (int) $data['number'] : null,
             'position' => $data['position'] ?? null,
-        ]);
+            'status' => $data['status'] ?? Player::STATUS_ACTIVE,
+            'is_essential' => ! empty($data['is_essential']),
+        ], $photoData));
 
         TournamentSquadMember::query()->create([
             'tournament_id' => $tournament->id,
@@ -155,7 +169,7 @@ class TournamentSquadService
 
         return [
             'created' => true,
-            'player' => $player->only(['id', 'team_id', 'name', 'number', 'position', 'is_essential']),
+            'player' => $this->serializePlayer($player, true),
             'duplicates' => $duplicates->values(),
             'squad_count' => $this->squadCount($tournament, $team),
             'max' => $this->maxPlayers($tournament),
@@ -321,6 +335,39 @@ class TournamentSquadService
             }
         }
 
+        if (array_key_exists('position', $data)) {
+            $update['position'] = $data['position'] ?: null;
+        }
+
+        if (array_key_exists('status', $data) && $data['status'] !== null) {
+            $update['status'] = $data['status'];
+        }
+
+        if (array_key_exists('is_essential', $data)) {
+            $update['is_essential'] = (bool) $data['is_essential'];
+        }
+
+        if (! empty($data['remove_photo'])) {
+            if ($player->photo_path && Storage::disk('public')->exists($player->photo_path)) {
+                Storage::disk('public')->delete($player->photo_path);
+            }
+            if ($player->photo_thumbnail_path && Storage::disk('public')->exists($player->photo_thumbnail_path)) {
+                Storage::disk('public')->delete($player->photo_thumbnail_path);
+            }
+            $update['photo_path'] = null;
+            $update['photo_thumbnail_path'] = null;
+        } elseif (isset($data['photo']) && $data['photo'] instanceof UploadedFile && $this->images) {
+            if ($player->photo_path && Storage::disk('public')->exists($player->photo_path)) {
+                Storage::disk('public')->delete($player->photo_path);
+            }
+            if ($player->photo_thumbnail_path && Storage::disk('public')->exists($player->photo_thumbnail_path)) {
+                Storage::disk('public')->delete($player->photo_thumbnail_path);
+            }
+            $stored = $this->images->storeWithThumbnail($data['photo'], 'players/photos');
+            $update['photo_path'] = $stored['path'];
+            $update['photo_thumbnail_path'] = $stored['thumbnail_path'];
+        }
+
         if ($errors !== []) {
             throw ValidationException::withMessages($errors);
         }
@@ -336,6 +383,48 @@ class TournamentSquadService
         if ($player->user_id !== null) {
             PlayerCache::flush((int) $player->user_id);
         }
+
+        return $this->squad($tournament, $team);
+    }
+
+    /**
+     * Safely remove a player from the tournament squad or delete their record
+     * if they have no match history.
+     *
+     * @return array{players: SupportCollection<int, array<string, mixed>>, squad_count: int, max: ?int}
+     */
+    public function removePlayer(Tournament $tournament, Team $team, Player $player): array
+    {
+        if ((int) $player->team_id !== (int) $team->id) {
+            throw new DomainException('اللاعب غير موجود في فريقك');
+        }
+
+        // 1. Remove squad membership from this tournament
+        TournamentSquadMember::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('player_id', $player->id)
+            ->delete();
+
+        // 2. Check if player has match history across the platform
+        $hasLineups = DB::table('match_lineups')->where('player_id', $player->id)->exists();
+        $hasEvents = DB::table('match_events')
+            ->where('player_id', $player->id)
+            ->orWhere('assist_player_id', $player->id)
+            ->exists();
+        $otherSquads = TournamentSquadMember::query()->where('player_id', $player->id)->exists();
+
+        // If player is a manual record with no match lineups, events, or other tournaments, we can safely delete them
+        if ($player->isManual() && ! $hasLineups && ! $hasEvents && ! $otherSquads) {
+            if ($player->photo_path && Storage::disk('public')->exists($player->photo_path)) {
+                Storage::disk('public')->delete($player->photo_path);
+            }
+            if ($player->photo_thumbnail_path && Storage::disk('public')->exists($player->photo_thumbnail_path)) {
+                Storage::disk('public')->delete($player->photo_thumbnail_path);
+            }
+            $player->delete();
+        }
+
+        TeamCache::flushTeam($team->id);
 
         return $this->squad($tournament, $team);
     }
@@ -371,7 +460,11 @@ class TournamentSquadService
             'name' => $player->name,
             'number' => $player->number,
             'position' => $player->position,
-            'is_essential' => $player->is_essential,
+            'status' => $player->status ?? Player::STATUS_ACTIVE,
+            'is_essential' => (bool) $player->is_essential,
+            'photo_url' => $player->photo_url,
+            'photo_thumbnail_url' => $player->photo_thumbnail_url,
+            'is_manual' => $player->isManual(),
             'in_squad' => $inSquad,
         ];
     }

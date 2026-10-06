@@ -11,6 +11,7 @@ import {
   MessageSquareText,
   Network,
   Settings2,
+  ShieldAlert,
   SlidersHorizontal,
   Swords,
   Trophy,
@@ -18,7 +19,8 @@ import {
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
-import { Badge, Button, Card, Empty, SectionTitle, Skeleton, StatusBadge } from '../../../components/dashboard/ui'
+import { Badge, Button, Card, Empty, Modal, SectionTitle, Skeleton, StatusBadge } from '../../../components/dashboard/ui'
+import DelegatedSubmissionReviewModal from '../../../domains/committee/components/DelegatedSubmissionReviewModal'
 import OverviewTab from './overviewTab'
 import TeamsTab from './teamsTab'
 import DrawBoard from './draw'
@@ -52,12 +54,36 @@ export default function TournamentDetail() {
   const [active, setActive] = useState('overview')
   const [refresh, setRefresh] = useState(0)
   const [exportOpen, setExportOpen] = useState(false)
+  const [reviewSubmissionFixture, setReviewSubmissionFixture] = useState(null)
+  const [pendingPickerOpen, setPendingPickerOpen] = useState(false)
 
   const { data: tour, loading } = useApi(
     () => api.get(`/committee/tournaments/${id}`).then((r) => r.data.data),
     [id, refresh],
     { staleTime: 0 },
   )
+
+  const { data: pendingSubmissionsData } = useApi(
+    () => api.get(`/committee/tournaments/${id}/delegated-submissions/pending`).then((r) => r.data),
+    [id, refresh],
+    { staleTime: 0 },
+  )
+
+  const pendingFixtures = pendingSubmissionsData?.data || []
+  const pendingCount =
+    pendingSubmissionsData?.count ??
+    tour?.pending_delegated_count ??
+    (tour?.stats?.pending_delegated_submissions ?? 0)
+
+  const handleReviewClick = () => {
+    if (pendingFixtures.length === 1) {
+      setReviewSubmissionFixture(pendingFixtures[0])
+    } else if (pendingFixtures.length > 1) {
+      setPendingPickerOpen(true)
+    } else {
+      setActive('fixtures')
+    }
+  }
 
   const bump = () => setRefresh((v) => v + 1)
   const tabProps = { tournament: tour, refresh: bump, refreshKey: refresh, setActive }
@@ -120,6 +146,22 @@ export default function TournamentDetail() {
         subtitle={`${tour.edition || ''} ${tour.category || ''} • ${t(`committee.tournaments.formats.${tour.tournament_format}`)}`}
         action={
           <div className="flex items-center gap-2">
+            {pendingCount > 0 && (
+              <button
+                type="button"
+                onClick={handleReviewClick}
+                className="inline-flex h-9 items-center gap-2 rounded-full border-2 border-white/90 bg-emerald-600 px-4 text-xs font-black text-white shadow-[0_4px_14px_rgba(16,185,129,0.45)] transition-all hover:bg-emerald-700 hover:shadow-lg active:scale-95 animate-pulse"
+                title="توجد نتائج مباريات مسجلة عبر المندوب بانتظار المراجعة والاعتماد"
+              >
+                <ShieldAlert className="size-4 shrink-0 text-white" />
+                <span>مراجعة واعتماد نتيجة المندوب</span>
+                {pendingCount > 1 && (
+                  <span className="rounded-full bg-white px-1.5 py-0.2 text-[10px] font-black text-emerald-800">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setExportOpen(true)}
@@ -167,6 +209,11 @@ export default function TournamentDetail() {
               >
                 <Icon className="size-4" />
                 {t(label)}
+                {key === 'fixtures' && pendingCount > 0 && (
+                  <span className="grid size-4 place-items-center rounded-full bg-emerald-500 text-[10px] font-black text-white">
+                    {pendingCount}
+                  </span>
+                )}
                 {locked && <Lock className="size-3" />}
               </button>
             )
@@ -186,6 +233,74 @@ export default function TournamentDetail() {
       {active === 'communication' && <CommunicationTab {...tabProps} />}
 
       {exportOpen && <TournamentExport tournament={tour} onClose={() => setExportOpen(false)} />}
+
+      {pendingPickerOpen && (
+        <Modal
+          open={pendingPickerOpen}
+          onClose={() => setPendingPickerOpen(false)}
+          title="مباريات بانتظار اعتماد نتيجة المندوب"
+          size="md"
+        >
+          <div className="space-y-3 py-1" dir="rtl">
+            <p className="text-xs font-bold text-slate-500">
+              اختر المباراة التي ترغب في مراجعة نتيجتها واعتمادها:
+            </p>
+            <div className="space-y-2 max-h-72 overflow-y-auto pe-1">
+              {pendingFixtures.map((fix) => {
+                const sub = fix.delegated_submission
+                return (
+                  <button
+                    key={fix.id}
+                    type="button"
+                    onClick={() => {
+                      setPendingPickerOpen(false)
+                      setReviewSubmissionFixture(fix)
+                    }}
+                    className="w-full flex items-center justify-between p-3 rounded-2xl border border-slate-200/80 bg-white hover:bg-slate-50 hover:border-emerald-300 transition-all text-start group shadow-2xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 font-black text-xs text-slate-900">
+                        <span>{fix.home_team?.name || 'المضيف'}</span>
+                        <span className="rounded-md bg-slate-900 text-white px-2 py-0.5 text-xs tabular-nums font-mono">
+                          {sub?.home_score ?? 0} - {sub?.away_score ?? 0}
+                        </span>
+                        <span>{fix.away_team?.name || 'الضيف'}</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-slate-400 mt-1">
+                        مسجلة بواسطة: <span className="text-slate-700 font-bold">{sub?.recorder_name || 'مندوب المباراة'}</span>
+                        {sub?.anomalies?.length > 0 && (
+                          <span className="ms-2 text-rose-600 font-bold">⚠️ تنبيهات</span>
+                        )}
+                        {sub?.is_disputed && (
+                          <span className="ms-2 text-amber-600 font-bold">🛡️ متنازع عليها</span>
+                        )}
+                      </p>
+                    </div>
+                    <ArrowRight className="size-4 text-slate-300 group-hover:text-emerald-600 rtl:rotate-180 transition-colors" />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {reviewSubmissionFixture && (
+        <DelegatedSubmissionReviewModal
+          isOpen={Boolean(reviewSubmissionFixture)}
+          onClose={() => setReviewSubmissionFixture(null)}
+          tournamentId={tour.id}
+          fixture={reviewSubmissionFixture}
+          onApproved={() => {
+            setReviewSubmissionFixture(null)
+            bump()
+          }}
+          onRejected={() => {
+            setReviewSubmissionFixture(null)
+            bump()
+          }}
+        />
+      )}
     </div>
   )
 }

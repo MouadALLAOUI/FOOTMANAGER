@@ -37,14 +37,28 @@ function MatchPlayerCard({
               : 'border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md active:scale-95'
       }`}
     >
-      {/* Jersey visual with photo inside (or shirt number if no photo) */}
+      {/* Player photo or Jersey visual */}
       <div className="relative my-1 flex items-center justify-center">
-        <Jersey
-          number={player.number}
-          photoUrl={photoSrc}
-          variant={teamVariant}
-          className="h-12 w-11"
-        />
+        {photoSrc ? (
+          <div className="relative">
+            <img
+              src={photoSrc}
+              alt={player.name}
+              className="size-13 rounded-2xl object-cover ring-2 ring-white shadow-sm sm:size-14"
+            />
+            {player.number != null && (
+              <span className="absolute -bottom-1 -end-1 flex size-4 items-center justify-center rounded-full bg-slate-900 text-[9px] font-black text-white shadow">
+                {player.number}
+              </span>
+            )}
+          </div>
+        ) : (
+          <Jersey
+            number={player.number}
+            variant={teamVariant}
+            className="h-12 w-11"
+          />
+        )}
 
         {/* Goals Badge (⚽ 1 or ⚽ 2) */}
         {stats.goals > 0 && (
@@ -67,7 +81,7 @@ function MatchPlayerCard({
       </div>
 
       {/* Player Name */}
-      <span className="mt-1.5 w-full truncate text-xs font-bold text-slate-800" title={player.name}>
+      <span className="mt-1.5 w-full text-center text-xs font-bold leading-tight text-slate-800 break-words" title={player.name}>
         {player.name}
       </span>
     </button>
@@ -467,14 +481,17 @@ export default function PlayersTab({
   }, [tournament?.tournament_format])
 
   const handleSelectPlayer = (player, teamId, variant) => {
-    // If user clicked same player, toggle off
+    // When parent provides onTapPlayer callback, use it to open the EventTypePicker modal
+    if (onTapPlayer) {
+      onTapPlayer(player, teamId, variant)
+      return
+    }
+    // Otherwise fallback to toggling docked bottom action bar
     if (selectedPlayerState?.player?.id === player.id) {
       setSelectedPlayerState(null)
       return
     }
     setSelectedPlayerState({ player, teamId, variant })
-    // Also trigger parent tapPlayer callback if standard behavior desired
-    if (onTapPlayer) onTapPlayer(player, teamId)
   }
 
   const handleAction = (type) => {

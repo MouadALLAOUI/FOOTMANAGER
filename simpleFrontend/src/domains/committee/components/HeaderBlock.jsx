@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
-import { ChevronDown, Info, X } from 'lucide-react'
+import { ChevronDown, Info, Link2, X } from 'lucide-react'
 import { formatTime, matchDay } from '../../../lib/adapters'
 
-export default function HeaderBlock({ t, homeName, awayName, tournament, fixture, onClose }) {
+export default function HeaderBlock({ t, homeName, awayName, tournament, fixture, onClose, onDelegatedLink }) {
   const [showMeta, setShowMeta] = useState(false)
 
   return (
@@ -17,6 +17,16 @@ export default function HeaderBlock({ t, homeName, awayName, tournament, fixture
           <p className="mt-0.5 text-[11px] font-semibold text-slate-400">{t('committee.result.title')}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {onDelegatedLink && (
+            <button
+              type="button"
+              onClick={onDelegatedLink}
+              className="grid size-9 shrink-0 place-items-center rounded-xl text-emerald-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
+              title="رابط تسجيل المباراة السري للمندوب"
+            >
+              <Link2 className="size-5" />
+            </button>
+          )}
           <button
             type="button"
             aria-expanded={showMeta}

@@ -24,6 +24,7 @@ import NotesMvpTab from '../../../domains/committee/components/NotesMvpTab'
 import PlayersTab from '../../../domains/committee/components/PlayersTab'
 import PresenceTab from '../../../domains/committee/components/PresenceTab'
 import PlayerSelector from '../../../domains/committee/components/PlayerSelector'
+import DelegatedMatchLinkModal from '../../../domains/committee/components/DelegatedMatchLinkModal'
 import { QUICK_ACTIONS, REFEREE_ROLES } from '../../../data/matchConstants'
 import useScrollLock from '../../../components/useScrollLock'
 
@@ -137,6 +138,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [activeTab, setActiveTab] = useState('timeline')
   const [foulNotifCount, setFoulNotifCount] = useState(0)
   const [convertTarget, setConvertTarget] = useState(null)
+  const [delegatedLinkOpen, setDelegatedLinkOpen] = useState(false)
 
   const editMinMinute = useMemo(() => {
     if (!editingKey || !events.length) return 0
@@ -935,7 +937,15 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
 
   return (
     <ModalShell onClose={onClose}>
-      <HeaderBlock t={t} homeName={homeName} awayName={awayName} tournament={tournament} fixture={fixture} onClose={onClose} />
+      <HeaderBlock
+        t={t}
+        homeName={homeName}
+        awayName={awayName}
+        tournament={tournament}
+        fixture={fixture}
+        onClose={onClose}
+        onDelegatedLink={() => setDelegatedLinkOpen(true)}
+      />
 
       <ScoreActions
         displayScore={displayScore}
@@ -1214,6 +1224,15 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
             </div>
           </div>
         </div>
+      )}
+
+      {delegatedLinkOpen && (
+        <DelegatedMatchLinkModal
+          isOpen={delegatedLinkOpen}
+          onClose={() => setDelegatedLinkOpen(false)}
+          tournamentId={tournament.id}
+          fixture={fixture}
+        />
       )}
     </ModalShell>
   )

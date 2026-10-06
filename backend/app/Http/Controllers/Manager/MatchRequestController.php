@@ -699,7 +699,7 @@ class MatchRequestController extends Controller
             ->orderByDesc('is_essential')
             ->orderBy('name')
             ->limit(240)
-            ->get(['id', 'team_id', 'name', 'number', 'position', 'is_essential']);
+            ->get(['id', 'team_id', 'name', 'number', 'position', 'is_essential', 'photo_path', 'photo_thumbnail_path']);
 
         $footballMatch = $matchRequest->footballMatch()->with([
             'events' => fn ($q) => $q->with(['team', 'player', 'assistPlayer'])->orderBy('minute')->orderBy('id'),
@@ -734,6 +734,8 @@ class MatchRequestController extends Controller
                 'number' => $lineup?->shirt_number ?? $p->number,
                 'position' => $lineup?->position ?? $p->position,
                 'is_essential' => (bool) $p->is_essential,
+                'photo_url' => $p->photo_url,
+                'photo_thumbnail_url' => $p->photo_thumbnail_url,
                 'attendance_status' => $attStatus,
                 'is_present' => $isPresent,
                 'is_absent' => $isAbsent,

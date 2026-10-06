@@ -49,7 +49,7 @@ class TournamentFixtureController extends Controller
         $query = Fixture::query()
             ->where('competition_id', $tournament->competition_id)
             ->where('season_id', $tournament->season_id)
-            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'byeTeam', 'stadium', 'match']);
+            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'byeTeam', 'stadium', 'match', 'delegatedToken', 'latestPendingSubmission']);
 
         $matchday = $request->integer('matchday');
         $roundId = $request->integer('round_id');

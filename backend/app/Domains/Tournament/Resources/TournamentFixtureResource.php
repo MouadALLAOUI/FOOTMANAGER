@@ -87,6 +87,32 @@ class TournamentFixtureResource extends JsonResource
                 'second_half_started_at' => $this->match->second_half_started_at?->toIso8601String(),
                 'ended_at' => $this->match->ended_at?->toIso8601String(),
             ] : null),
+            'delegated_link' => $this->whenLoaded('delegatedToken', fn () => $this->delegatedToken ? [
+                'id' => $this->delegatedToken->id,
+                'status' => $this->delegatedToken->status,
+                'valid_from' => $this->delegatedToken->valid_from?->toIso8601String(),
+                'valid_until' => $this->delegatedToken->valid_until?->toIso8601String(),
+                'recorder_name' => $this->delegatedToken->recorder_name,
+                'recorder_phone' => $this->delegatedToken->recorder_phone,
+            ] : null),
+            'delegated_submission' => $this->whenLoaded('latestPendingSubmission', fn () => $this->latestPendingSubmission ? [
+                'id' => $this->latestPendingSubmission->id,
+                'status' => $this->latestPendingSubmission->status,
+                'home_score' => $this->latestPendingSubmission->home_score,
+                'away_score' => $this->latestPendingSubmission->away_score,
+                'extra_time' => (bool) $this->latestPendingSubmission->extra_time,
+                'home_penalties' => $this->latestPendingSubmission->home_penalties,
+                'away_penalties' => $this->latestPendingSubmission->away_penalties,
+                'recorder_name' => $this->latestPendingSubmission->recorder_name,
+                'recorder_phone' => $this->latestPendingSubmission->recorder_phone,
+                'anomalies' => $this->latestPendingSubmission->anomalies ?? [],
+                'is_disputed' => (bool) $this->latestPendingSubmission->is_disputed,
+                'dispute_reason' => $this->latestPendingSubmission->dispute_reason,
+                'submitted_at' => $this->latestPendingSubmission->created_at?->toIso8601String(),
+                'events' => $this->latestPendingSubmission->events ?? [],
+                'notes' => $this->latestPendingSubmission->notes,
+                'client_meta' => $this->latestPendingSubmission->client_meta ?? [],
+            ] : null),
         ];
     }
 

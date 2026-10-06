@@ -87,12 +87,15 @@ use App\Http\Controllers\Committee\TournamentStadiumController;
 use App\Http\Controllers\Committee\TournamentStandingController;
 use App\Http\Controllers\Committee\TournamentStatisticsController;
 use App\Http\Controllers\Committee\TournamentTeamController;
+use App\Http\Controllers\Committee\DelegatedMatchLinkController;
 use App\Http\Controllers\Committee\TournamentContactController;
 use App\Http\Controllers\Committee\TournamentSponsorController;
+use App\Http\Controllers\Manager\ManagerFixtureDisputeController;
 use App\Http\Controllers\Manager\MatchFeedController;
 use App\Http\Controllers\Manager\ManagerLineupController;
 use App\Http\Controllers\Manager\MatchRequestController;
 use App\Http\Controllers\Manager\MatchResultController;
+use App\Http\Controllers\Public\PublicDelegatedMatchEntryController;
 use App\Http\Controllers\Manager\ManagerTeamController;
 use App\Http\Controllers\Manager\OnboardingController;
 use App\Http\Controllers\Manager\PlayerController;
@@ -203,6 +206,13 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/match-invitations/{token}', [\App\Http\Controllers\Public\MatchInvitationController::class, 'show']);
     Route::post('/match-invitations/{token}/apply-guest', [\App\Http\Controllers\Public\MatchInvitationController::class, 'applyGuest'])->middleware('throttle:match');
+
+    // Delegated match recorder routes (mobile-first, unauthenticated, rate-limited)
+    Route::middleware('throttle:60,1')->prefix('match-entry/{token}')->group(function () {
+        Route::get('/', [PublicDelegatedMatchEntryController::class, 'show']);
+        Route::post('/identify', [PublicDelegatedMatchEntryController::class, 'identify']);
+        Route::post('/submit', [PublicDelegatedMatchEntryController::class, 'submit']);
+    });
 
     Route::get('/teams/{team}/profile', [PublicTeamProfileController::class, 'show']);
     Route::get('/players/{player}/profile', [PublicPlayerProfileController::class, 'show']);
@@ -895,9 +905,17 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/fixtures/{fixture}/result', [TournamentResultController::class, 'store']);
                 Route::put('/fixtures/{fixture}/result', [TournamentResultController::class, 'update']);
                 Route::delete('/fixtures/{fixture}/result', [TournamentResultController::class, 'destroy']);
+
+                // Delegated match entry via secret link
+                Route::post('/fixtures/{fixture}/delegated-link', [DelegatedMatchLinkController::class, 'generate']);
+                Route::delete('/fixtures/{fixture}/delegated-link', [DelegatedMatchLinkController::class, 'revoke']);
+                Route::post('/fixtures/{fixture}/delegated-submission/approve', [DelegatedMatchLinkController::class, 'approve']);
+                Route::post('/fixtures/{fixture}/delegated-submission/reject', [DelegatedMatchLinkController::class, 'reject']);
             });
 
             Route::get('/fixtures/{fixture}/result', [TournamentResultController::class, 'show']);
+            Route::get('/fixtures/{fixture}/delegated-submission', [DelegatedMatchLinkController::class, 'showSubmission']);
+            Route::get('/delegated-submissions/pending', [DelegatedMatchLinkController::class, 'pendingSubmissions']);
 
             // Player Presence Confirmation (تأكيد حضور اللاعبين)
             Route::get('/fixtures/{fixture}/lineups', [TournamentFixtureLineupController::class, 'index']);
@@ -1012,6 +1030,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/manager/matches/{id}/submit-score', [MatchResultController::class, 'submitScore']);
                 Route::post('/manager/matches/{id}/confirm-score', [MatchResultController::class, 'confirmScore']);
                 Route::post('/manager/matches/{id}/dispute-score', [MatchResultController::class, 'disputeScore']);
+                Route::post('/manager/fixtures/{fixture}/dispute-result', [ManagerFixtureDisputeController::class, 'dispute']);
             });
 
             Route::get('/manager/matches/{matchId}/applicants', [PlayerRecruitController::class, 'applicants']);

@@ -31,6 +31,16 @@ class TournamentDetailResource extends JsonResource
                 ->count()
             : 0;
 
+        $pendingDelegatedCount = $this->competition_id && $seasonId
+            ? \App\Domains\Match\Models\MatchDelegatedSubmission::query()
+                ->where('status', 'pending')
+                ->whereHas('fixture', function ($q) use ($seasonId) {
+                    $q->where('competition_id', $this->competition_id)
+                      ->where('season_id', $seasonId);
+                })
+                ->count()
+            : 0;
+
         return [
             'id' => $this->id,
             'uuid' => $this->uuid,
@@ -113,8 +123,10 @@ class TournamentDetailResource extends JsonResource
                 'groups' => $this->groups_count,
                 'fixtures' => $fixturesCount,
                 'finished_matches' => $finishedMatches,
+                'pending_delegated_submissions' => $pendingDelegatedCount,
                 'champion_team_id' => ($this->plan ?? [])['champion_team_id'] ?? null,
             ],
+            'pending_delegated_count' => $pendingDelegatedCount,
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

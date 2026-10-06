@@ -16,6 +16,8 @@ import {
   RotateCcw,
   Ban,
   Clock4,
+  Link2,
+  ShieldAlert,
 } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 import TeamLogo from '../../../components/profile/TeamLogo'
@@ -80,6 +82,8 @@ export default function TournamentMatchCard({
   onRescheduleSuggestion,
   onCancel,
   onRestore,
+  onDelegatedLink,
+  onReviewSubmission,
   isUnassigning = false,
   busy = false,
   locked = false,
@@ -165,6 +169,19 @@ export default function TournamentMatchCard({
                   <Sparkles className="size-3 text-purple-500" />
                   <span>توقيت مستعار</span>
                 </span>
+              )}
+
+              {/* Pending Delegated Submission Badge */}
+              {fixture.delegated_submission && !isPlayed && (
+                <button
+                  type="button"
+                  onClick={() => onReviewSubmission && onReviewSubmission(fixture)}
+                  className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-900 animate-pulse hover:bg-amber-100 transition cursor-pointer"
+                  title="نتيجة مرسلة عبر المندوب بانتظار الاعتماد"
+                >
+                  <AlertCircle className="size-3 text-amber-600" />
+                  <span>بانتظار الاعتماد ({fixture.delegated_submission.home_score} - {fixture.delegated_submission.away_score})</span>
+                </button>
               )}
 
               {/* Finished Badge */}
@@ -287,6 +304,34 @@ export default function TournamentMatchCard({
 
       {/* Bottom Action Buttons Row */}
       <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
+        {/* Review Delegated Submission Button (if pending) */}
+        {fixture.delegated_submission && !isPlayed && onReviewSubmission && (
+          <Button
+            size="sm"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-1.5 text-xs font-black text-white shadow-xs"
+            onClick={() => onReviewSubmission(fixture)}
+            disabled={busy}
+          >
+            <ShieldAlert className="size-3.5" />
+            <span>مراجعة واعتماد نتيجة المندوب</span>
+          </Button>
+        )}
+
+        {/* Delegated Match Link Button (Organizer -> Referee / Volunteer) */}
+        {onDelegatedLink && !isPlayed && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1.5 rounded-xl border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+            onClick={() => onDelegatedLink(fixture)}
+            disabled={busy || locked}
+            title="إنشاء ومشاركة رابط تسجيل المباراة السري مع المندوب أو الحكم"
+          >
+            <Link2 className="size-3.5 text-emerald-600" />
+            <span>رابط تسجيل المباراة</span>
+          </Button>
+        )}
+
         {/* Play/Enter Result Button */}
         {onResult && !isPlayed && (
           <Button

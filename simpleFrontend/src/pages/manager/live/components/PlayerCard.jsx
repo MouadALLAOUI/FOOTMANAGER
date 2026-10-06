@@ -57,20 +57,34 @@ export default function PlayerCard({
         )}
       </div>
 
-      {/* Jersey visual with number or photo */}
+      {/* Player photo or Jersey visual */}
       <div className="mt-1 flex items-center justify-center">
-        <Jersey
-          number={player.number}
-          photoUrl={player.photo_thumbnail_url || player.photo_url}
-          variant={variant}
-          className="h-14 w-12 sm:h-16 sm:w-14"
-        />
+        {(player.photo_thumbnail_url || player.photo_url) ? (
+          <div className="relative">
+            <img
+              src={player.photo_thumbnail_url || player.photo_url}
+              alt={player.name}
+              className="size-14 rounded-2xl object-cover ring-2 ring-white shadow-sm sm:size-16"
+            />
+            {player.number != null && (
+              <span className="absolute -bottom-1 -end-1 flex size-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white shadow">
+                {player.number}
+              </span>
+            )}
+          </div>
+        ) : (
+          <Jersey
+            number={player.number}
+            variant={variant}
+            className="h-14 w-12 sm:h-16 sm:w-14"
+          />
+        )}
       </div>
 
       {/* Player name */}
       <div className="mt-2 w-full px-1">
         <p
-          className={`truncate text-xs font-bold leading-tight ${
+          className={`text-center text-xs font-bold leading-tight break-words ${
             selected
               ? 'text-emerald-950 font-black'
               : isRed

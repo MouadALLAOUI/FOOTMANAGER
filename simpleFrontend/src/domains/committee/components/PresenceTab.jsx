@@ -5,7 +5,7 @@ import api from '../../../api/client'
 
 // ─── Single player presence button ───────────────────────────────────────────
 
-function PlayerPresenceRow({ player, teamId, fixtureId, tournamentId, confirmed: initialConfirmed, t }) {
+function PlayerPresenceRow({ player, teamId, fixtureId, tournamentId, confirmed: initialConfirmed, onToggle, t }) {
   const [confirmed, setConfirmed] = useState(initialConfirmed)
   const [busy, setBusy] = useState(false)
 
@@ -15,8 +15,13 @@ function PlayerPresenceRow({ player, teamId, fixtureId, tournamentId, confirmed:
 
   const toggle = async () => {
     if (busy) return
-    setBusy(true)
     const next = !confirmed
+    if (onToggle) {
+      onToggle(player.id, teamId, next)
+      setConfirmed(next)
+      return
+    }
+    setBusy(true)
     try {
       await api.post(
         `/committee/tournaments/${tournamentId}/fixtures/${fixtureId}/lineups/confirm`,
@@ -85,7 +90,7 @@ function PlayerPresenceRow({ player, teamId, fixtureId, tournamentId, confirmed:
 
 // ─── One team column ──────────────────────────────────────────────────────────
 
-function TeamPresenceColumn({ teamId, name, team, players, confirmedIds, tournamentId, fixtureId, t }) {
+function TeamPresenceColumn({ teamId, name, team, players, confirmedIds, tournamentId, fixtureId, onToggle, t }) {
   const list = players || []
   const confirmedCount = list.filter((p) => confirmedIds.has(p.id)).length
 
@@ -128,6 +133,7 @@ function TeamPresenceColumn({ teamId, name, team, players, confirmedIds, tournam
             fixtureId={fixtureId}
             tournamentId={tournamentId}
             confirmed={confirmedIds.has(p.id)}
+            onToggle={onToggle}
             t={t}
           />
         ))}
@@ -149,14 +155,20 @@ export default function PresenceTab({
   awayRoster,
   tournamentId,
   fixtureId,
+  confirmedHome: propConfirmedHome,
+  confirmedAway: propConfirmedAway,
+  onTogglePlayer,
   t,
 }) {
   const [confirmedHome, setConfirmedHome] = useState(new Set())
   const [confirmedAway, setConfirmedAway] = useState(new Set())
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!propConfirmedHome)
+
+  const activeConfirmedHome = propConfirmedHome || confirmedHome
+  const activeConfirmedAway = propConfirmedAway || confirmedAway
 
   const load = useCallback(async () => {
-    if (!tournamentId || !fixtureId) return
+    if (propConfirmedHome || !tournamentId || !fixtureId) return
     try {
       const r = await api.get(`/committee/tournaments/${tournamentId}/fixtures/${fixtureId}/lineups`)
       const data = r.data?.data
@@ -167,7 +179,7 @@ export default function PresenceTab({
     } finally {
       setLoading(false)
     }
-  }, [tournamentId, fixtureId])
+  }, [tournamentId, fixtureId, propConfirmedHome])
 
   useEffect(() => {
     load()
@@ -187,7 +199,7 @@ export default function PresenceTab({
       <div className="flex items-start gap-2 rounded-xl border border-blue-100 bg-blue-50/60 px-3 py-2.5">
         <span className="mt-0.5 text-base leading-none">🛡️</span>
         <p className="text-[11px] font-semibold text-blue-700">
-          {t('committee.presence.infoBanner')}
+          {t('committee.presence.infoBanner', 'تأكيد حضور اللاعبين المؤهلين للمباراة قبل أو أثناء التسجيل')}
         </p>
       </div>
 
@@ -197,9 +209,10 @@ export default function PresenceTab({
           name={homeName}
           team={homeTeam}
           players={homeRoster}
-          confirmedIds={confirmedHome}
+          confirmedIds={activeConfirmedHome}
           tournamentId={tournamentId}
           fixtureId={fixtureId}
+          onToggle={onTogglePlayer}
           t={t}
         />
         <TeamPresenceColumn
@@ -207,9 +220,10 @@ export default function PresenceTab({
           name={awayName}
           team={awayTeam}
           players={awayRoster}
-          confirmedIds={confirmedAway}
+          confirmedIds={activeConfirmedAway}
           tournamentId={tournamentId}
           fixtureId={fixtureId}
+          onToggle={onTogglePlayer}
           t={t}
         />
       </div>

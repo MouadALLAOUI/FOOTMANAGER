@@ -24,7 +24,7 @@ use Illuminate\Validation\ValidationException;
  */
 class TournamentSquadService
 {
-    public function __construct(private readonly ?ImageThumbnailService $images = null)
+    public function __construct(private readonly ImageThumbnailService $images)
     {
     }
 
@@ -301,37 +301,45 @@ class TournamentSquadService
             if ($name === '') {
                 $errors['name'] = 'اسم اللاعب مطلوب';
             } else {
-                $nameTaken = Player::query()
-                    ->where('team_id', $team->id)
-                    ->where('id', '!=', $player->id)
-                    ->get(['id', 'name'])
-                    ->contains(fn (Player $p) => mb_strtolower((string) $p->name) === mb_strtolower($name));
+                $hasNameChanged = mb_strtolower((string) $player->name) !== mb_strtolower($name);
+                if ($hasNameChanged) {
+                    $nameTaken = Player::query()
+                        ->where('team_id', $team->id)
+                        ->where('id', '!=', $player->id)
+                        ->get(['id', 'name'])
+                        ->contains(fn (Player $p) => mb_strtolower((string) $p->name) === mb_strtolower($name));
 
-                if ($nameTaken) {
-                    $errors['name'] = 'يوجد لاعب آخر بنفس الاسم في الفريق';
-                } else {
-                    $update['name'] = $name;
+                    if ($nameTaken) {
+                        $errors['name'] = 'يوجد لاعب آخر بنفس الاسم في الفريق';
+                    } else {
+                        $update['name'] = $name;
+                    }
                 }
             }
         }
 
         if (array_key_exists('number', $data)) {
-            $number = ($data['number'] ?? null) !== null ? (int) $data['number'] : null;
+            $number = ($data['number'] ?? null) !== null && $data['number'] !== '' ? (int) $data['number'] : null;
 
             if ($number !== null && $number > 0) {
-                $numberTaken = Player::query()
-                    ->where('team_id', $team->id)
-                    ->where('id', '!=', $player->id)
-                    ->where('number', $number)
-                    ->exists();
+                $hasNumberChanged = $player->number === null || (int) $player->number !== $number;
+                if ($hasNumberChanged) {
+                    $numberTaken = Player::query()
+                        ->where('team_id', $team->id)
+                        ->where('id', '!=', $player->id)
+                        ->where('number', $number)
+                        ->exists();
 
-                if ($numberTaken) {
-                    $errors['number'] = 'رقم القميص محجوز من قبل لاعب آخر';
-                } else {
-                    $update['number'] = $number;
+                    if ($numberTaken) {
+                        $errors['number'] = 'رقم القميص محجوز من قبل لاعب آخر';
+                    } else {
+                        $update['number'] = $number;
+                    }
                 }
             } else {
-                $update['number'] = $number;
+                if ($player->number !== null) {
+                    $update['number'] = null;
+                }
             }
         }
 

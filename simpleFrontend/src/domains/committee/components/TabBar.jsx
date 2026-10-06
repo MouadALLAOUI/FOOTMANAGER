@@ -13,7 +13,7 @@ export default function TabBar({ tabs, active, onChange, t }) {
             aria-selected={selected}
             onClick={() => onChange(tab.id)}
             className={`inline-flex min-h-[40px] min-w-[max-content] flex-1 items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-black transition-all ${
-              selected ? 'bg-white text-green-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)]' : 'text-slate-500 hover:text-slate-700'
+              selected ? 'bg-white text-emerald-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)] ring-2 ring-emerald-500' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <span className="text-base leading-none">{tab.icon}</span>

@@ -26,7 +26,7 @@ function fixtureStatus(f) {
   return 'pending'
 }
 
-export default function MatchCard({ f, number, busy, locked, tournament, prevRoundKey, prevData, onOpenPrev, onResult, onDetails, onReschedule, onPostpone, onCancel, onRestore, layoutMode, draft, teamById, onStageSlot, slotErrors }) {
+export default function MatchCard({ f, number, busy, locked, tournament, prevRoundKey, prevData, onOpenPrev, onResult, onDetails, onReschedule, onPostpone, onCancel, onRestore, onDelegatedLink, onReviewSubmission, layoutMode, draft, teamById, onStageSlot, slotErrors }) {
   const { t, i18n } = useTranslation()
   const [prevOpen, setPrevOpen] = useState(false)
   useEffect(() => { setPrevOpen(false) }, [prevRoundKey])
@@ -61,6 +61,8 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
           onPostpone={onPostpone ? () => onPostpone(f) : undefined}
           onCancel={onCancel ? () => onCancel(f) : undefined}
           onRestore={onRestore ? () => onRestore(f) : undefined}
+          onDelegatedLink={onDelegatedLink ? () => onDelegatedLink(f) : undefined}
+          onReviewSubmission={onReviewSubmission ? () => onReviewSubmission(f) : undefined}
         />
         {prevRoundKey && (
           <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white">

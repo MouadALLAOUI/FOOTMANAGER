@@ -25,7 +25,7 @@ class CommitteeTeamPlayerController extends Controller
             ->orderBy('is_essential', 'desc')
             ->orderBy('name')
             ->limit(120)
-            ->get(['id', 'team_id', 'name', 'number', 'position', 'is_essential']);
+            ->get(['id', 'team_id', 'name', 'number', 'position', 'is_essential', 'photo_path', 'photo_thumbnail_path']);
 
         return response()->json(['data' => $players]);
     }
@@ -56,7 +56,7 @@ class CommitteeTeamPlayerController extends Controller
         ]);
 
         return response()->json([
-            'data' => $player->only(['id', 'team_id', 'name', 'number', 'position', 'is_essential']),
+            'data' => $player->only(['id', 'team_id', 'name', 'number', 'position', 'is_essential', 'photo_url', 'photo_thumbnail_url']),
             'created' => true,
             'duplicates' => $duplicates->values(),
             'message' => 'تمت إضافة اللاعب إلى قائمة الفريق',

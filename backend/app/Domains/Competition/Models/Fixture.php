@@ -121,4 +121,23 @@ class Fixture extends Model
     {
         return $this->belongsTo(Team::class, 'bye_team_id')->withTrashed();
     }
+
+    public function delegatedToken(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Domains\Match\Models\MatchDelegatedToken::class, 'fixture_id')
+            ->where('is_revoked', false)
+            ->latestOfMany();
+    }
+
+    public function delegatedSubmissions(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Match\Models\MatchDelegatedSubmission::class, 'fixture_id');
+    }
+
+    public function latestPendingSubmission(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Domains\Match\Models\MatchDelegatedSubmission::class, 'fixture_id')
+            ->where('status', 'pending')
+            ->latestOfMany();
+    }
 }

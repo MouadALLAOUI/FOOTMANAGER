@@ -43,6 +43,8 @@ import LeagueAssignmentPanel from '../../../domains/committee/components/LeagueA
 import LeagueWeekSelector from '../../../domains/committee/components/LeagueWeekSelector'
 import { computeLeagueWeeks, getDefaultWeekId, groupFixturesByDay } from '../../../domains/committee/utils/leagueWeeks'
 import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
+import DelegatedMatchLinkModal from '../../../domains/committee/components/DelegatedMatchLinkModal'
+import DelegatedSubmissionReviewModal from '../../../domains/committee/components/DelegatedSubmissionReviewModal'
 
 
 function fixtureStatus(f) {
@@ -109,6 +111,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const [resultFixture, setResultFixture] = useState(null)
   const [detailsFixture, setDetailsFixture] = useState(null)
   const [rescheduleFixture, setRescheduleFixture] = useState(null)
+  const [delegatedLinkFixture, setDelegatedLinkFixture] = useState(null)
+  const [reviewSubmissionFixture, setReviewSubmissionFixture] = useState(null)
   const [busy, setBusy] = useState(null)
   const [prevState, setPrevState] = useState(null)
   const [form, setForm] = useState({
@@ -1258,6 +1262,33 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           }}
         />
       )}
+
+      {delegatedLinkFixture && (
+        <DelegatedMatchLinkModal
+          isOpen={Boolean(delegatedLinkFixture)}
+          onClose={() => setDelegatedLinkFixture(null)}
+          tournamentId={tournament.id}
+          fixture={delegatedLinkFixture}
+          onTokenChanged={afterChange}
+        />
+      )}
+
+      {reviewSubmissionFixture && (
+        <DelegatedSubmissionReviewModal
+          isOpen={Boolean(reviewSubmissionFixture)}
+          onClose={() => setReviewSubmissionFixture(null)}
+          tournamentId={tournament.id}
+          fixture={reviewSubmissionFixture}
+          onApproved={() => {
+            setReviewSubmissionFixture(null)
+            afterChange()
+          }}
+          onRejected={() => {
+            setReviewSubmissionFixture(null)
+            afterChange()
+          }}
+        />
+      )}
     </>
   )
 
@@ -1596,6 +1627,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                       onPostpone={() => postponeMatch(f)}
                       onCancel={() => cancelMatch(f)}
                       onRestore={() => restoreMatch(f)}
+                      onDelegatedLink={() => setDelegatedLinkFixture(f)}
+                      onReviewSubmission={() => setReviewSubmissionFixture(f)}
                       layoutMode={layoutMode}
                       draft={draft}
                       teamById={teamById}

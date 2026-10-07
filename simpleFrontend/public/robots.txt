@@ -18,4 +18,4 @@ Disallow: /onboarding
 Disallow: /auth/callback
 
 # Sitemap location
-Sitemap: https://ajin9essro.com/sitemap.xml
+Sitemap: https://www.ajin9essro.com/sitemap.xml

@@ -1,8 +1,30 @@
 import { useState } from 'react'
-import { Flag, Menu, Play, RefreshCw, StepForward } from 'lucide-react'
+import { Flag, Menu, Pause, Play, RefreshCw, StepForward, Clock } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 
-export default function FooterActions({ saveError, retryRef, saving, saveDraft, setConfirmOpen, onClose, matchNotStarted, isLiveMatch, alreadyFinished, runMatch, postCurrentResult, showHalftime, showStartSecondHalf, onHalftime, onStartSecondHalf, onQuickFinish, t }) {
+export default function FooterActions({
+  saveError,
+  retryRef,
+  saving,
+  saveDraft,
+  setConfirmOpen,
+  onClose,
+  matchNotStarted,
+  isLiveMatch,
+  alreadyFinished,
+  runMatch,
+  postCurrentResult,
+  showHalftime,
+  showStartSecondHalf,
+  onHalftime,
+  onStartSecondHalf,
+  onQuickFinish,
+  isPaused = false,
+  onTogglePause,
+  timerText = null,
+  canFinishMatch = false,
+  t,
+}) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   // Contextual primary action — the one correct button for the current state.
@@ -14,6 +36,7 @@ export default function FooterActions({ saveError, retryRef, saving, saveDraft, 
   } else if (isLiveMatch) {
     if (showHalftime) primary = { key: 'half', icon: <Flag className="size-4" />, label: t('committee.result.toHalftime'), action: onHalftime, variant: 'outline' }
     else if (showStartSecondHalf) primary = { key: 'second', icon: <StepForward className="size-4" />, label: t('committee.result.startSecondHalf'), action: onStartSecondHalf, variant: null }
+    else if (canFinishMatch) primary = { key: 'finish', icon: null, label: t('committee.result.finishMatch'), action: () => setConfirmOpen(true), variant: null }
     else primary = { key: 'post', icon: null, label: t('committee.result.postCurrentResult'), action: postCurrentResult, variant: null }
   }
 
@@ -30,6 +53,33 @@ export default function FooterActions({ saveError, retryRef, saving, saveDraft, 
       )}
 
       <div className="flex items-center gap-2">
+        {/* Timer Clock Badge at bottom */}
+        {isLiveMatch && timerText && (
+          <div className={`flex items-center gap-1.5 px-3 h-12 rounded-xl border text-xs font-mono font-black tabular-nums transition-colors ${
+            isPaused ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-slate-900 border-slate-900 text-white'
+          }`}>
+            <Clock className={`size-3.5 ${!isPaused ? 'animate-pulse text-emerald-400' : ''}`} />
+            <span>{timerText}</span>
+          </div>
+        )}
+
+        {/* Pause / Resume Button */}
+        {isLiveMatch && !alreadyFinished && onTogglePause && (
+          <button
+            type="button"
+            onClick={onTogglePause}
+            className={`h-12 px-3.5 rounded-xl font-black text-xs flex items-center gap-1.5 transition-all select-none shadow-xs active:scale-95 ${
+              isPaused
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
+                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+            }`}
+            title={isPaused ? 'استئناف المؤقت' : 'إيقاف مؤقت'}
+          >
+            {isPaused ? <Play className="size-4 fill-current" /> : <Pause className="size-4 fill-current" />}
+            <span className="hidden sm:inline">{isPaused ? 'استئناف' : 'إيقاف مؤقت'}</span>
+          </button>
+        )}
+
         {primary ? (
           <Button
             className="h-12 flex-1 min-w-0 text-sm"
@@ -46,9 +96,9 @@ export default function FooterActions({ saveError, retryRef, saving, saveDraft, 
           </Button>
         )}
 
-        {/* Quick "Save & finish" — persists the result and marks the match finished */}
-        {!alreadyFinished && onQuickFinish && (
-          <Button className="h-12 shrink-0 text-sm" variant="outline" loading={saving} onClick={onQuickFinish}>
+        {/* Finish match button appears ONLY when finished or allowed at end of second half */}
+        {!alreadyFinished && canFinishMatch && onQuickFinish && (
+          <Button className="h-12 shrink-0 text-sm font-black bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md ring-2 ring-emerald-500/20" loading={saving} onClick={onQuickFinish}>
             {t('committee.result.finishMatch')}
           </Button>
         )}

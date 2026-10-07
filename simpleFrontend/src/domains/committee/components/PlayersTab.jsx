@@ -163,23 +163,48 @@ function TeamRosterSection({
     return list
   }, [players, confirmedList])
 
-  // Split into starters and substitutes
-  const { starters, bench } = useMemo(() => {
+  // Split into starters and substitutes, taking into account any substitutions recorded in events
+  const { onPitch, bench, subbedOut } = useMemo(() => {
     const targetStarters = startersCount || 5
-    // If explicit is_starter flags exist
     const hasExplicitStarters = eligiblePlayers.some((p) => p.is_starter)
-    if (hasExplicitStarters) {
-      return {
-        starters: eligiblePlayers.filter((p) => p.is_starter),
-        bench: eligiblePlayers.filter((p) => !p.is_starter),
-      }
+    const initialStarters = hasExplicitStarters
+      ? eligiblePlayers.filter((p) => p.is_starter)
+      : eligiblePlayers.slice(0, targetStarters)
+    const initialBench = hasExplicitStarters
+      ? eligiblePlayers.filter((p) => !p.is_starter)
+      : eligiblePlayers.slice(targetStarters)
+
+    // Find substitutions for this team in events
+    const teamSubs = (events || []).filter(
+      (e) => e.type === 'substitution' && Number(e.team_id) === Number(teamId)
+    )
+
+    const outIds = new Set()
+    const inIds = new Set()
+    for (const sub of teamSubs) {
+      if (sub.player_id) outIds.add(Number(sub.player_id))
+      if (sub.assist_player_id) inIds.add(Number(sub.assist_player_id))
     }
-    // Otherwise partition first N as starters, remainder as bench
+
+    // Players active on the pitch: initial starters not subbed out + bench players subbed in (and not subsequently subbed out)
+    const startersRemaining = initialStarters.filter((p) => !outIds.has(Number(p.id)))
+    const benchSubbedIn = initialBench.filter((p) => inIds.has(Number(p.id)) && !outIds.has(Number(p.id)))
+    const activePitch = [...startersRemaining, ...benchSubbedIn]
+
+    // Bench players: initial bench players who have not entered the pitch yet and were not subbed out
+    const remainingBench = initialBench.filter(
+      (p) => !inIds.has(Number(p.id)) && !outIds.has(Number(p.id))
+    )
+
+    // Substituted players: any player who was subbed out
+    const allOut = eligiblePlayers.filter((p) => outIds.has(Number(p.id)))
+
     return {
-      starters: eligiblePlayers.slice(0, targetStarters),
-      bench: eligiblePlayers.slice(targetStarters),
+      onPitch: activePitch,
+      bench: remainingBench,
+      subbedOut: allOut,
     }
-  }, [eligiblePlayers, startersCount])
+  }, [eligiblePlayers, startersCount, events, teamId])
 
   const totalEligible = eligiblePlayers.length
   const limitDisplay = rosterLimit ? `${totalEligible}/${rosterLimit}` : `${totalEligible}`
@@ -197,18 +222,23 @@ function TeamRosterSection({
           <h3 className="truncate text-base font-black text-slate-900">{name}</h3>
         </div>
 
-        {/* Badges: Total Limit, Starters count, Bench count */}
+        {/* Badges: Total Limit, On pitch count, Bench count */}
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <span className="flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1 font-black text-slate-700">
             <Users className="size-3.5" />
             <span>لاعبو المباراة ({limitDisplay})</span>
           </span>
-          <span className="rounded-xl bg-slate-100 px-2 py-1 font-bold text-slate-600">
-            {starters.length} أساسيين
+          <span className="rounded-xl bg-emerald-50 text-emerald-800 px-2 py-1 font-bold">
+            {onPitch.length} بالملعب
           </span>
-          <span className="rounded-xl bg-slate-100 px-2 py-1 font-bold text-slate-600">
+          <span className="rounded-xl bg-sky-50 text-sky-800 px-2 py-1 font-bold">
             {bench.length} احتياط
           </span>
+          {subbedOut.length > 0 && (
+            <span className="rounded-xl bg-slate-100 text-slate-600 px-2 py-1 font-bold">
+              {subbedOut.length} مستبدلون
+            </span>
+          )}
         </div>
       </div>
 
@@ -255,22 +285,22 @@ function TeamRosterSection({
         </button>
       )}
 
-      {/* Section 1: Starters (الأساسيون) */}
+      {/* Section 1: On Pitch (اللاعبون في أرضية الملعب) */}
       <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
         <div className="mb-2 flex items-center gap-1.5 text-xs font-black text-emerald-900">
           <span className="grid size-5 place-items-center rounded-lg bg-emerald-600 text-[11px] text-white">
             ⚽
           </span>
-          <span>({starters.length}) الأساسيون</span>
+          <span>({onPitch.length}) في أرضية الملعب</span>
         </div>
 
-        {starters.length === 0 ? (
+        {onPitch.length === 0 ? (
           <p className="py-4 text-center text-xs font-semibold text-slate-400">
-            لا يوجد لاعبين أساسيين مسجلين
+            لا يوجد لاعبين في الملعب
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-            {starters.map((player) => {
+            {onPitch.map((player) => {
               const blocked = (suspendedIds || []).includes(player.id) || (redCardedIds || []).includes(player.id)
               const busy = busyId === player.id
               const isSelected = selectedPlayerId === player.id
@@ -285,7 +315,7 @@ function TeamRosterSection({
                   blocked={blocked}
                   busy={busy}
                   stats={stats}
-                  onClick={() => onSelectPlayer(player, teamId, teamVariant)}
+                  onClick={() => onSelectPlayer(player, teamId, teamVariant, bench)}
                 />
               )
             })}
@@ -293,18 +323,18 @@ function TeamRosterSection({
         )}
       </div>
 
-      {/* Section 2: Substitutes (الاحتياط) */}
+      {/* Section 2: Substitutes (دكة الاحتياط) */}
       <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-3">
         <div className="mb-2 flex items-center gap-1.5 text-xs font-black text-sky-900">
           <span className="grid size-5 place-items-center rounded-lg bg-sky-600 text-[11px] text-white">
             🔄
           </span>
-          <span>({bench.length}) الاحتياط</span>
+          <span>({bench.length}) دكة الاحتياط</span>
         </div>
 
         {bench.length === 0 ? (
           <p className="py-4 text-center text-xs font-semibold text-slate-400">
-            لا يوجد لاعبين بدلاء
+            لا يوجد لاعبين في دكة الاحتياط
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
@@ -323,13 +353,43 @@ function TeamRosterSection({
                   blocked={blocked}
                   busy={busy}
                   stats={stats}
-                  onClick={() => onSelectPlayer(player, teamId, teamVariant)}
+                  onClick={() => onSelectPlayer(player, teamId, teamVariant, bench)}
                 />
               )
             })}
           </div>
         )}
       </div>
+
+      {/* Section 3: Substituted Out (المستبدلون) */}
+      {subbedOut.length > 0 && (
+        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-3 opacity-80">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-black text-slate-600">
+            <span className="grid size-5 place-items-center rounded-lg bg-slate-400 text-[11px] text-white">
+              ↩️
+            </span>
+            <span>({subbedOut.length}) اللاعبون المستبدلون (خارج الملعب)</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+            {subbedOut.map((player) => {
+              const stats = playerStats[player.id] || { goals: 0, yellowCard: false, redCard: false }
+              return (
+                <MatchPlayerCard
+                  key={player.id}
+                  player={player}
+                  teamVariant={teamVariant}
+                  isSelected={false}
+                  blocked={true}
+                  busy={false}
+                  stats={stats}
+                  onClick={() => {}}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -480,10 +540,10 @@ export default function PlayersTab({
     return 5
   }, [tournament?.tournament_format])
 
-  const handleSelectPlayer = (player, teamId, variant) => {
-    // When parent provides onTapPlayer callback, use it to open the EventTypePicker modal
+  const handleSelectPlayer = (player, teamId, variant, bench = []) => {
+    // When parent provides onTapPlayer callback, use it to open the OneTapEventSheet
     if (onTapPlayer) {
-      onTapPlayer(player, teamId, variant)
+      onTapPlayer(player, teamId, variant, bench)
       return
     }
     // Otherwise fallback to toggling docked bottom action bar
@@ -491,7 +551,7 @@ export default function PlayersTab({
       setSelectedPlayerState(null)
       return
     }
-    setSelectedPlayerState({ player, teamId, variant })
+    setSelectedPlayerState({ player, teamId, variant, bench })
   }
 
   const handleAction = (type) => {

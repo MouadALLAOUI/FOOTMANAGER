@@ -25,6 +25,7 @@ import PlayersTab from '../../../domains/committee/components/PlayersTab'
 import PresenceTab from '../../../domains/committee/components/PresenceTab'
 import PlayerSelector from '../../../domains/committee/components/PlayerSelector'
 import DelegatedMatchLinkModal from '../../../domains/committee/components/DelegatedMatchLinkModal'
+import OneTapEventSheet from '../../../domains/committee/components/OneTapEventSheet'
 import { QUICK_ACTIONS, REFEREE_ROLES } from '../../../data/matchConstants'
 import useScrollLock from '../../../components/useScrollLock'
 
@@ -140,6 +141,17 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [convertTarget, setConvertTarget] = useState(null)
   const [delegatedLinkOpen, setDelegatedLinkOpen] = useState(false)
 
+  // One-Tap Event Recording & Timer Pause states
+  const [isPaused, setIsPaused] = useState(false)
+  const [pauseStartMs, setPauseStartMs] = useState(null)
+  const [accumulatedPauseMs, setAccumulatedPauseMs] = useState(0)
+  const [oneTapSheetOpen, setOneTapSheetOpen] = useState(false)
+  const [oneTapPlayer, setOneTapPlayer] = useState(null)
+  const [oneTapTeamId, setOneTapTeamId] = useState(null)
+  const [oneTapVariant, setOneTapVariant] = useState('home')
+  const [oneTapBench, setOneTapBench] = useState([])
+  const lastTapRef = useRef(null)
+
   const editMinMinute = useMemo(() => {
     if (!editingKey || !events.length) return 0
     const sorted = [...events].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0) || (Number(a.added_time) || 0) - (Number(b.added_time) || 0))
@@ -174,13 +186,28 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   }, [onClose, confirmOpen])
 
   useEffect(() => {
-    if (!timerCfg.activeHalf) return
+    if (!timerCfg.activeHalf || isPaused) return
     const id = setInterval(() => setTick((v) => v + 1), 1000)
     return () => clearInterval(id)
-  }, [timerCfg.activeHalf])
+  }, [timerCfg.activeHalf, isPaused])
+
+  const togglePauseTimer = () => {
+    if (isPaused) {
+      if (pauseStartMs) {
+        setAccumulatedPauseMs((prev) => prev + (Date.now() - pauseStartMs))
+      }
+      setPauseStartMs(null)
+      setIsPaused(false)
+      toast.success(t('committee.result.timerResumed', 'تم استئناف المؤقت'))
+    } else {
+      setPauseStartMs(Date.now())
+      setIsPaused(true)
+      toast.info(t('committee.result.timerPaused', 'تم إيقاف المؤقت مؤقتاً'))
+    }
+  }
 
   const elapsedSec = timerCfg.activeHalf && timerCfg.halfStartMs
-    ? Math.max(0, Math.floor((Date.now() - timerCfg.halfStartMs) / 1000))
+    ? Math.max(0, Math.floor(((isPaused && pauseStartMs ? pauseStartMs : Date.now()) - timerCfg.halfStartMs - accumulatedPauseMs) / 1000))
     : 0
   const halfDurationSec = Math.round(timerCfg.halfDurationMinutes * 60)
   const displayClockSec = timerCfg.activeHalf === 'second'
@@ -368,12 +395,118 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     }
   }
 
-  const tapPlayer = (player, teamId) => {
+  const tapPlayer = (player, teamId, variant = 'home', bench = []) => {
     if (quickBusyId != null) return
     const blocked = (suspendedByTeam[teamId] || []).includes(player.id) || (redCardedIds[teamId] || []).includes(player.id)
     if (blocked) return
-    setQuickPlayer({ player, teamId })
-    setPickerOpen(true)
+    setOneTapPlayer(player)
+    setOneTapTeamId(teamId)
+    setOneTapVariant(variant)
+    setOneTapBench(bench)
+    setOneTapSheetOpen(true)
+  }
+
+  const handleOneTapRecord = async (type, player, teamId) => {
+    if (matchNotStarted || isPaused) return
+    const now = Date.now()
+    if (lastTapRef.current && (now - lastTapRef.current.ts < 500) && lastTapRef.current.pid === player.id && lastTapRef.current.type === type) {
+      return
+    }
+    lastTapRef.current = { ts: now, pid: player.id, type }
+
+    const curHalf = timerCfg.activeHalf || 'first'
+    const relMin = currentLiveMinute > 0 ? currentLiveMinute : 1
+    const tid = Number(teamId)
+    const pid = player.id
+
+    let evType = type
+    let punishment = ''
+
+    if (type === 'goal') {
+      evType = 'goal'
+    } else if (type === 'foul') {
+      evType = 'foul'
+      punishment = 'none'
+    } else if (type === 'yellow_card') {
+      const alreadyYellow = events.some((e) =>
+        e.player_id === pid && (
+          e.type === 'yellow_card' ||
+          (e.type === 'foul' && e.punishment === 'yellow')
+        )
+      )
+      if (alreadyYellow) {
+        evType = 'foul'
+        punishment = 'second_yellow'
+      } else {
+        evType = 'foul'
+        punishment = 'yellow'
+      }
+    } else if (type === 'red_card') {
+      evType = 'foul'
+      punishment = 'red'
+    }
+
+    const newEv = {
+      _key: uid(),
+      type: evType,
+      team_id: tid,
+      player_id: pid,
+      player: player.name,
+      assist_player_id: null,
+      assist_player: '',
+      minute: relMin,
+      added_time: 0,
+      half: curHalf,
+      goalType: evType === 'goal' ? 'regular' : undefined,
+      punishment: punishment,
+      description: player.name,
+    }
+
+    const nextEvents = [...events, newEv].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0))
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+    retryRef.current = () => persist({ events: nextEvents })
+    const ok = await persist({ events: nextEvents })
+    if (ok) {
+      setSuccessTick(newEv._key)
+    }
+  }
+
+  const handleOneTapSubstitute = async (playerOut, playerIn, teamId) => {
+    if (matchNotStarted || isPaused) return
+    const now = Date.now()
+    if (lastTapRef.current && (now - lastTapRef.current.ts < 500) && lastTapRef.current.pid === playerOut.id && lastTapRef.current.type === 'substitution') {
+      return
+    }
+    lastTapRef.current = { ts: now, pid: playerOut.id, type: 'substitution' }
+
+    const curHalf = timerCfg.activeHalf || 'first'
+    const relMin = currentLiveMinute > 0 ? currentLiveMinute : 1
+    const tid = Number(teamId)
+
+    const newEv = {
+      _key: uid(),
+      type: 'substitution',
+      team_id: tid,
+      player_id: playerOut.id,
+      player: playerOut.name,
+      assist_player_id: playerIn.id,
+      assist_player: playerIn.name,
+      minute: relMin,
+      added_time: 0,
+      half: curHalf,
+      description: `${t('committee.result.playerOut')}: ${playerOut.name} • ${t('committee.result.playerIn')}: ${playerIn.name}`,
+      metadata: { out: playerOut.name, in: playerIn.name },
+    }
+
+    const nextEvents = [...events, newEv].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0))
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+    retryRef.current = () => persist({ events: nextEvents })
+    const ok = await persist({ events: nextEvents })
+    if (ok) {
+      setSuccessTick(newEv._key)
+    }
   }
 
   const openFromPlayer = (type) => {
@@ -810,6 +943,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     try {
       const r = await api.post(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/start`)
       setCurStatus('first_half')
+      setIsPaused(false)
+      setPauseStartMs(null)
+      setAccumulatedPauseMs(0)
       setTimerCfg(deriveTimerCfg(r.data?.data?.match))
       retryRef.current = () => persist({})
       toast.success(t('committee.result.matchStarted'))
@@ -821,6 +957,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   }
 
   const goToHalftime = async () => {
+    setIsPaused(false)
+    setPauseStartMs(null)
+    setAccumulatedPauseMs(0)
     retryRef.current = () => persist({ status: 'halftime', notice: t('committee.result.halftimeReached') })
     return persist({ status: 'halftime', notice: t('committee.result.halftimeReached') })
   }
@@ -831,6 +970,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     try {
       const r = await api.post(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/start-second-half`)
       setCurStatus('second_half')
+      setIsPaused(false)
+      setPauseStartMs(null)
+      setAccumulatedPauseMs(0)
       setTimerCfg(deriveTimerCfg(r.data?.data?.match))
       retryRef.current = () => persist({})
       toast.success(t('committee.result.secondHalfStarted'))
@@ -960,6 +1102,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         activeHalf={timerCfg.activeHalf}
         matchNotStarted={matchNotStarted}
         onAddEvent={openPickerFromButton}
+        hideAddButton={true}
         t={t}
       />
 
@@ -1076,7 +1219,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                     events={events}
                     tournament={tournament}
                     fixture={fixture}
-                    onTapPlayer={(player, teamId) => tapPlayer(player, teamId)}
+                    onTapPlayer={(player, teamId, variant, bench) => tapPlayer(player, teamId, variant, bench)}
                     onActionPick={(player, teamId, type) => {
                       setSelectedType(type)
                       setEditingKey(null)
@@ -1143,7 +1286,29 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         onHalftime={goToHalftime}
         onStartSecondHalf={startSecondHalf}
         onQuickFinish={confirmFinish}
+        isPaused={isPaused}
+        onTogglePause={togglePauseTimer}
+        timerText={timerText}
+        canFinishMatch={alreadyFinished || curStatus === 'second_half' || curStatus === 'finished'}
         t={t}
+      />
+
+      {/* One-Tap Event Recording Bottom Sheet */}
+      <OneTapEventSheet
+        isOpen={oneTapSheetOpen}
+        onClose={() => setOneTapSheetOpen(false)}
+        player={oneTapPlayer}
+        teamId={oneTapTeamId}
+        teamName={oneTapTeamId === homeId ? homeName : awayName}
+        teamVariant={oneTapVariant}
+        benchPlayers={oneTapBench}
+        matchNotStarted={matchNotStarted}
+        isPaused={isPaused}
+        onRecordEvent={handleOneTapRecord}
+        onSubstitute={handleOneTapSubstitute}
+        onStartMatch={runMatch}
+        onResumeTimer={togglePauseTimer}
+        currentMinute={currentLiveMinute}
       />
 
       {successTick && (

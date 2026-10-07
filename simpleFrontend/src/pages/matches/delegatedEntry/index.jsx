@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -35,6 +35,8 @@ import ScoreActions from '../../../domains/committee/components/ScoreActions'
 import EventTypePicker from '../../../domains/committee/components/EventTypePicker'
 import EventForm from '../../../domains/committee/components/EventForm'
 import SectionCard from '../../../components/ui/SectionCard'
+import OneTapEventSheet from '../../../domains/committee/components/OneTapEventSheet'
+import MatchTimerBottomBar from '../../../domains/committee/components/MatchTimerBottomBar'
 import { QUICK_ACTIONS } from '../../../data/matchConstants'
 import { formatTime, matchDay } from '../../../lib/adapters'
 
@@ -98,6 +100,22 @@ export default function DelegatedMatchEntryPage() {
   const [quickPlayer, setQuickPlayer] = useState(null)
   const [showMeta, setShowMeta] = useState(false)
 
+  // Live Timer & Status state
+  const [curStatus, setCurStatus] = useState('scheduled') // 'scheduled' | 'first_half' | 'halftime' | 'second_half' | 'finished'
+  const [isPaused, setIsPaused] = useState(false)
+  const [pauseStartMs, setPauseStartMs] = useState(null)
+  const [accumulatedPauseMs, setAccumulatedPauseMs] = useState(0)
+  const [halfStartMs, setHalfStartMs] = useState(null)
+  const [, setTick] = useState(0)
+
+  // One-Tap Event Recording state
+  const [oneTapSheetOpen, setOneTapSheetOpen] = useState(false)
+  const [oneTapPlayer, setOneTapPlayer] = useState(null)
+  const [oneTapTeamId, setOneTapTeamId] = useState(null)
+  const [oneTapVariant, setOneTapVariant] = useState('home')
+  const [oneTapBench, setOneTapBench] = useState([])
+  const lastTapRef = useRef(null)
+
   // Load match data
   useEffect(() => {
     async function fetchMatch() {
@@ -147,6 +165,22 @@ export default function DelegatedMatchEntryPage() {
           if (Array.isArray(payload.submission.events) && payload.submission.events.length > 0) {
             setEvents(payload.submission.events)
             setTimelineDirty(true)
+            setCurStatus('finished')
+          }
+        } else {
+          // Check cached local events if network reconnects
+          const cached = localStorage.getItem(`delegated_events_${token}`)
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setEvents(parsed)
+                setTimelineDirty(true)
+              }
+            } catch (_) {}
+          }
+          if (payload.fixture?.match?.status) {
+            setCurStatus(payload.fixture.match.status)
           }
         }
       } catch (err) {
@@ -298,6 +332,171 @@ export default function DelegatedMatchEntryPage() {
     } catch (err) {
       alert(err.response?.data?.message || 'تعذر حفظ البيانات، الرجاء المحاولة ثانية')
     }
+  }
+
+  const activeHalf = curStatus === 'first_half' ? 'first' : (curStatus === 'second_half' ? 'second' : null)
+  const matchNotStarted = curStatus === 'scheduled' || curStatus === 'warmup'
+
+  useEffect(() => {
+    if (!activeHalf || isPaused) return
+    const id = setInterval(() => setTick((v) => v + 1), 1000)
+    return () => clearInterval(id)
+  }, [activeHalf, isPaused])
+
+  const halfDurationMinutes = data?.fixture?.match?.half_duration_minutes || 45
+  const elapsedSec = (activeHalf && halfStartMs)
+    ? Math.max(0, Math.floor(((isPaused && pauseStartMs ? pauseStartMs : Date.now()) - halfStartMs - accumulatedPauseMs) / 1000))
+    : 0
+  const displayClockSec = activeHalf === 'second'
+    ? elapsedSec + (halfDurationMinutes * 60)
+    : elapsedSec
+  const pad2 = (n) => String(n).padStart(2, '0')
+  const formatClock = (s) => `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`
+  const timerText = activeHalf ? formatClock(displayClockSec) : null
+  const currentLiveMinute = activeHalf
+    ? Math.min(halfDurationMinutes, Math.floor(elapsedSec / 60) + 1)
+    : 1
+
+  const togglePauseTimer = () => {
+    if (isPaused) {
+      if (pauseStartMs) {
+        setAccumulatedPauseMs((prev) => prev + (Date.now() - pauseStartMs))
+      }
+      setPauseStartMs(null)
+      setIsPaused(false)
+    } else {
+      setPauseStartMs(Date.now())
+      setIsPaused(true)
+    }
+  }
+
+  const handleStartMatch = () => {
+    setCurStatus('first_half')
+    setHalfStartMs(Date.now())
+    setAccumulatedPauseMs(0)
+    setPauseStartMs(null)
+    setIsPaused(false)
+  }
+
+  const handleHalftime = () => {
+    setCurStatus('halftime')
+    setIsPaused(false)
+    setPauseStartMs(null)
+  }
+
+  const handleStartSecondHalf = () => {
+    setCurStatus('second_half')
+    setHalfStartMs(Date.now())
+    setAccumulatedPauseMs(0)
+    setPauseStartMs(null)
+    setIsPaused(false)
+  }
+
+  const tapPlayer = (player, teamId, variant = 'home', bench = []) => {
+    if (isPlayerDismissed(player.id)) {
+      alert('اللاعب مطرود بالبطاقة الحمراء ولا يمكن إضافة حدث له!')
+      return
+    }
+    setOneTapPlayer(player)
+    setOneTapTeamId(teamId)
+    setOneTapVariant(variant)
+    setOneTapBench(bench)
+    setOneTapSheetOpen(true)
+  }
+
+  const handleOneTapRecord = (type, player, teamId) => {
+    if (matchNotStarted || isPaused) return
+    const now = Date.now()
+    if (lastTapRef.current && (now - lastTapRef.current.ts < 500) && lastTapRef.current.pid === player.id && lastTapRef.current.type === type) {
+      return
+    }
+    lastTapRef.current = { ts: now, pid: player.id, type }
+
+    const curHalf = activeHalf || 'first'
+    const minute = currentLiveMinute > 0 ? currentLiveMinute : 1
+    const tid = Number(teamId)
+    const pid = player.id
+
+    let eventType = type
+    let punishment = ''
+
+    if (type === 'goal') {
+      eventType = 'goal'
+    } else if (type === 'foul') {
+      eventType = 'foul'
+      punishment = 'none'
+    } else if (type === 'yellow_card') {
+      const existingYellows = getPlayerYellows(pid)
+      if (existingYellows >= 1) {
+        eventType = 'second_yellow'
+        punishment = 'second_yellow'
+      } else {
+        eventType = 'yellow_card'
+        punishment = 'yellow'
+      }
+    } else if (type === 'red_card') {
+      eventType = 'red_card'
+      punishment = 'red'
+    }
+
+    const newEv = {
+      _key: uid(),
+      type: eventType,
+      team_id: tid,
+      player_id: pid,
+      player: player.name,
+      minute: minute,
+      added_time: 0,
+      half: curHalf,
+      goalType: eventType === 'goal' ? 'regular' : undefined,
+      punishment: punishment,
+      cardColor: eventType,
+      reason: '',
+      note: '',
+    }
+
+    const nextEvents = [...events, newEv].sort((a, b) => a.minute - b.minute)
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+    try {
+      localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
+    } catch (_) {}
+  }
+
+  const handleOneTapSubstitute = (playerOut, playerIn, teamId) => {
+    if (matchNotStarted || isPaused) return
+    const now = Date.now()
+    if (lastTapRef.current && (now - lastTapRef.current.ts < 500) && lastTapRef.current.pid === playerOut.id && lastTapRef.current.type === 'substitution') {
+      return
+    }
+    lastTapRef.current = { ts: now, pid: playerOut.id, type: 'substitution' }
+
+    const curHalf = activeHalf || 'first'
+    const minute = currentLiveMinute > 0 ? currentLiveMinute : 1
+    const tid = Number(teamId)
+
+    const newEv = {
+      _key: uid(),
+      type: 'substitution',
+      team_id: tid,
+      player_id: playerOut.id,
+      player: playerOut.name,
+      assist_player_id: playerIn.id,
+      assist: playerIn.name,
+      assist_player: playerIn.name,
+      minute: minute,
+      added_time: 0,
+      half: curHalf,
+      description: `خروج: ${playerOut.name} • دخول: ${playerIn.name}`,
+      metadata: { out: playerOut.name, in: playerIn.name },
+    }
+
+    const nextEvents = [...events, newEv].sort((a, b) => a.minute - b.minute)
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+    try {
+      localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
+    } catch (_) {}
   }
 
   const openForm = (type) => {
@@ -680,16 +879,14 @@ export default function DelegatedMatchEntryPage() {
         awayTeam={awayTeam}
         homeName={homeName}
         awayName={awayName}
-        alreadyFinished={false}
-        halftime={false}
-        liveMinute={0}
-        timerText={null}
-        activeHalf={null}
-        matchNotStarted={events.length === 0}
-        onAddEvent={() => {
-          if (showForm) cancelForm()
-          else setPickerOpen(true)
-        }}
+        alreadyFinished={curStatus === 'finished'}
+        halftime={curStatus === 'halftime'}
+        liveMinute={currentLiveMinute}
+        timerText={timerText}
+        activeHalf={activeHalf}
+        matchNotStarted={matchNotStarted}
+        onAddEvent={() => {}}
+        hideAddButton={true}
         t={t}
       />
 
@@ -772,13 +969,8 @@ export default function DelegatedMatchEntryPage() {
               events={events}
               tournament={{ max_players_per_team: 8, name: fixture.tournament_name }}
               fixture={fixture}
-              onTapPlayer={(player, teamId) => {
-                if (isPlayerDismissed(player.id)) {
-                  alert('اللاعب مطرود بالبطاقة الحمراء ولا يمكن إضافة حدث له!')
-                  return
-                }
-                setQuickPlayer({ player, teamId })
-                setPickerOpen(true)
+              onTapPlayer={(player, teamId, variant, bench) => {
+                tapPlayer(player, teamId, variant, bench)
               }}
               onActionPick={(player, teamId, type) => {
                 if (isPlayerDismissed(player.id)) {
@@ -922,19 +1114,44 @@ export default function DelegatedMatchEntryPage() {
         )}
       </main>
 
-      {/* ─── Floating Bottom Sticky Bar with Action Button (Exact layout from Image 2) ─── */}
-      <footer className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur shadow-lg">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <Button
-            className="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-md justify-center gap-2"
-            loading={submitting}
-            onClick={handleSubmit}
-          >
-            <Send className="size-4" />
-            <span>إرسال النتيجة للاعتماد ({displayScore.home} - {displayScore.away})</span>
-          </Button>
-        </div>
-      </footer>
+      {/* ─── Match Timer & Bottom Actions Bar ─── */}
+      <MatchTimerBottomBar
+        curStatus={curStatus}
+        isPaused={isPaused}
+        timerText={timerText}
+        liveMinute={currentLiveMinute}
+        activeHalf={activeHalf}
+        syncStatus={timelineDirty ? 'saved' : 'idle'}
+        isFinished={curStatus === 'finished'}
+        secondHalfEnded={curStatus === 'second_half' && currentLiveMinute >= halfDurationMinutes}
+        onTogglePause={togglePauseTimer}
+        onStartMatch={handleStartMatch}
+        onHalftime={handleHalftime}
+        onStartSecondHalf={handleStartSecondHalf}
+        onFinishSecondHalf={() => setCurStatus('finished')}
+        onSubmitResult={handleSubmit}
+        scoreText={`${displayScore.home} - ${displayScore.away}`}
+        loading={submitting}
+        t={t}
+      />
+
+      {/* ─── One-Tap Event Recording Bottom Sheet ─── */}
+      <OneTapEventSheet
+        isOpen={oneTapSheetOpen}
+        onClose={() => setOneTapSheetOpen(false)}
+        player={oneTapPlayer}
+        teamId={oneTapTeamId}
+        teamName={oneTapTeamId === homeId ? homeName : awayName}
+        teamVariant={oneTapVariant}
+        benchPlayers={oneTapBench}
+        matchNotStarted={matchNotStarted}
+        isPaused={isPaused}
+        onRecordEvent={handleOneTapRecord}
+        onSubstitute={handleOneTapSubstitute}
+        onStartMatch={handleStartMatch}
+        onResumeTimer={togglePauseTimer}
+        currentMinute={currentLiveMinute}
+      />
 
       {/* Event Type Picker Modal */}
       <EventTypePicker

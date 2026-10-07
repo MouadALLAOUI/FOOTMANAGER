@@ -6,7 +6,7 @@ function ScoreNumber({ value }) {
   return <span key={value} className="score-pop inline-block tabular-nums">{value}</span>
 }
 
-export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeName, awayName, alreadyFinished, halftime, liveMinute, timerText, activeHalf, matchNotStarted, onAddEvent, t }) {
+export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeName, awayName, alreadyFinished, halftime, liveMinute, timerText, activeHalf, matchNotStarted, onAddEvent, hideAddButton = false, t }) {
   return (
     <div className="shrink-0 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur sm:px-6">
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-3">
@@ -51,14 +51,16 @@ export default function ScoreActions({ displayScore, homeTeam, awayTeam, homeNam
         <TeamScore side="away" team={awayTeam} name={awayName} />
       </div>
 
-      <button
-        type="button"
-        onClick={onAddEvent}
-        className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-green-500 px-4 text-sm font-black text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)] transition-all hover:bg-green-600 active:scale-[0.99]"
-      >
-        <Plus className="size-5" />
-        {t('committee.result.addEvent')}
-      </button>
+      {!hideAddButton && onAddEvent && (
+        <button
+          type="button"
+          onClick={onAddEvent}
+          className="mt-4 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-green-500 px-4 text-sm font-black text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)] transition-all hover:bg-green-600 active:scale-[0.99]"
+        >
+          <Plus className="size-5" />
+          {t('committee.result.addEvent')}
+        </button>
+      )}
     </div>
   )
 }

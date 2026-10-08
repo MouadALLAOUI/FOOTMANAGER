@@ -10,6 +10,7 @@ use App\Domains\Match\Models\MatchResultAudit;
 use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
+use App\Domains\Tournament\Services\TournamentFoulRuleService;
 use App\Domains\Tournament\Services\TournamentResultService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -25,6 +26,7 @@ class DelegatedMatchEntryService
 
     public function __construct(
         private readonly TournamentResultService $resultService,
+        private readonly TournamentFoulRuleService $foulRules,
     ) {}
 
     /**
@@ -268,6 +270,19 @@ class DelegatedMatchEntryService
                 ]
             );
 
+            $tournament = $fixture->competition instanceof Tournament
+                ? $fixture->competition
+                : ($fixture->competition_id ? Tournament::find($fixture->competition_id) : null);
+
+            if ($tournament && $this->foulRules->active($tournament)) {
+                $this->foulRules->processFoulsForDelegatedSubmission(
+                    $tournament,
+                    $fixture,
+                    $submission,
+                    $payload['events'] ?? []
+                );
+            }
+
             // Audit the delegated submission
             $this->audit($fixture->match_id ? FootballMatch::find($fixture->match_id) : null, $fixture, 'delegated_result_submitted', null, [
                 'submission_id' => $submission->id,
@@ -320,6 +335,19 @@ class DelegatedMatchEntryService
 
             // Apply via official TournamentResultService
             $updatedFixture = $this->resultService->updateResult($fixture, $dataToApply, $organizerId);
+
+            $tournament = $fixture->competition instanceof Tournament
+                ? $fixture->competition
+                : ($fixture->competition_id ? Tournament::find($fixture->competition_id) : null);
+
+            if ($tournament && $this->foulRules->active($tournament)) {
+                $this->foulRules->processFoulsForDelegatedSubmission(
+                    $tournament,
+                    $updatedFixture,
+                    $submission,
+                    $dataToApply['events']
+                );
+            }
 
             // Mark submission approved
             $submission->update([

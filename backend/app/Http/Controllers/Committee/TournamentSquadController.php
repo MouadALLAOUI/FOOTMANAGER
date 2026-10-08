@@ -11,11 +11,14 @@ use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Services\TournamentSquadService;
 use App\Http\Requests\Committee\StoreBulkSquadPlayersRequest;
 use App\Http\Requests\Committee\UpdateSquadPlayerRequest;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TournamentSquadController extends Controller
 {
+    use AuthorizesRequests;
+
     public function __construct(private readonly TournamentSquadService $squad)
     {
     }
@@ -92,6 +95,7 @@ class TournamentSquadController extends Controller
 
     public function destroyPlayer(Tournament $tournament, Team $team, int $playerId): JsonResponse
     {
+        $this->authorize('manage', $tournament);
         $this->assertInTournament($tournament, $team);
 
         $player = Player::query()->findOrFail($playerId);

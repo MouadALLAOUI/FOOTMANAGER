@@ -37,6 +37,8 @@ import EventForm from '../../../domains/committee/components/EventForm'
 import SectionCard from '../../../components/ui/SectionCard'
 import OneTapEventSheet from '../../../domains/committee/components/OneTapEventSheet'
 import MatchTimerBottomBar from '../../../domains/committee/components/MatchTimerBottomBar'
+import FoulPanel from '../../../domains/committee/components/FoulPanel'
+import MiniStat from '../../../domains/committee/components/MiniStat'
 import { QUICK_ACTIONS } from '../../../data/matchConstants'
 import { formatTime, matchDay } from '../../../lib/adapters'
 
@@ -107,6 +109,8 @@ export default function DelegatedMatchEntryPage() {
   const [accumulatedPauseMs, setAccumulatedPauseMs] = useState(0)
   const [halfStartMs, setHalfStartMs] = useState(null)
   const [, setTick] = useState(0)
+  const [foulRefetchTick, setFoulRefetchTick] = useState(0)
+  const [foulNotifCount, setFoulNotifCount] = useState(0)
 
   // One-Tap Event Recording state
   const [oneTapSheetOpen, setOneTapSheetOpen] = useState(false)
@@ -274,27 +278,36 @@ export default function DelegatedMatchEntryPage() {
     // A. Player dismissed? -> Off the field
     if (isPlayerDismissed(pid, m, ignoreKey)) return false
 
-    // B. Player substituted OUT at or before minute M? -> Off the field
-    const subbedOut = events.find((e) => {
+    // B. Find all substitutions for this team at or before minute M (excluding ignoreKey)
+    const relevantSubs = events.filter((e) => {
       if (ignoreKey && (e._key || e.id) === ignoreKey) return false
       return e.type === 'substitution' &&
         Number(e.team_id) === tid &&
-        Number(e.player_id) === pid &&
+        (Number(e.player_id) === pid || Number(e.assist_player_id) === pid) &&
         (Number(e.minute) || 0) <= m
     })
-    if (subbedOut) return false
 
-    // C. Player substituted IN at or before minute M? -> On the field
-    const subbedIn = events.find((e) => {
-      if (ignoreKey && (e._key || e.id) === ignoreKey) return false
-      return e.type === 'substitution' &&
-        Number(e.team_id) === tid &&
-        Number(e.assist_player_id) === pid &&
-        (Number(e.minute) || 0) <= m
-    })
-    if (subbedIn) return true
+    if (relevantSubs.length > 0) {
+      // Sort chronologically to find the LATEST substitution involving this player
+      relevantSubs.sort((a, b) => {
+        const hA = a.half === 'second' || a.half === '2' ? 2 : 1
+        const hB = b.half === 'second' || b.half === '2' ? 2 : 1
+        if (hA !== hB) return hA - hB
+        const minDiff = (Number(a.minute) || 0) - (Number(b.minute) || 0)
+        if (minDiff !== 0) return minDiff
+        const addDiff = (Number(a.added_time) || 0) - (Number(b.added_time) || 0)
+        if (addDiff !== 0) return addDiff
+        return events.indexOf(a) - events.indexOf(b)
+      })
 
-    // D. Is player in starting lineup (starters)?
+      const latestSub = relevantSubs[relevantSubs.length - 1]
+      // If latest sub was entering the field (assist_player_id), player is on the field.
+      // If latest sub was leaving the field (player_id), player is off the field.
+      if (Number(latestSub.assist_player_id) === pid) return true
+      if (Number(latestSub.player_id) === pid) return false
+    }
+
+    // C. If no substitutions up to minute M, derive from starting lineup
     const confirmedSet = tid === Number(homeId) ? confirmedHome : confirmedAway
     const roster = tid === Number(homeId) ? homeRoster : awayRoster
     if (confirmedSet && confirmedSet.size > 0) {
@@ -313,6 +326,52 @@ export default function DelegatedMatchEntryPage() {
   const homeEvents = useMemo(() => events.filter((e) => Number(e.team_id) === Number(homeId)), [events, homeId])
   const awayEvents = useMemo(() => events.filter((e) => Number(e.team_id) === Number(awayId)), [events, awayId])
   const generalEvents = useMemo(() => events.filter((e) => e.team_id == null || (Number(e.team_id) !== Number(homeId) && Number(e.team_id) !== Number(awayId))), [events, homeId, awayId])
+
+  const foulRules = data?.foul_rules
+  const isFoulRuleActive = Boolean(foulRules?.enabled)
+  const teamFoulThreshold = foulRules?.team_threshold || 6
+  const foulResetScope = foulRules?.reset_scope || 'half'
+
+  const counts = useMemo(() => {
+    let goals = 0
+    let yellows = 0
+    let reds = 0
+    let subs = 0
+    let pens = 0
+    let fouls = 0
+    for (const e of events) {
+      if (e.type === 'goal' || e.type === 'penalty_goal' || e.type === 'own_goal') goals += 1
+      if (e.type === 'foul') {
+        fouls += 1
+        if (e.punishment === 'red' || e.punishment === 'second_yellow') {
+          yellows += e.punishment === 'second_yellow' ? 1 : 0
+          reds += 1
+        } else if (e.punishment === 'yellow') yellows += 1
+        else if (e.punishment === 'penalty') pens += 1
+      } else {
+        if (e.type === 'yellow_card') yellows += 1
+        if (e.type === 'red_card') reds += 1
+        if (e.type === 'second_yellow') { yellows += 1; reds += 1 }
+      }
+      if (e.type === 'substitution') subs += 1
+      if (e.type === 'penalty_goal') pens += 1
+    }
+    return { goals, yellows, reds, subs, pens, fouls }
+  }, [events])
+
+  const getTeamFoulsInWindow = (teamId, half = null) => {
+    const tid = Number(teamId)
+    return events.filter((e) => {
+      if (Number(e.team_id) !== tid) return false
+      if (e.type !== 'foul') return false
+      if (foulResetScope === 'half') {
+        const h = (half === 'second' || half === '2') ? 'second' : 'first'
+        const eH = (e.half === 'second' || e.half === '2') ? 'second' : 'first'
+        if (eH !== h) return false
+      }
+      return true
+    }).length
+  }
 
   const handleIdentify = async (e) => {
     e.preventDefault()
@@ -458,6 +517,18 @@ export default function DelegatedMatchEntryPage() {
     const nextEvents = [...events, newEv].sort((a, b) => a.minute - b.minute)
     setEvents(nextEvents)
     setTimelineDirty(true)
+    if (eventType === 'foul') {
+      setFoulNotifCount((c) => c + 1)
+      setFoulRefetchTick((v) => v + 1)
+      const currentHalf = curHalf || activeHalf || 'first'
+      const priorFouls = getTeamFoulsInWindow(tid, currentHalf)
+      const newFouls = priorFouls + 1
+      if (isFoulRuleActive && newFouls >= teamFoulThreshold) {
+        const offenderName = tid === Number(homeId) ? homeName : awayName
+        const beneficiaryName = tid === Number(homeId) ? awayName : homeName
+        alert(`⚠️ تنبيه الخطأ التراكمي (${newFouls}/${teamFoulThreshold}):\nبلغ فريق "${offenderName}" الخطأ رقم ${newFouls} في هذا الشوط!\nيستحق فريق "${beneficiaryName}" ركلة جزاء تراكمية (الخطأ السادس وما بعده).`)
+      }
+    }
     try {
       localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
     } catch (_) {}
@@ -650,12 +721,25 @@ export default function DelegatedMatchEntryPage() {
 
     setEvents(nextEvents)
     setTimelineDirty(true)
+    if (eventType === 'foul') {
+      setFoulNotifCount((c) => c + 1)
+      setFoulRefetchTick((v) => v + 1)
+      const evHalf = form.half || activeHalf || 'first'
+      const priorFouls = getTeamFoulsInWindow(tid, evHalf)
+      const newFouls = editingKey ? priorFouls : priorFouls + 1
+      if (isFoulRuleActive && newFouls >= teamFoulThreshold) {
+        const offenderName = tid === Number(homeId) ? homeName : awayName
+        const beneficiaryName = tid === Number(homeId) ? awayName : homeName
+        alert(`⚠️ تنبيه الخطأ التراكمي (${newFouls}/${teamFoulThreshold}):\nبلغ فريق "${offenderName}" الخطأ رقم ${newFouls} في هذا الشوط!\nيستحق فريق "${beneficiaryName}" ركلة جزاء تراكمية (الخطأ السادس وما بعده).`)
+      }
+    }
     cancelForm()
   }
 
   const handleDeleteEvent = (ev) => {
     setEvents((prev) => prev.filter((e) => (e._key || e.id) !== (ev._key || ev.id)))
     setTimelineDirty(true)
+    setFoulRefetchTick((v) => v + 1)
   }
 
   const handleEditEvent = (ev) => {
@@ -897,12 +981,14 @@ export default function DelegatedMatchEntryPage() {
           active={activeTab}
           onChange={(id) => {
             if (showForm) cancelForm()
+            if (id === 'stats') setFoulNotifCount(0)
             setActiveTab(id)
           }}
           t={t}
           tabs={[
             { id: 'players', icon: '👥', labelKey: 'committee.result.players' },
             { id: 'timeline', icon: '⏱', labelKey: 'committee.result.events' },
+            { id: 'stats', icon: '📊', labelKey: 'committee.result.summary', badge: foulNotifCount },
             { id: 'notes', icon: '📝', labelKey: 'committee.result.matchNotes' },
             { id: 'presence', icon: '✅', labelKey: 'committee.presence.tab' },
           ]}
@@ -969,6 +1055,8 @@ export default function DelegatedMatchEntryPage() {
               events={events}
               tournament={{ max_players_per_team: 8, name: fixture.tournament_name }}
               fixture={fixture}
+              confirmedHome={confirmedHome}
+              confirmedAway={confirmedAway}
               onTapPlayer={(player, teamId, variant, bench) => {
                 tapPlayer(player, teamId, variant, bench)
               }}
@@ -1031,7 +1119,33 @@ export default function DelegatedMatchEntryPage() {
           </div>
         )}
 
-        {/* Tab 3: Notes (ملاحظات المباراة وركلات الترجيح والأشواط) */}
+        {/* Tab 3: Stats & Fouls (ملخص وإحصائيات والمخالفات) */}
+        {activeTab === 'stats' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+              <MiniStat label={t('committee.result.goals', 'الأهداف')} value={counts.goals} />
+              <MiniStat label={t('committee.result.yellowCards', 'إنذارات')} value={counts.yellows} tone="amber" />
+              <MiniStat label={t('committee.result.redCards', 'طرد')} value={counts.reds} tone="rose" />
+              <MiniStat label={t('committee.result.substitutions', 'تبديلات')} value={counts.subs} tone="sky" />
+              <MiniStat label={t('committee.result.fouls', 'أخطاء')} value={counts.fouls} tone="violet" />
+            </div>
+
+            <FoulPanel
+              tournamentId={fixture?.tournament_id}
+              fixtureId={fixture?.id}
+              homeId={homeId}
+              awayId={awayId}
+              homeName={homeName}
+              awayName={awayName}
+              refetchTick={foulRefetchTick}
+              token={token}
+              readOnly={true}
+              t={t}
+            />
+          </div>
+        )}
+
+        {/* Tab 4: Notes (ملاحظات المباراة وركلات الترجيح والأشواط) */}
         {activeTab === 'notes' && (
           <div className="rounded-3xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-2xs space-y-4">
             <div className="grid grid-cols-2 gap-2 text-xs font-bold">

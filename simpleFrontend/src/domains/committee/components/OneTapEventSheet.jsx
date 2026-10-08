@@ -185,7 +185,7 @@ export default function OneTapEventSheet({
                   <Users className="size-10 mb-2 text-slate-300" />
                   <p className="text-sm font-bold text-slate-600">لا يوجد لاعبون في دكة الاحتياط</p>
                   <p className="text-xs font-medium text-slate-400 mt-1">
-                    جميع لاعبي الفريق مسجلون في أرضية الملعب أو تم استبدالهم.
+                    جميع لاعبي الفريق المؤهلين متواجدون حالياً في أرضية الملعب.
                   </p>
                 </div>
               ) : (

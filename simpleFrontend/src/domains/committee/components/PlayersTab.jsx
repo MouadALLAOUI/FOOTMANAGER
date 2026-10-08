@@ -18,6 +18,7 @@ function MatchPlayerCard({
   blocked,
   busy,
   stats,
+  isSubbedOut = false,
   onClick,
 }) {
   const photoSrc = player.photo_thumbnail_url || player.photo_url
@@ -78,6 +79,13 @@ function MatchPlayerCard({
             🟨
           </span>
         ) : null}
+
+        {/* Substituted out badge (informational only, blocks nothing) */}
+        {isSubbedOut && (
+          <span className="absolute -top-1 -start-1 flex size-4 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600 border border-slate-200 shadow-xs" title="تم استبداله سابقاً (متاح للعودة)">
+            ↩️
+          </span>
+        )}
       </div>
 
       {/* Player Name */}
@@ -163,46 +171,84 @@ function TeamRosterSection({
     return list
   }, [players, confirmedList])
 
-  // Split into starters and substitutes, taking into account any substitutions recorded in events
+  // Split into starters and substitutes, taking into account rolling substitutions recorded in events
   const { onPitch, bench, subbedOut } = useMemo(() => {
     const targetStarters = startersCount || 5
     const hasExplicitStarters = eligiblePlayers.some((p) => p.is_starter)
     const initialStarters = hasExplicitStarters
       ? eligiblePlayers.filter((p) => p.is_starter)
       : eligiblePlayers.slice(0, targetStarters)
-    const initialBench = hasExplicitStarters
-      ? eligiblePlayers.filter((p) => !p.is_starter)
-      : eligiblePlayers.slice(targetStarters)
+    const initialStartersSet = new Set(initialStarters.map((p) => Number(p.id)))
 
     // Find substitutions for this team in events
     const teamSubs = (events || []).filter(
       (e) => e.type === 'substitution' && Number(e.team_id) === Number(teamId)
     )
 
-    const outIds = new Set()
-    const inIds = new Set()
-    for (const sub of teamSubs) {
-      if (sub.player_id) outIds.add(Number(sub.player_id))
-      if (sub.assist_player_id) inIds.add(Number(sub.assist_player_id))
+    // Build event index mapping for stable chronological tie-breaking
+    const eventIndexMap = new Map((events || []).map((e, idx) => [e._key || e.id || idx, idx]))
+
+    // Sort substitutions chronologically (half, minute, added_time, then event insertion order)
+    const sortedSubs = [...teamSubs].sort((a, b) => {
+      const hA = a.half === 'second' || a.half === '2' ? 2 : 1
+      const hB = b.half === 'second' || b.half === '2' ? 2 : 1
+      if (hA !== hB) return hA - hB
+      const minDiff = (Number(a.minute) || 0) - (Number(b.minute) || 0)
+      if (minDiff !== 0) return minDiff
+      const addDiff = (Number(a.added_time) || 0) - (Number(b.added_time) || 0)
+      if (addDiff !== 0) return addDiff
+      const idxA = eventIndexMap.get(a._key || a.id) ?? 0
+      const idxB = eventIndexMap.get(b._key || b.id) ?? 0
+      return idxA - idxB
+    })
+
+    // Derive each player's state (on pitch / on bench) from their LATEST substitution event
+    // (or from starting lineup if no substitutions involve them)
+    const activePitch = []
+    const activeBench = []
+    const subbedOutList = []
+
+    for (const player of eligiblePlayers) {
+      const pid = Number(player.id)
+      let latestSub = null
+      let hasEverBeenSubbedOut = false
+
+      for (let i = sortedSubs.length - 1; i >= 0; i--) {
+        const sub = sortedSubs[i]
+        const outId = sub.player_id ? Number(sub.player_id) : null
+        const inId = sub.assist_player_id ? Number(sub.assist_player_id) : null
+
+        if (outId === pid) {
+          hasEverBeenSubbedOut = true
+        }
+        if (!latestSub && (outId === pid || inId === pid)) {
+          latestSub = sub
+        }
+      }
+
+      let isOnPitch = false
+      if (latestSub) {
+        // If in latest substitution this player entered (assist_player_id), they are on pitch.
+        // If they left (player_id), they are on the bench.
+        isOnPitch = Number(latestSub.assist_player_id) === pid
+      } else {
+        isOnPitch = initialStartersSet.has(pid)
+      }
+
+      if (isOnPitch) {
+        activePitch.push(player)
+      } else {
+        activeBench.push(player)
+        if (hasEverBeenSubbedOut) {
+          subbedOutList.push(player)
+        }
+      }
     }
-
-    // Players active on the pitch: initial starters not subbed out + bench players subbed in (and not subsequently subbed out)
-    const startersRemaining = initialStarters.filter((p) => !outIds.has(Number(p.id)))
-    const benchSubbedIn = initialBench.filter((p) => inIds.has(Number(p.id)) && !outIds.has(Number(p.id)))
-    const activePitch = [...startersRemaining, ...benchSubbedIn]
-
-    // Bench players: initial bench players who have not entered the pitch yet and were not subbed out
-    const remainingBench = initialBench.filter(
-      (p) => !inIds.has(Number(p.id)) && !outIds.has(Number(p.id))
-    )
-
-    // Substituted players: any player who was subbed out
-    const allOut = eligiblePlayers.filter((p) => outIds.has(Number(p.id)))
 
     return {
       onPitch: activePitch,
-      bench: remainingBench,
-      subbedOut: allOut,
+      bench: activeBench,
+      subbedOut: subbedOutList,
     }
   }, [eligiblePlayers, startersCount, events, teamId])
 
@@ -343,6 +389,7 @@ function TeamRosterSection({
               const busy = busyId === player.id
               const isSelected = selectedPlayerId === player.id
               const stats = playerStats[player.id] || { goals: 0, yellowCard: false, redCard: false }
+              const isSubbed = subbedOut.some((sp) => Number(sp.id) === Number(player.id))
 
               return (
                 <MatchPlayerCard
@@ -353,6 +400,7 @@ function TeamRosterSection({
                   blocked={blocked}
                   busy={busy}
                   stats={stats}
+                  isSubbedOut={isSubbed}
                   onClick={() => onSelectPlayer(player, teamId, teamVariant, bench)}
                 />
               )
@@ -360,36 +408,6 @@ function TeamRosterSection({
           </div>
         )}
       </div>
-
-      {/* Section 3: Substituted Out (المستبدلون) */}
-      {subbedOut.length > 0 && (
-        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-3 opacity-80">
-          <div className="mb-2 flex items-center gap-1.5 text-xs font-black text-slate-600">
-            <span className="grid size-5 place-items-center rounded-lg bg-slate-400 text-[11px] text-white">
-              ↩️
-            </span>
-            <span>({subbedOut.length}) اللاعبون المستبدلون (خارج الملعب)</span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-            {subbedOut.map((player) => {
-              const stats = playerStats[player.id] || { goals: 0, yellowCard: false, redCard: false }
-              return (
-                <MatchPlayerCard
-                  key={player.id}
-                  player={player}
-                  teamVariant={teamVariant}
-                  isSelected={false}
-                  blocked={true}
-                  busy={false}
-                  stats={stats}
-                  onClick={() => {}}
-                />
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -508,26 +526,41 @@ export default function PlayersTab({
   onActionPick,
   onAddPlayer,
   t,
+  confirmedHome: propConfirmedHome,
+  confirmedAway: propConfirmedAway,
 }) {
   const [selectedPlayerState, setSelectedPlayerState] = useState(null) // { player, teamId, variant }
-  const [confirmedHome, setConfirmedHome] = useState([])
-  const [confirmedAway, setConfirmedAway] = useState([])
+  const [fetchedHome, setFetchedHome] = useState([])
+  const [fetchedAway, setFetchedAway] = useState([])
 
-  // Load lineups / presence if fixture has existing records
+  // Load lineups / presence if fixture has existing records and not provided via props
   useEffect(() => {
     let cancelled = false
-    if (tournament?.id && fixture?.id) {
+    if (tournament?.id && fixture?.id && !propConfirmedHome && !propConfirmedAway) {
       api.get(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/lineups`)
         .then((res) => {
           if (cancelled) return
           const data = res.data?.data
-          if (data?.home) setConfirmedHome(data.home)
-          if (data?.away) setConfirmedAway(data.away)
+          if (data?.home) setFetchedHome(data.home)
+          if (data?.away) setFetchedAway(data.away)
         })
         .catch(() => {})
     }
     return () => { cancelled = true }
-  }, [tournament?.id, fixture?.id])
+  }, [tournament?.id, fixture?.id, propConfirmedHome, propConfirmedAway])
+
+  const normalizeConfirmed = (propVal, fetchedVal) => {
+    if (propVal != null) {
+      if (Array.isArray(propVal)) return propVal
+      if (propVal instanceof Set) {
+        return Array.from(propVal).map((id) => ({ player_id: Number(id), is_starter: true }))
+      }
+    }
+    return fetchedVal
+  }
+
+  const confirmedHome = useMemo(() => normalizeConfirmed(propConfirmedHome, fetchedHome), [propConfirmedHome, fetchedHome])
+  const confirmedAway = useMemo(() => normalizeConfirmed(propConfirmedAway, fetchedAway), [propConfirmedAway, fetchedAway])
 
   // Derive dynamic roster limits and format starters count
   const rosterLimit = tournament?.max_players_per_team || 8

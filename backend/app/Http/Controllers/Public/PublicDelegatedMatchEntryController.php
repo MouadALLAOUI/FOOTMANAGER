@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Public;
 use App\Domains\Match\Services\DelegatedMatchEntryService;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Base\Controller;
+use App\Domains\Tournament\Models\Tournament;
+use App\Domains\Tournament\Services\TournamentFoulRuleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -12,6 +14,7 @@ class PublicDelegatedMatchEntryController extends Controller
 {
     public function __construct(
         private readonly DelegatedMatchEntryService $delegatedService,
+        private readonly TournamentFoulRuleService $foulRules,
     ) {}
 
     /**
@@ -64,6 +67,18 @@ class PublicDelegatedMatchEntryController extends Controller
             ->latest()
             ->first();
 
+        $tournament = $fixture->competition instanceof Tournament
+            ? $fixture->competition
+            : ($fixture->competition_id ? Tournament::find($fixture->competition_id) : null);
+
+        $foulRulesData = $tournament ? [
+            'enabled' => $this->foulRules->active($tournament),
+            'settings' => $this->foulRules->settings($tournament),
+        ] : [
+            'enabled' => false,
+            'settings' => $this->foulRules->settings(null),
+        ];
+
         return response()->json([
             'data' => [
                 'fixture' => [
@@ -94,7 +109,42 @@ class PublicDelegatedMatchEntryController extends Controller
                 'submission' => $existingSubmission,
                 'status' => $tokenRecord->status,
                 'valid_until' => $tokenRecord->valid_until,
+                'foul_rules' => $foulRulesData,
             ],
+        ]);
+    }
+
+    /**
+     * Get live foul status, counters, and penalty suggestions for this delegated match.
+     */
+    public function penalties(Request $request, string $token): JsonResponse
+    {
+        $tokenRecord = $this->delegatedService->findValidToken(
+            $token,
+            $request->ip()
+        );
+
+        $fixture = $tokenRecord->fixture;
+        $tournament = $fixture->competition instanceof Tournament
+            ? $fixture->competition
+            : ($fixture->competition_id ? Tournament::find($fixture->competition_id) : null);
+
+        if (! $tournament) {
+            return response()->json([
+                'data' => [
+                    'enabled' => false,
+                    'settings' => $this->foulRules->settings(null),
+                    'teams' => [],
+                    'players' => [],
+                    'active_penalties' => [],
+                    'pending_awards' => [],
+                    'suggestions' => [],
+                ],
+            ]);
+        }
+
+        return response()->json([
+            'data' => $this->foulRules->status($fixture, $tournament),
         ]);
     }
 

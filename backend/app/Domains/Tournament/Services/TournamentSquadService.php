@@ -2,6 +2,7 @@
 
 namespace App\Domains\Tournament\Services;
 
+use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Shared\Services\ImageThumbnailService;
@@ -63,6 +64,7 @@ class TournamentSquadService
     {
         $players = Player::query()
             ->where('team_id', $team->id)
+            ->where('status', '!=', Player::STATUS_UNAVAILABLE)
             ->orderBy('is_essential', 'desc')
             ->orderBy('number')
             ->orderBy('name')
@@ -404,16 +406,61 @@ class TournamentSquadService
     public function removePlayer(Tournament $tournament, Team $team, Player $player): array
     {
         if ((int) $player->team_id !== (int) $team->id) {
-            throw new DomainException('اللاعب غير موجود في فريقك');
+            throw new DomainException('اللاعب غير موجود في هذا الفريق', 422);
         }
 
-        // 1. Remove squad membership from this tournament
+        // 1. Check if player has played in a finished match or is in an active match or approved lineup in this tournament
+        $tournamentMatchIds = FootballMatch::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->pluck('id');
+
+        $inFinishedMatch = DB::table('match_lineups')
+            ->join('matches', 'matches.id', '=', 'match_lineups.match_id')
+            ->whereIn('match_lineups.match_id', $tournamentMatchIds)
+            ->where('match_lineups.player_id', $player->id)
+            ->where('matches.status', 'finished')
+            ->exists();
+
+        if ($inFinishedMatch) {
+            throw new DomainException('لا يمكن حذف أو استبعاد اللاعب لأنه شارك في مباراة منتهية بالفعل في هذه البطولة', 422);
+        }
+
+        $inLiveMatch = DB::table('match_lineups')
+            ->join('matches', 'matches.id', '=', 'match_lineups.match_id')
+            ->whereIn('match_lineups.match_id', $tournamentMatchIds)
+            ->where('match_lineups.player_id', $player->id)
+            ->whereIn('matches.status', ['in_progress', 'first_half', 'second_half', 'halftime', 'extra_time', 'penalties'])
+            ->exists();
+
+        if ($inLiveMatch) {
+            throw new DomainException('لا يمكن حذف أو استبعاد اللاعب أثناء سير مباراة جارية يشارك فيها', 422);
+        }
+
+        $inApprovedLineup = DB::table('match_lineups')
+            ->join('matches', 'matches.id', '=', 'match_lineups.match_id')
+            ->whereIn('match_lineups.match_id', $tournamentMatchIds)
+            ->where('match_lineups.player_id', $player->id)
+            ->where('matches.status', 'scheduled')
+            ->where('match_lineups.is_starter', true)
+            ->exists();
+
+        if ($inApprovedLineup) {
+            throw new DomainException('لا يمكن حذف اللاعب لأنه مدرج في تشكيلة أساسية معتمدة لمباراة قادمة في البطولة', 422);
+        }
+
+        // 2. Remove squad membership from this tournament
         TournamentSquadMember::query()
             ->where('tournament_id', $tournament->id)
             ->where('player_id', $player->id)
             ->delete();
 
-        // 2. Check if player has match history across the platform
+        // Also clean up any unstarted scheduled lineups for this tournament
+        DB::table('match_lineups')
+            ->whereIn('match_id', $tournamentMatchIds)
+            ->where('player_id', $player->id)
+            ->delete();
+
+        // 3. Check if player has match history across the platform
         $hasLineups = DB::table('match_lineups')->where('player_id', $player->id)->exists();
         $hasEvents = DB::table('match_events')
             ->where('player_id', $player->id)
@@ -421,8 +468,14 @@ class TournamentSquadService
             ->exists();
         $otherSquads = TournamentSquadMember::query()->where('player_id', $player->id)->exists();
 
-        // If player is a manual record with no match lineups, events, or other tournaments, we can safely delete them
-        if ($player->isManual() && ! $hasLineups && ! $hasEvents && ! $otherSquads) {
+        // 4. If player has match history or is linked to an account or active in other squads:
+        // DO NOT delete his history: deactivate/detach him from the team instead, keeping past matches, events and statistics intact.
+        if ($hasLineups || $hasEvents || $otherSquads || ! $player->isManual()) {
+            $player->update([
+                'status' => Player::STATUS_UNAVAILABLE,
+            ]);
+        } else {
+            // Player has no match history anywhere: delete cleanly
             if ($player->photo_path && Storage::disk('public')->exists($player->photo_path)) {
                 Storage::disk('public')->delete($player->photo_path);
             }
@@ -432,7 +485,19 @@ class TournamentSquadService
             $player->delete();
         }
 
+        if ((int) $team->captain_id === (int) $player->id) {
+            $team->update(['captain_id' => null]);
+        }
+
+        if ((int) $team->vice_captain_id === (int) $player->id) {
+            $team->update(['vice_captain_id' => null]);
+        }
+
         TeamCache::flushTeam($team->id);
+
+        if ($player->user_id !== null) {
+            PlayerCache::flush((int) $player->user_id);
+        }
 
         return $this->squad($tournament, $team);
     }

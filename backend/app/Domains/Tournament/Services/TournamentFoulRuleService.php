@@ -71,12 +71,24 @@ class TournamentFoulRuleService
         $match = $fixture->match;
 
         if (! $match) {
+            $submission = $fixture->delegatedSubmissions()->where('status', 'pending')->latest()->first();
+            if ($submission && ! empty($submission->events)) {
+                return $this->statusFromSubmission($fixture, $tournament, $submission);
+            }
+
             return $this->emptyState();
         }
 
         $this->reconcile($tournament, $match);
 
         $fouls = $this->foulEvents($match);
+
+        if ($fouls->isEmpty()) {
+            $submission = $fixture->delegatedSubmissions()->where('status', 'pending')->latest()->first();
+            if ($submission && ! empty($submission->events)) {
+                return $this->statusFromSubmission($fixture, $tournament, $submission, $match);
+            }
+        }
 
         return [
             'enabled' => $this->active($tournament),
@@ -139,8 +151,9 @@ class TournamentFoulRuleService
         $counts = [];
 
         foreach ($fouls->groupBy('team_id') as $teamId => $teamFouls) {
-            foreach ($teamFouls->groupBy(fn (MatchEvent $e) => $this->windowKey($tournament, (string) ($e->half ?? 'first'))) as $window => $windowFouls) {
-                $team = $teamFouls->first()->team;
+            foreach ($teamFouls->groupBy(fn ($e) => $this->windowKey($tournament, (string) ($e->half ?? 'first'))) as $window => $windowFouls) {
+                $first = $teamFouls->first();
+                $team = ($first instanceof MatchEvent ? $first->team : null) ?? Team::find($teamId);
                 $count = $windowFouls->count();
                 $counts[] = [
                     'team_id' => (int) $teamId,
@@ -167,11 +180,15 @@ class TournamentFoulRuleService
         $counts = [];
 
         foreach ($fouls->groupBy('player_id') as $playerId => $playerFouls) {
-            foreach ($playerFouls->groupBy(fn (MatchEvent $e) => $this->windowKey($tournament, (string) ($e->half ?? 'first'))) as $window => $windowFouls) {
+            if (! $playerId) {
+                continue;
+            }
+            foreach ($playerFouls->groupBy(fn ($e) => $this->windowKey($tournament, (string) ($e->half ?? 'first'))) as $window => $windowFouls) {
                 $foul = $windowFouls->last();
+                $player = ($foul instanceof MatchEvent ? $foul->player : null) ?? Player::find($playerId);
                 $counts[] = [
                     'player_id' => (int) $playerId,
-                    'player_name' => $foul->player?->name,
+                    'player_name' => $player?->name,
                     'team_id' => (int) ($foul->team_id ?? 0),
                     'window' => $window,
                     'count' => $windowFouls->count(),
@@ -331,7 +348,7 @@ class TournamentFoulRuleService
             ->get();
 
         foreach ($fouls->groupBy('team_id') as $teamId => $teamFouls) {
-            foreach ($teamFouls->groupBy(fn (MatchEvent $e) => $this->windowKey($tournament, (string) ($e->half ?? 'first'))) as $window => $windowFouls) {
+            foreach ($teamFouls->groupBy(fn ($e) => $this->windowKey($tournament, (string) ($e->half ?? 'first'))) as $window => $windowFouls) {
                 $count = $windowFouls->count();
                 $resolvedBatches = $resolved
                     ->filter(fn (PenaltyAward $a) => (int) $a->committing_team_id === (int) $teamId && $this->windowKey($tournament, (string) ($a->half ?? 'first')) === $window)
@@ -344,7 +361,8 @@ class TournamentFoulRuleService
                 if ($pendingBatches > $resolvedBatches) {
                     $batch = $resolvedBatches + 1;
                     $foul = $windowFouls->get($batch * $threshold - 1) ?? $windowFouls->last();
-                    $committing = $teamFouls->first()->team;
+                    $first = $teamFouls->first();
+                    $committing = ($first instanceof MatchEvent ? $first->team : null) ?? Team::find($teamId);
                     $opponentId = $this->opponentFor($match, (int) $teamId);
 
                     $out[] = [
@@ -368,8 +386,12 @@ class TournamentFoulRuleService
         return $out;
     }
 
-    protected function opponentFor(FootballMatch $match, int $teamId): ?int
+    public function opponentFor(?FootballMatch $match, int $teamId): ?int
     {
+        if (! $match) {
+            return null;
+        }
+
         if ((int) $match->home_team_id === $teamId) {
             return $match->away_team_id ? (int) $match->away_team_id : null;
         }
@@ -379,6 +401,186 @@ class TournamentFoulRuleService
         }
 
         return null;
+    }
+
+    public function opponentForFixture(Fixture $fixture, int $teamId): ?int
+    {
+        if ((int) $fixture->home_team_id === $teamId) {
+            return $fixture->away_team_id ? (int) $fixture->away_team_id : null;
+        }
+
+        if ((int) $fixture->away_team_id === $teamId) {
+            return $fixture->home_team_id ? (int) $fixture->home_team_id : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * Compute full status payload from a delegated submission (raw event array).
+     */
+    public function statusFromSubmission(Fixture $fixture, Tournament $tournament, $submission, ?FootballMatch $match = null): array
+    {
+        $rawEvents = is_array($submission->events) ? $submission->events : (json_decode($submission->events ?? '[]', true) ?: []);
+        $rawFouls = collect($rawEvents)->filter(fn ($e) => ($e['type'] ?? '') === MatchEventType::Foul->value);
+
+        $fakeId = 1;
+        $fouls = $rawFouls->map(function ($e) use (&$fakeId) {
+            return (object) [
+                'id' => $fakeId++,
+                'team_id' => (int) ($e['team_id'] ?? 0),
+                'player_id' => isset($e['player_id']) ? (int) $e['player_id'] : null,
+                'half' => (string) ($e['half'] ?? 'first'),
+                'minute' => (int) ($e['minute'] ?? 1),
+                'added_time' => (int) ($e['added_time'] ?? 0),
+            ];
+        });
+
+        $activePenalties = $match ? $this->activePenaltiesPayload($match) : [];
+        $pendingAwards = $match ? $this->pendingAwardsPayload($match) : [];
+        $suggestions = $this->suggestionsForEvents($tournament, $fouls, $fixture, $match);
+
+        return [
+            'enabled' => $this->active($tournament),
+            'settings' => $this->settings($tournament),
+            'teams' => $this->teamCounters($tournament, $fouls),
+            'players' => $this->playerCounters($tournament, $fouls),
+            'active_penalties' => $activePenalties,
+            'pending_awards' => $pendingAwards,
+            'suggestions' => $suggestions,
+        ];
+    }
+
+    /**
+     * Compute suggestions for arbitrary foul events collection.
+     */
+    public function suggestionsForEvents(Tournament $tournament, Collection $fouls, Fixture $fixture, ?FootballMatch $match = null): array
+    {
+        if (! $this->active($tournament)) {
+            return [];
+        }
+
+        $threshold = $tournament->teamFoulThreshold();
+        $repeat = $tournament->teamFoulRepeat();
+        $out = [];
+
+        $resolved = $match ? PenaltyAward::query()
+            ->where('match_id', $match->id)
+            ->whereIn('status', array_merge(PenaltyAward::OUTCOME_STATUSES, [PenaltyAward::STATUS_VOIDED, PenaltyAward::STATUS_DISMISSED]))
+            ->get() : collect();
+
+        foreach ($fouls->groupBy('team_id') as $teamId => $teamFouls) {
+            foreach ($teamFouls->groupBy(fn ($e) => $this->windowKey($tournament, (string) ($e->half ?? 'first'))) as $window => $windowFouls) {
+                $count = $windowFouls->count();
+                $resolvedBatches = $resolved
+                    ->filter(fn (PenaltyAward $a) => (int) $a->committing_team_id === (int) $teamId && $this->windowKey($tournament, (string) ($a->half ?? 'first')) === $window)
+                    ->count();
+
+                $pendingBatches = $repeat
+                    ? (int) floor($count / $threshold)
+                    : ($count >= $threshold ? 1 : 0);
+
+                if ($pendingBatches > $resolvedBatches) {
+                    $batch = $resolvedBatches + 1;
+                    $foul = $windowFouls->get($batch * $threshold - 1) ?? $windowFouls->last();
+                    $committing = Team::find($teamId);
+                    $opponentId = $match ? $this->opponentFor($match, (int) $teamId) : $this->opponentForFixture($fixture, (int) $teamId);
+
+                    $out[] = [
+                        'type' => 'team_penalty',
+                        'committing_team_id' => (int) $teamId,
+                        'committing_team_name' => $committing?->name,
+                        'awarded_to_team_id' => $opponentId,
+                        'awarded_to_team_name' => $opponentId ? Team::query()->find($opponentId)?->name : null,
+                        'window' => $window,
+                        'half' => $window === 'match' ? ($foul?->half ?? 'first') : $window,
+                        'count' => $count,
+                        'threshold' => $threshold,
+                        'batch' => $batch,
+                        'event_id' => $foul?->id,
+                        'minute' => $foul?->minute ?? 0,
+                    ];
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Evaluate and process fouls when submitted via secret delegated link.
+     * Triggers the exact same penalty award when team foul threshold is crossed.
+     */
+    public function processFoulsForDelegatedSubmission(
+        Tournament $tournament,
+        Fixture $fixture,
+        \App\Domains\Match\Models\MatchDelegatedSubmission $submission,
+        array $events
+    ): array {
+        if (! $this->active($tournament) || ! $tournament->teamFoulRuleConfigured()) {
+            return [];
+        }
+
+        $match = $fixture->match;
+        if (! $match) {
+            $match = FootballMatch::create([
+                'competition_id' => $fixture->competition_id,
+                'season_id' => $fixture->season_id,
+                'round_id' => $fixture->round_id,
+                'group_id' => $fixture->group_id,
+                'home_team_id' => $fixture->home_team_id,
+                'away_team_id' => $fixture->away_team_id,
+                'stadium_id' => $fixture->stadium_id,
+                'status' => MatchStatus::Scheduled,
+                'current_period' => 'upcoming',
+            ]);
+            $fixture->forceFill(['match_id' => $match->id])->save();
+            $fixture->setRelation('match', $match);
+        }
+
+        $status = $this->statusFromSubmission($fixture, $tournament, $submission, $match);
+        $suggestions = $status['suggestions'] ?? [];
+        $createdAwards = [];
+
+        foreach ($suggestions as $s) {
+            if (($s['type'] ?? '') === 'team_penalty') {
+                $committingId = (int) $s['committing_team_id'];
+                $awardedToId = (int) $s['awarded_to_team_id'];
+                $half = (string) $s['half'];
+                $count = (int) $s['count'];
+                $minute = (int) ($s['minute'] ?? 1);
+
+                $exists = PenaltyAward::query()
+                    ->where('match_id', $match->id)
+                    ->where('committing_team_id', $committingId)
+                    ->where('half', $half)
+                    ->where('triggering_foul_count', $count)
+                    ->exists();
+
+                if (! $exists && $awardedToId > 0) {
+                    $award = PenaltyAward::create([
+                        'match_id' => $match->id,
+                        'awarded_to_team_id' => $awardedToId,
+                        'committing_team_id' => $committingId,
+                        'triggering_foul_count' => $count,
+                        'half' => $half,
+                        'minute' => $minute,
+                        'status' => PenaltyAward::STATUS_AWARDED,
+                    ]);
+                    $createdAwards[] = $award;
+                }
+            }
+        }
+
+        $clientMeta = $submission->client_meta ?? [];
+        $clientMeta['foul_summary'] = [
+            'teams' => $status['teams'],
+            'settings' => $status['settings'],
+            'awards_created' => count($createdAwards),
+        ];
+        $submission->forceFill(['client_meta' => $clientMeta])->save();
+
+        return $createdAwards;
     }
 
     /**

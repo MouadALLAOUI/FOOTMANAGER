@@ -6,7 +6,7 @@ import { Button } from '../../../components/dashboard/ui'
 
 const minuteText = (m, added) => (Number(added) > 0 ? `${Number(m) || 0}'+${Number(added)}` : `${Number(m) || 0}'`)
 
-export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, homeName, awayName, refetchTick, onAwardConverted, t }) {
+export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, homeName, awayName, refetchTick, onAwardConverted, t, token, readOnly = false }) {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -15,7 +15,10 @@ export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, hom
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await api.get(`/committee/tournaments/${tournamentId}/fixtures/${fixtureId}/penalties`)
+      const url = token
+        ? `/v1/match-entry/${token}/penalties`
+        : `/committee/tournaments/${tournamentId}/fixtures/${fixtureId}/penalties`
+      const r = await api.get(url)
       setStatus(r.data?.data || null)
       setError(false)
     } catch (e) {
@@ -23,7 +26,7 @@ export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, hom
     } finally {
       setLoading(false)
     }
-  }, [tournamentId, fixtureId])
+  }, [tournamentId, fixtureId, token])
 
   useEffect(() => { load() }, [load, refetchTick])
 
@@ -167,16 +170,18 @@ export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, hom
                     </span>
                   </div>
                 </div>
-                <div className="mt-2 flex gap-2">
-                  <Button size="sm" className="flex-1" loading={busy} onClick={() => confirmSuggestion(s, true)}>
-                    <Check className="size-3.5" />
-                    {t('committee.result.foulPanel.confirm')}
-                  </Button>
-                  <Button size="sm" variant="outline" className="flex-1" loading={busy} onClick={() => confirmSuggestion(s, false)}>
-                    <X className="size-3.5" />
-                    {t('committee.result.foulPanel.dismiss')}
-                  </Button>
-                </div>
+                {!readOnly && (
+                  <div className="mt-2 flex gap-2">
+                    <Button size="sm" className="flex-1" loading={busy} onClick={() => confirmSuggestion(s, true)}>
+                      <Check className="size-3.5" />
+                      {t('committee.result.foulPanel.confirm')}
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1" loading={busy} onClick={() => confirmSuggestion(s, false)}>
+                      <X className="size-3.5" />
+                      {t('committee.result.foulPanel.dismiss')}
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -198,9 +203,11 @@ export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, hom
                       {minuteText(p.start_minute, 0)} → {minuteText(p.end_minute, 0)} ({p.duration_minutes}′)
                     </p>
                   </div>
-                  <button type="button" onClick={() => endPenalty(p)} className="shrink-0 rounded-lg bg-rose-500 px-2 py-1 text-[10px] font-black text-white hover:bg-rose-600">
-                    {t('committee.result.foulPanel.endEarly')}
-                  </button>
+                  {!readOnly && (
+                    <button type="button" onClick={() => endPenalty(p)} className="shrink-0 rounded-lg bg-rose-500 px-2 py-1 text-[10px] font-black text-white hover:bg-rose-600">
+                      {t('committee.result.foulPanel.endEarly')}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -218,17 +225,19 @@ export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, hom
                     {t('committee.result.foulPanel.awardTo', { team: a.awarded_to_name || t('committee.detail.tbd') })}
                   </p>
                   <p className="text-[10px] font-bold text-violet-500">{minuteText(a.minute, 0)}</p>
-                  <div className="mt-2 flex gap-2">
-                    <Button size="sm" className="flex-1" loading={busy} onClick={() => (onAwardConverted ? onAwardConverted(a) : resolveAward(a, 'converted'))}>
-                      ⚽ {t('committee.result.foulPanel.outcomeConverted')}
-                    </Button>
-                    <Button size="sm" variant="soft" className="flex-1" loading={busy} onClick={() => resolveAward(a, 'missed')}>
-                      {t('committee.result.foulPanel.outcomeMissed')}
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1" loading={busy} onClick={() => resolveAward(a, 'saved')}>
-                      {t('committee.result.foulPanel.outcomeSaved')}
-                    </Button>
-                  </div>
+                  {!readOnly && (
+                    <div className="mt-2 flex gap-2">
+                      <Button size="sm" className="flex-1" loading={busy} onClick={() => (onAwardConverted ? onAwardConverted(a) : resolveAward(a, 'converted'))}>
+                        ⚽ {t('committee.result.foulPanel.outcomeConverted')}
+                      </Button>
+                      <Button size="sm" variant="soft" className="flex-1" loading={busy} onClick={() => resolveAward(a, 'missed')}>
+                        {t('committee.result.foulPanel.outcomeMissed')}
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1" loading={busy} onClick={() => resolveAward(a, 'saved')}>
+                        {t('committee.result.foulPanel.outcomeSaved')}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

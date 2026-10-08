@@ -210,6 +210,7 @@ Route::prefix('v1')->group(function () {
     // Delegated match recorder routes (mobile-first, unauthenticated, rate-limited)
     Route::middleware('throttle:60,1')->prefix('match-entry/{token}')->group(function () {
         Route::get('/', [PublicDelegatedMatchEntryController::class, 'show']);
+        Route::get('/penalties', [PublicDelegatedMatchEntryController::class, 'penalties']);
         Route::post('/identify', [PublicDelegatedMatchEntryController::class, 'identify']);
         Route::post('/submit', [PublicDelegatedMatchEntryController::class, 'submit']);
     });

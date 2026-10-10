@@ -108,8 +108,16 @@ class PublicDelegatedMatchEntryController extends Controller
                 ],
                 'submission' => $existingSubmission,
                 'status' => $tokenRecord->status,
+                'mode' => $tokenRecord->mode ?? 'full',
                 'valid_until' => $tokenRecord->valid_until,
                 'foul_rules' => $foulRulesData,
+                'tournament' => $tournament ? [
+                    'id' => $tournament->id,
+                    'name' => $tournament->name,
+                    'max_players_per_team' => $tournament->max_players_per_team,
+                    'min_players_per_team' => $tournament->min_players_per_team,
+                    'tournament_format' => $tournament->tournament_format,
+                ] : null,
             ],
         ]);
     }
@@ -237,5 +245,42 @@ class PublicDelegatedMatchEntryController extends Controller
             'data' => $submission,
             'message' => 'تم إرسال نتيجة المباراة بنجاح وهي الآن بانتظار اعتماد اللجنة المنظمة',
         ], 201);
+    }
+
+    /**
+     * Add a player to a team of the match via delegated link.
+     */
+    public function addPlayer(Request $request, string $token): JsonResponse
+    {
+        $validated = $request->validate([
+            'team_id' => 'required|integer',
+            'name' => 'nullable|string|max:120',
+            'number' => 'nullable|integer|min:0|max:99',
+            'existing_player_id' => 'nullable|integer',
+            'force' => 'sometimes|boolean',
+        ]);
+
+        $tokenRecord = $this->delegatedService->findValidToken(
+            $token,
+            $request->ip()
+        );
+
+        $result = $this->delegatedService->addPlayer(
+            $tokenRecord,
+            (int) $validated['team_id'],
+            (string) ($validated['name'] ?? ''),
+            isset($validated['number']) && $validated['number'] !== '' ? (int) $validated['number'] : null,
+            isset($validated['existing_player_id']) ? (int) $validated['existing_player_id'] : null,
+            (bool) ($validated['force'] ?? false)
+        );
+
+        return response()->json([
+            'created' => $result['created'],
+            'duplicate' => $result['duplicate'] ?? false,
+            'data' => $result['player'] ?? null,
+            'player' => $result['player'] ?? null,
+            'duplicates' => $result['duplicates'] ?? [],
+            'message' => $result['message'],
+        ], $result['created'] ? 201 : 200);
     }
 }

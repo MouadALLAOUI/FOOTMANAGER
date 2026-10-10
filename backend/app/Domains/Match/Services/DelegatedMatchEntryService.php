@@ -10,8 +10,13 @@ use App\Domains\Match\Models\MatchResultAudit;
 use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
+use App\Domains\Tournament\Models\TournamentSquadMember;
 use App\Domains\Tournament\Services\TournamentFoulRuleService;
 use App\Domains\Tournament\Services\TournamentResultService;
+use App\Domains\Tournament\Services\TournamentSquadService;
+use App\Domains\Player\Models\Player;
+use App\Domains\Team\Models\Team;
+use App\Domains\Match\Models\MatchLineup;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -27,6 +32,7 @@ class DelegatedMatchEntryService
     public function __construct(
         private readonly TournamentResultService $resultService,
         private readonly TournamentFoulRuleService $foulRules,
+        private readonly TournamentSquadService $squadService,
     ) {}
 
     /**
@@ -36,14 +42,16 @@ class DelegatedMatchEntryService
      *
      * @return array{token: string, url: string, valid_until: string, share_text: string, qr_data: string}
      */
-    public function generateToken(Tournament $tournament, Fixture $fixture, int $organizerId): array
+    public function generateToken(Tournament $tournament, Fixture $fixture, int $organizerId, string $mode = 'full'): array
     {
         // If the organizer already entered the final result themselves, the link is disabled
         if ($fixture->match && $fixture->match->status->value === 'finished') {
             throw new DomainException('لا يمكن إنشاء رابط تسجيل لمباراة تم اعتماد نتيجتها بالفعل');
         }
 
-        return DB::transaction(function () use ($tournament, $fixture, $organizerId) {
+        $mode = in_array($mode, ['full', 'simple'], true) ? $mode : 'full';
+
+        return DB::transaction(function () use ($tournament, $fixture, $organizerId, $mode) {
             // Revoke any existing active tokens for this fixture
             MatchDelegatedToken::query()
                 ->where('fixture_id', $fixture->id)
@@ -77,6 +85,7 @@ class DelegatedMatchEntryService
                 'valid_from' => $validFrom->utc(),
                 'valid_until' => $validUntil->utc(),
                 'status' => 'active',
+                'mode' => $mode,
                 'is_revoked' => false,
                 'created_by' => $organizerId,
                 'ip_addresses' => [],
@@ -93,18 +102,48 @@ class DelegatedMatchEntryService
 
             $this->audit($fixture->match_id ? FootballMatch::find($fixture->match_id) : null, $fixture, 'delegated_link_generated', $organizerId, [
                 'token_id' => $tokenRecord->id,
+                'mode' => $mode,
                 'valid_until' => $validUntil->toDateTimeString(),
             ]);
 
             return [
                 'token' => $plainToken,
                 'url' => $url,
+                'mode' => $mode,
                 'valid_from' => $validFrom->toIso8601String(),
                 'valid_until' => $validUntil->toIso8601String(),
                 'share_text' => $shareText,
                 'qr_data' => $url,
             ];
         });
+    }
+
+    /**
+     * Update the mode ('full' or 'simple') of an existing active delegated link.
+     */
+    public function updateMode(Fixture $fixture, string $mode, int $organizerId): MatchDelegatedToken
+    {
+        $mode = in_array($mode, ['full', 'simple'], true) ? $mode : 'full';
+
+        $tokenRecord = MatchDelegatedToken::query()
+            ->where('fixture_id', $fixture->id)
+            ->where('is_revoked', false)
+            ->where('status', '!=', 'revoked')
+            ->latest()
+            ->first();
+
+        if (! $tokenRecord || ! $tokenRecord->isValid()) {
+            throw new DomainException('لا يوجد رابط نشط لهذه المباراة لتعديل وضعه');
+        }
+
+        $tokenRecord->update(['mode' => $mode]);
+
+        $this->audit($fixture->match_id ? FootballMatch::find($fixture->match_id) : null, $fixture, 'delegated_link_mode_updated', $organizerId, [
+            'token_id' => $tokenRecord->id,
+            'mode' => $mode,
+        ]);
+
+        return $tokenRecord;
     }
 
     /**
@@ -168,6 +207,181 @@ class DelegatedMatchEntryService
             'recorder_name' => trim($name),
             'recorder_phone' => trim($phone),
         ]);
+    }
+
+    /**
+     * Add a player to one of the fixture teams via the delegated link.
+     * Enforces the tournament maximum roster limit in the backend.
+     * Prevents duplicates (asks confirmation if same name exists).
+     * Locks the player from delegate edit/removal.
+     * Attaches player to tournament squad and match lineup.
+     * Writes to audit log.
+     *
+     * @return array{created: bool, duplicate: bool, player: ?array, duplicates: array, message: string}
+     */
+    public function addPlayer(MatchDelegatedToken $token, int $teamId, string $name, ?int $number = null, ?int $existingPlayerId = null, bool $force = false): array
+    {
+        $fixture = $token->fixture;
+        if (! $fixture) {
+            throw new DomainException('المباراة غير موجودة');
+        }
+
+        if (! $token->isValid()) {
+            throw new DomainException('الرابط غير صالح أو انتهت صلاحيته');
+        }
+
+        // Verify team belongs to this match
+        if ($teamId !== (int) $fixture->home_team_id && $teamId !== (int) $fixture->away_team_id) {
+            throw new DomainException('هذا الفريق غير مشارك في هذه المباراة', 422);
+        }
+
+        $team = Team::findOrFail($teamId);
+
+        $tournament = $fixture->competition instanceof Tournament
+            ? $fixture->competition
+            : ($fixture->competition_id ? Tournament::find($fixture->competition_id) : null);
+
+        // Check backend tournament roster maximum
+        if ($tournament) {
+            $max = $this->squadService->maxPlayers($tournament);
+            $currentSquadCount = $this->squadService->squadCount($tournament, $team);
+            if ($max !== null && $currentSquadCount >= $max) {
+                throw new DomainException("تم الوصول للحد الأقصى للاعبي الفريق في البطولة ({$max} لاعبين). لا يمكن إضافة المزيد.", 422);
+            }
+        }
+
+        // Case A: Picking an existing roster player who is not yet in the tournament squad or lineup
+        if ($existingPlayerId) {
+            $player = Player::where('team_id', $teamId)->where('id', $existingPlayerId)->first();
+            if (! $player) {
+                throw new DomainException('اللاعب غير موجود في قائمة الفريق', 404);
+            }
+
+            if ($tournament) {
+                TournamentSquadMember::firstOrCreate([
+                    'tournament_id' => $tournament->id,
+                    'team_id' => $teamId,
+                    'player_id' => $player->id,
+                ]);
+            }
+
+            // Add to match presence / lineup if match exists
+            if ($fixture->match_id) {
+                MatchLineup::firstOrCreate([
+                    'match_id' => $fixture->match_id,
+                    'team_id' => $teamId,
+                    'player_id' => $player->id,
+                ], [
+                    'is_starter' => false,
+                ]);
+            }
+
+            $this->audit($fixture->match_id ? FootballMatch::find($fixture->match_id) : null, $fixture, 'delegated_player_picked', null, [
+                'token_id' => $token->id,
+                'team_id' => $teamId,
+                'player_id' => $player->id,
+                'player_name' => $player->name,
+                'recorder_name' => $token->recorder_name,
+                'recorder_phone' => $token->recorder_phone,
+            ]);
+
+            return [
+                'created' => true,
+                'duplicate' => false,
+                'player' => [
+                    'id' => $player->id,
+                    'team_id' => $player->team_id,
+                    'name' => $player->name,
+                    'number' => $player->number,
+                    'position' => $player->position,
+                    'photo_url' => $player->photo_thumbnail_url ?? $player->photo_url,
+                ],
+                'duplicates' => [],
+                'message' => 'تمت إضافة اللاعب إلى تشكيلة المباراة بنجاح',
+            ];
+        }
+
+        // Case B: Adding a new player
+        $trimmedName = trim($name);
+        if ($trimmedName === '') {
+            throw new DomainException('اسم اللاعب مطلوب', 422);
+        }
+
+        // Check for duplicates with same name in same team
+        $duplicates = Player::query()
+            ->where('team_id', $teamId)
+            ->where('name', $trimmedName)
+            ->get(['id', 'team_id', 'name', 'number', 'position']);
+
+        if ($duplicates->isNotEmpty() && ! $force) {
+            return [
+                'created' => false,
+                'duplicate' => true,
+                'player' => null,
+                'duplicates' => $duplicates->values()->all(),
+                'message' => 'يوجد لاعب مسجل بالفعل بهذا الاسم في الفريق. هل تريد تأكيد إضافته أو اختيار اللاعب الموجود؟',
+            ];
+        }
+
+        return DB::transaction(function () use ($token, $fixture, $tournament, $team, $trimmedName, $number) {
+            $player = Player::create([
+                'team_id' => $team->id,
+                'name' => $trimmedName,
+                'number' => $number !== null && $number >= 0 ? (int) $number : null,
+                'status' => Player::STATUS_ACTIVE,
+                'added_via_link' => true,
+                'added_via_token_id' => $token->id,
+                'added_via_fixture_id' => $fixture->id,
+                'link_reviewed' => false,
+                'is_locked_from_delegates' => true,
+                'added_by_recorder_name' => $token->recorder_name,
+                'added_by_recorder_phone' => $token->recorder_phone,
+            ]);
+
+            if ($tournament) {
+                TournamentSquadMember::firstOrCreate([
+                    'tournament_id' => $tournament->id,
+                    'team_id' => $team->id,
+                    'player_id' => $player->id,
+                ]);
+            }
+
+            // Ensure match lineup entry exists if match record is present
+            if ($fixture->match_id) {
+                MatchLineup::firstOrCreate([
+                    'match_id' => $fixture->match_id,
+                    'team_id' => $team->id,
+                    'player_id' => $player->id,
+                ], [
+                    'is_starter' => false,
+                ]);
+            }
+
+            $this->audit($fixture->match_id ? FootballMatch::find($fixture->match_id) : null, $fixture, 'delegated_player_added', null, [
+                'token_id' => $token->id,
+                'team_id' => $team->id,
+                'player_id' => $player->id,
+                'player_name' => $player->name,
+                'player_number' => $player->number,
+                'recorder_name' => $token->recorder_name,
+                'recorder_phone' => $token->recorder_phone,
+            ]);
+
+            return [
+                'created' => true,
+                'duplicate' => false,
+                'player' => [
+                    'id' => $player->id,
+                    'team_id' => $player->team_id,
+                    'name' => $player->name,
+                    'number' => $player->number,
+                    'position' => $player->position,
+                    'photo_url' => $player->photo_thumbnail_url ?? $player->photo_url,
+                ],
+                'duplicates' => [],
+                'message' => 'تمت إضافة اللاعب بنجاح إلى الفريق وتشكيلة المباراة',
+            ];
+        });
     }
 
     /**

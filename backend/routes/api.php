@@ -213,6 +213,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/penalties', [PublicDelegatedMatchEntryController::class, 'penalties']);
         Route::post('/identify', [PublicDelegatedMatchEntryController::class, 'identify']);
         Route::post('/submit', [PublicDelegatedMatchEntryController::class, 'submit']);
+        Route::post('/players', [PublicDelegatedMatchEntryController::class, 'addPlayer']);
     });
 
     Route::get('/teams/{team}/profile', [PublicTeamProfileController::class, 'show']);
@@ -845,6 +846,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::patch('/teams/{team}/squad/{playerId}', [TournamentSquadController::class, 'updatePlayer']);
                 Route::post('/teams/{team}/squad/{playerId}', [TournamentSquadController::class, 'updatePlayer']);
                 Route::delete('/teams/{team}/squad/{playerId}', [TournamentSquadController::class, 'destroyPlayer']);
+                Route::post('/teams/{team}/squad/{playerId}/review', [TournamentSquadController::class, 'markReviewed']);
             });
 
             Route::get('/stadiums', [TournamentStadiumController::class, 'index']);
@@ -909,6 +911,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
                 // Delegated match entry via secret link
                 Route::post('/fixtures/{fixture}/delegated-link', [DelegatedMatchLinkController::class, 'generate']);
+                Route::put('/fixtures/{fixture}/delegated-link/mode', [DelegatedMatchLinkController::class, 'updateMode']);
                 Route::delete('/fixtures/{fixture}/delegated-link', [DelegatedMatchLinkController::class, 'revoke']);
                 Route::post('/fixtures/{fixture}/delegated-submission/approve', [DelegatedMatchLinkController::class, 'approve']);
                 Route::post('/fixtures/{fixture}/delegated-submission/reject', [DelegatedMatchLinkController::class, 'reject']);
@@ -931,6 +934,9 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::put('/fixtures/{fixture}/events/{event}', [TournamentMatchEventController::class, 'update']);
                 Route::delete('/fixtures/{fixture}/events/{event}', [TournamentMatchEventController::class, 'destroy']);
             });
+
+            // Organizer player name correction on events (relaxed for organizer even on finished/approved matches)
+            Route::put('/fixtures/{fixture}/events/{event}/correct-player', [TournamentMatchEventController::class, 'correctPlayer']);
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/fixtures/{fixture}/penalties/player', [TournamentPenaltyController::class, 'player']);

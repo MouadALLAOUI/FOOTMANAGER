@@ -90,11 +90,13 @@ class TournamentFixtureResource extends JsonResource
             'delegated_link' => $this->whenLoaded('delegatedToken', fn () => $this->delegatedToken ? [
                 'id' => $this->delegatedToken->id,
                 'status' => $this->delegatedToken->status,
+                'mode' => $this->delegatedToken->mode ?? 'full',
                 'valid_from' => $this->delegatedToken->valid_from?->toIso8601String(),
                 'valid_until' => $this->delegatedToken->valid_until?->toIso8601String(),
                 'recorder_name' => $this->delegatedToken->recorder_name,
                 'recorder_phone' => $this->delegatedToken->recorder_phone,
             ] : null),
+            'has_unassigned_events' => $this->checkHasUnassignedEvents(),
             'delegated_submission' => $this->whenLoaded('latestPendingSubmission', fn () => $this->latestPendingSubmission ? [
                 'id' => $this->latestPendingSubmission->id,
                 'status' => $this->latestPendingSubmission->status,
@@ -199,5 +201,38 @@ class TournamentFixtureResource extends JsonResource
             ->where('competition_id', $this->competition_id)
             ->where('season_id', $this->season_id)
             ->first();
+    }
+
+    private function checkHasUnassignedEvents(): bool
+    {
+        if ($this->match_id) {
+            $hasUnassigned = \App\Domains\Match\Models\MatchEvent::query()
+                ->where('match_id', $this->match_id)
+                ->whereNull('player_id')
+                ->whereIn('type', [
+                    \App\Domains\Match\Enums\MatchEventType::Goal->value,
+                    \App\Domains\Match\Enums\MatchEventType::PenaltyGoal->value,
+                    \App\Domains\Match\Enums\MatchEventType::Foul->value,
+                ])
+                ->exists();
+
+            if ($hasUnassigned) {
+                return true;
+            }
+        }
+
+        if ($this->relationLoaded('latestPendingSubmission') && $this->latestPendingSubmission) {
+            $rawEvents = is_array($this->latestPendingSubmission->events)
+                ? $this->latestPendingSubmission->events
+                : (json_decode($this->latestPendingSubmission->events ?? '[]', true) ?: []);
+
+            foreach ($rawEvents as $ev) {
+                if (empty($ev['player_id']) && empty($ev['player']) && in_array($ev['type'] ?? '', ['goal', 'penalty_goal', 'foul'], true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

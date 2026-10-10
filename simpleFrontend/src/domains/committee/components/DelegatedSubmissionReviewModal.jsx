@@ -254,7 +254,17 @@ export default function DelegatedSubmissionReviewModal({
   const anomalies = sub.anomalies || []
   const isDisputed = Boolean(sub.is_disputed)
 
+  const hasUnassignedGoals = sortedEvents.some(
+    (ev) => (ev.type === 'goal' || ev.type === 'penalty_goal') && !ev.player_id && !ev.player
+  )
+
   const handleApprove = async () => {
+    if (hasUnassignedGoals) {
+      const confirmUnassigned = window.confirm(
+        '⚠️ تنبيه أحداث بلا لاعب:\nتتضمن هذه النتيجة أهدافاً مسجلة دون تعيين اللاعب صاحب الهدف (وضع بسيط).\nلن تُحتسب هذه الأهداف في قائمة الهدّافين حتى تقوم بتعيين أصحابها من لوحة المباراة.\n\nهل تريد المتابعة واعتماد النتيجة الآن؟'
+      )
+      if (!confirmUnassigned) return
+    }
     setLoading(true)
     try {
       const res = await api.post(

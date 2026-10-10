@@ -67,6 +67,24 @@ class TournamentMatchEventController extends Controller
         ]);
     }
 
+    public function correctPlayer(Request $request, Tournament $tournament, Fixture $fixture, MatchEvent $event): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+        $this->assertBelongsToTournament($tournament, $fixture);
+
+        $validated = $request->validate([
+            'player_id' => 'nullable|integer|exists:players,id',
+            'assist_player_id' => 'nullable|integer|exists:players,id',
+        ]);
+
+        $updatedEvent = $this->results->correctEventPlayer($fixture, $event, $validated, $request->user()->id);
+
+        return response()->json([
+            'data' => $this->eventPayload($updatedEvent),
+            'message' => 'تم تصحيح اسم اللاعب في الحدث بنجاح وتحديث إحصائيات البطولة',
+        ]);
+    }
+
     public function destroy(Request $request, Tournament $tournament, Fixture $fixture, MatchEvent $event): JsonResponse
     {
         $this->authorize('manage', $tournament);

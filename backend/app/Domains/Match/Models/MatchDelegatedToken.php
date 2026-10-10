@@ -19,6 +19,7 @@ class MatchDelegatedToken extends Model
         'valid_from',
         'valid_until',
         'status',
+        'mode',
         'is_revoked',
         'revoked_at',
         'created_by',

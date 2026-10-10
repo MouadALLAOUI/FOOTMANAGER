@@ -184,6 +184,17 @@ export default function TournamentMatchCard({
                 </button>
               )}
 
+              {/* Unassigned Events Badge (أحداث بلا لاعب) */}
+              {fixture.has_unassigned_events && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2.5 py-0.5 text-[10px] font-black text-orange-800"
+                  title="هناك أهداف أو أحداث مسجلة دون تعيين اللاعبين المسجلين لها"
+                >
+                  <AlertCircle className="size-3 text-orange-600" />
+                  <span>أحداث بلا لاعب</span>
+                </span>
+              )}
+
               {/* Finished Badge */}
               {isPlayed && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">

@@ -26,25 +26,56 @@ export default function DelegatedMatchLinkModal({
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState(null)
+  const [mode, setMode] = useState('full')
   const [copied, setCopied] = useState(false)
   const [showQr, setShowQr] = useState(false)
+
+  // Initialize data or mode from fixture's active delegated link if present
+  useEffect(() => {
+    if (fixture?.delegated_link) {
+      setMode(fixture.delegated_link.mode || 'full')
+    }
+  }, [fixture])
 
   if (!isOpen || !fixture) return null
 
   const homeName = fixture.home_team?.name || 'الفريق 1'
   const awayName = fixture.away_team?.name || 'الفريق 2'
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (targetMode = mode) => {
     setLoading(true)
     try {
       const res = await api.post(
-        `/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/delegated-link`
+        `/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/delegated-link`,
+        { mode: targetMode }
       )
       setData(res.data.data)
+      setMode(res.data.data?.mode || targetMode)
       toast.success(res.data.message || 'تم إنشاء رابط تسجيل المباراة بنجاح')
       if (onTokenChanged) onTokenChanged()
     } catch (err) {
       toast.error(err.response?.data?.message || 'تعذر إنشاء الرابط')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleChangeMode = async (newMode) => {
+    setMode(newMode)
+    if (!data && !fixture?.delegated_link) return
+    setLoading(true)
+    try {
+      const res = await api.put(
+        `/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/delegated-link/mode`,
+        { mode: newMode }
+      )
+      toast.success(res.data.message || 'تم تحديث وضع الرابط بنجاح')
+      if (data) {
+        setData((prev) => ({ ...prev, mode: newMode }))
+      }
+      if (onTokenChanged) onTokenChanged()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'تعذر تغيير وضع الرابط')
     } finally {
       setLoading(false)
     }
@@ -112,9 +143,48 @@ export default function DelegatedMatchLinkModal({
           </div>
         </div>
 
+        {/* Mode Selector */}
+        <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3 space-y-2">
+          <label className="block text-xs font-black text-slate-800">
+            نوع الرابط (طريقة التسجيل):
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleChangeMode('full')}
+              className={`flex flex-col items-center justify-center rounded-xl p-2.5 text-center transition border ${
+                mode === 'full'
+                  ? 'border-emerald-600 bg-emerald-50/80 text-emerald-950 font-black shadow-2xs ring-1 ring-emerald-500'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold'
+              }`}
+            >
+              <span className="text-sm">وضع كامل 📋</span>
+              <span className="text-[10px] text-slate-500 mt-0.5 leading-tight">
+                تشكيلة، لاعبين، بطاقات، تبديلات
+              </span>
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleChangeMode('simple')}
+              className={`flex flex-col items-center justify-center rounded-xl p-2.5 text-center transition border ${
+                mode === 'simple'
+                  ? 'border-emerald-600 bg-emerald-50/80 text-emerald-950 font-black shadow-2xs ring-1 ring-emerald-500'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 font-bold'
+              }`}
+            >
+              <span className="text-sm">وضع بسيط ⚡</span>
+              <span className="text-[10px] text-slate-500 mt-0.5 leading-tight">
+                أهداف وأخطاء للفرق فقط (بدون لاعبين)
+              </span>
+            </button>
+          </div>
+        </div>
+
         {/* State 1: No link created in this session yet */}
         {!data && (
-          <div className="py-4 text-center space-y-3">
+          <div className="py-2 text-center space-y-3">
             <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-600">
               <Link2 className="size-6" />
             </div>
@@ -124,10 +194,10 @@ export default function DelegatedMatchLinkModal({
             <Button
               className="w-full justify-center bg-emerald-600 hover:bg-emerald-700 text-white font-black py-2.5 rounded-xl shadow-xs"
               loading={loading}
-              onClick={handleGenerate}
+              onClick={() => handleGenerate(mode)}
             >
               <Link2 className="size-4 me-1.5" />
-              توليد رابط التسجيل الآن
+              توليد رابط التسجيل الآن ({mode === 'simple' ? 'وضع بسيط' : 'وضع كامل'})
             </Button>
           </div>
         )}

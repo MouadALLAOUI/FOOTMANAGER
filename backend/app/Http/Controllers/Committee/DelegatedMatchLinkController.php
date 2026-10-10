@@ -28,16 +28,48 @@ class DelegatedMatchLinkController extends Controller
         $this->authorize('manage', $tournament);
         $this->assertBelongsToTournament($tournament, $fixture);
 
+        $mode = $request->input('mode', 'full');
+
         $result = $this->delegatedService->generateToken(
             $tournament,
             $fixture,
-            $request->user()->id
+            $request->user()->id,
+            $mode
         );
 
         return response()->json([
             'data' => $result,
             'message' => 'تم إنشاء رابط تسجيل المباراة بنجاح',
         ], 201);
+    }
+
+    /**
+     * Update the mode ('full' or 'simple') of an existing active delegated link.
+     */
+    public function updateMode(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+        $this->assertBelongsToTournament($tournament, $fixture);
+
+        $request->validate([
+            'mode' => 'required|string|in:full,simple',
+        ]);
+
+        $token = $this->delegatedService->updateMode(
+            $fixture,
+            $request->input('mode'),
+            $request->user()->id
+        );
+
+        return response()->json([
+            'data' => [
+                'id' => $token->id,
+                'mode' => $token->mode,
+                'status' => $token->status,
+                'valid_until' => $token->valid_until?->toIso8601String(),
+            ],
+            'message' => 'تم تحديث وضع الرابط بنجاح',
+        ]);
     }
 
     /**

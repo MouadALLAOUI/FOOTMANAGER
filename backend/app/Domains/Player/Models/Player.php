@@ -54,6 +54,13 @@ class Player extends Model
         'medical_notes',
         'joined_at',
         'notes',
+        'added_via_link',
+        'added_via_token_id',
+        'added_via_fixture_id',
+        'link_reviewed',
+        'is_locked_from_delegates',
+        'added_by_recorder_name',
+        'added_by_recorder_phone',
     ];
 
     protected $appends = [
@@ -115,6 +122,9 @@ class Player extends Model
             'number' => 'integer',
             'is_whatsapp' => 'boolean',
             'is_essential' => 'boolean',
+            'added_via_link' => 'boolean',
+            'link_reviewed' => 'boolean',
+            'is_locked_from_delegates' => 'boolean',
             'height_cm' => 'integer',
             'weight_kg' => 'integer',
             'joined_at' => 'date',

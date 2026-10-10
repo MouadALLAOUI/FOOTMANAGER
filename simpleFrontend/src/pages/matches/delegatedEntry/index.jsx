@@ -206,9 +206,66 @@ export default function DelegatedMatchEntryPage() {
   const awayId = awayTeam?.id
   const homeName = homeTeam?.name || 'الفريق المضيف'
   const awayName = awayTeam?.name || 'الفريق الضيف'
+  const isSimpleMode = data?.mode === 'simple'
 
-  const homeRoster = data?.rosters?.home || []
-  const awayRoster = data?.rosters?.away || []
+  const [customRosters, setCustomRosters] = useState(null)
+  const homeRoster = customRosters?.home ?? (data?.rosters?.home || [])
+  const awayRoster = customRosters?.away ?? (data?.rosters?.away || [])
+
+  const handleAddPlayer = async (teamId, playerName, shirtNumber = null, force = false, existingPlayerId = null) => {
+    try {
+      const res = await api.post(`/v1/match-entry/${token}/players`, {
+        team_id: teamId,
+        name: playerName,
+        number: shirtNumber,
+        force: force,
+        existing_player_id: existingPlayerId,
+      })
+
+      const resData = res.data
+      if (resData.duplicate && !force) {
+        const confirmAdd = window.confirm(
+          `⚠️ تنبيه تكرار الاسم:\nيوجد لاعب بنفس الاسم "${playerName}" مسجل بالفعل في هذا الفريق.\n\nاضغط "موافق" لتأكيد إضافة لاعب جديد بهذا الاسم، أو "إلغاء" للتراجع.`
+        )
+        if (confirmAdd) {
+          return await handleAddPlayer(teamId, playerName, shirtNumber, true)
+        }
+        return false
+      }
+
+      if (resData.created && resData.player) {
+        const newPlayer = resData.player
+        const isHome = Number(teamId) === Number(homeId)
+
+        setCustomRosters((prev) => {
+          const baseHome = prev?.home ?? (data?.rosters?.home || [])
+          const baseAway = prev?.away ?? (data?.rosters?.away || [])
+          if (isHome) {
+            return { home: [...baseHome, newPlayer], away: baseAway }
+          } else {
+            return { home: baseHome, away: [...baseAway, newPlayer] }
+          }
+        })
+
+        // Add to presence automatically
+        if (isHome) {
+          setConfirmedHome((prev) => new Set([...prev, newPlayer.id]))
+        } else {
+          setConfirmedAway((prev) => new Set([...prev, newPlayer.id]))
+        }
+
+        alert(resData.message || 'تمت إضافة اللاعب بنجاح')
+        return true
+      }
+
+      alert(resData.message || 'تعذر إضافة اللاعب')
+      return false
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'حدث خطأ أثناء إضافة اللاعب'
+      alert(`⚠️ ${msg}`)
+      return false
+    }
+  }
 
   const handleTogglePresence = (playerId, teamId, nextConfirmed) => {
     if (Number(teamId) === Number(homeId)) {
@@ -529,6 +586,67 @@ export default function DelegatedMatchEntryPage() {
         alert(`⚠️ تنبيه الخطأ التراكمي (${newFouls}/${teamFoulThreshold}):\nبلغ فريق "${offenderName}" الخطأ رقم ${newFouls} في هذا الشوط!\nيستحق فريق "${beneficiaryName}" ركلة جزاء تراكمية (الخطأ السادس وما بعده).`)
       }
     }
+    try {
+      localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
+    } catch (_) {}
+  }
+
+  // Simple Mode Event Recording (Goal or Foul by team only, player = null)
+  const handleSimpleRecordEvent = (type, teamId) => {
+    if (matchNotStarted || isPaused) return
+    const curHalf = activeHalf || 'first'
+    const minute = currentLiveMinute > 0 ? currentLiveMinute : 1
+    const tid = Number(teamId)
+
+    const newEv = {
+      _key: uid(),
+      type: type, // 'goal' or 'foul'
+      team_id: tid,
+      player_id: null,
+      player: '',
+      assist_player_id: null,
+      assist: '',
+      minute: minute,
+      added_time: 0,
+      half: curHalf,
+      goalType: type === 'goal' ? 'regular' : undefined,
+      punishment: type === 'foul' ? 'none' : '',
+      description: type === 'goal' ? 'هدف' : 'خطأ',
+    }
+
+    const nextEvents = [...events, newEv].sort((a, b) => a.minute - b.minute)
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+
+    if (type === 'foul') {
+      setFoulNotifCount((c) => c + 1)
+      setFoulRefetchTick((v) => v + 1)
+      const currentHalf = curHalf || activeHalf || 'first'
+      const priorFouls = getTeamFoulsInWindow(tid, currentHalf)
+      const newFouls = priorFouls + 1
+      if (isFoulRuleActive && newFouls >= teamFoulThreshold) {
+        const offenderName = tid === Number(homeId) ? homeName : awayName
+        const beneficiaryName = tid === Number(homeId) ? awayName : homeName
+        alert(`⚠️ تنبيه الخطأ التراكمي (${newFouls}/${teamFoulThreshold}):\nبلغ فريق "${offenderName}" الخطأ رقم ${newFouls} في هذا الشوط!\nيستحق فريق "${beneficiaryName}" ركلة جزاء تراكمية (الخطأ السادس وما بعده).`)
+      }
+    }
+
+    try {
+      localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
+    } catch (_) {}
+  }
+
+  // Minimal undo last event action for simple mode (and full mode) before submission
+  const handleUndoLastEvent = () => {
+    if (events.length === 0) return
+    const lastEvent = events[events.length - 1]
+    const label = lastEvent.type === 'goal' ? 'هدف' : lastEvent.type === 'foul' ? 'خطأ' : lastEvent.type
+    if (!window.confirm(`هل أنت متأكد من حذف آخر حدث مسجل (${label} دقيقة ${lastEvent.minute})؟`)) return
+
+    const nextEvents = events.slice(0, -1)
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+    setFoulRefetchTick((v) => v + 1)
     try {
       localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
     } catch (_) {}
@@ -976,10 +1094,193 @@ export default function DelegatedMatchEntryPage() {
 
       {/* ─── Main Tabs & Content Area ─── */}
       <main className="mx-auto max-w-5xl p-4 sm:p-5 space-y-4">
-        {/* Navigation Tabs Bar */}
-        <TabBar
-          active={activeTab}
-          onChange={(id) => {
+        {isSimpleMode ? (
+          <div className="space-y-4">
+            {/* Header info badge */}
+            <div className="flex items-center justify-between rounded-2xl bg-amber-50 border border-amber-200/80 px-4 py-3 text-amber-900 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-base">⚡</span>
+                <span className="font-black">الوضع البسيط (تسجيل مباشر للفرق بدون اختيار لاعبين)</span>
+              </div>
+              {events.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleUndoLastEvent}
+                  className="rounded-xl border border-amber-300 bg-white px-3 py-1 font-black text-rose-700 hover:bg-rose-50 shadow-2xs transition"
+                >
+                  ↩️ تراجع عن آخر حدث
+                </button>
+              )}
+            </div>
+
+            {/* Match Teams Recording Cards */}
+            <div className="grid gap-4 md:grid-cols-2">
+              {/* Home Team Card */}
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 text-center">
+                <div className="flex items-center justify-center gap-3">
+                  <TeamLogo team={homeTeam} name={homeName} className="size-12 rounded-2xl ring-1 ring-slate-100" />
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-slate-400">الفريق المضيف</p>
+                    <h3 className="text-base font-black text-slate-900">{homeName}</h3>
+                  </div>
+                </div>
+
+                {/* Live team counters */}
+                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-3 text-center border border-slate-100">
+                  <div>
+                    <span className="text-2xl font-black text-emerald-600 tabular-nums">{displayScore.home}</span>
+                    <p className="text-[11px] font-bold text-slate-500 mt-0.5">⚽ أهداف</p>
+                  </div>
+                  <div>
+                    <span className="text-2xl font-black text-amber-600 tabular-nums">
+                      {getTeamFoulsInWindow(homeId, activeHalf || 'first')}
+                    </span>
+                    <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                      ⚠️ أخطاء الشوط ({teamFoulThreshold ? `${getTeamFoulsInWindow(homeId, activeHalf || 'first')}/${teamFoulThreshold}` : '—'})
+                    </p>
+                  </div>
+                </div>
+
+                {/* Big Action Buttons */}
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    disabled={matchNotStarted || isPaused}
+                    onClick={() => handleSimpleRecordEvent('goal', homeId)}
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black py-4 shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-3xl">⚽</span>
+                    <span className="text-sm">تسجيل هدف</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={matchNotStarted || isPaused}
+                    onClick={() => handleSimpleRecordEvent('foul', homeId)}
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black py-4 shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-3xl">⚠️</span>
+                    <span className="text-sm">تسجيل خطأ</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Away Team Card */}
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 text-center">
+                <div className="flex items-center justify-center gap-3">
+                  <TeamLogo team={awayTeam} name={awayName} className="size-12 rounded-2xl ring-1 ring-slate-100" />
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-slate-400">الفريق الضيف</p>
+                    <h3 className="text-base font-black text-slate-900">{awayName}</h3>
+                  </div>
+                </div>
+
+                {/* Live team counters */}
+                <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-50 p-3 text-center border border-slate-100">
+                  <div>
+                    <span className="text-2xl font-black text-emerald-600 tabular-nums">{displayScore.away}</span>
+                    <p className="text-[11px] font-bold text-slate-500 mt-0.5">⚽ أهداف</p>
+                  </div>
+                  <div>
+                    <span className="text-2xl font-black text-amber-600 tabular-nums">
+                      {getTeamFoulsInWindow(awayId, activeHalf || 'first')}
+                    </span>
+                    <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                      ⚠️ أخطاء الشوط ({teamFoulThreshold ? `${getTeamFoulsInWindow(awayId, activeHalf || 'first')}/${teamFoulThreshold}` : '—'})
+                    </p>
+                  </div>
+                </div>
+
+                {/* Big Action Buttons */}
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    disabled={matchNotStarted || isPaused}
+                    onClick={() => handleSimpleRecordEvent('goal', awayId)}
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black py-4 shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-3xl">⚽</span>
+                    <span className="text-sm">تسجيل هدف</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={matchNotStarted || isPaused}
+                    onClick={() => handleSimpleRecordEvent('foul', awayId)}
+                    className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black py-4 shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-3xl">⚠️</span>
+                    <span className="text-sm">تسجيل خطأ</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Events Timeline in Simple Mode */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h4 className="text-xs font-black text-slate-800">الأحداث المسجلة في المباراة ({events.length})</h4>
+                {events.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleUndoLastEvent}
+                    className="text-xs font-bold text-rose-600 hover:underline"
+                  >
+                    حذف آخر حدث
+                  </button>
+                )}
+              </div>
+
+              {events.length === 0 ? (
+                <p className="py-6 text-center text-xs text-slate-400">لا توجد أحداث مسجلة بعد. استخدم الأزرار أعلاه لتسجيل الأهداف والأخطاء.</p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto pe-1">
+                  {[...events].reverse().map((ev, idx) => {
+                    const isHome = Number(ev.team_id) === Number(homeId)
+                    const teamName = isHome ? homeName : awayName
+                    return (
+                      <div
+                        key={ev._key || idx}
+                        className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50/60 p-2.5 text-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-slate-500 tabular-nums">د {ev.minute}'</span>
+                          <span className="text-base">{ev.type === 'goal' ? '⚽' : '⚠️'}</span>
+                          <span className="font-extrabold text-slate-800">{teamName}</span>
+                          <span className="text-slate-500 font-medium">({ev.type === 'goal' ? 'هدف' : 'خطأ'})</span>
+                        </div>
+                        {idx === 0 && (
+                          <button
+                            type="button"
+                            onClick={handleUndoLastEvent}
+                            className="text-[11px] font-bold text-rose-600 hover:text-rose-700"
+                          >
+                            تراجع
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Match Notes box */}
+            <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-xs space-y-2">
+              <label className="block text-xs font-black text-slate-700">ملاحظات المباراة (اختياري)</label>
+              <textarea
+                rows={2}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="أدخل أي ملاحظات حول مجريات اللقاء..."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-2.5 text-xs font-medium text-slate-800 focus:outline-emerald-500"
+              />
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Navigation Tabs Bar */}
+            <TabBar
+              active={activeTab}
+              onChange={(id) => {
             if (showForm) cancelForm()
             if (id === 'stats') setFoulNotifCount(0)
             setActiveTab(id)
@@ -1053,10 +1354,11 @@ export default function DelegatedMatchEntryPage() {
               redCardedIds={redCardedIds}
               busyId={null}
               events={events}
-              tournament={{ max_players_per_team: 8, name: fixture.tournament_name }}
+              tournament={data?.tournament || { max_players_per_team: 8, name: fixture.tournament_name }}
               fixture={fixture}
               confirmedHome={confirmedHome}
               confirmedAway={confirmedAway}
+              onAddPlayer={handleAddPlayer}
               onTapPlayer={(player, teamId, variant, bench) => {
                 tapPlayer(player, teamId, variant, bench)
               }}
@@ -1225,6 +1527,8 @@ export default function DelegatedMatchEntryPage() {
               t={t}
             />
           </div>
+        )}
+          </>
         )}
       </main>
 

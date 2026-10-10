@@ -105,6 +105,21 @@ class TournamentSquadController extends Controller
         ]);
     }
 
+    public function markReviewed(Tournament $tournament, Team $team, int $playerId): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+        $this->assertInTournament($tournament, $team);
+
+        $player = Player::query()->findOrFail($playerId);
+        abort_unless((int) $player->team_id === (int) $team->id, 404, 'اللاعب غير موجود في هذا الفريق');
+
+        $player->update(['link_reviewed' => true]);
+
+        return response()->json($this->squad->squad($tournament, $team) + [
+            'message' => 'تم تأكيد مراجعة اللاعب بنجاح',
+        ]);
+    }
+
     private function assertInTournament(Tournament $tournament, Team $team): void
     {
         abort_unless(

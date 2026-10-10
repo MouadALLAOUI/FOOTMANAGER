@@ -558,12 +558,45 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose }) {
                           ) : (
                             <Badge variant="neutral" className="!px-1.5 !py-0 text-[10px]">غير مدرج</Badge>
                           )}
+
+                          {player.added_via_link && !player.link_reviewed && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[9px] font-black text-amber-800 shadow-2xs"
+                              title={`أُضيف عبر الرابط من قِبل: ${player.added_by_recorder_name || 'مندوب المباراة'} (${player.added_by_recorder_phone || '—'})`}
+                            >
+                              <span>⚠️ أُضيف عبر الرابط – للمراجعة</span>
+                            </span>
+                          )}
                         </div>
                       </div>
 
                       {/* Actions */}
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
                         <div className="flex items-center gap-1">
+                          {player.added_via_link && !player.link_reviewed && (
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setBusyActionId(`review-${player.id}`)
+                                try {
+                                  await api.post(`/committee/tournaments/${tournamentId}/teams/${team?.id}/squad/${player.id}/review`)
+                                  toast.success('تم تأكيد مراجعة اللاعب')
+                                  refetch()
+                                } catch (err) {
+                                  toastApiError(err, t)
+                                } finally {
+                                  setBusyActionId(null)
+                                }
+                              }}
+                              disabled={busyActionId === `review-${player.id}`}
+                              className="grid size-7 place-items-center rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                              title="اعتماد ومراجعة اللاعب (إزالة علامة المراجعة)"
+                              aria-label="اعتماد ومراجعة"
+                            >
+                              <CheckCircle2 className="size-3.5" />
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => openEditModal(player)}

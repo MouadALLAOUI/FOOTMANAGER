@@ -242,7 +242,9 @@ class TournamentResultService
 
                 $fixture->forceFill(['match_id' => $match->id])->save();
             } else {
-                $this->assertMatchEditable($match);
+                if (empty($data['force'])) {
+                    $this->assertMatchEditable($match);
+                }
             }
 
             if (array_key_exists('events', $data)) {
@@ -489,6 +491,98 @@ class TournamentResultService
             ]);
 
             return $event->fresh(['team', 'player', 'assistPlayer']);
+        });
+    }
+
+    /**
+     * Organizer player correction on a match event.
+     * Allows tournament organizer to reattribute player, assist_player, or substitution players
+     * across pending, finished, and approved matches without altering score, standings, or minutes.
+     * Recomputes foul rules and card records, and logs an organizer-visible audit trail.
+     *
+     * @param  array{player_id?: int|null, assist_player_id?: int|null}  $data
+     */
+    public function correctEventPlayer(Fixture $fixture, MatchEvent $event, array $data, int $organizerId): MatchEvent
+    {
+        return DB::transaction(function () use ($fixture, $event, $data, $organizerId) {
+            $this->assertEventBelongsToMatch($fixture, $event);
+
+            $tournament = $this->tournamentFor($fixture);
+
+
+            $beforePlayerId = $event->player_id;
+            $beforeAssistId = $event->assist_player_id;
+            $beforePlayerName = $event->player?->name;
+            $beforeAssistName = $event->assistPlayer?->name;
+
+            $updatePayload = [];
+
+            if (array_key_exists('player_id', $data)) {
+                $newPid = $data['player_id'] !== null && $data['player_id'] !== '' ? (int) $data['player_id'] : null;
+                if ($newPid) {
+                    $p = Player::where('id', $newPid)->where('team_id', $event->team_id)->first();
+                    if (! $p) {
+                        throw new DomainException('اللاعب المختار غير موجود في هذا الفريق', 422);
+                    }
+                }
+                $updatePayload['player_id'] = $newPid;
+            }
+
+            if (array_key_exists('assist_player_id', $data)) {
+                $newAid = $data['assist_player_id'] !== null && $data['assist_player_id'] !== '' ? (int) $data['assist_player_id'] : null;
+                if ($newAid) {
+                    $p = Player::where('id', $newAid)->where('team_id', $event->team_id)->first();
+                    if (! $p) {
+                        throw new DomainException('اللاعب المساعد المختار غير موجود في هذا الفريق', 422);
+                    }
+                }
+                $updatePayload['assist_player_id'] = $newAid;
+            }
+
+            if ($event->type === MatchEventType::Substitution) {
+                // If substitution, metadata contains names of out and in
+                $meta = $event->metadata ?? [];
+                if (isset($updatePayload['player_id'])) {
+                    $meta['out'] = Player::find($updatePayload['player_id'])?->name ?? ($updatePayload['player_id'] ? '' : null);
+                }
+                if (isset($updatePayload['assist_player_id'])) {
+                    $meta['in'] = Player::find($updatePayload['assist_player_id'])?->name ?? ($updatePayload['assist_player_id'] ? '' : null);
+                }
+                $updatePayload['metadata'] = $meta;
+                $outName = $meta['out'] ?? '—';
+                $inName = $meta['in'] ?? '—';
+                $updatePayload['description'] = "خروج: {$outName} • دخول: {$inName}";
+            }
+
+            $event->update($updatePayload);
+
+            $match = $event->match;
+            if ($match) {
+                $this->foulRules->reconcile($tournament, $match);
+            }
+
+            $afterEvent = $event->fresh(['team', 'player', 'assistPlayer']);
+
+            $this->audit($match, $fixture, 'event_player_corrected', $organizerId, [
+                'event_id' => $event->id,
+                'type' => $event->type?->value,
+                'minute' => $event->minute,
+                'team_id' => $event->team_id,
+                'before' => [
+                    'player_id' => $beforePlayerId,
+                    'player_name' => $beforePlayerName,
+                    'assist_player_id' => $beforeAssistId,
+                    'assist_player_name' => $beforeAssistName,
+                ],
+                'after' => [
+                    'player_id' => $afterEvent->player_id,
+                    'player_name' => $afterEvent->player?->name,
+                    'assist_player_id' => $afterEvent->assist_player_id,
+                    'assist_player_name' => $afterEvent->assistPlayer?->name,
+                ],
+            ]);
+
+            return $afterEvent;
         });
     }
 
@@ -1272,6 +1366,7 @@ class TournamentResultService
             'result_updated' => 'تم تعديل نتيجة المباراة',
             'event_added' => 'تم إضافة حدث ('.$changes['type'].' - دقيقة '.$changes['minute'].')',
             'event_updated' => 'تم تعديل حدث ('.$changes['type'].' - دقيقة '.$changes['minute'].')',
+            'event_player_corrected' => 'تم تصحيح اسم اللاعب في الحدث (دقيقة '.($changes['minute'] ?? '—').')',
             'event_deleted' => 'تم حذف حدث',
             default => null,
         };

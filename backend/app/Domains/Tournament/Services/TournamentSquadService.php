@@ -386,6 +386,10 @@ class TournamentSquadService
             return $this->squad($tournament, $team);
         }
 
+        if ($player->added_via_link && ! $player->link_reviewed) {
+            $update['link_reviewed'] = true;
+        }
+
         $player->update($update);
 
         TeamCache::flushTeam($team->id);
@@ -539,6 +543,12 @@ class TournamentSquadService
             'photo_thumbnail_url' => $player->photo_thumbnail_url,
             'is_manual' => $player->isManual(),
             'in_squad' => $inSquad,
+            'added_via_link' => (bool) $player->added_via_link,
+            'link_reviewed' => (bool) $player->link_reviewed,
+            'added_by_recorder_name' => $player->added_by_recorder_name,
+            'added_by_recorder_phone' => $player->added_by_recorder_phone,
+            'added_via_fixture_id' => $player->added_via_fixture_id,
+            'is_locked_from_delegates' => (bool) $player->is_locked_from_delegates,
         ];
     }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Link2,
   Copy,
@@ -29,13 +29,25 @@ export default function DelegatedMatchLinkModal({
   const [mode, setMode] = useState('full')
   const [copied, setCopied] = useState(false)
   const [showQr, setShowQr] = useState(false)
+  const activeFixtureIdRef = useRef(null)
 
-  // Initialize data or mode from fixture's active delegated link if present
+  // Reset session state only when opening fresh or switching to a different fixture
   useEffect(() => {
-    if (fixture?.delegated_link) {
-      setMode(fixture.delegated_link.mode || 'full')
+    if (isOpen) {
+      if (activeFixtureIdRef.current !== fixture?.id) {
+        activeFixtureIdRef.current = fixture?.id
+        setData(null)
+        setShowQr(false)
+        setCopied(false)
+        setMode(fixture?.delegated_link?.mode || 'full')
+      }
+    } else {
+      activeFixtureIdRef.current = null
+      setData(null)
+      setShowQr(false)
+      setCopied(false)
     }
-  }, [fixture])
+  }, [isOpen, fixture?.id, fixture?.delegated_link?.mode])
 
   if (!isOpen || !fixture) return null
 
@@ -62,7 +74,8 @@ export default function DelegatedMatchLinkModal({
 
   const handleChangeMode = async (newMode) => {
     setMode(newMode)
-    if (!data && !fixture?.delegated_link) return
+    // If no link is currently active/generated in this session, changing mode is purely local selection
+    if (!data) return
     setLoading(true)
     try {
       const res = await api.put(
@@ -70,9 +83,7 @@ export default function DelegatedMatchLinkModal({
         { mode: newMode }
       )
       toast.success(res.data.message || 'تم تحديث وضع الرابط بنجاح')
-      if (data) {
-        setData((prev) => ({ ...prev, mode: newMode }))
-      }
+      setData((prev) => (prev ? { ...prev, mode: newMode } : prev))
       if (onTokenChanged) onTokenChanged()
     } catch (err) {
       toast.error(err.response?.data?.message || 'تعذر تغيير وضع الرابط')

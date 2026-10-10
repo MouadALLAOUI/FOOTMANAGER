@@ -60,13 +60,13 @@ export default function TournamentDetail() {
   const { data: tour, loading } = useApi(
     () => api.get(`/committee/tournaments/${id}`).then((r) => r.data.data),
     [id, refresh],
-    { staleTime: 0 },
+    { staleTime: 0, keepPrevious: true },
   )
 
   const { data: pendingSubmissionsData } = useApi(
     () => api.get(`/committee/tournaments/${id}/delegated-submissions/pending`).then((r) => r.data),
     [id, refresh],
-    { staleTime: 0 },
+    { staleTime: 0, keepPrevious: true },
   )
 
   const pendingFixtures = pendingSubmissionsData?.data || []
@@ -88,7 +88,7 @@ export default function TournamentDetail() {
   const bump = () => setRefresh((v) => v + 1)
   const tabProps = { tournament: tour, refresh: bump, refreshKey: refresh, setActive }
 
-  if (loading) {
+  if (loading && !tour) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-24" />

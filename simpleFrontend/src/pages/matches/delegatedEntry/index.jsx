@@ -40,7 +40,7 @@ import MatchTimerBottomBar from '../../../domains/committee/components/MatchTime
 import FoulPanel from '../../../domains/committee/components/FoulPanel'
 import MiniStat from '../../../domains/committee/components/MiniStat'
 import { QUICK_ACTIONS } from '../../../data/matchConstants'
-import { formatTime, matchDay } from '../../../lib/adapters'
+import CumulativePenaltyModal from '../../../domains/committee/components/CumulativePenaltyModal'
 
 const uid = () => Math.random().toString(36).slice(2, 10)
 
@@ -385,9 +385,16 @@ export default function DelegatedMatchEntryPage() {
   const generalEvents = useMemo(() => events.filter((e) => e.team_id == null || (Number(e.team_id) !== Number(homeId) && Number(e.team_id) !== Number(awayId))), [events, homeId, awayId])
 
   const foulRules = data?.foul_rules
-  const isFoulRuleActive = Boolean(foulRules?.enabled)
-  const teamFoulThreshold = foulRules?.team_threshold || 6
-  const foulResetScope = foulRules?.reset_scope || 'half'
+  const teamFoulThreshold = Number(foulRules?.settings?.team_threshold || foulRules?.team_threshold || 6)
+  const isFoulRuleActive = Boolean(
+    foulRules?.enabled ||
+    foulRules?.settings?.team_threshold ||
+    foulRules?.team_threshold ||
+    teamFoulThreshold > 0
+  )
+  const foulResetScope = foulRules?.settings?.reset_scope || foulRules?.reset_scope || 'half'
+
+  const [penaltyModalData, setPenaltyModalData] = useState(null)
 
   const counts = useMemo(() => {
     let goals = 0
@@ -416,7 +423,7 @@ export default function DelegatedMatchEntryPage() {
     return { goals, yellows, reds, subs, pens, fouls }
   }, [events])
 
-  const getTeamFoulsInWindow = (teamId, half = null) => {
+  const getRawTeamFoulsInWindow = (teamId, half = null) => {
     const tid = Number(teamId)
     return events.filter((e) => {
       if (Number(e.team_id) !== tid) return false
@@ -428,6 +435,113 @@ export default function DelegatedMatchEntryPage() {
       }
       return true
     }).length
+  }
+
+  const getTeamFoulPenaltiesCount = (teamId, half = null) => {
+    const tid = Number(teamId)
+    return events.filter((e) => {
+      if (Number(e.awarded_from_foul_team_id) !== tid) return false
+      if (e.type !== 'goal' && e.type !== 'foul_penalty_missed' && e.type !== 'penalty_missed') return false
+      if (foulResetScope === 'half') {
+        const h = (half === 'second' || half === '2') ? 'second' : 'first'
+        const eH = (e.half === 'second' || e.half === '2') ? 'second' : 'first'
+        if (eH !== h) return false
+      }
+      return true
+    }).length
+  }
+
+  const getTeamFoulsInWindow = (teamId, half = null) => {
+    const raw = getRawTeamFoulsInWindow(teamId, half)
+    if (!teamFoulThreshold || teamFoulThreshold <= 0) return raw
+    const penalties = getTeamFoulPenaltiesCount(teamId, half)
+    const cycleFouls = raw - (penalties * teamFoulThreshold)
+    return Math.max(0, cycleFouls)
+  }
+
+  const triggerPenaltyModalIfThreshold = (offenderId, newCycleFouls, minute, half) => {
+    if (newCycleFouls >= teamFoulThreshold) {
+      const offId = Number(offenderId)
+      const offenderName = offId === Number(homeId) ? homeName : awayName
+      const offenderTeam = offId === Number(homeId) ? homeTeam : awayTeam
+      const beneficiaryId = offId === Number(homeId) ? Number(awayId) : Number(homeId)
+      const beneficiaryName = offId === Number(homeId) ? awayName : homeName
+      const beneficiaryTeam = offId === Number(homeId) ? awayTeam : homeTeam
+
+      setPenaltyModalData({
+        offenderId: offId,
+        offenderName,
+        offenderTeam,
+        beneficiaryId,
+        beneficiaryName,
+        beneficiaryTeam,
+        half: half || activeHalf || 'first',
+        minute: minute || currentLiveMinute || 1,
+        threshold: teamFoulThreshold,
+      })
+    }
+  }
+
+  const handleResolvePenaltyScored = () => {
+    if (!penaltyModalData) return
+    const { beneficiaryId, offenderId, minute, half, threshold } = penaltyModalData
+
+    const goalEv = {
+      _key: uid(),
+      type: 'goal',
+      team_id: beneficiaryId,
+      player_id: null,
+      player: '',
+      assist_player_id: null,
+      assist: '',
+      minute: minute,
+      added_time: 0,
+      half: half,
+      goalType: 'penalty',
+      description: `هدف من ركلة جزاء تراكمية (الخطأ ${threshold})`,
+      awarded_from_foul_team_id: offenderId,
+    }
+
+    const nextEvents = [...events, goalEv].sort((a, b) => a.minute - b.minute)
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+    setFoulRefetchTick((v) => v + 1)
+    try {
+      localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
+    } catch (_) {}
+
+    setPenaltyModalData(null)
+  }
+
+  const handleResolvePenaltyMissed = () => {
+    if (!penaltyModalData) return
+    const { beneficiaryId, offenderId, minute, half, threshold } = penaltyModalData
+
+    const missEv = {
+      _key: uid(),
+      type: 'foul_penalty_missed',
+      team_id: beneficiaryId,
+      player_id: null,
+      player: '',
+      assist_player_id: null,
+      assist: '',
+      minute: minute,
+      added_time: 0,
+      half: half,
+      goalType: 'penalty',
+      description: `ركلة جزاء تراكمية ضائعة (الخطأ ${threshold})`,
+      awarded_from_foul_team_id: offenderId,
+    }
+
+    const nextEvents = [...events, missEv].sort((a, b) => a.minute - b.minute)
+    setEvents(nextEvents)
+    setTimelineDirty(true)
+    setFoulRefetchTick((v) => v + 1)
+    try {
+      localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
+    } catch (_) {}
+
+    setPenaltyModalData(null)
   }
 
   const handleIdentify = async (e) => {
@@ -470,7 +584,9 @@ export default function DelegatedMatchEntryPage() {
   const formatClock = (s) => `${pad2(Math.floor(s / 60))}:${pad2(s % 60)}`
   const timerText = activeHalf ? formatClock(displayClockSec) : null
   const currentLiveMinute = activeHalf
-    ? Math.min(halfDurationMinutes, Math.floor(elapsedSec / 60) + 1)
+    ? (activeHalf === 'second'
+        ? halfDurationMinutes + Math.floor(elapsedSec / 60) + 1
+        : Math.floor(elapsedSec / 60) + 1)
     : 1
 
   const togglePauseTimer = () => {
@@ -580,10 +696,8 @@ export default function DelegatedMatchEntryPage() {
       const currentHalf = curHalf || activeHalf || 'first'
       const priorFouls = getTeamFoulsInWindow(tid, currentHalf)
       const newFouls = priorFouls + 1
-      if (isFoulRuleActive && newFouls >= teamFoulThreshold) {
-        const offenderName = tid === Number(homeId) ? homeName : awayName
-        const beneficiaryName = tid === Number(homeId) ? awayName : homeName
-        alert(`⚠️ تنبيه الخطأ التراكمي (${newFouls}/${teamFoulThreshold}):\nبلغ فريق "${offenderName}" الخطأ رقم ${newFouls} في هذا الشوط!\nيستحق فريق "${beneficiaryName}" ركلة جزاء تراكمية (الخطأ السادس وما بعده).`)
+      if (isFoulRuleActive) {
+        triggerPenaltyModalIfThreshold(tid, newFouls, minute, currentHalf)
       }
     }
     try {
@@ -624,10 +738,8 @@ export default function DelegatedMatchEntryPage() {
       const currentHalf = curHalf || activeHalf || 'first'
       const priorFouls = getTeamFoulsInWindow(tid, currentHalf)
       const newFouls = priorFouls + 1
-      if (isFoulRuleActive && newFouls >= teamFoulThreshold) {
-        const offenderName = tid === Number(homeId) ? homeName : awayName
-        const beneficiaryName = tid === Number(homeId) ? awayName : homeName
-        alert(`⚠️ تنبيه الخطأ التراكمي (${newFouls}/${teamFoulThreshold}):\nبلغ فريق "${offenderName}" الخطأ رقم ${newFouls} في هذا الشوط!\nيستحق فريق "${beneficiaryName}" ركلة جزاء تراكمية (الخطأ السادس وما بعده).`)
+      if (isFoulRuleActive) {
+        triggerPenaltyModalIfThreshold(tid, newFouls, minute, currentHalf)
       }
     }
 
@@ -639,8 +751,13 @@ export default function DelegatedMatchEntryPage() {
   // Minimal undo last event action for simple mode (and full mode) before submission
   const handleUndoLastEvent = () => {
     if (events.length === 0) return
-    const lastEvent = events[events.length - 1]
-    const label = lastEvent.type === 'goal' ? 'هدف' : lastEvent.type === 'foul' ? 'خطأ' : lastEvent.type
+    const label = lastEvent.type === 'goal'
+      ? (lastEvent.goalType === 'penalty' ? 'هدف (ركلة جزاء)' : 'هدف')
+      : lastEvent.type === 'foul_penalty_missed'
+        ? 'ركلة جزاء ضائعة'
+        : lastEvent.type === 'foul'
+          ? 'خطأ'
+          : lastEvent.type
     if (!window.confirm(`هل أنت متأكد من حذف آخر حدث مسجل (${label} دقيقة ${lastEvent.minute})؟`)) return
 
     const nextEvents = events.slice(0, -1)
@@ -694,9 +811,9 @@ export default function DelegatedMatchEntryPage() {
     setValidation(null)
     setForm({
       team_id: homeId,
-      minute: 1,
+      minute: currentLiveMinute || (activeHalf === 'second' ? halfDurationMinutes + 1 : 1),
       added_time: 0,
-      half: 'first',
+      half: activeHalf || 'first',
       goalType: 'regular',
       punishment: type === 'foul' ? 'none' : '',
     })
@@ -731,9 +848,9 @@ export default function DelegatedMatchEntryPage() {
       team_id: tid,
       player_id: pid,
       player: p.name,
-      minute: 1,
+      minute: currentLiveMinute || (activeHalf === 'second' ? halfDurationMinutes + 1 : 1),
       added_time: 0,
-      half: 'first',
+      half: activeHalf || 'first',
       goalType: 'regular',
       punishment: punishment,
       cardColor: finalType,
@@ -845,10 +962,8 @@ export default function DelegatedMatchEntryPage() {
       const evHalf = form.half || activeHalf || 'first'
       const priorFouls = getTeamFoulsInWindow(tid, evHalf)
       const newFouls = editingKey ? priorFouls : priorFouls + 1
-      if (isFoulRuleActive && newFouls >= teamFoulThreshold) {
-        const offenderName = tid === Number(homeId) ? homeName : awayName
-        const beneficiaryName = tid === Number(homeId) ? awayName : homeName
-        alert(`⚠️ تنبيه الخطأ التراكمي (${newFouls}/${teamFoulThreshold}):\nبلغ فريق "${offenderName}" الخطأ رقم ${newFouls} في هذا الشوط!\nيستحق فريق "${beneficiaryName}" ركلة جزاء تراكمية (الخطأ السادس وما بعده).`)
+      if (isFoulRuleActive) {
+        triggerPenaltyModalIfThreshold(tid, newFouls, form.minute || currentLiveMinute || 1, evHalf)
       }
     }
     cancelForm()
@@ -1131,13 +1246,30 @@ export default function DelegatedMatchEntryPage() {
                     <span className="text-2xl font-black text-emerald-600 tabular-nums">{displayScore.home}</span>
                     <p className="text-[11px] font-bold text-slate-500 mt-0.5">⚽ أهداف</p>
                   </div>
-                  <div>
+                  <div
+                    onClick={() => {
+                      const cur = getTeamFoulsInWindow(homeId, activeHalf || 'first')
+                      if (cur >= teamFoulThreshold) {
+                        triggerPenaltyModalIfThreshold(Number(homeId), cur, currentLiveMinute || 1, activeHalf || 'first')
+                      }
+                    }}
+                    className={`rounded-xl p-1 transition ${
+                      getTeamFoulsInWindow(homeId, activeHalf || 'first') >= teamFoulThreshold
+                        ? 'cursor-pointer bg-amber-100/70 ring-2 ring-amber-400 hover:bg-amber-100 animate-pulse'
+                        : ''
+                    }`}
+                  >
                     <span className="text-2xl font-black text-amber-600 tabular-nums">
                       {getTeamFoulsInWindow(homeId, activeHalf || 'first')}
                     </span>
                     <p className="text-[11px] font-bold text-slate-500 mt-0.5">
                       ⚠️ أخطاء الشوط ({teamFoulThreshold ? `${getTeamFoulsInWindow(homeId, activeHalf || 'first')}/${teamFoulThreshold}` : '—'})
                     </p>
+                    {getTeamFoulsInWindow(homeId, activeHalf || 'first') >= teamFoulThreshold && (
+                      <span className="inline-block mt-0.5 text-[10px] font-black text-rose-700 bg-white/90 px-2 py-0.5 rounded-full border border-rose-300 shadow-2xs">
+                        ركلة جزاء مستحقة ⚡
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1180,13 +1312,30 @@ export default function DelegatedMatchEntryPage() {
                     <span className="text-2xl font-black text-emerald-600 tabular-nums">{displayScore.away}</span>
                     <p className="text-[11px] font-bold text-slate-500 mt-0.5">⚽ أهداف</p>
                   </div>
-                  <div>
+                  <div
+                    onClick={() => {
+                      const cur = getTeamFoulsInWindow(awayId, activeHalf || 'first')
+                      if (cur >= teamFoulThreshold) {
+                        triggerPenaltyModalIfThreshold(Number(awayId), cur, currentLiveMinute || 1, activeHalf || 'first')
+                      }
+                    }}
+                    className={`rounded-xl p-1 transition ${
+                      getTeamFoulsInWindow(awayId, activeHalf || 'first') >= teamFoulThreshold
+                        ? 'cursor-pointer bg-amber-100/70 ring-2 ring-amber-400 hover:bg-amber-100 animate-pulse'
+                        : ''
+                    }`}
+                  >
                     <span className="text-2xl font-black text-amber-600 tabular-nums">
                       {getTeamFoulsInWindow(awayId, activeHalf || 'first')}
                     </span>
                     <p className="text-[11px] font-bold text-slate-500 mt-0.5">
                       ⚠️ أخطاء الشوط ({teamFoulThreshold ? `${getTeamFoulsInWindow(awayId, activeHalf || 'first')}/${teamFoulThreshold}` : '—'})
                     </p>
+                    {getTeamFoulsInWindow(awayId, activeHalf || 'first') >= teamFoulThreshold && (
+                      <span className="inline-block mt-0.5 text-[10px] font-black text-rose-700 bg-white/90 px-2 py-0.5 rounded-full border border-rose-300 shadow-2xs">
+                        ركلة جزاء مستحقة ⚡
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1243,9 +1392,11 @@ export default function DelegatedMatchEntryPage() {
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-black text-slate-500 tabular-nums">د {ev.minute}'</span>
-                          <span className="text-base">{ev.type === 'goal' ? '⚽' : '⚠️'}</span>
+                          <span className="text-base">{ev.type === 'goal' ? '⚽' : ev.type === 'foul_penalty_missed' ? '❌' : '⚠️'}</span>
                           <span className="font-extrabold text-slate-800">{teamName}</span>
-                          <span className="text-slate-500 font-medium">({ev.type === 'goal' ? 'هدف' : 'خطأ'})</span>
+                          <span className="text-slate-500 font-medium">
+                            ({ev.type === 'goal' ? (ev.goalType === 'penalty' ? 'هدف (ضربة جزاء)' : 'هدف') : ev.type === 'foul_penalty_missed' ? 'ركلة جزاء ضائعة' : 'خطأ'})
+                          </span>
                         </div>
                         {idx === 0 && (
                           <button
@@ -1541,7 +1692,7 @@ export default function DelegatedMatchEntryPage() {
         activeHalf={activeHalf}
         syncStatus={timelineDirty ? 'saved' : 'idle'}
         isFinished={curStatus === 'finished'}
-        secondHalfEnded={curStatus === 'second_half' && currentLiveMinute >= halfDurationMinutes}
+        secondHalfEnded={curStatus === 'second_half' && (currentLiveMinute >= halfDurationMinutes * 2 || elapsedSec >= halfDurationMinutes * 60)}
         onTogglePause={togglePauseTimer}
         onStartMatch={handleStartMatch}
         onHalftime={handleHalftime}
@@ -1587,6 +1738,15 @@ export default function DelegatedMatchEntryPage() {
           setPickerOpen(false)
           setQuickPlayer(null)
         }}
+      />
+
+      {/* Cumulative Foul Penalty Award Modal */}
+      <CumulativePenaltyModal
+        open={Boolean(penaltyModalData)}
+        data={penaltyModalData}
+        onScore={handleResolvePenaltyScored}
+        onMiss={handleResolvePenaltyMissed}
+        onClose={() => setPenaltyModalData(null)}
       />
     </div>
   )

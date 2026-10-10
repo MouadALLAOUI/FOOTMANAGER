@@ -1266,10 +1266,15 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       {delegatedLinkFixture && (
         <DelegatedMatchLinkModal
           isOpen={Boolean(delegatedLinkFixture)}
-          onClose={() => setDelegatedLinkFixture(null)}
+          onClose={() => {
+            setDelegatedLinkFixture(null)
+            afterChange()
+          }}
           tournamentId={tournament.id}
           fixture={delegatedLinkFixture}
-          onTokenChanged={afterChange}
+          onTokenChanged={() => {
+            refetchFixtures?.()
+          }}
         />
       )}
 

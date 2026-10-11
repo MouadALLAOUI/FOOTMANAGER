@@ -85,7 +85,7 @@ export default function PlayerSelector({ teamId, value, valueName, onSelect, onC
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1.5 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div className="absolute start-0 end-0 z-50 mt-1.5 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl ring-1 ring-slate-900/10">
           <div className="border-b border-slate-100 p-2">
             <input
               value={query}

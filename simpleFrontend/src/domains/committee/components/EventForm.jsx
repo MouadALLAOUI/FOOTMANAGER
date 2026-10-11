@@ -12,7 +12,7 @@ const GOAL_TYPES = [
   { value: 'ownGoal', labelKey: 'committee.result.goalTypes.ownGoal' },
 ]
 
-export default function EventForm({ type, form, setField, setForm, homeId, awayId, homeName, awayName, onSelectPlayer, onSelectAssist, t, onSubmit, validation, suspendedIds = [], minMinute = 0, maxMinute = 180, maxAddedTime = 30, half = 'first' }) {
+export default function EventForm({ type, form, setField, setForm, homeId, awayId, homeName, awayName, onSelectPlayer, onSelectAssist, t, onSubmit, validation, suspendedIds = [], minMinute = 0, maxMinute = 180, maxAddedTime = 30, half = 'first', isPlayerCorrectionOnly = false, onCancel }) {
   const [fieldMinute, fieldAdded] = [setField('minute'), setField('added_time')]
 
   const changeTeam = (e) => {
@@ -21,8 +21,122 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
     setForm((f) => ({ ...f, team_id: teamId, player_id: null, player: '', assist_player_id: null, assist: '' }))
   }
 
+  if (isPlayerCorrectionOnly) {
+    const selectedTeamName = Number(form.team_id) === Number(homeId) ? homeName : (Number(form.team_id) === Number(awayId) ? awayName : '')
+    return (
+      <div className="space-y-4 pb-48">
+        <div className="rounded-xl border border-amber-200/80 bg-amber-50 p-3 text-xs font-bold text-amber-900 leading-relaxed">
+          {t('committee.result.playerCorrectionNotice', 'تعديل اللاعب المنسوب له هذا الحدث فقط — لا يتم تعديل النتيجة أو التوقيت أو جدول الترتيب.')}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 p-2.5 text-xs text-slate-700">
+          {selectedTeamName && (
+            <span className="rounded-lg bg-white px-2 py-1 font-bold text-slate-800 shadow-2xs ring-1 ring-slate-200">
+              {selectedTeamName}
+            </span>
+          )}
+          {form.minute && (
+            <span className="rounded-lg bg-white px-2 py-1 font-black tabular-nums text-slate-800 shadow-2xs ring-1 ring-slate-200">
+              الدقيقة {form.minute}'
+            </span>
+          )}
+        </div>
+
+        {type === 'substitution' ? (
+          <div className="space-y-3">
+            <PlayerSelector
+              teamId={form.team_id}
+              value={form.player_id}
+              valueName={form.player}
+              onSelect={onSelectPlayer}
+              onClear={() => setForm((f) => ({ ...f, player_id: null, player: '' }))}
+              label={t('committee.result.playerOut')}
+              placeholder={t('committee.result.selectPlayer')}
+              t={t}
+              suspendedIds={suspendedIds}
+            />
+            <div className="flex items-center gap-2">
+              <ArrowDown className="size-4 shrink-0 text-rose-400" />
+              <div className="flex-1 rounded-lg bg-rose-50 px-3 py-1.5 text-[11px] font-bold text-rose-600">{form.player || t('committee.result.playerOut')}</div>
+            </div>
+            <PlayerSelector
+              teamId={form.team_id}
+              value={form.assist_player_id}
+              valueName={form.assist}
+              onSelect={onSelectAssist}
+              onClear={() => setForm((f) => ({ ...f, assist_player_id: null, assist: '' }))}
+              label={t('committee.result.playerIn')}
+              placeholder={t('committee.result.selectPlayer')}
+              t={t}
+              suspendedIds={suspendedIds}
+            />
+            <div className="flex items-center gap-2">
+              <ArrowUp className="size-4 shrink-0 text-emerald-500" />
+              <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-700">{form.assist || t('committee.result.playerIn')}</div>
+            </div>
+          </div>
+        ) : type === 'other' ? (
+          <p className="text-xs text-slate-500">هذا الحدث ملاحظة عامة ولا يحتوي على لاعبين مرتبطين به.</p>
+        ) : (
+          <div className="space-y-3">
+            <PlayerSelector
+              teamId={form.team_id}
+              value={form.player_id}
+              valueName={form.player}
+              onSelect={onSelectPlayer}
+              onClear={() => setForm((f) => ({ ...f, player_id: null, player: '' }))}
+              label={type === 'goal' ? t('committee.result.scorer') : t('committee.result.player')}
+              placeholder={t('committee.result.selectPlayer')}
+              t={t}
+              autoFocus
+              suspendedIds={suspendedIds}
+            />
+            {type === 'goal' && (
+              <>
+                <div className="flex items-center gap-2">
+                  <input id="mcr-no-assist-corr" type="checkbox" checked={form.noAssist} onChange={(e) => setForm((f) => ({ ...f, noAssist: e.target.checked }))} className="size-4 accent-green-500" />
+                  <label htmlFor="mcr-no-assist-corr" className="text-xs font-bold text-slate-600">{t('committee.result.noAssist')}</label>
+                </div>
+                {!form.noAssist && (
+                  <PlayerSelector
+                    teamId={form.team_id}
+                    value={form.assist_player_id}
+                    valueName={form.assist}
+                    onSelect={onSelectAssist}
+                    onClear={() => setForm((f) => ({ ...f, assist_player_id: null, assist: '' }))}
+                    label={t('committee.result.assist')}
+                    placeholder={t('committee.result.selectPlayer')}
+                    t={t}
+                    suspendedIds={suspendedIds}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {validation && (
+          <p className="rounded-xl bg-rose-50 px-3 py-2 text-center text-xs font-bold text-rose-600">
+            {t(`committee.result.${validation}`, { min: minMinute, max: maxMinute })}
+          </p>
+        )}
+
+        <div className="flex items-center gap-2 pt-2">
+          <button className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2.5 text-xs font-black text-white shadow-xs transition-colors" onClick={onSubmit}>
+            {t('committee.result.savePlayerCorrection', 'تعديل اللاعب')}
+          </button>
+          {onCancel && (
+            <button type="button" className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors" onClick={onCancel}>
+              {t('common.cancel', 'إلغاء')}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-28">
       {form.missed !== undefined && type === 'penalty_goal' && (
         <div className="flex items-center gap-2">
           <button

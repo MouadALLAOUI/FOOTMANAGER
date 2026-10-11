@@ -4,7 +4,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { absoluteMinute, eventMeta, minuteText } from '../constants'
 import EventSub from './EventSub'
 
-export default function EventRow({ ev, index, total, fresh, onEdit, onDelete, halfDuration, readOnly = false }) {
+export default function EventRow({ ev, index, total, fresh, onEdit, onDelete, halfDuration, readOnly = false, alreadyFinished = false }) {
   const { t } = useTranslation()
   const meta = eventMeta(ev)
   const out = ev.type === 'substitution' ? ev.player : null
@@ -38,12 +38,38 @@ export default function EventRow({ ev, index, total, fresh, onEdit, onDelete, ha
           </div>
           {!readOnly && (
             <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity xl:opacity-0 xl:group-hover:opacity-100">
-              <button type="button" onClick={onEdit} aria-label={t('committee.result.editEventTitle')} title={t('committee.result.editEventTitle')} className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
-                <Pencil className="size-3.5" />
-              </button>
-              <button type="button" onClick={onDelete} aria-label={t('committee.result.deleteConfirm')} title={t('committee.result.deleteConfirm')} className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500">
-                <Trash2 className="size-3.5" />
-              </button>
+              {alreadyFinished ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    aria-label={t('committee.result.editPlayer', 'تعديل اللاعب')}
+                    title={t('committee.result.editPlayer', 'تعديل اللاعب')}
+                    className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-bold text-slate-700 shadow-2xs hover:bg-slate-50 hover:text-emerald-700 hover:border-emerald-300 transition-colors"
+                  >
+                    <Pencil className="size-3 text-slate-400" />
+                    <span>{t('committee.result.editPlayer', 'تعديل اللاعب')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    aria-label={t('committee.result.deleteConfirm')}
+                    title={t('committee.result.deleteConfirm')}
+                    className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" onClick={onEdit} aria-label={t('committee.result.editEventTitle')} title={t('committee.result.editEventTitle')} className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <Pencil className="size-3.5" />
+                  </button>
+                  <button type="button" onClick={onDelete} aria-label={t('committee.result.deleteConfirm')} title={t('committee.result.deleteConfirm')} className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500">
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>

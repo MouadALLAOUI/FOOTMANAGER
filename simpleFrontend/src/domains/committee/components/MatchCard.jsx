@@ -165,9 +165,14 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
 
         <div className="flex flex-wrap items-center gap-1.5">
           {st === 'completed' && (
-            <Button size="sm" variant="soft" disabled={busy} onClick={onDetails}>
-              {t('committee.detail.viewDetails')}
-            </Button>
+            <>
+              <Button size="sm" variant="soft" disabled={busy} onClick={onDetails}>
+                {t('committee.detail.viewDetails')}
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy || locked} onClick={onResult}>
+                {t('committee.detail.editResult', 'تعديل النتيجة والأحداث')}
+              </Button>
+            </>
           )}
           {st === 'live' && (
             <>
@@ -213,12 +218,16 @@ export default function MatchCard({ f, number, busy, locked, tournament, prevRou
               <Button size="sm" variant="outline" disabled={busy} onClick={() => onRestore(f)}>
                 {t('committee.detail.restoreMatch')}
               </Button>
+              <Button size="sm" variant="outline" disabled={busy || locked} onClick={onResult}>
+                {t('committee.detail.editResult', 'تعديل النتيجة والأحداث')}
+              </Button>
               <Button size="sm" variant="outline" disabled={busy} onClick={onDetails}>
                 {t('committee.detail.viewDetails')}
               </Button>
             </>
           )}
         </div>
+
       </div>
 
       {prevRoundKey && (

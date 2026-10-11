@@ -91,7 +91,7 @@ function getEventDisplayInfo(ev) {
   }
 }
 
-function EventItem({ ev, homeTeamId, awayTeamId, homeName, awayName }) {
+function EventItem({ ev, idx, homeTeamId, awayTeamId, homeName, awayName, onEditPlayer }) {
   const meta = getEventDisplayInfo(ev)
   const isHome = Number(ev.team_id) === Number(homeTeamId)
   const isAway = Number(ev.team_id) === Number(awayTeamId)
@@ -135,15 +135,29 @@ function EventItem({ ev, homeTeamId, awayTeamId, homeName, awayName }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-black text-slate-800">{meta.label}</p>
-          {teamLabel && (
-            <span
-              className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
-                isHome ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'
-              }`}
-            >
-              {teamLabel}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5">
+            {teamLabel && (
+              <span
+                className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                  isHome ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700'
+                }`}
+              >
+                {teamLabel}
+              </span>
+            )}
+            {onEditPlayer && ev.type !== 'other' && (
+              <button
+                type="button"
+                onClick={() => onEditPlayer(ev, idx)}
+                aria-label="تعديل اللاعب"
+                title="تعديل اللاعب"
+                className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-700 shadow-2xs hover:bg-slate-100 hover:text-emerald-700 hover:border-emerald-300 transition-colors"
+              >
+                <Edit3 className="size-3 text-slate-400" />
+                <span>تعديل اللاعب</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {isSub ? (
@@ -196,6 +210,30 @@ export default function DelegatedSubmissionReviewModal({
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [activeTab, setActiveTab] = useState('all') // 'all' | 'home' | 'away'
   const [submissionData, setSubmissionData] = useState(null)
+  const [editingEvent, setEditingEvent] = useState(null)
+  const [rosters, setRosters] = useState({})
+  const [selectedPlayerId, setSelectedPlayerId] = useState('')
+  const [selectedAssistId, setSelectedAssistId] = useState('')
+
+  const homeTeamId = Number(fixture?.home_team?.id || fixture?.home_team_id)
+  const awayTeamId = Number(fixture?.away_team?.id || fixture?.away_team_id)
+
+  // Fetch team rosters so organizer can pick players to correct
+  useEffect(() => {
+    if (!isOpen || !fixture) return
+    const teamIds = [homeTeamId, awayTeamId].filter(Boolean)
+    if (teamIds.length) {
+      Promise.allSettled(teamIds.map((id) => api.get(`/committee/teams/${id}/players`)))
+        .then((results) => {
+          const map = {}
+          results.forEach((res, i) => {
+            if (res.status === 'fulfilled') map[teamIds[i]] = res.value?.data?.data || []
+          })
+          setRosters(map)
+        })
+        .catch(() => {})
+    }
+  }, [isOpen, fixture, homeTeamId, awayTeamId])
 
   // Fetch full submission on open to ensure fresh events, presence, etc.
   useEffect(() => {
@@ -228,8 +266,6 @@ export default function DelegatedSubmissionReviewModal({
   const sub = submissionData || fixture.delegated_submission
   if (!sub) return null
 
-  const homeTeamId = Number(fixture.home_team?.id || fixture.home_team_id)
-  const awayTeamId = Number(fixture.away_team?.id || fixture.away_team_id)
   const homeName = fixture.home_team?.name || 'الفريق المضيف'
   const awayName = fixture.away_team?.name || 'الفريق الضيف'
 
@@ -258,6 +294,55 @@ export default function DelegatedSubmissionReviewModal({
     (ev) => (ev.type === 'goal' || ev.type === 'penalty_goal') && !ev.player_id && !ev.player
   )
 
+  const startEditPlayer = (ev, idx) => {
+    setEditingEvent({ ...ev, _idx: idx })
+    setSelectedPlayerId(ev.player_id ? String(ev.player_id) : '')
+    setSelectedAssistId(ev.assist_player_id ? String(ev.assist_player_id) : '')
+  }
+
+  const handleSavePlayer = () => {
+    if (!editingEvent) return
+    const teamRoster = rosters[editingEvent.team_id] || []
+    const p = teamRoster.find((x) => String(x.id) === String(selectedPlayerId))
+    const a = teamRoster.find((x) => String(x.id) === String(selectedAssistId))
+
+    const updated = sortedEvents.map((ev, idx) => {
+      const match = (editingEvent._key && ev._key === editingEvent._key)
+        || (editingEvent.id && ev.id === editingEvent.id)
+        || idx === editingEvent._idx
+      if (!match) return ev
+      const next = { ...ev }
+      if (p) {
+        next.player_id = p.id
+        next.player = p.name
+        next.player_name = p.name
+        next.player_number = p.number
+      } else if (selectedPlayerId === '') {
+        next.player_id = null
+        next.player = null
+        next.player_name = null
+      }
+      if (a) {
+        next.assist_player_id = a.id
+        next.assist_player = a.name
+        next.assist = a.name
+      } else if (selectedAssistId === '') {
+        next.assist_player_id = null
+        next.assist_player = null
+        next.assist = null
+      }
+      return next
+    })
+
+    setSubmissionData((prev) => ({
+      ...(prev || sub),
+      events: updated,
+      _overridden: true,
+    }))
+    setEditingEvent(null)
+    toast.success('تم تصحيح اسم اللاعب في الحدث بنجاح')
+  }
+
   const handleApprove = async () => {
     if (hasUnassignedGoals) {
       const confirmUnassigned = window.confirm(
@@ -267,8 +352,12 @@ export default function DelegatedSubmissionReviewModal({
     }
     setLoading(true)
     try {
+      const payload = submissionData?._overridden
+        ? { override_data: { events: sub.events } }
+        : {}
       const res = await api.post(
-        `/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/delegated-submission/approve`
+        `/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/delegated-submission/approve`,
+        payload
       )
       toast.success(res.data.message || 'تم اعتماد نتيجة المباراة وتحديث الجداول بنجاح!')
       if (onApproved) onApproved(res.data.data)
@@ -452,10 +541,12 @@ export default function DelegatedSubmissionReviewModal({
                 <EventItem
                   key={ev._key || ev.id || idx}
                   ev={ev}
+                  idx={idx}
                   homeTeamId={homeTeamId}
                   awayTeamId={awayTeamId}
                   homeName={homeName}
                   awayName={awayName}
+                  onEditPlayer={startEditPlayer}
                 />
               ))}
             </div>
@@ -579,6 +670,75 @@ export default function DelegatedSubmissionReviewModal({
           )}
         </div>
       </div>
+
+      {editingEvent && (
+        <Modal
+          open={Boolean(editingEvent)}
+          onClose={() => setEditingEvent(null)}
+          title="تعديل اللاعب المنسوب له الحدث"
+          size="sm"
+        >
+          <div className="space-y-4 py-2 text-slate-800" dir="rtl">
+            <div className="rounded-xl border border-amber-200/80 bg-amber-50 p-2.5 text-xs font-bold text-amber-900 leading-relaxed">
+              تعديل اسم اللاعب المنسوب له هذا الحدث قبل الاعتماد النهائي للنتيجة.
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                {editingEvent.type === 'substitution' ? 'اللاعب الخارج:' : (editingEvent.type === 'goal' ? 'صاحب الهدف:' : 'اللاعب:')}
+              </label>
+              <select
+                value={selectedPlayerId}
+                onChange={(e) => setSelectedPlayerId(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-emerald-500"
+              >
+                <option value="">— اختر اللاعب من القائمة —</option>
+                {(rosters[editingEvent.team_id] || []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} {p.number ? `(#${p.number})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(editingEvent.type === 'goal' || editingEvent.type === 'substitution') && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  {editingEvent.type === 'substitution' ? 'اللاعب الداخل:' : 'صانع الهدف (تمريرة حاسمة):'}
+                </label>
+                <select
+                  value={selectedAssistId}
+                  onChange={(e) => setSelectedAssistId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 focus:outline-emerald-500"
+                >
+                  <option value="">— لا يوجد / غير محدد —</option>
+                  {(rosters[editingEvent.team_id] || []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.number ? `(#${p.number})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+              <Button
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl py-2"
+                onClick={handleSavePlayer}
+              >
+                تأكيد تعديل اللاعب
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-xl px-3 text-xs font-bold"
+                onClick={() => setEditingEvent(null)}
+              >
+                إلغاء
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </Modal>
   )
 }

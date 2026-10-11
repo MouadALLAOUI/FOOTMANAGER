@@ -95,7 +95,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [curStatus, setCurStatus] = useState(fixture.match?.status || 'scheduled')
   const LIVE_STATUSES = ['kickoff', 'first_half', 'halftime', 'second_half', 'extra_time', 'penalties']
   const isLiveStatus = (s) => LIVE_STATUSES.includes(s)
-  const alreadyFinished = curStatus === 'finished'
+  const alreadyFinished = curStatus === 'finished' || curStatus === 'cancelled' || curStatus === 'postponed'
   const matchNotStarted = curStatus === 'scheduled' || curStatus === 'warmup'
   const isLiveMatch = isLiveStatus(curStatus)
   const isKnockout = Boolean(fixture.round?.stage && fixture.round.stage !== 'group')
@@ -354,6 +354,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     setValidation(null)
     setSaveError(null)
     setForm({
+      id: ev.id || (typeof ev._key === 'string' && ev._key.startsWith('srv-') ? Number(ev._key.replace('srv-', '')) : null),
       team_id: ev.team_id ?? '',
       player_id: ev.player_id ?? null,
       player: ev.player || '',
@@ -565,6 +566,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     const isNote = e.type === 'other'
     return {
       _key: `srv-${e.id}`,
+      id: e.id,
       type: e.type,
       team_id: e.team?.id ?? null,
       player_id: isNote ? null : (e.player?.id ?? null),
@@ -618,7 +620,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     return 'goal'
   }
 
-  const persist = async ({ events: evts = events, finish = false, status: statusOverride, notice }) => {
+  const persist = async ({ events: evts = events, finish = false, force = false, status: statusOverride, notice }) => {
     setSaving(true)
     setSaveError(null)
     const score = computeScore(evts, homeId, awayId)
@@ -655,11 +657,20 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         player_of_the_match: mvpId ? Number(mvpId) : null,
         events: evts.map(toApiEvent),
       }
+      if (force || (alreadyFinished && finish)) payload.force = true
       if (finish) payload.status = 'finished'
       else if (alreadyFinished) payload.status = 'finished'
       else if (statusOverride) payload.status = statusOverride
       else if (isLiveMatch) payload.status = curStatus
       else payload.status = 'scheduled'
+
+      if (currentLiveMinute > 0) {
+        payload.current_minute = currentLiveMinute
+      } else if (finish || alreadyFinished) {
+        payload.current_minute = timerCfg?.halfDurationMinutes ? timerCfg.halfDurationMinutes * 2 : 90
+      } else {
+        payload.current_minute = 0
+      }
 
       const r = await api.put(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/result`, payload)
       setFoulRefetchTick((v) => v + 1)
@@ -746,6 +757,60 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     const type = overrides.type ?? selectedType
     const f = overrides.form ?? form
     const editing = overrides.editingKey ?? editingKey
+
+    const isPlayerCorrectionMode = alreadyFinished && editing && !overrides.fullEdit
+    if (isPlayerCorrectionMode) {
+      const evId = f.id || (editing && typeof editing === 'string' && editing.startsWith('srv-') ? Number(editing.replace('srv-', '')) : null)
+      if (!evId) {
+        toast.error(t('committee.result.eventNotFound', 'تعذر العثور على معرف الحدث'))
+        return false
+      }
+      if (type !== 'other' && !f.player_id) {
+        setValidation('needPlayer')
+        return false
+      }
+      if (type === 'substitution') {
+        if (!f.assist_player_id) {
+          setValidation('needPlayer')
+          return false
+        }
+        if (f.player_id === f.assist_player_id) {
+          setValidation('invalidSubPlayers')
+          return false
+        }
+      }
+      setSaving(true)
+      setSaveError(null)
+      try {
+        const payload = {
+          player_id: type === 'other' ? null : (f.player_id || null),
+          assist_player_id: type === 'substitution' || (type === 'goal' && !f.noAssist) ? (f.assist_player_id || null) : null,
+        }
+        const r = await api.put(
+          `/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/events/${evId}/correct-player`,
+          payload
+        )
+        const updated = r.data?.data
+        if (updated) {
+          setEvents((prev) =>
+            prev.map((e) => (e.id === evId || e._key === editing ? fromApi(updated) : e))
+          )
+        }
+        toast.success(r.data?.message || t('committee.result.playerCorrectedSuccess', 'تم تصحيح اسم اللاعب في الحدث بنجاح وتحديث إحصائيات البطولة'))
+        setSelectedType(null)
+        setEditingKey(null)
+        setForm({})
+        return true
+      } catch (err) {
+        const msg = err.response?.data?.message || t('committee.result.saveFailed')
+        setSaveError(msg)
+        toast.error(msg)
+        return false
+      } finally {
+        setSaving(false)
+      }
+    }
+
     const evAbsMinute = Number(f.minute) || 0
     const evHalf = halfForAbsMinute(evAbsMinute)
     const evRelMinute = absToRelMinute(evAbsMinute, evHalf)
@@ -860,17 +925,23 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     setSelectedType(null)
     setEditingKey(null)
     if (!overrides.form) setForm({})
-    retryRef.current = () => persist({ events: nextEvents })
-    const ok = await persist({ events: nextEvents })
-    if (ok) {
-      setSuccessTick(ev._key)
-      toast.success(t('committee.result.eventResultLive'))
-      if (eventType === 'foul') {
-        setFoulNotifCount((c) => c + 1)
-        toast.success(t('committee.result.foulNotif'))
+    if (!alreadyFinished) {
+      retryRef.current = () => persist({ events: nextEvents })
+      const ok = await persist({ events: nextEvents })
+      if (ok) {
+        setSuccessTick(ev._key)
+        toast.success(t('committee.result.eventResultLive'))
+        if (eventType === 'foul') {
+          setFoulNotifCount((c) => c + 1)
+          toast.success(t('committee.result.foulNotif'))
+        }
       }
+      return ok
+    } else {
+      setSuccessTick(ev._key)
+      toast.success(t('committee.result.eventStagedSuccess', 'تم تسجيل الحدث في القائمة. اضغط "حفظ وفرض التعديلات" لتطبيق التغيير.'))
+      return true
     }
-    return ok
   }
 
   const deleteEvent = async (ev) => {
@@ -882,8 +953,12 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       setEditingKey(null)
       setSelectedType(null)
     }
-    retryRef.current = () => persist({ events: next, notice: t('committee.result.eventDeleted') })
-    await persist({ events: next, notice: t('committee.result.eventDeleted') })
+    if (!alreadyFinished) {
+      retryRef.current = () => persist({ events: next, notice: t('committee.result.eventDeleted') })
+      await persist({ events: next, notice: t('committee.result.eventDeleted') })
+    } else {
+      toast.info(t('committee.result.eventDeletedStaged', 'تم حذف الحدث من القائمة. اضغط "حفظ وفرض التعديلات" لاعتماده.'))
+    }
   }
 
   const handleConvertPick = async (player) => {
@@ -931,9 +1006,16 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     await persist({ notice: t('committee.result.draftSaved') })
   }
 
-  const confirmFinish = async () => {
-    retryRef.current = () => persist({ finish: true })
-    const ok = await persist({ finish: true })
+  const confirmFinish = async (options = {}) => {
+    const isForced = Boolean(options?.force || alreadyFinished)
+    retryRef.current = () => persist({ finish: true, force: isForced })
+    const ok = await persist({
+      finish: true,
+      force: isForced,
+      notice: alreadyFinished
+        ? t('committee.result.forceSuccessNotice', 'تم حفظ وتحديث النتيجة وفرض التعديلات بنجاح')
+        : t('committee.result.resultSaved'),
+    })
     if (!ok) setConfirmOpen(false)
   }
 
@@ -1102,7 +1184,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         activeHalf={timerCfg.activeHalf}
         matchNotStarted={matchNotStarted}
         onAddEvent={openPickerFromButton}
-        hideAddButton={true}
+        hideAddButton={false}
         t={t}
       />
 
@@ -1111,14 +1193,17 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         <div className="mx-auto flex min-h-full max-w-5xl flex-col p-4 sm:p-5">
           {showForm ? (
             <SectionCard
-              title={editingKey ? t('committee.result.editEventTitle') : t('committee.result.addEvent')}
+              title={alreadyFinished && editingKey ? t('committee.result.editPlayer', 'تعديل اللاعب') : (editingKey ? t('committee.result.editEventTitle') : t('committee.result.addEvent'))}
               icon={Plus}
               action={
-                <button type="button" onClick={() => { cancelForm(); setPickerOpen(true) }} className="rounded-lg px-2 py-1 text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600">
-                  {t('committee.result.changeType')}
-                </button>
+                (!alreadyFinished || !editingKey) && (
+                  <button type="button" onClick={() => { cancelForm(); setPickerOpen(true) }} className="rounded-lg px-2 py-1 text-[11px] font-bold text-slate-400 transition-colors hover:text-slate-600">
+                    {t('committee.result.changeType')}
+                  </button>
+                )
               }
-              bodyClassName="p-4"
+              bodyClassName="p-4 overflow-visible"
+              className="overflow-visible"
             >
               <EventForm
                 type={selectedType}
@@ -1139,6 +1224,8 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                 maxMinute={formMaxAbs}
                 maxAddedTime={30}
                 half={formHalf}
+                isPlayerCorrectionOnly={alreadyFinished && Boolean(editingKey)}
+                onCancel={cancelForm}
               />
             </SectionCard>
           ) : (
@@ -1177,6 +1264,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                     onAddFirst={() => { cancelForm(); setPickerOpen(true) }}
                     halfDuration={timerCfg.halfDurationMinutes}
                     t={t}
+                    alreadyFinished={alreadyFinished}
                   />
                 )}
 
@@ -1335,6 +1423,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
           onConfirm={confirmFinish}
           onCancel={() => setConfirmOpen(false)}
           halfDuration={timerCfg.halfDurationMinutes}
+          alreadyFinished={alreadyFinished}
           t={t}
         />
       )}

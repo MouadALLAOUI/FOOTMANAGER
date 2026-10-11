@@ -49,6 +49,37 @@ class FootballMatch extends Model
         'ended_at',
     ];
 
+    protected $attributes = [
+        'current_minute' => 0,
+        'added_time' => 0,
+        'home_score' => 0,
+        'away_score' => 0,
+    ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (FootballMatch $match) {
+            $match->uuid ??= (string) Str::uuid();
+        });
+
+        static::saving(function (FootballMatch $match) {
+            if ($match->current_minute === null) {
+                $match->current_minute = $match->status === MatchStatus::Finished
+                    ? ($match->match_duration_minutes ?: 90)
+                    : 0;
+            }
+            if ($match->added_time === null) {
+                $match->added_time = 0;
+            }
+            if ($match->home_score === null) {
+                $match->home_score = 0;
+            }
+            if ($match->away_score === null) {
+                $match->away_score = 0;
+            }
+        });
+    }
+
     protected function casts(): array
     {
         return [
@@ -69,13 +100,6 @@ class FootballMatch extends Model
             'second_half_started_at' => 'datetime',
             'ended_at' => 'datetime',
         ];
-    }
-
-    protected static function booted(): void
-    {
-        static::creating(function (FootballMatch $match) {
-            $match->uuid ??= (string) Str::uuid();
-        });
     }
 
     public function matchRequest(): BelongsTo

@@ -30,7 +30,7 @@ export default function FooterActions({
   // Contextual primary action — the one correct button for the current state.
   let primary = null
   if (alreadyFinished) {
-    primary = { key: 'finish', icon: null, label: t('committee.result.finishMatch'), action: () => setConfirmOpen(true), variant: null }
+    primary = { key: 'finish', icon: null, label: t('committee.result.saveForceChanges', 'حفظ وفرض التعديلات'), action: () => setConfirmOpen(true), variant: 'danger' }
   } else if (matchNotStarted) {
     primary = { key: 'start', icon: <Play className="size-4" />, label: t('committee.result.runMatch'), action: runMatch, variant: null }
   } else if (isLiveMatch) {

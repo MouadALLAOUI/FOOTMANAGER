@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 import TimelineColumn from './TimelineColumn'
 
-export default function TimelineTab({ homeId, homeName, homeTeam, homeScore, awayId, awayName, awayTeam, awayScore, homeEvents, awayEvents, generalEvents, freshTick, onEdit, onDelete, eventsEmpty, onAddFirst, halfDuration, t }) {
+export default function TimelineTab({ homeId, homeName, homeTeam, homeScore, awayId, awayName, awayTeam, awayScore, homeEvents, awayEvents, generalEvents, freshTick, onEdit, onDelete, eventsEmpty, onAddFirst, halfDuration, t, alreadyFinished = false }) {
   if (eventsEmpty) {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -30,6 +30,7 @@ export default function TimelineTab({ homeId, homeName, homeTeam, homeScore, awa
         onDelete={onDelete}
         halfDuration={halfDuration}
         t={t}
+        alreadyFinished={alreadyFinished}
       />
       <TimelineColumn
         team={{ id: awayId, name: awayName, team: awayTeam, score: awayScore }}
@@ -39,6 +40,7 @@ export default function TimelineTab({ homeId, homeName, homeTeam, homeScore, awa
         onDelete={onDelete}
         halfDuration={halfDuration}
         t={t}
+        alreadyFinished={alreadyFinished}
       />
       {generalEvents.length > 0 && (
         <div className="lg:col-span-2">
@@ -50,6 +52,7 @@ export default function TimelineTab({ homeId, homeName, homeTeam, homeScore, awa
             onDelete={onDelete}
             halfDuration={halfDuration}
             t={t}
+            alreadyFinished={alreadyFinished}
           />
         </div>
       )}

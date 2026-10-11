@@ -556,4 +556,229 @@ class TournamentResultEditingTest extends TestCase
         $this->assertSame(3, $match->home_score);
         $this->assertSame(0, $match->away_score);
     }
+
+    public function test_correct_player_after_match_completion_preserves_score_standings_and_status(): void
+    {
+        $tournament = $this->createTournament();
+        $this->addTeamsAndDraw($tournament);
+        $this->generateFixtures($tournament);
+
+        $fixture = $this->firstFixture($tournament);
+        $homeTeam = Team::findOrFail($fixture->home_team_id);
+
+        $playerA = Player::factory()->create(['team_id' => $homeTeam->id, 'name' => 'لاعب أصلي']);
+        $playerB = Player::factory()->create(['team_id' => $homeTeam->id, 'name' => 'لاعب مصحح']);
+
+        // 1. Finish the match with playerA scoring
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/result", [
+            'home_score' => 1,
+            'away_score' => 0,
+            'status' => 'finished',
+            'events' => [
+                [
+                    'type' => 'goal',
+                    'team_id' => $homeTeam->id,
+                    'player_id' => $playerA->id,
+                    'minute' => 15,
+                    'half' => 'first',
+                ],
+            ],
+        ])->assertOk();
+
+        $fixture->refresh();
+        $match = $fixture->match;
+        $this->assertSame('finished', $match->status->value);
+        $this->assertSame(1, $match->home_score);
+        $this->assertSame(0, $match->away_score);
+
+        $initialEvent = MatchEvent::where('match_id', $match->id)->firstOrFail();
+        $this->assertSame($playerA->id, $initialEvent->player_id);
+
+        // Check initial tournament statistics (playerA has 1 goal, playerB has 0)
+        $statsService = app(\App\Domains\Tournament\Services\TournamentStatisticsService::class);
+        $statsBefore = $statsService->statistics($tournament);
+        $topScorerBefore = collect($statsBefore['top_scorers'])->firstWhere('player_id', $playerA->id);
+        $this->assertNotNull($topScorerBefore);
+        $this->assertSame(1, $topScorerBefore['count']);
+
+        // Check initial standings for homeTeam
+        $standingsService = app(\App\Domains\Tournament\Services\TournamentStandingsService::class);
+        $standingsBefore = $standingsService->standings($tournament);
+        $homeStandingBefore = collect($standingsBefore)->firstWhere('team_id', $homeTeam->id);
+        $initialPoints = $homeStandingBefore['points'] ?? 3;
+
+        // 2. Organizer corrects the player credited to the goal event after match completion
+        $correctResponse = $this->putJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/events/{$initialEvent->id}/correct-player", [
+            'player_id' => $playerB->id,
+        ]);
+        $correctResponse->assertOk();
+
+        // 3. Verify event attribution updated
+        $updatedEvent = $initialEvent->fresh();
+        $this->assertSame($playerB->id, $updatedEvent->player_id);
+        $this->assertSame('لاعب مصحح', $updatedEvent->description);
+
+        // 4. Verify match, score, and status remain strictly unchanged
+        $fixture->refresh();
+        $match->refresh();
+        $this->assertSame('finished', $match->status->value);
+        $this->assertSame(1, $match->home_score);
+        $this->assertSame(0, $match->away_score);
+        $this->assertSame(15, $updatedEvent->minute);
+        $this->assertSame('first', $updatedEvent->half);
+        $this->assertSame($homeTeam->id, $updatedEvent->team_id);
+
+        // 5. Verify standings and points remain unchanged
+        $standingsAfter = $standingsService->standings($tournament);
+        $homeStandingAfter = collect($standingsAfter)->firstWhere('team_id', $homeTeam->id);
+        $this->assertSame($initialPoints, $homeStandingAfter['points'] ?? 3);
+
+        // 6. Verify player-dependent statistics updated (playerB now has the goal, playerA does not)
+        $statsAfter = $statsService->statistics($tournament);
+        $topScorerAfterB = collect($statsAfter['top_scorers'])->firstWhere('player_id', $playerB->id);
+        $topScorerAfterA = collect($statsAfter['top_scorers'])->firstWhere('player_id', $playerA->id);
+        $this->assertNotNull($topScorerAfterB);
+        $this->assertSame(1, $topScorerAfterB['count']);
+        $this->assertNull($topScorerAfterA);
+
+        // 7. Verify audit log entry
+        $audit = MatchResultAudit::where('match_id', $match->id)
+            ->where('action', 'event_player_corrected')
+            ->first();
+        $this->assertNotNull($audit);
+        $this->assertSame($this->committee->id, $audit->user_id);
+        $this->assertSame($initialEvent->id, $audit->changes['event_id']);
+        $this->assertSame($playerA->id, $audit->changes['before']['player_id']);
+        $this->assertSame($playerB->id, $audit->changes['after']['player_id']);
+    }
+
+    public function test_correct_player_authorization_restricted_to_organizer(): void
+    {
+        $tournament = $this->createTournament();
+        $this->addTeamsAndDraw($tournament);
+        $this->generateFixtures($tournament);
+
+        $fixture = $this->firstFixture($tournament);
+        $homeTeam = Team::findOrFail($fixture->home_team_id);
+        $playerA = Player::factory()->create(['team_id' => $homeTeam->id]);
+        $playerB = Player::factory()->create(['team_id' => $homeTeam->id]);
+
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/result", [
+            'home_score' => 1,
+            'away_score' => 0,
+            'status' => 'finished',
+            'events' => [
+                [
+                    'type' => 'goal',
+                    'team_id' => $homeTeam->id,
+                    'player_id' => $playerA->id,
+                    'minute' => 10,
+                ],
+            ],
+        ])->assertOk();
+
+        $event = MatchEvent::where('match_id', $fixture->fresh()->match_id)->firstOrFail();
+
+        // Another user who is not the organizer cannot correct player
+        $anotherUser = User::factory()->committee()->approved()->create();
+        Sanctum::actingAs($anotherUser);
+
+        $this->putJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/events/{$event->id}/correct-player", [
+            'player_id' => $playerB->id,
+        ])->assertForbidden();
+
+        // Team manager cannot correct player
+        $managerUser = User::factory()->manager()->approved()->create();
+        Sanctum::actingAs($managerUser);
+
+        $this->putJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/events/{$event->id}/correct-player", [
+            'player_id' => $playerB->id,
+        ])->assertForbidden();
+    }
+
+    public function test_correct_player_on_pending_match_ignores_unrelated_parameters(): void
+    {
+        $tournament = $this->createTournament();
+        $this->addTeamsAndDraw($tournament);
+        $this->generateFixtures($tournament);
+
+        $fixture = $this->firstFixture($tournament);
+        $homeTeam = Team::findOrFail($fixture->home_team_id);
+        $playerA = Player::factory()->create(['team_id' => $homeTeam->id]);
+        $playerB = Player::factory()->create(['team_id' => $homeTeam->id]);
+
+        // Save a match in pending/in-progress status
+        $this->postJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/result", [
+            'home_score' => 1,
+            'away_score' => 0,
+            'status' => 'first_half',
+            'events' => [
+                [
+                    'type' => 'goal',
+                    'team_id' => $homeTeam->id,
+                    'player_id' => $playerA->id,
+                    'minute' => 20,
+                    'half' => 'first',
+                ],
+            ],
+        ])->assertOk();
+
+        $fixture->refresh();
+        $match = $fixture->match;
+        $this->assertSame('first_half', $match->status->value);
+
+        $event = MatchEvent::where('match_id', $match->id)->firstOrFail();
+
+        // Attempt to pass unrelated data (minute, home_score, status) alongside player_id
+        $response = $this->putJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/events/{$event->id}/correct-player", [
+            'player_id' => $playerB->id,
+            'minute' => 99,
+            'home_score' => 10,
+            'status' => 'finished',
+        ]);
+        $response->assertOk();
+
+        $event->refresh();
+        $match->refresh();
+
+        // Permitted attribution changed
+        $this->assertSame($playerB->id, $event->player_id);
+
+        // Unrelated fields remain strictly unchanged
+        $this->assertSame(20, $event->minute);
+        $this->assertSame('first', $event->half);
+        $this->assertSame(1, $match->home_score);
+        $this->assertSame('first_half', $match->status->value);
+    }
+
+    public function test_update_result_without_current_minute_or_with_null_succeeds_without_null_constraint_violation(): void
+    {
+        $tournament = $this->createTournament();
+        $this->addTeamsAndDraw($tournament);
+        $this->generateFixtures($tournament);
+
+        $fixture = $this->firstFixture($tournament);
+        $homeTeam = Team::findOrFail($fixture->home_team_id);
+        $awayTeam = Team::findOrFail($fixture->away_team_id);
+
+        // Put result with status finished without sending current_minute (like the user request error)
+        $response = $this->putJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/result", [
+            'status' => 'finished',
+            'home_score' => 2,
+            'away_score' => 1,
+            'home_penalties' => 0,
+            'away_penalties' => 0,
+            'events' => [],
+        ]);
+
+        $response->assertOk();
+
+        $fixture->refresh();
+        $match = $fixture->match;
+        $this->assertNotNull($match);
+        $this->assertSame('finished', $match->status->value);
+        $this->assertNotNull($match->current_minute);
+        $this->assertSame(90, $match->current_minute);
+    }
 }
+

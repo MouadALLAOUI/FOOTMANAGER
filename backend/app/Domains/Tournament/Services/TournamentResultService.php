@@ -81,6 +81,7 @@ class TournamentResultService
                     'stadium_id' => $fixture->stadium_id,
                     'status' => MatchStatus::Finished,
                     'current_period' => 'full_time',
+                    'current_minute' => (int) ($data['current_minute'] ?? 90),
                     'home_penalties' => isset($data['home_penalties']) ? (int) $data['home_penalties'] : null,
                     'away_penalties' => isset($data['away_penalties']) ? (int) $data['away_penalties'] : null,
                     'extra_time' => isset($data['extra_time']) ? (bool) $data['extra_time'] : false,
@@ -125,6 +126,7 @@ class TournamentResultService
                 'away_penalties' => isset($data['away_penalties']) ? (int) $data['away_penalties'] : $match->away_penalties,
                 'extra_time' => isset($data['extra_time']) ? (bool) $data['extra_time'] : $match->extra_time,
                 'notes' => $data['notes'] ?? $match->notes,
+                'current_minute' => (int) ($match->current_minute ?? ($match->match_duration_minutes ?: 90)),
                 'winner_team_id' => $winner,
                 'status' => MatchStatus::Finished,
                 'current_period' => 'full_time',
@@ -233,6 +235,7 @@ class TournamentResultService
                     'stadium_id' => $fixture->stadium_id,
                     'status' => MatchStatus::Scheduled,
                     'current_period' => 'upcoming',
+                    'current_minute' => 0,
                     'home_penalties' => isset($data['home_penalties']) ? (int) $data['home_penalties'] : null,
                     'away_penalties' => isset($data['away_penalties']) ? (int) $data['away_penalties'] : null,
                     'extra_time' => isset($data['extra_time']) ? (bool) $data['extra_time'] : false,
@@ -300,7 +303,9 @@ class TournamentResultService
                 'away_penalties' => array_key_exists('away_penalties', $data) ? (int) $data['away_penalties'] : $match->away_penalties,
                 'extra_time' => array_key_exists('extra_time', $data) ? (bool) $data['extra_time'] : $match->extra_time,
                 'notes' => array_key_exists('notes', $data) ? $data['notes'] : $match->notes,
-                'current_minute' => array_key_exists('current_minute', $data) ? (int) $data['current_minute'] : $match->current_minute,
+                'current_minute' => array_key_exists('current_minute', $data) && $data['current_minute'] !== null
+                    ? (int) $data['current_minute']
+                    : (int) ($match->current_minute ?? ($status === MatchStatus::Finished ? ($match->match_duration_minutes ?: 90) : 0)),
                 'winner_team_id' => $winner,
                 'status' => $status,
                 'current_period' => isset($data['current_period']) ? (string) $data['current_period'] : ($status === MatchStatus::Finished ? 'full_time' : $match->current_period),
@@ -328,6 +333,7 @@ class TournamentResultService
                 'home_penalties' => $match->home_penalties,
                 'away_penalties' => $match->away_penalties,
                 'extra_time' => (bool) $match->extra_time,
+                'forced' => (bool) ($data['force'] ?? false),
             ]);
 
             $this->bracket->syncRoundStatuses($tournament);
@@ -552,6 +558,11 @@ class TournamentResultService
                 $outName = $meta['out'] ?? '—';
                 $inName = $meta['in'] ?? '—';
                 $updatePayload['description'] = "خروج: {$outName} • دخول: {$inName}";
+            } elseif (isset($updatePayload['player_id'])) {
+                $pName = Player::find($updatePayload['player_id'])?->name;
+                if ($pName !== null) {
+                    $updatePayload['description'] = $pName;
+                }
             }
 
             $event->update($updatePayload);

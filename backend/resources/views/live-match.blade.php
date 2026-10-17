@@ -118,9 +118,9 @@
                 </div>
             </div>
 
-            <!-- Teams & Big Score Row -->
+            <!-- Teams & Big Score Row (Each team logo, name, and score unified in one consistent unit) -->
             <div class="grid grid-cols-3 items-center py-2">
-                <!-- Home Team -->
+                <!-- Home Team (First team, Right side in RTL) -->
                 <div class="flex flex-col items-center text-center">
                     <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center overflow-hidden mb-2">
                         @if(!empty($match['home_team']['logo_url']))
@@ -133,21 +133,23 @@
                             </div>
                         @endif
                     </div>
-                    <h3 id="homeTeamName" class="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1">
+                    <h3 id="homeTeamName" class="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1 mb-1.5">
                         {{ $match['home_team']['name'] }}
                     </h3>
+                    <!-- Home Team Score Display (Unit with team) -->
+                    <div class="inline-flex items-center justify-center min-w-12 px-3 py-1 rounded-2xl bg-white/20 border border-white/25 shadow-inner">
+                        <span id="homeScoreText" class="text-2xl sm:text-3xl font-black text-white tabular-nums">{{ $match['home_score'] }}</span>
+                    </div>
                 </div>
 
-                <!-- Center Score & Status -->
+                <!-- Center: Separator & Match Status -->
                 <div class="flex flex-col items-center justify-center text-center px-1">
-                    <div id="scoreBox" class="text-3xl sm:text-4xl font-black tracking-tight text-white tabular-nums my-1">
-                        <span id="homeScoreText">{{ $match['home_score'] }}</span>
-                        <span class="opacity-60 mx-1">-</span>
-                        <span id="awayScoreText">{{ $match['away_score'] }}</span>
+                    <div class="inline-flex items-center justify-center px-3 py-1 rounded-full bg-black/25 border border-white/10 text-emerald-200 text-xs font-black tracking-wider">
+                        <span>ضد</span>
                     </div>
 
                     <!-- Status Pill -->
-                    <div id="statusPill" class="mt-1">
+                    <div id="statusPill" class="mt-2.5">
                         @if($match['is_live'])
                             <span class="inline-flex items-center gap-1.5 bg-rose-500 text-white font-extrabold text-xs px-3 py-1 rounded-full shadow-xs">
                                 <span class="w-2 h-2 rounded-full bg-white live-pulse"></span>
@@ -168,7 +170,7 @@
                     </div>
                 </div>
 
-                <!-- Away Team -->
+                <!-- Away Team (Second team, Left side in RTL) -->
                 <div class="flex flex-col items-center text-center">
                     <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center overflow-hidden mb-2">
                         @if(!empty($match['away_team']['logo_url']))
@@ -181,9 +183,13 @@
                             </div>
                         @endif
                     </div>
-                    <h3 id="awayTeamName" class="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1">
+                    <h3 id="awayTeamName" class="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1 mb-1.5">
                         {{ $match['away_team']['name'] }}
                     </h3>
+                    <!-- Away Team Score Display (Unit with team) -->
+                    <div class="inline-flex items-center justify-center min-w-12 px-3 py-1 rounded-2xl bg-white/20 border border-white/25 shadow-inner">
+                        <span id="awayScoreText" class="text-2xl sm:text-3xl font-black text-white tabular-nums">{{ $match['away_score'] }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -288,113 +294,556 @@
             </div>
         </div>
 
-        <!-- Match Events Card -->
-        <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs mb-3">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-                <div class="flex items-center gap-2">
-                    <div class="w-7 h-7 rounded-full bg-emerald-50 text-brand-600 flex items-center justify-center">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                    </div>
-                    <h2 class="text-sm font-black text-slate-800">أحداث المباراة</h2>
-                </div>
+        </div>
 
-                <div class="flex items-center gap-1.5">
-                    <span id="liveIndicator" class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 {{ $match['is_live'] ? 'live-pulse bg-rose-500' : '' }}"></span>
-                        <span id="pollStatusLabel">{{ $match['is_live'] ? 'مباشر (تحديث تلقائي)' : ($match['is_finished'] ? 'ملخص نهائي' : 'في الانتظار') }}</span>
-                    </span>
-                </div>
-            </div>
+        <!-- Navigation Tabs -->
+        <div class="flex items-center gap-1.5 p-1 bg-slate-200/80 rounded-2xl mb-3 shadow-inner">
+            <button type="button" id="tabBtnEvents" onclick="switchMatchTab('events')" class="flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all shadow-xs bg-white text-brand-900 flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>الأحداث</span>
+            </button>
+            <button type="button" id="tabBtnLineup" onclick="switchMatchTab('lineup')" class="flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
+                </svg>
+                <span>التشكيلة الحاضرة</span>
+            </button>
+            <button type="button" id="tabBtnDetails" onclick="switchMatchTab('details')" class="flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
+                </svg>
+                <span>تفاصيل المباراة</span>
+            </button>
+        </div>
 
-            <!-- Events List (Newest First) -->
-            <div id="eventsList" class="space-y-2.5">
-                @forelse($events as $event)
-                    <div id="event-row-{{ $event['id'] }}" class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/70 border border-slate-100 transition-all">
-                        <!-- Minute -->
-                        <span class="text-xs font-black text-slate-400 tabular-nums shrink-0 min-w-8 text-center">
-                            {{ $event['minute'] }}'
-                        </span>
-
-                        <!-- Event Icon -->
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 bg-white shadow-2xs border border-slate-100">
-                            @if(in_array($event['type'], ['goal', 'penalty_goal']))
-                                <span>⚽</span>
-                            @elseif($event['type'] === 'yellow_card' || ($event['type'] === 'foul' && ($event['punishment'] ?? '') === 'yellow'))
-                                <span class="w-3.5 h-4.5 bg-amber-400 rounded-xs inline-block"></span>
-                            @elseif($event['type'] === 'red_card' || ($event['type'] === 'foul' && ($event['punishment'] ?? '') === 'red'))
-                                <span class="w-3.5 h-4.5 bg-rose-500 rounded-xs inline-block"></span>
-                            @elseif($event['type'] === 'second_yellow' || ($event['type'] === 'foul' && ($event['punishment'] ?? '') === 'second_yellow'))
-                                <span class="text-[10px]">🟨🟥</span>
-                            @elseif($event['type'] === 'substitution')
-                                <span>🔄</span>
-                            @elseif($event['type'] === 'foul')
-                                <span>🛑</span>
-                            @else
-                                <span>📌</span>
-                            @endif
-                        </div>
-
-                        <!-- Player & Details -->
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <span class="text-xs font-extrabold text-slate-900 truncate">
-                                    {{ $event['player_name'] ?: 'حدث' }}
-                                </span>
-                                @if(!empty($event['type']) && in_array($event['type'], ['goal', 'penalty_goal']))
-                                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md">هدف</span>
-                                @endif
-                            </div>
-                            <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 mt-0.5">
-                                <span class="truncate text-brand-700">{{ $event['team_name'] }}</span>
-                                @if(!empty($event['assist_player_name']))
-                                    <span>• تمريرة: {{ $event['assist_player_name'] }}</span>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                @empty
-                    <div id="noEventsNotice" class="text-center py-8 px-4 text-slate-400">
-                        <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+        <!-- TAB PANE 1: أحداث المباراة (Match Events Feed) -->
+        <div id="tabPaneEvents" class="mb-3">
+            <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-emerald-50 text-brand-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
                         </div>
-                        <p class="text-xs font-bold">لا توجد أحداث مسجلة بعد</p>
-                        <p class="text-[11px] text-slate-400 mt-0.5">سيتم تحديث الأحداث والأهداف فور تسجيلها مباشرة</p>
+                        <h2 class="text-sm font-black text-slate-800">أحداث المباراة</h2>
                     </div>
-                @endforelse
 
-                <!-- Final Whistle Badge if Finished -->
-                @if($match['is_finished'])
-                    <div id="finalWhistleRow" class="flex items-center gap-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80">
-                        <span class="text-xs font-black text-emerald-700 shrink-0 min-w-8 text-center">90'</span>
-                        <div class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center text-sm shrink-0">
-                            ⏱️
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <span class="text-xs font-black text-brand-900 block">نهاية المباراة</span>
-                            <span class="text-[10px] font-bold text-brand-700">النتيجة النهائية: {{ $match['home_score'] }} - {{ $match['away_score'] }}</span>
-                        </div>
+                    <div class="flex items-center gap-1.5">
+                        <span id="liveIndicator" class="inline-flex items-center gap-1 text-[11px] font-bold text-slate-400">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 {{ $match['is_live'] ? 'live-pulse bg-rose-500' : '' }}"></span>
+                            <span id="pollStatusLabel">{{ $match['is_live'] ? 'مباشر (تحديث تلقائي)' : ($match['is_finished'] ? 'ملخص نهائي' : 'في الانتظار') }}</span>
+                        </span>
                     </div>
-                @endif
-            </div>
-
-            <!-- Match Referee & Status Meta Card -->
-            <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px]">
-                <div class="flex items-center gap-1.5 text-slate-500">
-                    <svg class="w-4 h-4 text-brand-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
-                    </svg>
-                    <span class="font-bold">الحكم:</span>
-                    <span id="refereeNameText" class="font-extrabold text-slate-800 truncate">{{ $match['referee_name'] }}</span>
                 </div>
 
-                <div class="flex items-center justify-end gap-1.5 text-slate-500">
-                    <span class="w-2 h-2 rounded-full {{ $match['is_live'] ? 'bg-rose-500 live-pulse' : 'bg-brand-600' }}"></span>
-                    <span class="font-bold">الحالة:</span>
-                    <span id="metaStatusText" class="font-extrabold text-slate-800">{{ $match['status_text'] }}</span>
+                <!-- Events List (Chronological: Newest First) -->
+                <div id="eventsList" class="space-y-2.5">
+                    @forelse($events as $event)
+                        <div id="event-row-{{ $event['id'] }}" data-event-order="{{ ($event['minute'] * 10000) + $event['id'] }}" class="flex items-center gap-3 p-3 rounded-2xl bg-slate-50/70 border border-slate-100 transition-all">
+                            <!-- Minute -->
+                            <span class="text-xs font-black text-slate-400 tabular-nums shrink-0 min-w-8 text-center">
+                                {{ $event['minute'] }}'
+                            </span>
+
+                            <!-- Event Icon -->
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0 bg-white shadow-2xs border border-slate-100">
+                                @if(in_array($event['type'], ['goal', 'penalty_goal']))
+                                    <span>⚽</span>
+                                @elseif($event['type'] === 'yellow_card' || ($event['type'] === 'foul' && ($event['punishment'] ?? '') === 'yellow'))
+                                    <span class="w-3.5 h-4.5 bg-amber-400 rounded-xs inline-block"></span>
+                                @elseif($event['type'] === 'red_card' || ($event['type'] === 'foul' && ($event['punishment'] ?? '') === 'red'))
+                                    <span class="w-3.5 h-4.5 bg-rose-500 rounded-xs inline-block"></span>
+                                @elseif($event['type'] === 'second_yellow' || ($event['type'] === 'foul' && ($event['punishment'] ?? '') === 'second_yellow'))
+                                    <span class="text-[10px]">🟨🟥</span>
+                                @elseif($event['type'] === 'substitution')
+                                    <span>🔄</span>
+                                @elseif($event['type'] === 'foul')
+                                    <span>🛑</span>
+                                @else
+                                    <span>📌</span>
+                                @endif
+                            </div>
+
+                            <!-- Player & Details -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-extrabold text-slate-900 truncate">
+                                        {{ $event['player_name'] ?: 'حدث' }}
+                                    </span>
+                                    @if(!empty($event['type']) && in_array($event['type'], ['goal', 'penalty_goal']))
+                                        <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md">هدف</span>
+                                    @endif
+                                </div>
+                                <div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 mt-0.5">
+                                    <span class="truncate text-brand-700">{{ $event['team_name'] }}</span>
+                                    @if(!empty($event['assist_player_name']))
+                                        <span>• تمريرة: {{ $event['assist_player_name'] }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div id="noEventsNotice" class="text-center py-8 px-4 text-slate-400">
+                            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <p class="text-xs font-bold">لا توجد أحداث مسجلة بعد</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5">سيتم تحديث الأحداث والأهداف فور تسجيلها مباشرة</p>
+                        </div>
+                    @endforelse
+
+                    <!-- Final Whistle Badge if Finished (Unambiguous Team-Score Matching) -->
+                    @if($match['is_finished'])
+                        <div id="finalWhistleRow" data-event-order="0" class="flex items-center gap-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80">
+                            <span class="text-xs font-black text-emerald-700 shrink-0 min-w-8 text-center">90'</span>
+                            <div class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center text-sm shrink-0">
+                                ⏱️
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <span class="text-xs font-black text-brand-900 block">نهاية المباراة</span>
+                                <div class="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-brand-800 mt-0.5" dir="rtl">
+                                    <span>النتيجة النهائية:</span>
+                                    <span class="font-extrabold text-brand-900">{{ $match['home_team']['name'] }}</span>
+                                    <span class="inline-block px-1.5 py-0.5 bg-brand-100 rounded text-brand-950 font-black tabular-nums">{{ $match['home_score'] }}</span>
+                                    <span class="text-slate-400">-</span>
+                                    <span class="inline-block px-1.5 py-0.5 bg-brand-100 rounded text-brand-950 font-black tabular-nums">{{ $match['away_score'] }}</span>
+                                    <span class="font-extrabold text-brand-900">{{ $match['away_team']['name'] }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Match Referee & Status Meta Card -->
+                <div class="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="flex items-center gap-1.5 text-slate-500">
+                        <svg class="w-4 h-4 text-brand-600 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+                        </svg>
+                        <span class="font-bold">الحكم:</span>
+                        <span id="refereeNameText" class="font-extrabold text-slate-800 truncate">{{ $match['referee_name'] }}</span>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-1.5 text-slate-500">
+                        <span class="w-2 h-2 rounded-full {{ $match['is_live'] ? 'bg-rose-500 live-pulse' : 'bg-brand-600' }}"></span>
+                        <span class="font-bold">الحالة:</span>
+                        <span id="metaStatusText" class="font-extrabold text-slate-800">{{ $match['status_text'] }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB PANE 2: التشكيلة الحاضرة (Present Match Lineup) -->
+        <div id="tabPaneLineup" class="hidden mb-3">
+            <div class="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs">
+                <!-- Section Header -->
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-full bg-emerald-50 text-brand-600 flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
+                            </svg>
+                        </div>
+                        <h2 class="text-sm font-black text-slate-900">التشكيلة الحاضرة</h2>
+                    </div>
+
+                    <!-- Team Selector Filter Pills -->
+                    <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl">
+                        <button type="button" id="lineupSubBtnAll" onclick="filterLineupTeam('all')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all bg-white text-slate-800 shadow-2xs">الكل</button>
+                        <button type="button" id="lineupSubBtnHome" onclick="filterLineupTeam('home')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-slate-500 hover:text-slate-800">{{ $match['home_team']['name'] }}</button>
+                        <button type="button" id="lineupSubBtnAway" onclick="filterLineupTeam('away')" class="px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-slate-500 hover:text-slate-800">{{ $match['away_team']['name'] }}</button>
+                    </div>
+                </div>
+
+                <!-- Lineup Content -->
+                <div id="lineupContent" class="space-y-5">
+                    @if(!empty($lineup['available']))
+                        <!-- Home Team Lineup Group -->
+                        <div id="lineupTeamCardHome" class="space-y-3">
+                            <!-- Team Banner -->
+                            <div class="flex items-center justify-between bg-emerald-50/70 border border-emerald-100/80 px-3 py-2 rounded-2xl">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-6 h-6 rounded-full bg-white p-0.5 shadow-2xs flex items-center justify-center overflow-hidden">
+                                        @if(!empty($match['home_team']['logo_url']))
+                                            <img src="{{ $match['home_team']['logo_url'] }}" alt="{{ $match['home_team']['name'] }}" class="w-full h-full object-contain rounded-full">
+                                        @else
+                                            <span class="text-[10px] font-black text-brand-600">⚽</span>
+                                        @endif
+                                    </div>
+                                    <span class="text-xs font-black text-emerald-950">{{ $match['home_team']['name'] }}</span>
+                                </div>
+                                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-full">
+                                    {{ count($lineup['home']['all'] ?? []) }} لاعبين حاضرين
+                                </span>
+                            </div>
+
+                            <!-- Starters (if distinguished) -->
+                            @if(!empty($lineup['has_starters']) && !empty($lineup['home']['starters']))
+                                <div class="space-y-1.5">
+                                    <div class="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-500 px-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        <span>التشكيلة الأساسية</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        @foreach($lineup['home']['starters'] as $p)
+                                            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
+                                                <div class="flex items-center gap-2.5 min-w-0">
+                                                    <div class="w-9 h-9 rounded-full bg-white shadow-2xs border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                        @if(!empty($p['photo_url']))
+                                                            <img src="{{ $p['photo_url'] }}" alt="{{ $p['name'] }}" class="w-full h-full object-cover">
+                                                        @else
+                                                            <span class="text-xs font-black text-brand-700">{{ !empty($p['number']) ? $p['number'] : '👤' }}</span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <div class="flex items-center gap-1.5">
+                                                            <span class="text-xs font-black text-slate-800 truncate">{{ $p['name'] }}</span>
+                                                            @if(!empty($p['is_captain']))
+                                                                <span class="text-[9px] font-black bg-amber-100 text-amber-800 px-1 py-0.2 rounded" title="قائد الفريق">C</span>
+                                                            @endif
+                                                        </div>
+                                                        @if(!empty($p['position']))
+                                                            <span class="text-[10px] font-bold text-slate-400 block">{{ $p['position'] }}</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 shrink-0">
+                                                    @if($p['participation_status'] === 'subbed_out')
+                                                        <span class="text-[10px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                                                            <span>🔄</span>
+                                                            <span>تم استبداله</span>
+                                                        </span>
+                                                    @elseif($p['participation_status'] === 'subbed_in')
+                                                        <span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                                                            <span>🔄</span>
+                                                            <span>شارك كبديل</span>
+                                                        </span>
+                                                    @else
+                                                        <span class="text-[10px] font-extrabold text-brand-800 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-full">
+                                                            أساسي
+                                                        </span>
+                                                    @endif
+
+                                                    @if(!empty($p['number']))
+                                                        <span class="text-xs font-black text-slate-700 bg-white border border-slate-200/90 w-6 h-6 rounded-full flex items-center justify-center tabular-nums shadow-2xs">
+                                                            {{ $p['number'] }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Substitutes (if distinguished) -->
+                            @if(!empty($lineup['has_starters']) && !empty($lineup['home']['substitutes']))
+                                <div class="space-y-1.5 pt-1">
+                                    <div class="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-500 px-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                        <span>البدلاء</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        @foreach($lineup['home']['substitutes'] as $p)
+                                            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
+                                                <div class="flex items-center gap-2.5 min-w-0">
+                                                    <div class="w-9 h-9 rounded-full bg-white shadow-2xs border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                        @if(!empty($p['photo_url']))
+                                                            <img src="{{ $p['photo_url'] }}" alt="{{ $p['name'] }}" class="w-full h-full object-cover">
+                                                        @else
+                                                            <span class="text-xs font-black text-slate-500">{{ !empty($p['number']) ? $p['number'] : '👤' }}</span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <div class="flex items-center gap-1.5">
+                                                            <span class="text-xs font-black text-slate-800 truncate">{{ $p['name'] }}</span>
+                                                        </div>
+                                                        @if(!empty($p['position']))
+                                                            <span class="text-[10px] font-bold text-slate-400 block">{{ $p['position'] }}</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 shrink-0">
+                                                    @if($p['participation_status'] === 'subbed_in')
+                                                        <span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                                                            <span>🔄</span>
+                                                            <span>شارك كبديل</span>
+                                                        </span>
+                                                    @else
+                                                        <span class="text-[10px] font-extrabold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                                            احتياط
+                                                        </span>
+                                                    @endif
+
+                                                    @if(!empty($p['number']))
+                                                        <span class="text-xs font-black text-slate-700 bg-white border border-slate-200/90 w-6 h-6 rounded-full flex items-center justify-center tabular-nums shadow-2xs">
+                                                            {{ $p['number'] }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- All players if starters not distinguished -->
+                            @if(empty($lineup['has_starters']) && !empty($lineup['home']['all']))
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    @foreach($lineup['home']['all'] as $p)
+                                        <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
+                                            <div class="flex items-center gap-2.5 min-w-0">
+                                                <div class="w-9 h-9 rounded-full bg-white shadow-2xs border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                    @if(!empty($p['photo_url']))
+                                                        <img src="{{ $p['photo_url'] }}" alt="{{ $p['name'] }}" class="w-full h-full object-cover">
+                                                    @else
+                                                        <span class="text-xs font-black text-brand-700">{{ !empty($p['number']) ? $p['number'] : '👤' }}</span>
+                                                    @endif
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <span class="text-xs font-black text-slate-800 truncate block">{{ $p['name'] }}</span>
+                                                    @if(!empty($p['position']))
+                                                        <span class="text-[10px] font-bold text-slate-400 block">{{ $p['position'] }}</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                <span class="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                                    حاضر
+                                                </span>
+                                                @if(!empty($p['number']))
+                                                    <span class="text-xs font-black text-slate-700 bg-white border border-slate-200/90 w-6 h-6 rounded-full flex items-center justify-center tabular-nums shadow-2xs">
+                                                        {{ $p['number'] }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+
+                        <!-- Away Team Lineup Group -->
+                        <div id="lineupTeamCardAway" class="space-y-3 pt-3 border-t border-slate-100">
+                            <!-- Team Banner -->
+                            <div class="flex items-center justify-between bg-slate-100/70 border border-slate-200/70 px-3 py-2 rounded-2xl">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-6 h-6 rounded-full bg-white p-0.5 shadow-2xs flex items-center justify-center overflow-hidden">
+                                        @if(!empty($match['away_team']['logo_url']))
+                                            <img src="{{ $match['away_team']['logo_url'] }}" alt="{{ $match['away_team']['name'] }}" class="w-full h-full object-contain rounded-full">
+                                        @else
+                                            <span class="text-[10px] font-black text-slate-600">⚽</span>
+                                        @endif
+                                    </div>
+                                    <span class="text-xs font-black text-slate-900">{{ $match['away_team']['name'] }}</span>
+                                </div>
+                                <span class="text-[10px] font-bold text-slate-600 bg-slate-200/60 px-2 py-0.5 rounded-full">
+                                    {{ count($lineup['away']['all'] ?? []) }} لاعبين حاضرين
+                                </span>
+                            </div>
+
+                            <!-- Starters (if distinguished) -->
+                            @if(!empty($lineup['has_starters']) && !empty($lineup['away']['starters']))
+                                <div class="space-y-1.5">
+                                    <div class="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-500 px-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                        <span>التشكيلة الأساسية</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        @foreach($lineup['away']['starters'] as $p)
+                                            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
+                                                <div class="flex items-center gap-2.5 min-w-0">
+                                                    <div class="w-9 h-9 rounded-full bg-white shadow-2xs border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                        @if(!empty($p['photo_url']))
+                                                            <img src="{{ $p['photo_url'] }}" alt="{{ $p['name'] }}" class="w-full h-full object-cover">
+                                                        @else
+                                                            <span class="text-xs font-black text-slate-600">{{ !empty($p['number']) ? $p['number'] : '👤' }}</span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <div class="flex items-center gap-1.5">
+                                                            <span class="text-xs font-black text-slate-800 truncate">{{ $p['name'] }}</span>
+                                                            @if(!empty($p['is_captain']))
+                                                                <span class="text-[9px] font-black bg-amber-100 text-amber-800 px-1 py-0.2 rounded" title="قائد الفريق">C</span>
+                                                            @endif
+                                                        </div>
+                                                        @if(!empty($p['position']))
+                                                            <span class="text-[10px] font-bold text-slate-400 block">{{ $p['position'] }}</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 shrink-0">
+                                                    @if($p['participation_status'] === 'subbed_out')
+                                                        <span class="text-[10px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                                                            <span>🔄</span>
+                                                            <span>تم استبداله</span>
+                                                        </span>
+                                                    @elseif($p['participation_status'] === 'subbed_in')
+                                                        <span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                                                            <span>🔄</span>
+                                                            <span>شارك كبديل</span>
+                                                        </span>
+                                                    @else
+                                                        <span class="text-[10px] font-extrabold text-brand-800 bg-brand-50 border border-brand-200 px-2 py-0.5 rounded-full">
+                                                            أساسي
+                                                        </span>
+                                                    @endif
+
+                                                    @if(!empty($p['number']))
+                                                        <span class="text-xs font-black text-slate-700 bg-white border border-slate-200/90 w-6 h-6 rounded-full flex items-center justify-center tabular-nums shadow-2xs">
+                                                            {{ $p['number'] }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- Substitutes (if distinguished) -->
+                            @if(!empty($lineup['has_starters']) && !empty($lineup['away']['substitutes']))
+                                <div class="space-y-1.5 pt-1">
+                                    <div class="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-500 px-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                        <span>البدلاء</span>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        @foreach($lineup['away']['substitutes'] as $p)
+                                            <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
+                                                <div class="flex items-center gap-2.5 min-w-0">
+                                                    <div class="w-9 h-9 rounded-full bg-white shadow-2xs border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                        @if(!empty($p['photo_url']))
+                                                            <img src="{{ $p['photo_url'] }}" alt="{{ $p['name'] }}" class="w-full h-full object-cover">
+                                                        @else
+                                                            <span class="text-xs font-black text-slate-500">{{ !empty($p['number']) ? $p['number'] : '👤' }}</span>
+                                                        @endif
+                                                    </div>
+                                                    <div class="min-w-0">
+                                                        <div class="flex items-center gap-1.5">
+                                                            <span class="text-xs font-black text-slate-800 truncate">{{ $p['name'] }}</span>
+                                                        </div>
+                                                        @if(!empty($p['position']))
+                                                            <span class="text-[10px] font-bold text-slate-400 block">{{ $p['position'] }}</span>
+                                                        @endif
+                                                    </div>
+                                                </div>
+                                                <div class="flex items-center gap-1.5 shrink-0">
+                                                    @if($p['participation_status'] === 'subbed_in')
+                                                        <span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                                                            <span>🔄</span>
+                                                            <span>شارك كبديل</span>
+                                                        </span>
+                                                    @else
+                                                        <span class="text-[10px] font-extrabold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                                            احتياط
+                                                        </span>
+                                                    @endif
+
+                                                    @if(!empty($p['number']))
+                                                        <span class="text-xs font-black text-slate-700 bg-white border border-slate-200/90 w-6 h-6 rounded-full flex items-center justify-center tabular-nums shadow-2xs">
+                                                            {{ $p['number'] }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <!-- All players if starters not distinguished -->
+                            @if(empty($lineup['has_starters']) && !empty($lineup['away']['all']))
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    @foreach($lineup['away']['all'] as $p)
+                                        <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50/80 border border-slate-100 hover:border-slate-200 transition-colors">
+                                            <div class="flex items-center gap-2.5 min-w-0">
+                                                <div class="w-9 h-9 rounded-full bg-white shadow-2xs border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                    @if(!empty($p['photo_url']))
+                                                        <img src="{{ $p['photo_url'] }}" alt="{{ $p['name'] }}" class="w-full h-full object-cover">
+                                                    @else
+                                                        <span class="text-xs font-black text-slate-600">{{ !empty($p['number']) ? $p['number'] : '👤' }}</span>
+                                                    @endif
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <span class="text-xs font-black text-slate-800 truncate block">{{ $p['name'] }}</span>
+                                                    @if(!empty($p['position']))
+                                                        <span class="text-[10px] font-bold text-slate-400 block">{{ $p['position'] }}</span>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-1.5 shrink-0">
+                                                <span class="text-[10px] font-extrabold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
+                                                    حاضر
+                                                </span>
+                                                @if(!empty($p['number']))
+                                                    <span class="text-xs font-black text-slate-700 bg-white border border-slate-200/90 w-6 h-6 rounded-full flex items-center justify-center tabular-nums shadow-2xs">
+                                                        {{ $p['number'] }}
+                                                    </span>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
+                        </div>
+                    @else
+                        <!-- Graceful Empty Lineup State -->
+                        <div id="noLineupNotice" class="text-center py-8 px-4 text-slate-400">
+                            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/>
+                                </svg>
+                            </div>
+                            <p class="text-xs font-bold text-slate-700">لم يتم تأكيد تشكيلة المباراة بعد</p>
+                            <p class="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">سيتم عرض قائمة اللاعبين الحاضرين والتشكيلة الأساسية فور تأكيدها من قبل طاقم أو منظم المباراة</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB PANE 3: تفاصيل المباراة (Match Details & Venue) -->
+        <div id="tabPaneDetails" class="hidden mb-3">
+            <div class="bg-white rounded-3xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+                <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <div class="w-7 h-7 rounded-full bg-emerald-50 text-brand-600 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
+                        </svg>
+                    </div>
+                    <h2 class="text-sm font-black text-slate-800">تفاصيل وبيانات المباراة</h2>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <span class="text-[10px] font-bold text-slate-400 block mb-1">الملعب والموقع</span>
+                        <span class="font-extrabold text-slate-800 block">{{ $match['stadium']['name'] }}</span>
+                        <span class="text-[11px] text-slate-500 font-bold block">{{ $match['stadium']['city'] }}</span>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <span class="text-[10px] font-bold text-slate-400 block mb-1">البطولة والمرحلة</span>
+                        <span class="font-extrabold text-slate-800 block truncate">{{ $match['tournament']['name'] }}</span>
+                        <span class="text-[11px] text-brand-700 font-bold block">{{ $match['tournament']['round'] }}</span>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <span class="text-[10px] font-bold text-slate-400 block mb-1">طاقم التحكيم</span>
+                        <span class="font-extrabold text-slate-800 block">{{ $match['referee_name'] }}</span>
+                    </div>
+
+                    <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                        <span class="text-[10px] font-bold text-slate-400 block mb-1">اعتماد النتيجة</span>
+                        <span class="font-extrabold {{ $match['is_official'] ? 'text-emerald-700' : 'text-amber-600' }} block">
+                            {{ $match['is_official'] ? 'معتمدة ورسمية' : 'بانتظار الاعتماد النهائي' }}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -438,6 +887,17 @@
         let isOfficialResult = {{ $match['is_official'] ? 'true' : 'false' }};
         let pollTimer = null;
         let isPollingActive = true;
+        let isFetching = false;
+
+        // In-memory collection of all displayed events keyed by stable event ID
+        const eventsMap = new Map();
+
+        // Pre-populate eventsMap from initial server-rendered events
+        @if(!empty($events))
+            @foreach($events as $ev)
+                eventsMap.set({{ (int) $ev['id'] }}, @json($ev));
+            @endforeach
+        @endif
 
         // Copy Link Action
         function copyLiveLink() {
@@ -470,9 +930,88 @@
             }, 2500);
         }
 
-        // Incremental Polling Function
+        // Tab Switching
+        function switchMatchTab(tabKey) {
+            const tabEvents = document.getElementById('tabPaneEvents');
+            const tabLineup = document.getElementById('tabPaneLineup');
+            const tabDetails = document.getElementById('tabPaneDetails');
+
+            const btnEvents = document.getElementById('tabBtnEvents');
+            const btnLineup = document.getElementById('tabBtnLineup');
+            const btnDetails = document.getElementById('tabBtnDetails');
+
+            // Hide all tab panes
+            if (tabEvents) tabEvents.classList.add('hidden');
+            if (tabLineup) tabLineup.classList.add('hidden');
+            if (tabDetails) tabDetails.classList.add('hidden');
+
+            // Reset all buttons to inactive
+            [btnEvents, btnLineup, btnDetails].forEach(btn => {
+                if (btn) {
+                    btn.className = "flex-1 py-2 px-3 text-xs font-bold rounded-xl transition-all text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5";
+                    const icon = btn.querySelector('svg');
+                    if (icon) icon.className = "w-3.5 h-3.5 text-slate-500";
+                }
+            });
+
+            // Activate chosen tab
+            if (tabKey === 'lineup') {
+                if (tabLineup) tabLineup.classList.remove('hidden');
+                if (btnLineup) {
+                    btnLineup.className = "flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all shadow-xs bg-white text-brand-900 flex items-center justify-center gap-1.5";
+                    const icon = btnLineup.querySelector('svg');
+                    if (icon) icon.className = "w-3.5 h-3.5 text-brand-600";
+                }
+            } else if (tabKey === 'details') {
+                if (tabDetails) tabDetails.classList.remove('hidden');
+                if (btnDetails) {
+                    btnDetails.className = "flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all shadow-xs bg-white text-brand-900 flex items-center justify-center gap-1.5";
+                    const icon = btnDetails.querySelector('svg');
+                    if (icon) icon.className = "w-3.5 h-3.5 text-brand-600";
+                }
+            } else {
+                // Default: Events
+                if (tabEvents) tabEvents.classList.remove('hidden');
+                if (btnEvents) {
+                    btnEvents.className = "flex-1 py-2 px-3 text-xs font-black rounded-xl transition-all shadow-xs bg-white text-brand-900 flex items-center justify-center gap-1.5";
+                    const icon = btnEvents.querySelector('svg');
+                    if (icon) icon.className = "w-3.5 h-3.5 text-brand-600";
+                }
+            }
+        }
+
+        // Lineup Team Filter (All / Home / Away)
+        function filterLineupTeam(teamKey) {
+            const homeCard = document.getElementById('lineupTeamCardHome');
+            const awayCard = document.getElementById('lineupTeamCardAway');
+
+            const btnAll = document.getElementById('lineupSubBtnAll');
+            const btnHome = document.getElementById('lineupSubBtnHome');
+            const btnAway = document.getElementById('lineupSubBtnAway');
+
+            [btnAll, btnHome, btnAway].forEach(b => {
+                if (b) b.className = "px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all text-slate-500 hover:text-slate-800";
+            });
+
+            if (teamKey === 'home') {
+                if (homeCard) homeCard.classList.remove('hidden');
+                if (awayCard) awayCard.classList.add('hidden');
+                if (btnHome) btnHome.className = "px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all bg-white text-slate-800 shadow-2xs";
+            } else if (teamKey === 'away') {
+                if (homeCard) homeCard.classList.add('hidden');
+                if (awayCard) awayCard.classList.remove('hidden');
+                if (btnAway) btnAway.className = "px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all bg-white text-slate-800 shadow-2xs";
+            } else {
+                if (homeCard) homeCard.classList.remove('hidden');
+                if (awayCard) awayCard.classList.remove('hidden');
+                if (btnAll) btnAll.className = "px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all bg-white text-slate-800 shadow-2xs";
+            }
+        }
+
+        // Incremental Polling Function with concurrency guard
         async function fetchMatchUpdate() {
-            if (!isPollingActive) return;
+            if (!isPollingActive || isFetching) return;
+            isFetching = true;
 
             try {
                 const params = new URLSearchParams({
@@ -492,6 +1031,8 @@
             } catch (err) {
                 // Gracefully ignore network errors and retry on next interval
                 console.warn('Live poll network glitch, retrying...', err);
+            } finally {
+                isFetching = false;
             }
         }
 
@@ -502,8 +1043,10 @@
             lastServerTime = data.server_time || lastServerTime;
 
             // Update scores
-            document.getElementById('homeScoreText').innerText = m.home_score;
-            document.getElementById('awayScoreText').innerText = m.away_score;
+            const homeScoreEl = document.getElementById('homeScoreText');
+            const awayScoreEl = document.getElementById('awayScoreText');
+            if (homeScoreEl) homeScoreEl.innerText = m.home_score;
+            if (awayScoreEl) awayScoreEl.innerText = m.away_score;
 
             // Update unofficial label
             const unoffEl = document.getElementById('unofficialBadge');
@@ -516,7 +1059,6 @@
             }
 
             // Update status pill & minute
-            const statusPill = document.getElementById('statusPill');
             const statusLabelText = document.getElementById('statusLabelText');
             const minuteTextEl = document.getElementById('minuteText');
             const metaStatusText = document.getElementById('metaStatusText');
@@ -575,29 +1117,47 @@
                 }
             }
 
-            // Update events
+            // Deduplicated Event Feed Update using eventsMap
             const eventsList = document.getElementById('eventsList');
             const noEventsNotice = document.getElementById('noEventsNotice');
 
-            // Handle updated events (e.g. player name corrected by committee)
+            // Handle updated events (e.g. player name corrected by committee or score correction)
             if (Array.isArray(data.updated_events) && data.updated_events.length > 0) {
                 data.updated_events.forEach(ev => {
-                    const row = document.getElementById(`event-row-${ev.id}`);
-                    if (row) {
-                        row.replaceWith(renderEventNode(ev));
+                    eventsMap.set(ev.id, ev);
+                    const existingRow = document.getElementById(`event-row-${ev.id}`);
+                    if (existingRow) {
+                        existingRow.replaceWith(renderEventNode(ev, false));
                     }
                 });
             }
 
-            // Handle newly added events
+            // Handle newly arrived events with strict ID check and chronological insertion
             if (Array.isArray(data.events) && data.events.length > 0) {
                 if (noEventsNotice) noEventsNotice.remove();
 
-                data.events.forEach(ev => {
-                    const existingRow = document.getElementById(`event-row-${ev.id}`);
-                    if (!existingRow) {
-                        const newNode = renderEventNode(ev, true);
-                        eventsList.prepend(newNode);
+                // Sort arriving events so older items are inserted first if multiple events arrive
+                const sortedArriving = [...data.events].sort((a, b) => {
+                    const orderA = (parseInt(a.minute, 10) || 0) * 10000 + (parseInt(a.id, 10) || 0);
+                    const orderB = (parseInt(b.minute, 10) || 0) * 10000 + (parseInt(b.id, 10) || 0);
+                    return orderA - orderB;
+                });
+
+                sortedArriving.forEach(ev => {
+                    const evId = parseInt(ev.id, 10);
+                    const alreadyExists = eventsMap.has(evId) || document.getElementById(`event-row-${evId}`);
+
+                    if (alreadyExists) {
+                        // Already exists: update in place without re-duplicating
+                        eventsMap.set(evId, ev);
+                        const row = document.getElementById(`event-row-${evId}`);
+                        if (row) {
+                            row.replaceWith(renderEventNode(ev, false));
+                        }
+                    } else {
+                        // Brand new event: record in map and insert into DOM maintaining newest-first order
+                        eventsMap.set(evId, ev);
+                        insertEventInChronologicalOrder(eventsList, ev);
                     }
                 });
 
@@ -613,7 +1173,7 @@
                 if (pollLabel) pollLabel.innerText = "ملخص نهائي";
 
                 // Ensure final whistle row exists
-                if (!document.getElementById('finalWhistleRow')) {
+                if (!document.getElementById('finalWhistleRow') && eventsList) {
                     const whistleNode = document.createElement('div');
                     whistleNode.id = 'finalWhistleRow';
                     whistleNode.className = 'flex items-center gap-3 p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80';
@@ -622,7 +1182,7 @@
                         <div class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center text-sm shrink-0">⏱️</div>
                         <div class="flex-1 min-w-0">
                             <span class="text-xs font-black text-brand-900 block">نهاية المباراة</span>
-                            <span class="text-[10px] font-bold text-brand-700">النتيجة النهائية: ${m.home_score} - ${m.away_score}</span>
+                            <span class="text-[10px] font-bold text-brand-700">النتيجة النهائية: <bdi>${escapeHtml(m.home_team.name)}</bdi> ${m.home_score} - ${m.away_score} <bdi>${escapeHtml(m.away_team.name)}</bdi></span>
                         </div>
                     `;
                     eventsList.appendChild(whistleNode);
@@ -636,9 +1196,42 @@
             }
         }
 
+        // Inserts an event into eventsList adhering to descending order (newest first)
+        function insertEventInChronologicalOrder(container, ev) {
+            const newNode = renderEventNode(ev, true);
+            const evOrder = (parseInt(ev.minute, 10) || 0) * 10000 + (parseInt(ev.id, 10) || 0);
+            newNode.setAttribute('data-event-order', evOrder);
+
+            const children = Array.from(container.children);
+            let inserted = false;
+
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                if (child.id === 'finalWhistleRow') continue; // Whistle row stays at the bottom or top depending on convention
+                const childOrder = parseInt(child.getAttribute('data-event-order'), 10) || 0;
+                if (evOrder > childOrder) {
+                    container.insertBefore(newNode, child);
+                    inserted = true;
+                    break;
+                }
+            }
+
+            if (!inserted) {
+                // If not inserted before any existing row, append before final whistle row if present
+                const whistle = document.getElementById('finalWhistleRow');
+                if (whistle) {
+                    container.insertBefore(newNode, whistle);
+                } else {
+                    container.appendChild(newNode);
+                }
+            }
+        }
+
         function renderEventNode(ev, animate = false) {
             const div = document.createElement('div');
             div.id = `event-row-${ev.id}`;
+            const evOrder = (parseInt(ev.minute, 10) || 0) * 10000 + (parseInt(ev.id, 10) || 0);
+            div.setAttribute('data-event-order', evOrder);
             div.className = `flex items-center gap-3 p-3 rounded-2xl bg-slate-50/70 border border-slate-100 transition-all ${animate ? 'event-enter' : ''}`;
 
             let iconHtml = '<span>📌</span>';

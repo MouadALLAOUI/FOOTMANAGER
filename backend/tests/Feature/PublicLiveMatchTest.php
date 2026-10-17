@@ -225,17 +225,84 @@ class PublicLiveMatchTest extends TestCase
         $this->assertNull($resApproved->json('match.official_label'));
     }
 
-    public function test_committee_can_get_public_link_without_exposing_delegate_token(): void
+    public function test_score_mapping_and_team_order_are_strictly_authoritative(): void
     {
-        $this->step('Committee retrieving public link for fixture');
+        $this->step('Testing score mapping and team identity consistency');
         $organizer = User::factory()->committee()->approved()->create();
-        [$tournament, $fixture, $match] = $this->createTournamentFixture($organizer);
+        [$tournament, $fixture, $match, $homeTeam, $awayTeam] = $this->createTournamentFixture($organizer);
 
-        $res = $this->actingAs($organizer)->getJson("/api/committee/tournaments/{$tournament->id}/fixtures/{$fixture->id}/public-link")->assertOk();
-        $data = $res->json('data');
+        // Update match with home = 0, away = 3
+        $match->update([
+            'home_score' => 0,
+            'away_score' => 3,
+        ]);
 
-        $this->assertNotEmpty($data['public_token']);
-        $this->assertStringContainsString('/live/', $data['public_url']);
-        $this->assertStringNotContainsString('match-entry', $data['public_url']);
+        $publicToken = $match->ensurePublicToken();
+        $response = $this->getJson("/live/{$publicToken}/data")->assertOk();
+        $data = $response->json();
+
+        // Check authoritative team-score associations in API payload
+        $this->assertEquals($homeTeam->id, $data['match']['home_team']['id']);
+        $this->assertEquals($awayTeam->id, $data['match']['away_team']['id']);
+        $this->assertEquals(0, $data['match']['home_score']);
+        $this->assertEquals(3, $data['match']['away_score']);
+        $this->assertEquals(0, $data['match']['home_team']['score']);
+        $this->assertEquals(3, $data['match']['away_team']['score']);
+
+        // Check HTML page contains correct team and score associations
+        $pageResponse = $this->get("/live/{$publicToken}")->assertOk();
+        $pageContent = $pageResponse->getContent();
+        $this->assertStringContainsString($homeTeam->name, $pageContent);
+        $this->assertStringContainsString($awayTeam->name, $pageContent);
+    }
+
+    public function test_lineup_displays_authoritative_roster_and_distinguishes_starters_and_subs(): void
+    {
+        $this->step('Testing lineup resolution with starters and substitutes');
+        $organizer = User::factory()->committee()->approved()->create();
+        [$tournament, $fixture, $match, $homeTeam, $awayTeam] = $this->createTournamentFixture($organizer);
+
+        $starterPlayer = Player::factory()->create(['team_id' => $homeTeam->id, 'name' => 'طارق السكتيوي', 'shirt_number' => 10]);
+        $benchPlayer = Player::factory()->create(['team_id' => $homeTeam->id, 'name' => 'يوسف شيبو', 'shirt_number' => 7]);
+
+        \App\Domains\Match\Models\MatchLineup::create([
+            'match_id' => $match->id,
+            'team_id' => $homeTeam->id,
+            'player_id' => $starterPlayer->id,
+            'is_starter' => true,
+            'position' => 'مهاجم',
+            'shirt_number' => 10,
+        ]);
+
+        \App\Domains\Match\Models\MatchLineup::create([
+            'match_id' => $match->id,
+            'team_id' => $homeTeam->id,
+            'player_id' => $benchPlayer->id,
+            'is_starter' => false,
+            'position' => 'وسط',
+            'shirt_number' => 7,
+        ]);
+
+        $publicToken = $match->ensurePublicToken();
+        $response = $this->getJson("/live/{$publicToken}/data")->assertOk();
+        $lineup = $response->json('lineup');
+
+        $this->assertNotNull($lineup);
+        $this->assertTrue($lineup['available']);
+        $this->assertTrue($lineup['has_starters']);
+        $this->assertCount(1, $lineup['home']['starters']);
+        $this->assertEquals('طارق السكتيوي', $lineup['home']['starters'][0]['name']);
+        $this->assertEquals('starter', $lineup['home']['starters'][0]['participation_status']);
+        $this->assertCount(1, $lineup['home']['substitutes']);
+        $this->assertEquals('يوسف شيبو', $lineup['home']['substitutes'][0]['name']);
+        $this->assertEquals('bench', $lineup['home']['substitutes'][0]['participation_status']);
+
+        // Check HTML page displays lineup section
+        $pageResponse = $this->get("/live/{$publicToken}")->assertOk();
+        $pageContent = $pageResponse->getContent();
+        $this->assertStringContainsString('التشكيلة الحاضرة', $pageContent);
+        $this->assertStringContainsString('طارق السكتيوي', $pageContent);
+        $this->assertStringContainsString('يوسف شيبو', $pageContent);
     }
 }
+

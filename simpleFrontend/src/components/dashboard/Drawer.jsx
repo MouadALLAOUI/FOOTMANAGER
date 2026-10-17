@@ -133,10 +133,10 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
             <span className="h-8 w-0.5 rounded-full bg-slate-300" />
           </div>
         )}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-4">
-          <div className="min-w-0">
-            <h3 id={titleIdRef.current} className="text-base font-extrabold text-slate-900">{title}</h3>
-            {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-1">
+            <h3 id={titleIdRef.current} className="break-words text-base font-extrabold text-slate-900">{title}</h3>
+            {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
           </div>
           <button
             type="button"
@@ -147,8 +147,8 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
             <X className="size-4" />
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-6 py-4">{footer}</div>}
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-4 py-3.5 sm:px-6 sm:py-4">{footer}</div>}
       </div>
     </div>
   )

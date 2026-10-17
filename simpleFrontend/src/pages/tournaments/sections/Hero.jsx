@@ -26,12 +26,12 @@ function Chip({ icon: Icon, children }) {
 
 function StatCell({ icon: Icon, value, label }) {
   return (
-    <div className="bg-white/[0.06] px-5 py-4">
-      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/50">
-        <Icon className="size-3.5" />
-        {label}
+    <div className="bg-white/[0.06] px-3 py-3 sm:px-5 sm:py-4">
+      <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.12em] sm:tracking-[0.16em] text-white/50">
+        <Icon className="size-3 sm:size-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
       </div>
-      <p className="mt-1 text-2xl font-black tabular-nums leading-none">{value}</p>
+      <p className="mt-1 text-lg sm:text-2xl font-black tabular-nums leading-none">{value}</p>
     </div>
   )
 }
@@ -80,7 +80,7 @@ export default function Hero({ tour }) {
 
       <div className="absolute inset-x-0 top-0 z-10 h-1" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }} />
 
-      <div className="relative z-10 px-5 pb-8 pt-20 sm:px-8 sm:pb-10 sm:pt-24 lg:px-10">
+      <div className="relative z-10 px-4 pb-6 pt-16 sm:px-8 sm:pb-10 sm:pt-24 lg:px-10">
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${
@@ -96,29 +96,29 @@ export default function Hero({ tour }) {
           )}
         </div>
 
-        <div className="mt-8 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex max-w-3xl flex-col gap-5 sm:flex-row sm:items-center">
+        <div className="mt-6 sm:mt-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex max-w-3xl flex-col gap-4 sm:flex-row sm:items-center">
             <div className="relative shrink-0">
               <div
                 className="absolute -inset-4 rounded-[2rem] opacity-40 blur-2xl"
                 style={{ background: `radial-gradient(60% 60% at 50% 50%, ${primary}, transparent 70%)` }}
               />
               <div
-                className="relative grid size-24 place-items-center overflow-hidden rounded-[1.75rem] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.65)] ring-1 ring-white/20 sm:size-28"
+                className="relative grid size-20 sm:size-28 place-items-center overflow-hidden rounded-[1.5rem] sm:rounded-[1.75rem] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.65)] ring-1 ring-white/20"
                 style={{ backgroundImage: `linear-gradient(135deg, ${primary}22, ${secondary}55)` }}
               >
                 {tour.logo_url ? (
                   <img src={tour.logo_url} alt="" className="size-full object-cover" />
                 ) : (
-                  <Trophy className="size-10 text-white/85" strokeWidth={1.5} />
+                  <Trophy className="size-8 sm:size-10 text-white/85" strokeWidth={1.5} />
                 )}
               </div>
             </div>
             <div className="min-w-0">
-              <h1 className="break-words text-4xl font-black leading-[1.05] tracking-tight [text-shadow:0_2px_24px_rgba(15,23,42,0.45)] sm:text-5xl lg:text-6xl">
+              <h1 className="break-words text-2xl sm:text-4xl lg:text-5xl font-black leading-[1.1] tracking-tight [text-shadow:0_2px_24px_rgba(15,23,42,0.45)]">
                 {tour.name}
               </h1>
-              <p className="mt-3 text-sm font-semibold text-white/70">
+              <p className="mt-2 text-xs sm:text-sm font-semibold text-white/70">
                 {[tour.category, tour.edition].filter(Boolean).join(' • ')}
                 {tour.organizer?.name ? `  •  ${t('public.tournamentPage.organizedBy')} ${tour.organizer.name}` : ''}
               </p>

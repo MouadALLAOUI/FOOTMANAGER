@@ -140,4 +140,61 @@ class Fixture extends Model
             ->where('status', 'pending')
             ->latestOfMany();
     }
+
+    public function ensureMatch(): FootballMatch
+    {
+        if ($this->match_id && $this->match) {
+            return $this->match;
+        }
+
+        if ($this->match_id) {
+            $existing = FootballMatch::find($this->match_id);
+            if ($existing) {
+                return $existing;
+            }
+        }
+
+        $match = FootballMatch::create([
+            'competition_id' => $this->competition_id,
+            'season_id' => $this->season_id,
+            'round_id' => $this->round_id,
+            'group_id' => $this->group_id,
+            'home_team_id' => $this->home_team_id,
+            'away_team_id' => $this->away_team_id,
+            'stadium_id' => $this->stadium_id,
+            'status' => \App\Domains\Match\Enums\MatchStatus::Scheduled,
+            'current_period' => 'upcoming',
+            'created_by' => $this->competition?->organizer_id,
+        ]);
+
+        $this->forceFill(['match_id' => $match->id])->saveQuietly();
+
+        return $match;
+    }
+
+    public function publicToken(): ?string
+    {
+        if ($this->match) {
+            return $this->match->ensurePublicToken();
+        }
+
+        if ($this->match_id) {
+            return $this->ensureMatch()->ensurePublicToken();
+        }
+
+        return null;
+    }
+
+    public function publicUrl(): ?string
+    {
+        $token = $this->publicToken();
+
+        if (! $token) {
+            return null;
+        }
+
+        $baseUrl = rtrim(config('app.frontend_url') ?: config('app.url') ?: 'https://ajin9essro.com', '/');
+
+        return "{$baseUrl}/live/{$token}";
+    }
 }

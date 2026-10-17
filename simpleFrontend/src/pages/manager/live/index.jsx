@@ -444,10 +444,10 @@ export default function LiveMatch() {
                 <Avatar
                   name={homeTeam?.name}
                   src={homeTeam?.logo_url}
-                  className="size-14 rounded-2xl sm:size-16 ring-2 ring-emerald-500/20"
+                  className="size-12 rounded-2xl sm:size-16 ring-2 ring-emerald-500/20"
                 />
-                <p className="line-clamp-2 max-w-[160px] text-xs font-black text-slate-900 sm:text-sm">
-                  {homeTeam?.name || 'جمعية تمونت ايت عيسى'}
+                <p className="line-clamp-2 max-w-[120px] sm:max-w-[160px] text-[11px] font-black text-slate-900 sm:text-sm">
+                  {homeTeam?.name || 'فريق المضيف'}
                 </p>
               </div>
 
@@ -502,17 +502,17 @@ export default function LiveMatch() {
                 <Avatar
                   name={awayTeam?.name}
                   src={awayTeam?.logo_url}
-                  className="size-14 rounded-2xl sm:size-16 ring-2 ring-slate-200"
+                  className="size-12 rounded-2xl sm:size-16 ring-2 ring-slate-200"
                 />
-                <p className="line-clamp-2 max-w-[160px] text-xs font-black text-slate-900 sm:text-sm">
-                  {awayTeam?.name || 'فريق لقجع'}
+                <p className="line-clamp-2 max-w-[120px] sm:max-w-[160px] text-[11px] font-black text-slate-900 sm:text-sm">
+                  {awayTeam?.name || 'فريق الضيف'}
                 </p>
               </div>
             </div>
           </div>
 
           {/* Navigation Tabs Bar */}
-          <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
+          <div className="mt-4 flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
             <button
               type="button"
               onClick={() => setActiveTab('players')}
@@ -602,7 +602,7 @@ export default function LiveMatch() {
                         </h3>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-700">
                           <Users className="size-3" />
                           <span>
@@ -724,7 +724,7 @@ export default function LiveMatch() {
                         </h3>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-700">
                           <Users className="size-3" />
                           <span>

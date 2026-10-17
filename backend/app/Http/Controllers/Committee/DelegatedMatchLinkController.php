@@ -44,6 +44,34 @@ class DelegatedMatchLinkController extends Controller
     }
 
     /**
+     * Get or generate the public live match sharing link.
+     * Strictly read-only for public followers; does NOT expose delegate token.
+     */
+    public function publicLink(Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('view', $tournament);
+        $this->assertBelongsToTournament($tournament, $fixture);
+
+        $token = $fixture->publicToken();
+
+        if (! $token) {
+            $match = $fixture->ensureMatch();
+            $token = $match->ensurePublicToken();
+        }
+
+        $publicUrl = $fixture->publicUrl() ?? url('/live/' . $token);
+
+        return response()->json([
+            'data' => [
+                'public_token' => $token,
+                'public_url' => $publicUrl,
+                'share_text' => "تابع المباراة مباشرة عبر أجي نقصرو ⚽\nشاهد النتيجة والأهداف وأحداث المباراة هنا:\n{$publicUrl}",
+            ],
+            'message' => 'تم استخراج رابط المتابعة المباشرة',
+        ]);
+    }
+
+    /**
      * Update the mode ('full' or 'simple') of an existing active delegated link.
      */
     public function updateMode(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse

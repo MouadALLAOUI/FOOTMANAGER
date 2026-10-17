@@ -183,7 +183,7 @@ export default function TournamentDetail() {
         }
       />
 
-      <div className="mb-6 flex gap-1.5 overflow-x-auto rounded-2xl bg-white p-1.5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/60">
+      <div className="mb-6 flex gap-1.5 overflow-x-auto no-scrollbar rounded-2xl bg-white p-1.5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] ring-1 ring-slate-200/60">
         {tabs
           .filter((tab) => {
             if (tour.tournament_format === 'league') {

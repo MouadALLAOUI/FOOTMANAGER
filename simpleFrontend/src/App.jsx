@@ -24,6 +24,7 @@ const Fields = lazy(() => import('./pages/fields'))
 const Matches = lazy(() => import('./pages/matches'))
 const MatchInvitePage = lazy(() => import('./pages/matches/invite'))
 const DelegatedMatchEntryPage = lazy(() => import('./pages/matches/delegatedEntry'))
+const PublicLiveMatchPage = lazy(() => import('./pages/matches/live'))
 const PublicTournaments = lazy(() => import('./pages/tournaments'))
 const PublicTournamentDetail = lazy(() => import('./pages/tournaments/detail'))
 const Login = lazy(() => import('./pages/auth/login'))
@@ -85,6 +86,9 @@ function App() {
 
               {/* Delegated match result entry (Secret link for referees/volunteers without login) */}
               <Route path="/match-entry/:token" element={<PageMaintenanceGate><DelegatedMatchEntryPage /></PageMaintenanceGate>} />
+
+              {/* Public Live Match Viewing (Read-only live score & events without login) */}
+              <Route path="/live/:token" element={<PageMaintenanceGate><PublicLiveMatchPage /></PageMaintenanceGate>} />
 
               <Route path="/login" element={<GuestRoute><PageMaintenanceGate><Login /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/register" element={<GuestRoute><PageMaintenanceGate><Register /></PageMaintenanceGate></GuestRoute>} />

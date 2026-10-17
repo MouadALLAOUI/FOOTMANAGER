@@ -18,6 +18,7 @@ class FootballMatch extends Model
 
     protected $fillable = [
         'uuid',
+        'public_token',
         'match_request_id',
         'competition_id',
         'season_id',
@@ -60,6 +61,7 @@ class FootballMatch extends Model
     {
         static::creating(function (FootballMatch $match) {
             $match->uuid ??= (string) Str::uuid();
+            $match->public_token ??= Str::random(32);
         });
 
         static::saving(function (FootballMatch $match) {
@@ -246,5 +248,29 @@ class FootballMatch extends Model
     public function isHalftime(): bool
     {
         return $this->status === MatchStatus::Halftime;
+    }
+
+    public function fixture(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Domains\Competition\Models\Fixture::class, 'match_id');
+    }
+
+    public function ensurePublicToken(): string
+    {
+        if (! empty($this->public_token)) {
+            return $this->public_token;
+        }
+
+        $token = Str::random(32);
+        $this->forceFill(['public_token' => $token])->saveQuietly();
+
+        return $token;
+    }
+
+    public function publicUrl(): string
+    {
+        $baseUrl = rtrim(config('app.frontend_url') ?: config('app.url') ?: 'https://ajin9essro.com', '/');
+
+        return "{$baseUrl}/live/{$this->ensurePublicToken()}";
     }
 }

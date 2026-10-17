@@ -109,6 +109,7 @@ use App\Http\Controllers\Player\PlayerController as PlayerProfileController;
 use App\Http\Controllers\Public\LeaderboardController;
 use App\Http\Controllers\Public\PlayerLeaderboardController;
 use App\Http\Controllers\Public\PublicTournamentController;
+use App\Http\Controllers\Public\PublicLiveMatchDataController;
 use App\Http\Controllers\Public\PresetController as PublicPresetController;
 use App\Http\Controllers\Public\PublicTournamentLiveController;
 use App\Http\Controllers\Public\TournamentRegistrationController;
@@ -153,6 +154,9 @@ Route::get('/health', \App\Http\Controllers\HealthController::class);
 // Public VAPID key for browser push subscription.
 Route::get('/push/public-key', [PushSubscriptionController::class, 'publicKey']);
 
+// Public live match data endpoint
+Route::get('/live/{token}/data', [PublicLiveMatchDataController::class, 'data'])->middleware('throttle:120,1');
+
 Route::prefix('v1')->group(function () {
     Route::get('/home', [HomeController::class, 'index']);
     Route::get('/plans', [PlansController::class, 'index']);
@@ -166,6 +170,7 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/live', [LiveMatchController::class, 'index']);
     Route::get('/live/{match}', [LiveMatchController::class, 'show']);
+    Route::get('/live/{token}/data', [PublicLiveMatchDataController::class, 'data'])->middleware('throttle:120,1');
 
     Route::get('/teams/{team}/page', [TeamPageController::class, 'show']);
     Route::get('/feed', [FeedController::class, 'index']);
@@ -920,6 +925,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/fixtures/{fixture}/result', [TournamentResultController::class, 'show']);
             Route::get('/fixtures/{fixture}/delegated-submission', [DelegatedMatchLinkController::class, 'showSubmission']);
             Route::get('/delegated-submissions/pending', [DelegatedMatchLinkController::class, 'pendingSubmissions']);
+            Route::get('/fixtures/{fixture}/public-link', [DelegatedMatchLinkController::class, 'publicLink']);
 
             // Player Presence Confirmation (تأكيد حضور اللاعبين)
             Route::get('/fixtures/{fixture}/lineups', [TournamentFixtureLineupController::class, 'index']);

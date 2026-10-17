@@ -196,7 +196,7 @@ export default function PublicTournamentDetail() {
       <nav aria-label={t('public.detail.ariaTabs')} className="sticky top-[106px] z-30 -mx-4 px-4 sm:mx-0 sm:px-0">
         <div
           role="tablist"
-          className="flex snap-x items-center gap-1 overflow-x-auto rounded-2xl bg-slate-950/95 p-1.5 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.65)] ring-1 ring-white/10 backdrop-blur-xl"
+          className="flex snap-x items-center gap-1 overflow-x-auto no-scrollbar rounded-2xl bg-slate-950/95 p-1.5 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.65)] ring-1 ring-white/10 backdrop-blur-xl"
         >
           {sections.map(({ key, icon: Icon, label }) => {
             const isActive = active === key

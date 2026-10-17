@@ -134,29 +134,29 @@ export default function Navbar() {
       }`}
     >
       <div
-        className={`mx-auto flex h-[80px] items-center px-6 transition-all duration-[350ms] ease-out ${
+        className={`mx-auto flex h-[80px] items-center justify-between px-4 sm:px-6 transition-all duration-[350ms] ease-out ${
           scrolled
-            ? 'w-[calc(100%-60px)] max-w-[1400px] rounded-[20px] bg-[rgba(10,16,26,0.78)] shadow-[0_24px_60px_rgba(2,6,23,0.55)] ring-1 ring-white/10 backdrop-blur-[18px]'
+            ? 'w-[calc(100%-20px)] sm:w-[calc(100%-60px)] max-w-[1400px] rounded-[20px] bg-[rgba(10,16,26,0.78)] shadow-[0_24px_60px_rgba(2,6,23,0.55)] ring-1 ring-white/10 backdrop-blur-[18px]'
             : 'w-full max-w-[1400px] bg-transparent'
         }`}
       >
-        <div className="flex items-center justify-between gap-4 lg:gap-8">
+        <div className="flex items-center gap-4 lg:gap-8">
           <a
             href="#top"
             onClick={(e) => {
               e.preventDefault()
               goTo('home')
             }}
-            className="group flex items-center gap-3"
+            className="group flex items-center gap-2.5 sm:gap-3"
             aria-label="أجي نقصرو"
           >
             <img
               src="/logo.jpeg"
               alt=""
-              className="size-11 shrink-0 rounded-xl object-cover shadow-[0_8px_20px_rgba(22,163,74,0.45)] ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-105"
+              className="size-10 sm:size-11 shrink-0 rounded-xl object-cover shadow-[0_8px_20px_rgba(22,163,74,0.45)] ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-105"
             />
             <div className="leading-tight">
-              <p className="text-base font-extrabold text-white">أجي نقصرو</p>
+              <p className="text-sm sm:text-base font-extrabold text-white">أجي نقصرو</p>
               <p className="hidden text-[11px] text-white/60 sm:block">{t('landing.nav.tagline')}</p>
             </div>
           </a>

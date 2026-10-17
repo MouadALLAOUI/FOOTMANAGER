@@ -48,15 +48,15 @@ export function Card({ title, subtitle, action, children, className = '', bodyCl
   return (
     <div className={`rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
       {(title || action) && (
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
-          <div className="min-w-0">
-            {title && <h3 className="text-sm font-extrabold text-slate-900">{title}</h3>}
-            {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-1">
+            {title && <h3 className="break-words text-sm font-extrabold text-slate-900">{title}</h3>}
+            {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
           </div>
-          {action}
+          {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
         </div>
       )}
-      <div className={noPad ? bodyClassName : `p-6 ${bodyClassName}`}>{children}</div>
+      <div className={noPad ? bodyClassName : `p-4 sm:p-6 ${bodyClassName}`}>{children}</div>
     </div>
   )
 }
@@ -93,15 +93,15 @@ export function Stat({ icon: Icon, label, value, delta, accent = 'green', suffix
   const count = useCountUp(typeof value === 'number' ? value : 0)
   const chip = accentChips[accent] || accentChips.green
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
+    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
       <div className={`pointer-events-none absolute -end-8 -top-8 size-28 rounded-full ${chip} opacity-[0.06] blur-2xl`} />
       <div className="flex items-center justify-between">
-        <div className={`grid size-11 shrink-0 place-items-center rounded-2xl ${chip}`}>
-          <ItemIcon icon={Icon} className="size-5" strokeWidth={2.2} />
+        <div className={`grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl ${chip}`}>
+          <ItemIcon icon={Icon} className="size-4 sm:size-5" strokeWidth={2.2} />
         </div>
         {typeof delta === 'number' && (
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] sm:text-[11px] font-bold ${
               delta >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
             }`}
           >
@@ -110,11 +110,11 @@ export function Stat({ icon: Icon, label, value, delta, accent = 'green', suffix
           </span>
         )}
       </div>
-      <p className="mt-4 text-2xl font-black tracking-tight tabular-nums text-slate-900">
+      <p className="mt-3 sm:mt-4 text-xl sm:text-2xl font-black tracking-tight tabular-nums text-slate-900">
         {typeof value === 'number' ? count : typeof value === 'string' || typeof value === 'number' ? value : '—'}
-        {suffix && <span className="ms-1 text-sm font-bold text-slate-500">{suffix}</span>}
+        {suffix && <span className="ms-1 text-xs sm:text-sm font-bold text-slate-500">{suffix}</span>}
       </p>
-      <p className="mt-0.5 text-xs font-semibold text-slate-500">{label}</p>
+      <p className="mt-0.5 text-[11px] sm:text-xs font-semibold text-slate-500 truncate">{label}</p>
     </div>
   )
 }
@@ -252,10 +252,10 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
         tabIndex={-1}
         className={`${closing ? 'pop-out' : 'pop-in'} relative w-full ${widths[size]} max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl outline-none sm:rounded-3xl`}
       >
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-white px-6 py-4">
-          <div className="min-w-0">
-            <h3 id={titleId} className="text-base font-extrabold text-slate-900">{title}</h3>
-            {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3.5 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-1">
+            <h3 id={titleId} className="break-words text-base font-extrabold text-slate-900">{title}</h3>
+            {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
           </div>
           <button
             type="button"
@@ -266,9 +266,9 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
             <X className="size-4" />
           </button>
         </div>
-        <div className="px-6 py-5">{children}</div>
+        <div className="px-4 py-4 sm:px-6 sm:py-5">{children}</div>
         {footer && (
-          <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-white px-6 py-4 sm:rounded-b-3xl">
+          <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-white px-4 py-3.5 sm:px-6 sm:py-4 sm:rounded-b-3xl">
             {footer}
           </div>
         )}
@@ -433,12 +433,12 @@ export function Badge({ variant = 'neutral', children }) {
 
 export function SectionTitle({ title, subtitle, action }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-slate-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0 flex-1">
+        <h1 className="break-words text-xl sm:text-2xl font-black tracking-tight text-slate-900">{title}</h1>
+        {subtitle && <p className="mt-1 break-words text-xs sm:text-sm text-slate-500">{subtitle}</p>}
       </div>
-      {action}
+      {action && <div className="flex flex-wrap items-center gap-2">{action}</div>}
     </div>
   )
 }

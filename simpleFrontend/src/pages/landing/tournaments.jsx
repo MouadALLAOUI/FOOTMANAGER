@@ -34,15 +34,15 @@ export default function Tournaments() {
   const { ref, count, active, goTo } = useSnapCarousel(tournaments)
 
   return (
-    <section id="tournaments" className="bg-[#f6f7fb] py-[100px] lg:py-[120px]">
-      <div className="mx-auto max-w-[1400px] px-6">
+    <section id="tournaments" className="bg-[#f6f7fb] py-14 sm:py-20 lg:py-[120px]">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div className="text-start">
             <span className="mb-3 block h-1 w-10 rounded-full bg-green-500" aria-hidden="true" />
-            <h2 className="text-3xl font-black text-slate-900 lg:text-4xl">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 lg:text-4xl">
               {t('landing.tournaments.title')}
             </h2>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-500 lg:text-base">
+            <p className="mt-2 sm:mt-3 max-w-xl text-xs sm:text-sm leading-relaxed text-slate-500 lg:text-base">
               {t('landing.tournaments.subtitle')}
             </p>
           </div>

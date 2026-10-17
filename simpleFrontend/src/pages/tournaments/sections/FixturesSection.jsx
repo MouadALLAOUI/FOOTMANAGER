@@ -51,14 +51,24 @@ function MatchRow({ f, onOpen }) {
             {played ? `${f.match.home_score} - ${f.match.away_score}` : 'VS'}
           </span>
           {pens && <span className="text-[9px] font-black text-slate-400">({pens})</span>}
-          <span
-            className={`mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black ${
-              STATUS_STYLE[matchStatus(f)]
-            } ${live ? 'animate-pulse' : ''}`}
-          >
-            {live && <span className="size-1 rounded-full bg-current" />}
-            {t(`public.tournamentPage.matchStatus.${matchStatus(f)}`)}
-          </span>
+          {live ? (
+            <a
+              href={`/live/${f.match?.public_token || f.public_token}`}
+              onClick={(e) => e.stopPropagation()}
+              className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-rose-600 hover:bg-rose-700 px-2.5 py-0.5 text-[9px] font-black text-white shadow-xs animate-pulse transition"
+              title="متابعة البث المباشر للمباراة"
+            >
+              <span>LIVE 🔴</span>
+            </a>
+          ) : (
+            <span
+              className={`mt-0.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black ${
+                STATUS_STYLE[matchStatus(f)]
+              }`}
+            >
+              {t(`public.tournamentPage.matchStatus.${matchStatus(f)}`)}
+            </span>
+          )}
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-end gap-2.5">
           {winnerTeamId === f.away_team?.id && <Trophy className="size-3.5 shrink-0 text-amber-500" />}

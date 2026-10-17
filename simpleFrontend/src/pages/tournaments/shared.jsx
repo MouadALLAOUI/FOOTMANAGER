@@ -78,7 +78,7 @@ export function StandingsTable({ groups }) {
           title={group.name}
           subtitle={group.rows?.length ? t('committee.detail.teamsCount', { count: group.rows.length }) : undefined}
         >
-          <div className="-mx-6 overflow-x-auto px-6">
+          <div className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60 text-[10px] font-black uppercase tracking-wide text-slate-400">

@@ -7,7 +7,7 @@ export default function TeamPool({ pool, canEdit, busy, over, onDragStart, onDra
 
   return (
     <div
-      className={`max-h-[50vh] overflow-y-auto rounded-3xl border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-colors lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] ${
+      className={`max-h-[50vh] overflow-y-auto no-scrollbar rounded-3xl border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-colors lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] ${
         over?.type === 'pool' ? 'border-green-400 bg-green-50/60' : 'border-slate-200/70 bg-white'
       }`}
       onDragOver={onDragOverPool}

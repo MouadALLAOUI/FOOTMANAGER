@@ -140,7 +140,7 @@ export function Card({ children, className = '', title, subtitle, action, pad = 
   return (
     <div className={cn('rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]', className)}>
       {(title || action) && (
-        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-6 sm:py-4">
           <div className="min-w-0">
             {title && <h3 className="text-sm font-extrabold text-slate-900">{title}</h3>}
             {subtitle && <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>}
@@ -148,7 +148,7 @@ export function Card({ children, className = '', title, subtitle, action, pad = 
           {action}
         </div>
       )}
-      <div className={noPad ? bodyClassName : cn('p-6', bodyClassName)}>{children}</div>
+      <div className={noPad ? bodyClassName : cn('p-4 sm:p-6', bodyClassName)}>{children}</div>
     </div>
   )
 }
@@ -164,17 +164,17 @@ const statTones = {
 
 export function StatWidget({ icon: Icon, label, value, hint, tone = 'green' }) {
   const body = (
-    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
+    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-[13px] font-semibold text-slate-500">{label}</p>
-          <p className="mt-2 text-3xl font-black tracking-tight text-slate-900">{value}</p>
+          <p className="text-xs sm:text-[13px] font-semibold text-slate-500">{label}</p>
+          <p className="mt-1.5 sm:mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-900">{value}</p>
         </div>
-        <div className={cn('grid size-11 shrink-0 place-items-center rounded-2xl', statTones[tone])}>
-          <Icon className="size-5" strokeWidth={2.2} />
+        <div className={cn('grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl', statTones[tone])}>
+          <Icon className="size-4.5 sm:size-5" strokeWidth={2.2} />
         </div>
       </div>
-      {hint && <p className="mt-3 text-[11px] font-medium text-slate-500">{hint}</p>}
+      {hint && <p className="mt-2.5 sm:mt-3 text-[11px] font-medium text-slate-500">{hint}</p>}
     </div>
   )
   return body

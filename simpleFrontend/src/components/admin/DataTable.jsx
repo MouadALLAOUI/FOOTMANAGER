@@ -85,10 +85,10 @@ export default function DataTable({
 
   return (
     <div className="overflow-hidden rounded-3xl bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06),0_12px_32px_-16px_rgba(15,23,42,0.14)] ring-1 ring-slate-200/60">
-      <div className="space-y-4 border-b border-slate-100 p-5">
+      <div className="space-y-4 border-b border-slate-100 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {filterTabs && onTabChange ? (
-            <div className="flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
+            <div className="flex max-w-full gap-1 overflow-x-auto no-scrollbar rounded-2xl bg-slate-100 p-1">
               {filterTabs.map((t) => (
                 <button
                   key={t.value}

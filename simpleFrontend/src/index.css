@@ -29,6 +29,12 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 88px;
+  max-width: 100%;
+}
+
+body {
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .sr-only {

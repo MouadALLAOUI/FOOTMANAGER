@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   CalendarDays,
   Clock,
@@ -18,9 +18,12 @@ import {
   Clock4,
   Link2,
   ShieldAlert,
+  Share2,
 } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 import TeamLogo from '../../../components/profile/TeamLogo'
+import { useToast } from '../../../components/ui/Toast'
+import api from '../../../api/client'
 
 const DATE_THEMES = [
   {
@@ -97,6 +100,34 @@ export default function TournamentMatchCard({
   const hasScore = isPlayed || isLive || (fixture.match?.home_score !== null && fixture.match?.home_score !== undefined)
   const isBorrowed = Boolean(fixture.match?.notes?.includes('توقيت مستعار'))
   const hasExceptionReason = Boolean(fixture.unscheduled_reason)
+
+  const { toast } = useToast()
+  const [copyingPublicLink, setCopyingPublicLink] = useState(false)
+
+  const handleCopyPublicLiveLink = async (e) => {
+    e?.stopPropagation?.()
+    setCopyingPublicLink(true)
+    try {
+      let publicUrl = fixture.match?.public_url || fixture.public_url
+      if (!publicUrl) {
+        const tournamentId = fixture.competition_id || fixture.competition?.id
+        const res = await api.get(`/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/public-link`)
+        publicUrl = res.data?.data?.public_url
+      }
+      if (publicUrl) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(publicUrl)
+        }
+        toast.success('تم نسخ رابط المتابعة المباشرة بنجاح!')
+      } else {
+        toast.error('تعذر استخراج رابط المتابعة المباشرة')
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'تعذر نسخ رابط المتابعة المباشرة')
+    } finally {
+      setCopyingPublicLink(false)
+    }
+  }
 
   const dateInfo = useMemo(() => parseDateDetails(fixture.scheduled_at), [fixture.scheduled_at])
 
@@ -342,6 +373,23 @@ export default function TournamentMatchCard({
             <span>رابط تسجيل المباراة</span>
           </Button>
         )}
+
+        {/* Copy Public Live Link Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-1.5 rounded-xl border-emerald-200 bg-emerald-50/50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100/80 transition"
+          onClick={handleCopyPublicLiveLink}
+          disabled={busy || copyingPublicLink}
+          title="نسخ رابط المتابعة المباشرة لمشاركته مع الجمهور"
+        >
+          {copyingPublicLink ? (
+            <Loader2 className="size-3.5 animate-spin text-emerald-600" />
+          ) : (
+            <Share2 className="size-3.5 text-emerald-600" />
+          )}
+          <span>نسخ رابط المتابعة المباشرة</span>
+        </Button>
 
         {/* Play/Enter Result Button */}
         {onResult && !isPlayed && (

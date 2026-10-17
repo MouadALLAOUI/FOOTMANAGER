@@ -257,13 +257,13 @@ export default function Shell({
 
       <main id="main-content" className={`min-w-0 transition-all duration-300 ${collapsed ? 'lg:ps-[84px]' : 'lg:ps-[264px]'}`}>
         <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
-          <div className="flex h-16 items-center gap-3 px-5 lg:px-8">
+          <div className="flex h-16 items-center gap-2 sm:gap-3 px-3 sm:px-5 lg:px-8">
             <button
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? t('shell.closeMenu') : t('shell.openMenu')}
               aria-expanded={mobileOpen}
-              className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 lg:hidden"
+              className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 lg:hidden"
             >
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
@@ -323,7 +323,7 @@ export default function Shell({
               {notifOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                  <div role="menu" className="absolute end-0 top-12 z-50 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.16)]">
+                  <div role="menu" className="absolute end-0 top-12 z-50 w-[calc(100vw-1.5rem)] sm:w-80 max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.16)]">
                     <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
                       <p className="text-sm font-extrabold text-slate-900">{t('shell.notifications')}</p>
                       <button
@@ -432,7 +432,7 @@ export default function Shell({
           </div>
         </header>
 
-        <div key={location.pathname} className="page-enter mx-auto max-w-[1400px] px-5 py-7 lg:px-8">
+        <div key={location.pathname} className="page-enter mx-auto max-w-[1400px] px-3.5 py-5 sm:px-5 sm:py-7 lg:px-8">
           <PushEnableBanner />
           <ActivityLockBanner />
           {children}

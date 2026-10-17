@@ -86,7 +86,11 @@ class TournamentFixtureResource extends JsonResource
                 'kicked_off_at' => $this->match->kicked_off_at?->toIso8601String(),
                 'second_half_started_at' => $this->match->second_half_started_at?->toIso8601String(),
                 'ended_at' => $this->match->ended_at?->toIso8601String(),
+                'public_token' => $this->match->public_token ?? $this->match->ensurePublicToken(),
+                'public_url' => $this->match->publicUrl(),
             ] : null),
+            'public_token' => $this->match?->public_token ?? $this->publicToken(),
+            'public_url' => $this->match?->publicUrl() ?? $this->publicUrl(),
             'delegated_link' => $this->whenLoaded('delegatedToken', fn () => $this->delegatedToken ? [
                 'id' => $this->delegatedToken->id,
                 'status' => $this->delegatedToken->status,

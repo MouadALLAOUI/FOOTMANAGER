@@ -296,7 +296,7 @@ export default function Matches() {
         }
       />
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
         {tabs().map((t) => (
           <button
             key={t.key}

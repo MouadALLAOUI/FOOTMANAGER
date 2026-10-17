@@ -17,7 +17,7 @@ export default function Layout() {
       </a>
       <AnnouncementBar />
       <Navbar />
-      <div key={location.pathname} className="page-enter">
+      <div key={location.pathname} className="page-enter w-full max-w-full">
         <Outlet />
       </div>
       <Footer />

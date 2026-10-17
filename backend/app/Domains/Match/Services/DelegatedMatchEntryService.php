@@ -172,7 +172,16 @@ class DelegatedMatchEntryService
         $hash = hash('sha256', $plainToken);
 
         $tokenRecord = MatchDelegatedToken::query()
-            ->with(['fixture.homeTeam', 'fixture.awayTeam', 'fixture.stadium', 'fixture.competition', 'fixture.group'])
+            ->with([
+                'fixture.homeTeam',
+                'fixture.awayTeam',
+                'fixture.stadium',
+                'fixture.competition',
+                'fixture.group',
+                'fixture.match.events.player',
+                'fixture.match.events.assistPlayer',
+                'fixture.match.events.team',
+            ])
             ->where('token_hash', $hash)
             ->first();
 
@@ -411,8 +420,11 @@ class DelegatedMatchEntryService
         $recorderName = trim((string) ($payload['recorder_name'] ?? $token->recorder_name ?? ''));
         $recorderPhone = trim((string) ($payload['recorder_phone'] ?? $token->recorder_phone ?? ''));
 
-        if ($recorderName === '' || $recorderPhone === '') {
-            throw new DomainException('الاسم ورقم الهاتف مطلوبان لتسجيل المباراة');
+        if ($recorderName === '') {
+            $recorderName = $token->recorder_name ?: 'مندوب المباراة';
+        }
+        if ($recorderPhone === '') {
+            $recorderPhone = $token->recorder_phone ?: '0600000000';
         }
 
         // Detect Anomalies
@@ -480,6 +492,9 @@ class DelegatedMatchEntryService
                         'user_agent' => $userAgent,
                         'submitted_at' => now()->toIso8601String(),
                         'presence' => $payload['presence'] ?? null,
+                        'match_status' => $payload['status'] ?? null,
+                        'current_minute' => $payload['current_minute'] ?? null,
+                        'is_finished' => (bool) ($payload['is_finished'] ?? false),
                     ],
                 ]
             );
@@ -495,6 +510,15 @@ class DelegatedMatchEntryService
                     $submission,
                     $payload['events'] ?? []
                 );
+            }
+
+            // Invalidate live match cache so public viewer refreshes instantly
+            if ($fixture->match_id) {
+                $m = FootballMatch::find($fixture->match_id);
+                if ($m && $m->public_token) {
+                    \Illuminate\Support\Facades\Cache::forget("live_pub_{$m->public_token}__all");
+                    \Illuminate\Support\Facades\Cache::forget("live_pub_{$m->public_token}_null_all");
+                }
             }
 
             // Audit the delegated submission

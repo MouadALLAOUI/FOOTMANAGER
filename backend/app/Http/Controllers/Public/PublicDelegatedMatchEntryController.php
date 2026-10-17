@@ -79,6 +79,12 @@ class PublicDelegatedMatchEntryController extends Controller
             'settings' => $this->foulRules->settings(null),
         ];
 
+        $match = $fixture->match;
+        if (! $match && $fixture->match_id) {
+            $match = \App\Domains\Match\Models\FootballMatch::find($fixture->match_id);
+        }
+        $matchEvents = $match ? $match->events()->with(['player', 'assistPlayer', 'team'])->orderBy('minute')->orderBy('id')->get() : collect();
+
         return response()->json([
             'data' => [
                 'fixture' => [
@@ -96,7 +102,45 @@ class PublicDelegatedMatchEntryController extends Controller
                         'name' => $fixture->awayTeam?->name,
                         'logo_url' => $fixture->awayTeam?->logo_url,
                     ],
+                    'match' => $match ? [
+                        'id' => $match->id,
+                        'status' => $match->status?->value ?? (string) $match->status,
+                        'home_score' => (int) $match->home_score,
+                        'away_score' => (int) $match->away_score,
+                        'home_penalties' => $match->home_penalties,
+                        'away_penalties' => $match->away_penalties,
+                        'extra_time' => (bool) $match->extra_time,
+                        'current_minute' => (int) ($match->current_minute ?? 0),
+                        'current_period' => $match->current_period,
+                        'kicked_off_at' => $match->kicked_off_at?->toIso8601String(),
+                        'started_at' => $match->started_at?->toIso8601String(),
+                        'second_half_started_at' => $match->second_half_started_at?->toIso8601String(),
+                        'match_duration_minutes' => $match->match_duration_minutes,
+                        'half_duration_minutes' => $match->half_duration_minutes,
+                        'first_half_extra_minutes' => $match->first_half_extra_minutes,
+                        'second_half_extra_minutes' => $match->second_half_extra_minutes,
+                        'public_token' => $match->ensurePublicToken(),
+                    ] : null,
                 ],
+                'match_events' => $matchEvents->map(fn ($e) => [
+                    'id' => $e->id,
+                    'type' => $e->type?->value ?? (string) $e->type,
+                    'team_id' => $e->team_id,
+                    'player_id' => $e->player_id,
+                    'player' => $e->player?->name ?? $e->description ?? '',
+                    'assist_player_id' => $e->assist_player_id,
+                    'assist' => $e->assistPlayer?->name ?? '',
+                    'assist_player' => $e->assistPlayer?->name ?? '',
+                    'minute' => (int) ($e->minute ?? 0),
+                    'added_time' => (int) ($e->added_time ?? 0),
+                    'half' => $e->half ?? ($e->minute > 45 ? 'second' : 'first'),
+                    'goalType' => $e->goal_type ?? ($e->type?->value === 'penalty_goal' ? 'penalty' : 'regular'),
+                    'punishment' => $e->punishment,
+                    'reason' => $e->reason,
+                    'note' => $e->note,
+                    'metadata' => $e->metadata,
+                    'description' => $e->description ?? $e->player?->name ?? '',
+                ])->values(),
                 'rosters' => [
                     'home' => $homePlayers,
                     'away' => $awayPlayers,
@@ -208,11 +252,17 @@ class PublicDelegatedMatchEntryController extends Controller
             'away_penalties' => 'nullable|integer|min:0|max:99',
             'extra_time' => 'sometimes|boolean',
             'notes' => 'nullable|string|max:1000',
+            'status' => 'sometimes|nullable|string|max:30',
+            'current_minute' => 'sometimes|nullable|integer|min:0|max:150',
+            'is_finished' => 'sometimes|boolean',
             'events' => 'sometimes|array',
+            'events.*.id' => 'nullable|integer',
+            'events.*._key' => 'nullable|string',
             'events.*.type' => 'required|string',
             'events.*.team_id' => 'required|integer',
             'events.*.player_id' => 'nullable|integer',
             'events.*.player' => 'nullable|string|max:120',
+            'events.*.player_number' => 'nullable|integer',
             'events.*.description' => 'nullable|string|max:120',
             'events.*.assist_player_id' => 'nullable|integer',
             'events.*.assist' => 'nullable|string|max:120',

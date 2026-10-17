@@ -83,20 +83,31 @@ class PublicLiveMatchService
 
         $isOfficial = ! $isPendingSubmission;
         $approvalStatus = $isOfficial ? 'approved' : 'pending';
-        $officialLabel = $isOfficial ? null : 'النتيجة غير رسمية';
+        $officialLabel = $isOfficial ? null : 'النتيجة قيد المراجعة من طرف اللجنة';
 
         $statusRaw = $match->status?->value ?? (string) $match->status;
         $isFinished = $match->status === MatchStatus::Finished || $statusRaw === 'finished';
         $isLive = in_array($match->status, MatchStatus::live(), true)
             || in_array($statusRaw, ['first_half', 'second_half', 'halftime', 'extra_time', 'penalties'], true);
 
+        if ($isPendingSubmission && (! empty($pendingSubmission->client_meta['is_finished']) || ($pendingSubmission->client_meta['match_status'] ?? '') === 'finished')) {
+            $statusRaw = 'finished';
+            $isFinished = true;
+            $isLive = false;
+        } elseif ($isPendingSubmission && ! empty($pendingSubmission->client_meta['match_status'])) {
+            $subStatus = $pendingSubmission->client_meta['match_status'];
+            $statusRaw = $subStatus;
+            $isFinished = $subStatus === 'finished';
+            $isLive = in_array($subStatus, ['first_half', 'second_half', 'halftime', 'extra_time', 'penalties'], true);
+        }
+
         $statusText = match ($statusRaw) {
-            'first_half' => 'مباشر (الشوط الأول)',
-            'second_half' => 'مباشر (الشوط الثاني)',
-            'halftime' => 'استراحة',
+            'first_half' => $isPendingSubmission ? 'مباشر (الشوط الأول) - قيد المراجعة' : 'مباشر (الشوط الأول)',
+            'second_half' => $isPendingSubmission ? 'مباشر (الشوط الثاني) - قيد المراجعة' : 'مباشر (الشوط الثاني)',
+            'halftime' => $isPendingSubmission ? 'استراحة (قيد المراجعة)' : 'استراحة',
             'extra_time' => 'أشواط إضافية',
             'penalties' => 'ركلات ترجيح',
-            'finished' => 'انتهت',
+            'finished' => $isPendingSubmission ? 'انتهت (في انتظار مراجعة اللجنة)' : 'انتهت',
             'cancelled' => 'ملغاة',
             'postponed' => 'مؤجلة',
             default => 'قادمة',
@@ -105,9 +116,8 @@ class PublicLiveMatchService
         $homeTeam = $match->homeTeam ?? $fixture?->homeTeam;
         $awayTeam = $match->awayTeam ?? $fixture?->awayTeam;
 
-        // Score resolution
-        $hasDatabaseEvents = MatchEvent::where('match_id', $match->id)->exists();
-        if ($isPendingSubmission && ! $hasDatabaseEvents) {
+        // Score resolution: If there is an active pending delegated submission, always show its score
+        if ($isPendingSubmission) {
             $homeScore = (int) $pendingSubmission->home_score;
             $awayScore = (int) $pendingSubmission->away_score;
         } else {
@@ -138,7 +148,7 @@ class PublicLiveMatchService
         $foulData = $this->resolveFouls($match, $fixture, $tournament, $pendingSubmission);
 
         // Events extraction & incremental logic
-        [$newEvents, $updatedEvents, $maxEventId] = $this->resolveEvents($match, $pendingSubmission, $sinceId, $sinceTime);
+        [$newEvents, $updatedEvents, $maxEventId, $totalEventsCount] = $this->resolveEvents($match, $pendingSubmission, $sinceId, $sinceTime);
 
         // Lineup resolution (authoritative confirmed lineup)
         $lineupData = $this->resolveLineup($match, $fixture, $pendingSubmission);
@@ -195,6 +205,7 @@ class PublicLiveMatchService
             'events' => $newEvents,
             'updated_events' => $updatedEvents,
             'last_event_id' => $maxEventId,
+            'total_events' => $totalEventsCount,
             'lineup' => $lineupData,
             'server_time' => now()->toIso8601String(),
         ];
@@ -274,15 +285,133 @@ class PublicLiveMatchService
             ->orderBy('id', 'asc')
             ->get();
 
+        $isPendingSubmission = $pendingSubmission && $pendingSubmission->status === 'pending';
+        $hasSubmissionEvents = $isPendingSubmission && ! empty($pendingSubmission->events) && is_array($pendingSubmission->events);
+
+        // When a pending delegated submission exists with events, it reflects the latest live match events
+        if ($hasSubmissionEvents) {
+            $submissionEvents = collect($pendingSubmission->events)->values();
+            $maxId = 0;
+            $maxDbId = (int) ($dbEvents->max('id') ?? 0);
+            $dbEventsById = $dbEvents->keyBy('id');
+            $dbEventsByIndex = $dbEvents->values();
+            $knownSubmissionMax = (int) $submissionEvents->pluck('id')->filter(fn ($v) => is_numeric($v))->max();
+            $baseMaxId = max($maxDbId, $knownSubmissionMax);
+
+            $homeTeam = $match->homeTeam ?? $match->fixture?->homeTeam;
+            $awayTeam = $match->awayTeam ?? $match->fixture?->awayTeam;
+            $homeTeamId = $homeTeam?->id ?? $match->home_team_id;
+            $awayTeamId = $awayTeam?->id ?? $match->away_team_id;
+
+            $playerIds = $submissionEvents->pluck('player_id')->filter()->unique()->all();
+            $playersById = ! empty($playerIds) ? Player::whereIn('id', $playerIds)->get()->keyBy('id') : collect();
+
+            $formatted = $submissionEvents->map(function ($ev, $idx) use (
+                $homeTeam,
+                $awayTeam,
+                $homeTeamId,
+                $awayTeamId,
+                $pendingSubmission,
+                $dbEventsById,
+                $dbEventsByIndex,
+                $baseMaxId,
+                $playersById,
+                &$maxId
+            ) {
+                $evTeamId = isset($ev['team_id']) ? (int) $ev['team_id'] : null;
+                $team = null;
+                if ($evTeamId && $homeTeamId && $evTeamId === (int) $homeTeamId) {
+                    $team = $homeTeam;
+                } elseif ($evTeamId && $awayTeamId && $evTeamId === (int) $awayTeamId) {
+                    $team = $awayTeam;
+                } else {
+                    $team = $homeTeam ?? $awayTeam;
+                }
+
+                // Resolve event ID:
+                // 1. Explicit positive integer ID
+                // 2. Correlate with existing DB event at the same index if available
+                // 3. Fallback: synthetic ID strictly greater than any known event ID
+                if (isset($ev['id']) && is_numeric($ev['id']) && (int) $ev['id'] > 0) {
+                    $evId = (int) $ev['id'];
+                } elseif (isset($dbEventsByIndex[$idx]) && $dbEventsByIndex[$idx]->id) {
+                    $evId = (int) $dbEventsByIndex[$idx]->id;
+                } else {
+                    $offset = $idx - $dbEventsByIndex->count() + 1;
+                    $evId = $baseMaxId + max(1, $offset);
+                }
+
+                if ($evId > $maxId) {
+                    $maxId = $evId;
+                }
+
+                $playerModel = isset($ev['player_id']) ? $playersById->get($ev['player_id']) : null;
+                $playerName = $ev['player'] ?? $ev['description'] ?? $playerModel?->name ?? 'لاعب';
+                $assistName = $ev['assist'] ?? $ev['assist_player'] ?? null;
+                $playerPhoto = $playerModel?->photo_thumbnail_url ?? $playerModel?->photo_url ?? null;
+
+                if (isset($ev['id']) && $dbEventsById->has($ev['id'])) {
+                    $dbEv = $dbEventsById->get($ev['id']);
+                    $playerName = $dbEv->player?->name ?? $playerName;
+                    $assistName = $dbEv->assistPlayer?->name ?? $assistName;
+                    $playerPhoto = $dbEv->player?->photo_thumbnail_url ?? $dbEv->player?->photo_url ?? $playerPhoto;
+                }
+
+                return [
+                    'id' => $evId,
+                    'type' => $ev['type'] ?? 'event',
+                    'punishment' => $ev['punishment'] ?? null,
+                    'minute' => (int) ($ev['minute'] ?? 0),
+                    'added_time' => (int) ($ev['added_time'] ?? 0),
+                    'team_id' => $evTeamId ?? $team?->id,
+                    'team_name' => $team?->name ?? '',
+                    'player_id' => $ev['player_id'] ?? null,
+                    'player_name' => $playerName,
+                    'player_photo_url' => $playerPhoto,
+                    'assist_player_id' => $ev['assist_player_id'] ?? null,
+                    'assist_player_name' => $assistName,
+                    'description' => $ev['description'] ?? $playerName,
+                    'icon' => $ev['icon'] ?? null,
+                    'metadata' => $ev['metadata'] ?? null,
+                    'created_at' => $pendingSubmission->created_at?->toIso8601String() ?? now()->toIso8601String(),
+                    'updated_at' => $pendingSubmission->updated_at?->toIso8601String() ?? now()->toIso8601String(),
+                ];
+            })->unique('id');
+
+            $totalCount = $formatted->count();
+
+            if ($sinceId === null || $sinceId > $maxId) {
+                $eventsList = $formatted->sortByDesc(fn ($e) => ($e['minute'] * 10000) + $e['id'])->values()->all();
+
+                return [$eventsList, [], $maxId, $totalCount];
+            }
+
+            $new = $formatted->where('id', '>', $sinceId)
+                ->sortByDesc(fn ($e) => ($e['minute'] * 10000) + $e['id'])
+                ->values()
+                ->all();
+
+            $updated = [];
+            if ($sinceTime) {
+                $sinceCarbon = Carbon::parse($sinceTime);
+                $updated = $formatted->filter(function ($e) use ($sinceId, $sinceCarbon) {
+                    return $e['id'] <= $sinceId && Carbon::parse($e['updated_at'])->gt($sinceCarbon);
+                })->values()->all();
+            }
+
+            return [$new, $updated, $maxId, $totalCount];
+        }
+
         if ($dbEvents->isNotEmpty()) {
             $formatted = $dbEvents->unique('id')->map(fn (MatchEvent $e) => $this->formatEvent($e));
             $maxId = (int) ($dbEvents->max('id') ?? 0);
+            $totalCount = $formatted->count();
 
-            if ($sinceId === null) {
+            if ($sinceId === null || $sinceId > $maxId) {
                 // Initial load: return all events, sorted newest first
                 $eventsList = $formatted->sortByDesc(fn ($e) => ($e['minute'] * 10000) + $e['id'])->values()->all();
 
-                return [$eventsList, [], $maxId];
+                return [$eventsList, [], $maxId, $totalCount];
             }
 
             // Incremental polling: new events after sinceId
@@ -300,54 +429,10 @@ class PublicLiveMatchService
                 })->values()->all();
             }
 
-            return [$new, $updated, $maxId];
+            return [$new, $updated, $maxId, $totalCount];
         }
 
-        // Fallback to pending delegated submission events if no DB events yet
-        if ($pendingSubmission && ! empty($pendingSubmission->events) && is_array($pendingSubmission->events)) {
-            $submissionEvents = collect($pendingSubmission->events)->values();
-            $maxId = $submissionEvents->count();
-
-            $formatted = $submissionEvents->map(function ($ev, $idx) use ($match) {
-                $team = $ev['team_id'] == $match->home_team_id ? $match->homeTeam : $match->awayTeam;
-                $playerName = $ev['player'] ?? $ev['description'] ?? 'لاعب';
-                $eventId = isset($ev['id']) && is_numeric($ev['id']) ? (int) $ev['id'] : ($idx + 1);
-
-                return [
-                    'id' => $eventId,
-                    'type' => $ev['type'] ?? 'event',
-                    'minute' => (int) ($ev['minute'] ?? 0),
-                    'added_time' => (int) ($ev['added_time'] ?? 0),
-                    'team_id' => $ev['team_id'] ?? null,
-                    'team_name' => $team?->name ?? '',
-                    'player_id' => $ev['player_id'] ?? null,
-                    'player_name' => $playerName,
-                    'player_photo_url' => null,
-                    'assist_player_id' => $ev['assist_player_id'] ?? null,
-                    'assist_player_name' => $ev['assist'] ?? $ev['assist_player'] ?? null,
-                    'description' => $ev['description'] ?? $playerName,
-                    'icon' => $ev['icon'] ?? null,
-                    'metadata' => $ev['metadata'] ?? null,
-                    'created_at' => $pendingSubmission->created_at?->toIso8601String() ?? now()->toIso8601String(),
-                    'updated_at' => $pendingSubmission->updated_at?->toIso8601String() ?? now()->toIso8601String(),
-                ];
-            })->unique('id');
-
-            if ($sinceId === null) {
-                $eventsList = $formatted->sortByDesc(fn ($e) => ($e['minute'] * 10000) + $e['id'])->values()->all();
-
-                return [$eventsList, [], $maxId];
-            }
-
-            $new = $formatted->where('id', '>', $sinceId)
-                ->sortByDesc(fn ($e) => ($e['minute'] * 10000) + $e['id'])
-                ->values()
-                ->all();
-
-            return [$new, [], $maxId];
-        }
-
-        return [[], [], 0];
+        return [[], [], 0, 0];
     }
 
     protected function formatEvent(MatchEvent $event): array

@@ -31,6 +31,7 @@ class PublicLiveMatchPageController extends Controller
         return view('live-match', [
             'match' => $data['match'],
             'events' => $data['events'],
+            'lineup' => $data['lineup'] ?? null,
             'last_event_id' => $data['last_event_id'],
             'server_time' => $data['server_time'],
             'public_token' => $token,

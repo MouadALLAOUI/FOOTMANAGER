@@ -7,6 +7,7 @@ use App\Domains\Match\Enums\MatchEventType;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchEvent;
+use App\Domains\Match\Models\MatchLineup;
 use App\Domains\Player\Models\Player;
 use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
@@ -101,6 +102,9 @@ class PublicLiveMatchService
             default => 'قادمة',
         };
 
+        $homeTeam = $match->homeTeam ?? $fixture?->homeTeam;
+        $awayTeam = $match->awayTeam ?? $fixture?->awayTeam;
+
         // Score resolution
         $hasDatabaseEvents = MatchEvent::where('match_id', $match->id)->exists();
         if ($isPendingSubmission && ! $hasDatabaseEvents) {
@@ -136,6 +140,9 @@ class PublicLiveMatchService
         // Events extraction & incremental logic
         [$newEvents, $updatedEvents, $maxEventId] = $this->resolveEvents($match, $pendingSubmission, $sinceId, $sinceTime);
 
+        // Lineup resolution (authoritative confirmed lineup)
+        $lineupData = $this->resolveLineup($match, $fixture, $pendingSubmission);
+
         $publicUrl = $match->publicUrl();
 
         return [
@@ -153,14 +160,16 @@ class PublicLiveMatchService
                 'home_penalties' => $match->home_penalties,
                 'away_penalties' => $match->away_penalties,
                 'home_team' => [
-                    'id' => $match->homeTeam?->id,
-                    'name' => $match->homeTeam?->name ?? 'الفريق الأول',
-                    'logo_url' => $match->homeTeam?->logo_url,
+                    'id' => $homeTeam?->id,
+                    'name' => $homeTeam?->name ?? 'الفريق الأول',
+                    'logo_url' => $homeTeam?->logo_url,
+                    'score' => $homeScore,
                 ],
                 'away_team' => [
-                    'id' => $match->awayTeam?->id,
-                    'name' => $match->awayTeam?->name ?? 'الفريق الثاني',
-                    'logo_url' => $match->awayTeam?->logo_url,
+                    'id' => $awayTeam?->id,
+                    'name' => $awayTeam?->name ?? 'الفريق الثاني',
+                    'logo_url' => $awayTeam?->logo_url,
+                    'score' => $awayScore,
                 ],
                 'stadium' => [
                     'name' => $stadiumName,
@@ -186,6 +195,7 @@ class PublicLiveMatchService
             'events' => $newEvents,
             'updated_events' => $updatedEvents,
             'last_event_id' => $maxEventId,
+            'lineup' => $lineupData,
             'server_time' => now()->toIso8601String(),
         ];
     }
@@ -265,8 +275,8 @@ class PublicLiveMatchService
             ->get();
 
         if ($dbEvents->isNotEmpty()) {
-            $formatted = $dbEvents->map(fn (MatchEvent $e) => $this->formatEvent($e));
-            $maxId = $dbEvents->max('id') ?? 0;
+            $formatted = $dbEvents->unique('id')->map(fn (MatchEvent $e) => $this->formatEvent($e));
+            $maxId = (int) ($dbEvents->max('id') ?? 0);
 
             if ($sinceId === null) {
                 // Initial load: return all events, sorted newest first
@@ -301,9 +311,10 @@ class PublicLiveMatchService
             $formatted = $submissionEvents->map(function ($ev, $idx) use ($match) {
                 $team = $ev['team_id'] == $match->home_team_id ? $match->homeTeam : $match->awayTeam;
                 $playerName = $ev['player'] ?? $ev['description'] ?? 'لاعب';
+                $eventId = isset($ev['id']) && is_numeric($ev['id']) ? (int) $ev['id'] : ($idx + 1);
 
                 return [
-                    'id' => $idx + 1,
+                    'id' => $eventId,
                     'type' => $ev['type'] ?? 'event',
                     'minute' => (int) ($ev['minute'] ?? 0),
                     'added_time' => (int) ($ev['added_time'] ?? 0),
@@ -320,7 +331,7 @@ class PublicLiveMatchService
                     'created_at' => $pendingSubmission->created_at?->toIso8601String() ?? now()->toIso8601String(),
                     'updated_at' => $pendingSubmission->updated_at?->toIso8601String() ?? now()->toIso8601String(),
                 ];
-            });
+            })->unique('id');
 
             if ($sinceId === null) {
                 $eventsList = $formatted->sortByDesc(fn ($e) => ($e['minute'] * 10000) + $e['id'])->values()->all();
@@ -362,6 +373,181 @@ class PublicLiveMatchService
             'metadata' => $event->metadata,
             'created_at' => $event->created_at?->toIso8601String(),
             'updated_at' => $event->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Resolve the authoritative confirmed lineup for this match.
+     * Uses MatchLineup records, distinguishing starters, bench, and sub in/out based on match events.
+     * Gracefully falls back to confirmed presence records if available, otherwise reports unavailable.
+     */
+    public function resolveLineup(
+        FootballMatch $match,
+        ?Fixture $fixture,
+        $pendingSubmission
+    ): array {
+        $homeTeam = $match->homeTeam ?? $fixture?->homeTeam;
+        $awayTeam = $match->awayTeam ?? $fixture?->awayTeam;
+
+        $homeTeamId = $homeTeam?->id ?? $match->home_team_id ?? $fixture?->home_team_id;
+        $awayTeamId = $awayTeam?->id ?? $match->away_team_id ?? $fixture?->away_team_id;
+
+        // 1. Authoritative MatchLineup records
+        $lineups = MatchLineup::query()
+            ->where('match_id', $match->id)
+            ->with(['player'])
+            ->orderBy('is_starter', 'desc')
+            ->orderBy('order_index', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        // Check substitution events to know who was subbed out or subbed in
+        $subEvents = MatchEvent::query()
+            ->where('match_id', $match->id)
+            ->where('type', MatchEventType::Substitution->value)
+            ->get();
+
+        $subOutPlayerIds = $subEvents->pluck('player_id')->filter()->all();
+        $subInPlayerIds = $subEvents->pluck('assist_player_id')->filter()->all();
+
+        if ($lineups->isNotEmpty()) {
+            $formatLineupPlayer = function (MatchLineup $l) use ($subOutPlayerIds, $subInPlayerIds) {
+                $player = $l->player;
+                $isStarter = (bool) $l->is_starter;
+                $isCaptain = (bool) $l->is_captain;
+                $playerId = $l->player_id;
+
+                $participationStatus = 'present';
+                $statusLabel = 'حاضر';
+
+                if (in_array($playerId, $subOutPlayerIds, true)) {
+                    $participationStatus = 'subbed_out';
+                    $statusLabel = 'تم استبداله';
+                } elseif (in_array($playerId, $subInPlayerIds, true)) {
+                    $participationStatus = 'subbed_in';
+                    $statusLabel = 'شارك كبديل';
+                } elseif ($isStarter) {
+                    $participationStatus = 'starter';
+                    $statusLabel = 'أساسي';
+                } else {
+                    $participationStatus = 'bench';
+                    $statusLabel = 'احتياط';
+                }
+
+                return [
+                    'id' => $playerId,
+                    'name' => $player?->name ?? 'لاعب',
+                    'number' => $l->shirt_number ?? $player?->number,
+                    'position' => $l->position ?? $player?->position,
+                    'is_starter' => $isStarter,
+                    'is_captain' => $isCaptain,
+                    'participation_status' => $participationStatus,
+                    'status_label' => $statusLabel,
+                    'photo_url' => $player?->photo_thumbnail_url ?? $player?->photo_url,
+                ];
+            };
+
+            $homeLineups = $lineups->where('team_id', $homeTeamId)->map($formatLineupPlayer)->values();
+            $awayLineups = $lineups->where('team_id', $awayTeamId)->map($formatLineupPlayer)->values();
+
+            $hasStarters = $lineups->where('is_starter', true)->isNotEmpty();
+
+            return [
+                'available' => $homeLineups->isNotEmpty() || $awayLineups->isNotEmpty(),
+                'has_starters' => $hasStarters,
+                'home' => [
+                    'team_id' => $homeTeamId,
+                    'team_name' => $homeTeam?->name ?? 'الفريق الأول',
+                    'team_logo_url' => $homeTeam?->logo_url,
+                    'starters' => $hasStarters ? $homeLineups->where('is_starter', true)->values()->all() : [],
+                    'substitutes' => $hasStarters ? $homeLineups->where('is_starter', false)->values()->all() : [],
+                    'all' => $homeLineups->all(),
+                ],
+                'away' => [
+                    'team_id' => $awayTeamId,
+                    'team_name' => $awayTeam?->name ?? 'الفريق الثاني',
+                    'team_logo_url' => $awayTeam?->logo_url,
+                    'starters' => $hasStarters ? $awayLineups->where('is_starter', true)->values()->all() : [],
+                    'substitutes' => $hasStarters ? $awayLineups->where('is_starter', false)->values()->all() : [],
+                    'all' => $awayLineups->all(),
+                ],
+            ];
+        }
+
+        // 2. Fallback: Pending delegated submission presence in client_meta
+        $metaPresence = $pendingSubmission?->client_meta['presence'] ?? null;
+        if (! empty($metaPresence) && is_array($metaPresence)) {
+            $homePlayerIds = array_filter((array) ($metaPresence['home'] ?? []));
+            $awayPlayerIds = array_filter((array) ($metaPresence['away'] ?? []));
+
+            $allIds = array_unique(array_merge($homePlayerIds, $awayPlayerIds));
+            if (! empty($allIds)) {
+                $players = Player::whereIn('id', $allIds)->get()->keyBy('id');
+
+                $mapPlayerList = function (array $ids) use ($players) {
+                    return collect($ids)->map(function ($id) use ($players) {
+                        $p = $players->get($id);
+                        if (! $p) return null;
+
+                        return [
+                            'id' => $p->id,
+                            'name' => $p->name,
+                            'number' => $p->number,
+                            'position' => $p->position,
+                            'is_starter' => false,
+                            'is_captain' => false,
+                            'participation_status' => 'present',
+                            'status_label' => 'حاضر',
+                            'photo_url' => $p->photo_thumbnail_url ?? $p->photo_url,
+                        ];
+                    })->filter()->values()->all();
+                };
+
+                $homeList = $mapPlayerList($homePlayerIds);
+                $awayList = $mapPlayerList($awayPlayerIds);
+
+                return [
+                    'available' => ! empty($homeList) || ! empty($awayList),
+                    'has_starters' => false,
+                    'home' => [
+                        'team_id' => $homeTeamId,
+                        'team_name' => $homeTeam?->name ?? 'الفريق الأول',
+                        'team_logo_url' => $homeTeam?->logo_url,
+                        'starters' => [],
+                        'substitutes' => [],
+                        'all' => $homeList,
+                    ],
+                    'away' => [
+                        'team_id' => $awayTeamId,
+                        'team_name' => $awayTeam?->name ?? 'الفريق الثاني',
+                        'team_logo_url' => $awayTeam?->logo_url,
+                        'starters' => [],
+                        'substitutes' => [],
+                        'all' => $awayList,
+                    ],
+                ];
+            }
+        }
+
+        return [
+            'available' => false,
+            'has_starters' => false,
+            'home' => [
+                'team_id' => $homeTeamId,
+                'team_name' => $homeTeam?->name ?? 'الفريق الأول',
+                'team_logo_url' => $homeTeam?->logo_url,
+                'starters' => [],
+                'substitutes' => [],
+                'all' => [],
+            ],
+            'away' => [
+                'team_id' => $awayTeamId,
+                'team_name' => $awayTeam?->name ?? 'الفريق الثاني',
+                'team_logo_url' => $awayTeam?->logo_url,
+                'starters' => [],
+                'substitutes' => [],
+                'all' => [],
+            ],
         ];
     }
 }

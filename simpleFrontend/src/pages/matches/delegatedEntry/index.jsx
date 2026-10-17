@@ -167,24 +167,72 @@ export default function DelegatedMatchEntryPage() {
           }
           setNotes(payload.submission.notes || '')
           if (Array.isArray(payload.submission.events) && payload.submission.events.length > 0) {
-            setEvents(payload.submission.events)
+            setEvents(
+              payload.submission.events.map((e, idx) => ({
+                ...e,
+                _key: e._key || (e.id ? `srv-${e.id}` : `sub-${idx}`),
+              }))
+            )
             setTimelineDirty(true)
-            setCurStatus('finished')
+            setCurStatus(payload.submission?.client_meta?.match_status || 'finished')
           }
         } else {
-          // Check cached local events if network reconnects
+          const srvMatch = payload.fixture?.match
+          const srvStatus = srvMatch?.status
+
+          if (srvStatus) {
+            setCurStatus(srvStatus)
+          }
+
+          // Live Timer initialization from server kickoff / restart timestamp
+          if (srvStatus === 'first_half') {
+            const kickedOff = Date.parse(srvMatch?.kicked_off_at || srvMatch?.started_at)
+            if (Number.isFinite(kickedOff)) {
+              setHalfStartMs(kickedOff)
+            } else {
+              setHalfStartMs(Date.now())
+            }
+          } else if (srvStatus === 'second_half') {
+            const secondHalfStarted = Date.parse(srvMatch?.second_half_started_at || srvMatch?.kicked_off_at)
+            if (Number.isFinite(secondHalfStarted)) {
+              setHalfStartMs(secondHalfStarted)
+            } else {
+              setHalfStartMs(Date.now())
+            }
+          }
+
+          // Initial Score from match
+          if (srvMatch) {
+            setStoredScore({
+              home: srvMatch.home_score ?? 0,
+              away: srvMatch.away_score ?? 0,
+            })
+          }
+
+          // Check server match events or cached local events
+          let loadedEvents = []
+          if (Array.isArray(payload.match_events) && payload.match_events.length > 0) {
+            loadedEvents = payload.match_events.map((e, idx) => ({
+              ...e,
+              _key: e._key || `srv-${e.id || idx}`,
+            }))
+          }
+
           const cached = localStorage.getItem(`delegated_events_${token}`)
           if (cached) {
             try {
               const parsed = JSON.parse(cached)
               if (Array.isArray(parsed) && parsed.length > 0) {
-                setEvents(parsed)
-                setTimelineDirty(true)
+                if (parsed.length >= loadedEvents.length) {
+                  loadedEvents = parsed
+                }
               }
             } catch (_) {}
           }
-          if (payload.fixture?.match?.status) {
-            setCurStatus(payload.fixture.match.status)
+
+          if (loadedEvents.length > 0) {
+            setEvents(loadedEvents)
+            setTimelineDirty(true)
           }
         }
       } catch (err) {
@@ -509,6 +557,7 @@ export default function DelegatedMatchEntryPage() {
     try {
       localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
     } catch (_) {}
+    syncToBackend(nextEvents)
 
     setPenaltyModalData(null)
   }
@@ -540,6 +589,7 @@ export default function DelegatedMatchEntryPage() {
     try {
       localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
     } catch (_) {}
+    syncToBackend(nextEvents)
 
     setPenaltyModalData(null)
   }
@@ -589,6 +639,55 @@ export default function DelegatedMatchEntryPage() {
         : Math.floor(elapsedSec / 60) + 1)
     : 1
 
+  const syncToBackend = async (evts = events, statusOverride = null) => {
+    if (!token) return
+    const score = computeScore(evts, homeId, awayId)
+    const st = statusOverride || curStatus
+    try {
+      await api.post(`/v1/match-entry/${token}/submit`, {
+        recorder_name: (recorderName || '').trim(),
+        recorder_phone: (recorderPhone || '').trim(),
+        home_score: score.home,
+        away_score: score.away,
+        extra_time: extraTime,
+        home_penalties: penalties && homePen !== '' ? Number(homePen) : null,
+        away_penalties: penalties && awayPen !== '' ? Number(awayPen) : null,
+        notes: notes.trim() || null,
+        status: st,
+        current_minute: currentLiveMinute,
+        is_finished: st === 'finished',
+        presence: {
+          home: Array.from(confirmedHome),
+          away: Array.from(confirmedAway),
+        },
+        events: evts.map((e) => ({
+          id: typeof e.id === 'number' ? e.id : undefined,
+          _key: e._key || undefined,
+          type: e.type,
+          team_id: e.team_id,
+          player_id: e.player_id,
+          player: e.player || e.description || '',
+          player_number: e.player_number || e.number || undefined,
+          minute: e.minute,
+          assist_player_id: e.assist_player_id,
+          assist: e.assist || e.assist_player || '',
+          assist_player: e.assist || e.assist_player || '',
+          description: e.player || e.description || '',
+          goalType: e.goalType,
+          punishment: e.punishment,
+          reason: e.reason,
+          note: e.note,
+          metadata: e.metadata || {
+            goalType: e.goalType,
+            punishment: e.punishment,
+            reason: e.reason,
+            note: e.note,
+          },
+        })),
+      })
+    } catch (_) {}
+  }
+
   const togglePauseTimer = () => {
     if (isPaused) {
       if (pauseStartMs) {
@@ -608,12 +707,14 @@ export default function DelegatedMatchEntryPage() {
     setAccumulatedPauseMs(0)
     setPauseStartMs(null)
     setIsPaused(false)
+    syncToBackend(events, 'first_half')
   }
 
   const handleHalftime = () => {
     setCurStatus('halftime')
     setIsPaused(false)
     setPauseStartMs(null)
+    syncToBackend(events, 'halftime')
   }
 
   const handleStartSecondHalf = () => {
@@ -622,6 +723,7 @@ export default function DelegatedMatchEntryPage() {
     setAccumulatedPauseMs(0)
     setPauseStartMs(null)
     setIsPaused(false)
+    syncToBackend(events, 'second_half')
   }
 
   const tapPlayer = (player, teamId, variant = 'home', bench = []) => {
@@ -703,6 +805,7 @@ export default function DelegatedMatchEntryPage() {
     try {
       localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
     } catch (_) {}
+    syncToBackend(nextEvents)
   }
 
   // Simple Mode Event Recording (Goal or Foul by team only, player = null)
@@ -746,6 +849,7 @@ export default function DelegatedMatchEntryPage() {
     try {
       localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
     } catch (_) {}
+    syncToBackend(nextEvents)
   }
 
   // Minimal undo last event action for simple mode (and full mode) before submission
@@ -767,6 +871,7 @@ export default function DelegatedMatchEntryPage() {
     try {
       localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
     } catch (_) {}
+    syncToBackend(nextEvents)
   }
 
   const handleOneTapSubstitute = (playerOut, playerIn, teamId) => {
@@ -803,6 +908,7 @@ export default function DelegatedMatchEntryPage() {
     try {
       localStorage.setItem(`delegated_events_${token}`, JSON.stringify(nextEvents))
     } catch (_) {}
+    syncToBackend(nextEvents)
   }
 
   const openForm = (type) => {
@@ -966,13 +1072,16 @@ export default function DelegatedMatchEntryPage() {
         triggerPenaltyModalIfThreshold(tid, newFouls, form.minute || currentLiveMinute || 1, evHalf)
       }
     }
+    syncToBackend(nextEvents)
     cancelForm()
   }
 
   const handleDeleteEvent = (ev) => {
-    setEvents((prev) => prev.filter((e) => (e._key || e.id) !== (ev._key || ev.id)))
+    const next = events.filter((e) => (e._key || e.id) !== (ev._key || ev.id))
+    setEvents(next)
     setTimelineDirty(true)
     setFoulRefetchTick((v) => v + 1)
+    syncToBackend(next)
   }
 
   const handleEditEvent = (ev) => {
@@ -1008,11 +1117,15 @@ export default function DelegatedMatchEntryPage() {
         home_penalties: penalties && homePen !== '' ? Number(homePen) : null,
         away_penalties: penalties && awayPen !== '' ? Number(awayPen) : null,
         notes: notes.trim() || null,
+        status: 'finished',
+        current_minute: currentLiveMinute,
+        is_finished: true,
         presence: {
           home: Array.from(confirmedHome),
           away: Array.from(confirmedAway),
         },
         events: events.map((e) => ({
+          id: typeof e.id === 'number' ? e.id : undefined,
           type: e.type,
           team_id: e.team_id,
           player_id: e.player_id,
@@ -1034,6 +1147,7 @@ export default function DelegatedMatchEntryPage() {
           },
         })),
       })
+      setCurStatus('finished')
       setSuccess(true)
     } catch (err) {
       alert(err.response?.data?.message || 'حدث خطأ أثناء إرسال النتيجة')

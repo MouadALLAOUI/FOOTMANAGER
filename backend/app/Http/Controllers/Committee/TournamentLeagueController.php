@@ -9,6 +9,7 @@ use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Services\LeagueAssignmentService;
+use App\Domains\Tournament\Services\LeagueEligibilityEngineService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +21,7 @@ class TournamentLeagueController extends Controller
 
     public function __construct(
         private readonly LeagueAssignmentService $leagueAssignment,
+        private readonly LeagueEligibilityEngineService $eligibilityEngine,
     ) {}
 
     /**
@@ -272,6 +274,175 @@ class TournamentLeagueController extends Controller
             $validated['booking_id'],
             $validated['date']
         );
+
+        return response()->json([
+            'data' => $result,
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Action 1: Get eligible schedule swap candidates and pending candidates.
+     */
+    public function swapScheduleCandidates(Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $result = $this->eligibilityEngine->getEligibleScheduleSwaps($tournament, $fixture);
+
+        return response()->json([
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Action 1: Swap schedule between two fixtures in one atomic transaction.
+     */
+    public function swapSchedule(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'target_fixture_id' => 'required|integer|exists:fixtures,id',
+        ], [
+            'target_fixture_id.required' => 'يرجى اختيار المباراة المراد تبديل الموعد معها',
+            'target_fixture_id.exists' => 'المباراة المحددة غير موجودة',
+        ]);
+
+        $result = $this->eligibilityEngine->swapSchedules($tournament, $fixture, $validated['target_fixture_id']);
+
+        return response()->json([
+            'data' => $result,
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Action 1: Replace this fixture's slot with a pending/postponed match.
+     */
+    public function replaceWithPending(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'pending_fixture_id' => 'required|integer|exists:fixtures,id',
+        ], [
+            'pending_fixture_id.required' => 'يرجى اختيار المباراة المعلقة المراد جدولتها',
+            'pending_fixture_id.exists' => 'المباراة المعلقة غير موجودة',
+        ]);
+
+        $result = $this->eligibilityEngine->replaceWithPending($tournament, $fixture, $validated['pending_fixture_id']);
+
+        return response()->json([
+            'data' => $result,
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Action 2: Get eligible teams for changing either home or away side.
+     */
+    public function eligibleTeamsForSide(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $side = $request->query('side', 'away');
+        if (! in_array($side, ['home', 'away'], true)) {
+            $side = 'away';
+        }
+
+        $teams = $this->eligibilityEngine->getEligibleTeamsForSide($tournament, $fixture, $side);
+
+        return response()->json([
+            'data' => $teams,
+        ]);
+    }
+
+    /**
+     * Action 2: Change side (home or away) with another eligible team.
+     */
+    public function changeSide(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'side' => 'required|string|in:home,away',
+            'new_team_id' => 'required|integer|exists:teams,id',
+            'new_booking_id' => 'nullable|integer|exists:terrain_bookings,id',
+            'new_slot_date' => 'nullable|date',
+        ], [
+            'side.required' => 'يرجى تحديد الطرف المراد تغييره (مضيف أو ضيف)',
+            'new_team_id.required' => 'يرجى اختيار الفريق الجديد',
+            'new_team_id.exists' => 'الفريق المختار غير موجود',
+        ]);
+
+        $result = $this->eligibilityEngine->changeSide(
+            $tournament,
+            $fixture,
+            $validated['side'],
+            $validated['new_team_id'],
+            $validated['new_booking_id'] ?? null,
+            $validated['new_slot_date'] ?? null
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Action 3: Swap roles (host ⇄ guest).
+     */
+    public function swapRoles(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'new_booking_id' => 'nullable|integer|exists:terrain_bookings,id',
+            'new_slot_date' => 'nullable|date',
+        ]);
+
+        $result = $this->eligibilityEngine->swapRoles(
+            $tournament,
+            $fixture,
+            $validated['new_booking_id'] ?? null,
+            $validated['new_slot_date'] ?? null
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Suggestions for a team's unused slots (for host change or role swap).
+     */
+    public function hostSlotSuggestions(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $hostTeamId = $request->integer('host_team_id');
+        if (! $hostTeamId) {
+            return response()->json(['data' => []]);
+        }
+
+        $suggestions = $this->eligibilityEngine->getUnusedSlotsForTeam($tournament, $fixture, $hostTeamId);
+
+        return response()->json([
+            'data' => $suggestions,
+        ]);
+    }
+
+    /**
+     * Undo last match management change on fixture.
+     */
+    public function undoChange(Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $result = $this->eligibilityEngine->undoLastChange($tournament, $fixture);
 
         return response()->json([
             'data' => $result,

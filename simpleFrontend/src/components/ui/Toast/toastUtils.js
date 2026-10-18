@@ -37,5 +37,6 @@ export function normalizeToast(type, input, options) {
     paused: false,
     leaving: false,
     persistent,
+    action: merged.action,
   }
 }

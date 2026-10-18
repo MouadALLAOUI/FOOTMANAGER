@@ -897,6 +897,9 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/league/capacity-check', [TournamentLeagueController::class, 'capacityCheck']);
             Route::get('/league/fixtures/{fixture}/postpone-suggestions', [TournamentLeagueController::class, 'postponementSuggestions']);
             Route::get('/league/fixtures/{fixture}/eligible-opponents', [TournamentLeagueController::class, 'eligibleOpponents']);
+            Route::get('/league/fixtures/{fixture}/swap-schedule-candidates', [TournamentLeagueController::class, 'swapScheduleCandidates']);
+            Route::get('/league/fixtures/{fixture}/eligible-teams', [TournamentLeagueController::class, 'eligibleTeamsForSide']);
+            Route::get('/league/fixtures/{fixture}/host-slot-suggestions', [TournamentLeagueController::class, 'hostSlotSuggestions']);
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/league/assign', [TournamentLeagueController::class, 'assign']);
@@ -905,6 +908,11 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::put('/league/fixtures/{fixture}/change-opponent', [TournamentLeagueController::class, 'changeOpponent']);
                 Route::post('/league/fixtures/{fixture}/postpone', [TournamentLeagueController::class, 'postpone']);
                 Route::post('/league/fixtures/{fixture}/reschedule-suggestion', [TournamentLeagueController::class, 'rescheduleWithSuggestion']);
+                Route::post('/league/fixtures/{fixture}/swap-schedule', [TournamentLeagueController::class, 'swapSchedule']);
+                Route::post('/league/fixtures/{fixture}/replace-with-pending', [TournamentLeagueController::class, 'replaceWithPending']);
+                Route::put('/league/fixtures/{fixture}/change-side', [TournamentLeagueController::class, 'changeSide']);
+                Route::put('/league/fixtures/{fixture}/swap-roles', [TournamentLeagueController::class, 'swapRoles']);
+                Route::post('/league/fixtures/{fixture}/undo-change', [TournamentLeagueController::class, 'undoChange']);
             });
 
             Route::middleware('activity.not_locked')->group(function () {

@@ -34,6 +34,9 @@ class Fixture extends Model
         'postponement_reason',
         'postponement_note',
         'postponed_from_date',
+        'is_rescheduled',
+        'slot_note',
+        'last_change_payload',
     ];
 
     protected function casts(): array
@@ -42,6 +45,8 @@ class Fixture extends Model
             'status' => FixtureStatus::class,
             'scheduled_at' => 'datetime',
             'postponed_from_date' => 'datetime',
+            'is_rescheduled' => 'boolean',
+            'last_change_payload' => 'array',
         ];
     }
 

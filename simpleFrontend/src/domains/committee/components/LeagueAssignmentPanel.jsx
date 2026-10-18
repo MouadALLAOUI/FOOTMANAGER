@@ -29,6 +29,7 @@ import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import TournamentMatchCard from './TournamentMatchCard'
 import LeagueWeekSelector from './LeagueWeekSelector'
+import MatchManagementModal from './MatchManagementModal'
 import { computeLeagueWeeks, getDefaultWeekId, groupFixturesByDay } from '../utils/leagueWeeks'
 
 export default function LeagueAssignmentPanel({
@@ -48,6 +49,7 @@ export default function LeagueAssignmentPanel({
   const [swapBusy, setSwapBusy] = useState(false)
   const [opponentSwapFixture, setOpponentSwapFixture] = useState(null)
   const [selectedNewOpponentId, setSelectedNewOpponentId] = useState('')
+  const [managingFixture, setManagingFixture] = useState(null)
   const [eligibleOpponents, setEligibleOpponents] = useState([])
   const [loadingEligibles, setLoadingEligibles] = useState(false)
   const [matchdayFilter, setMatchdayFilter] = useState('all')
@@ -873,6 +875,7 @@ export default function LeagueAssignmentPanel({
                       isUnassigning={unassignBusyId === fixture.id}
                       onResult={onResult}
                       onDetails={onDetails}
+                      onManageMatch={(f) => setManagingFixture(f)}
                       onReschedule={onReschedule}
                       onUnassign={handleUnassign}
                       onSwapOpponent={(f) => {
@@ -1524,6 +1527,24 @@ export default function LeagueAssignmentPanel({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Task A Unified Match Management Modal (3 Actions + Shared Engine) */}
+      {managingFixture && (
+        <MatchManagementModal
+          tournament={tournament}
+          fixture={managingFixture}
+          onClose={() => setManagingFixture(null)}
+          onSuccess={() => {
+            refetchAllFixtures()
+            refetchSuggestions()
+            refetchCapacity()
+            if (onRefresh) onRefresh()
+          }}
+          onOpenManualReschedule={(f) => {
+            if (onReschedule) onReschedule(f)
+          }}
+        />
       )}
     </div>
   )

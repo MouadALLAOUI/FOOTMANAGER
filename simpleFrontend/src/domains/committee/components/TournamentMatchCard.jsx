@@ -87,6 +87,7 @@ export default function TournamentMatchCard({
   onRestore,
   onDelegatedLink,
   onReviewSubmission,
+  onManageMatch,
   isUnassigning = false,
   busy = false,
   locked = false,
@@ -199,6 +200,22 @@ export default function TournamentMatchCard({
                 <span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-[10px] font-extrabold text-purple-700">
                   <Sparkles className="size-3 text-purple-500" />
                   <span>توقيت مستعار</span>
+                </span>
+              )}
+
+              {/* Rescheduled Badge "تم تغيير الموعد" */}
+              {fixture.is_rescheduled && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-[10px] font-black text-sky-800">
+                  <RotateCcw className="size-2.5 text-sky-600" />
+                  <span>تم تغيير الموعد</span>
+                </span>
+              )}
+
+              {/* Slot Note Badge (e.g. الموعد يخص الفريق (الضيف)) */}
+              {fixture.slot_note && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-800">
+                  <Sparkles className="size-2.5 text-amber-600" />
+                  <span>{fixture.slot_note}</span>
                 </span>
               )}
 
@@ -431,6 +448,19 @@ export default function TournamentMatchCard({
               </Button>
             )}
           </>
+        )}
+
+        {/* Main Entry Point: تعديل المباراة */}
+        {onManageMatch && !isPlayed && (
+          <Button
+            size="sm"
+            className="flex items-center gap-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition cursor-pointer"
+            onClick={() => onManageMatch(fixture)}
+            disabled={busy || locked}
+          >
+            <RotateCcw className="size-3 text-emerald-400" />
+            <span>تعديل المباراة</span>
+          </Button>
         )}
 
         {/* Reschedule Button */}

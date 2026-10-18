@@ -31,6 +31,20 @@ export default function Toast({ item }) {
           ) : (
             <p className="text-sm font-semibold text-slate-700">{item.message}</p>
           )}
+
+          {item.action && (
+            <button
+              type="button"
+              className="mt-2 inline-flex items-center gap-1 rounded-xl bg-slate-900 px-3 py-1 text-xs font-black text-white shadow-xs hover:bg-slate-800 transition active:scale-95 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation()
+                dismissToast(item.id)
+                item.action.onClick?.()
+              }}
+            >
+              {item.action.label}
+            </button>
+          )}
         </div>
 
         {item.closable && <ToastCloseButton onClick={() => dismissToast(item.id)} />}

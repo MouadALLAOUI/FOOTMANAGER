@@ -11,6 +11,9 @@ class BookingCreatedListener
     public function handle(BookingCreated $event): void
     {
         $booking = $event->booking;
+        if ($booking->terrain_id) {
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate($booking->terrain_id);
+        }
         $owner = $booking->terrain?->owner;
 
         if (! $owner) {

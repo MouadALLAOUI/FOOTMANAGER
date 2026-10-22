@@ -13,6 +13,7 @@ use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -53,7 +54,7 @@ class LeagueAssignmentService
             ->where('competition_id', $tournament->competition_id)
             ->where('season_id', $tournament->season_id)
             ->whereNotNull('scheduled_at')
-            ->whereNotIn('status', [FixtureStatus::Cancelled])
+            ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
             ->get(['id', 'stadium_id', 'scheduled_at']);
 
         $occupiedSlots = [];
@@ -62,6 +63,18 @@ class LeagueAssignmentService
                 $occupiedSlots[$sf->stadium_id.'_'.$sf->scheduled_at->format('Y-m-d H:i')] = true;
             }
         }
+
+        // Pre-fetch closures in date range
+        $closures = \App\Domains\Booking\Models\TerrainSlotClosure::query()
+            ->whereBetween('closure_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
+            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('terrain_id', $allowedStadiumIds))
+            ->get();
+
+        // Pre-fetch occurrences in date range
+        $occurrences = \App\Domains\Booking\Models\TerrainBookingOccurrence::query()
+            ->whereBetween('occurrence_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
+            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('stadium_id', $allowedStadiumIds))
+            ->get();
 
         $slots = collect();
 
@@ -136,8 +149,28 @@ class LeagueAssignmentService
                 $datetime = Carbon::parse($cursor->toDateString().' '.$booking->start_time);
 
                 if (! $datetime->isPast()) {
+                    $dateStr = $cursor->toDateString();
                     $key = $booking->terrain_id.'_'.$datetime->format('Y-m-d H:i');
-                    if (! isset($occupiedSlots[$key])) {
+
+                    // Check if occurrence is weather blocked or used by another match
+                    $occ = $occurrences->first(function ($o) use ($booking, $dateStr) {
+                        return (int) $o->terrain_booking_id === (int) $booking->id && $o->occurrence_date?->toDateString() === $dateStr;
+                    });
+
+                    if ($occ && in_array($occ->status, [\App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_WEATHER_BLOCKED, \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH], true)) {
+                        $cursor->addWeek();
+                        continue;
+                    }
+
+                    // Check closure
+                    $isClosed = $closures->contains(function ($c) use ($booking, $dateStr) {
+                        return (int) $c->terrain_id === (int) $booking->terrain_id
+                            && $c->closure_date?->toDateString() === $dateStr
+                            && $c->start_time < $booking->end_time
+                            && $c->end_time > $booking->start_time;
+                    });
+
+                    if (! $isClosed && ! isset($occupiedSlots[$key])) {
                         $slots->push([
                             'booking' => $booking,
                             'date' => $cursor->copy(),
@@ -148,6 +181,7 @@ class LeagueAssignmentService
                             'terrain_id' => (int) $booking->terrain_id,
                             'owner_team_id' => (int) $booking->team_id,
                             'is_weekly' => true,
+                            'occurrence_status' => $occ?->status,
                         ]);
                     }
                 }
@@ -359,9 +393,10 @@ class LeagueAssignmentService
         Tournament $tournament,
         Fixture $fixture,
         string $reason,
-        ?string $note = null
+        ?string $note = null,
+        string $freedAction = 'freed'
     ): array {
-        return DB::transaction(function () use ($tournament, $fixture, $reason, $note) {
+        return DB::transaction(function () use ($tournament, $fixture, $reason, $note, $freedAction) {
             if ($fixture->match && $fixture->match->status === MatchStatus::Finished) {
                 throw new DomainException('لا يمكن تأجيل مباراة مكتملة ومسجلة نتائجها');
             }
@@ -387,6 +422,122 @@ class LeagueAssignmentService
             // Release booking back to pool so it can be reused immediately
             $bookingService = $this->bookingService ?? app(TournamentTerrainBookingService::class);
             $bookingService->archiveForFixture($fixture);
+
+            // Handle occurrence state based on postponement reason
+            $origDateStr = $originalScheduledAt ? Carbon::parse($originalScheduledAt)->toDateString() : null;
+            $origTime = $originalScheduledAt ? Carbon::parse($originalScheduledAt)->format('H:i') : null;
+
+            $freedOccurrence = null;
+            $occQuery = \App\Domains\Booking\Models\TerrainBookingOccurrence::where('fixture_id', $fixture->id);
+            if ($originalScheduledAt && $fixture->stadium_id) {
+                $occQuery->orWhere(function ($q) use ($fixture, $origDateStr) {
+                    $q->where('stadium_id', $fixture->stadium_id)->where('occurrence_date', $origDateStr);
+                });
+            }
+            $targetOcc = $occQuery->first();
+
+            if (! $targetOcc && $originalScheduledAt && $fixture->stadium_id) {
+                $weeklySub = TerrainBooking::query()
+                    ->where('terrain_id', $fixture->stadium_id)
+                    ->where('reservation_type', 'weekly_subscription')
+                    ->whereIn('status', ['approved', 'confirmed'])
+                    ->whereNull('archived_at')
+                    ->first();
+
+                if ($weeklySub) {
+                    $targetOcc = \App\Domains\Booking\Models\TerrainBookingOccurrence::firstOrCreate(
+                        [
+                            'terrain_booking_id' => $weeklySub->id,
+                            'occurrence_date' => $origDateStr,
+                        ],
+                        [
+                            'stadium_id' => $fixture->stadium_id,
+                            'start_time' => $origTime,
+                            'end_time' => Carbon::parse($originalScheduledAt)->addMinutes(90)->format('H:i'),
+                            'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_ACTIVE,
+                        ]
+                    );
+                }
+            }
+
+            if (in_array($reason, ['rain', 'pitch_condition'], true) && $originalScheduledAt && $fixture->stadium_id) {
+                // Weather / stadium condition: occurrence stays reserved and blocked for that date (never offered for reuse or release)
+                \App\Domains\Booking\Models\TerrainSlotClosure::firstOrCreate(
+                    [
+                        'terrain_id' => $fixture->stadium_id,
+                        'closure_date' => $origDateStr,
+                        'start_time' => $origTime,
+                        'end_time' => Carbon::parse($originalScheduledAt)->addMinutes(90)->format('H:i'),
+                    ],
+                    [
+                        'reason' => 'ظروف جوية / أرضية الملعب (تأجيل مباراة)',
+                    ]
+                );
+
+                if ($targetOcc) {
+                    $targetOcc->update([
+                        'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_WEATHER_BLOCKED,
+                        'fixture_id' => null,
+                        'notes' => 'تأجيل بسبب أحوال جوية / ظروف الملعب',
+                    ]);
+                    $freedOccurrence = $targetOcc;
+                }
+            } else {
+                // Non-weather reasons (team circumstances, other):
+                // 1: assign_pending / replace with pending match
+                // 2: release to tournament teams
+                // 3: keep reserved (DEFAULT)
+                if ($freedAction === 'release_to_tournament') {
+                    if ($targetOcc) {
+                        $targetOcc->update([
+                            'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED,
+                            'fixture_id' => null,
+                            'metadata' => array_merge($targetOcc->metadata ?? [], [
+                                'tournament_id' => $tournament->id,
+                                'released_at' => now()->toDateTimeString(),
+                            ]),
+                            'notes' => 'متاح لفرق بطولة: '.$tournament->name,
+                        ]);
+                        $freedOccurrence = $targetOcc;
+
+                        // Notify slot owner manager and tournament managers
+                        $bookingOwner = $targetOcc->booking?->team;
+                        if ($bookingOwner?->manager_id) {
+                            NotificationService::push(
+                                (int) $bookingOwner->manager_id,
+                                'announcement',
+                                'إتاحة موعد أسبوعي للبطولة',
+                                "تمت إتاحة موعدك الأسبوعي ليوم {$origDateStr} لفرق بطولة {$tournament->name}",
+                                ['tournament_id' => $tournament->id, 'occurrence_id' => $targetOcc->id],
+                                '/dashboard'
+                            );
+                        }
+                    }
+                } elseif ($freedAction === 'keep_reserved') {
+                    if ($targetOcc) {
+                        $targetOcc->update([
+                            'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_ACTIVE,
+                            'fixture_id' => null,
+                            'notes' => 'محجوز لصاحب الاشتراك الأسبوعي',
+                        ]);
+                        $freedOccurrence = $targetOcc;
+                    }
+                } else {
+                    // Default: 'freed' -> Available to tournament pool for pending/postponed matches
+                    if ($targetOcc) {
+                        $targetOcc->update([
+                            'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED,
+                            'fixture_id' => null,
+                            'notes' => 'موعد تحرر بعد تأجيل مباراة',
+                        ]);
+                        $freedOccurrence = $targetOcc;
+                    }
+                }
+            }
+
+            if ($fixture->stadium_id) {
+                \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $fixture->stadium_id, $origDateStr);
+            }
 
             // Notify both teams via in-app & WhatsApp link
             $homeTeam = $fixture->homeTeam;
@@ -424,6 +575,15 @@ class LeagueAssignmentService
 
             return [
                 'fixture' => $fixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']),
+                'freed_occurrence' => $freedOccurrence ? [
+                    'id' => $freedOccurrence->id,
+                    'status' => $freedOccurrence->status,
+                    'date' => $origDateStr,
+                    'time' => $origTime,
+                    'stadium_id' => $fixture->stadium_id,
+                    'can_release' => ! in_array($reason, ['rain', 'pitch_condition'], true),
+                ] : null,
+                'can_release' => ! in_array($reason, ['rain', 'pitch_condition'], true),
                 'message' => 'تم تأجيل المباراة بنجاح، ويمكنكم إعادة جدولتها من الاقتراحات المتاحة.',
             ];
         });
@@ -431,9 +591,10 @@ class LeagueAssignmentService
 
     /**
      * Generate suggestions for rescheduling a postponed match.
-     * Scans unused future confirmed slots of team A and team B after original date.
-     * Filters out slots breaking rest days, overlapping other matches, or blocked.
-     * Shows host team clearly based on slot ownership.
+     * Scans unused future confirmed slots:
+     * 1. Team A and Team B slots.
+     * 2. Tournament Slot Pool (finished teams, released occurrences, non-weather postponements).
+     * 3. Secondary collapsed section: teams with pending matches.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -451,7 +612,43 @@ class LeagueAssignmentService
             ? Carbon::parse($fixture->postponed_from_date->toDateString())
             : Carbon::today();
 
-        $slots = $this->projectAvailableSlots($tournament, $involvedTeamIds, $minDate->toDateString());
+        // 1. Identify all registered teams and classify finished vs unfinished
+        $allRegisteredTeamIds = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->pluck('team_id')
+            ->all();
+
+        $finishedTeamIds = [];
+        $unfinishedTeamsData = [];
+
+        foreach ($allRegisteredTeamIds as $tid) {
+            if (in_array($tid, $involvedTeamIds, true)) {
+                continue;
+            }
+
+            $unf = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->where(fn ($q) => $q->where('home_team_id', $tid)->orWhere('away_team_id', $tid))
+                ->where(function ($q) {
+                    $q->whereNull('scheduled_at')
+                        ->orWhereIn('status', [FixtureStatus::WaitingForBooking, FixtureStatus::ReschedulingRequired, FixtureStatus::Postponed]);
+                })
+                ->get(['id', 'matchday', 'home_team_id', 'away_team_id']);
+
+            if ($unf->isEmpty()) {
+                $finishedTeamIds[] = $tid;
+            } else {
+                $unfinishedTeamsData[$tid] = [
+                    'count' => $unf->count(),
+                    'fixtures' => $unf,
+                ];
+            }
+        }
+
+        // Project available slots for all registered teams
+        $slots = $this->projectAvailableSlots($tournament, $allRegisteredTeamIds, $minDate->toDateString());
 
         // Pre-fetch other scheduled matches excluding this fixture
         $scheduledMatches = Fixture::query()
@@ -472,6 +669,7 @@ class LeagueAssignmentService
             $slotStart = $slot['start_time'];
             $slotEnd = $slot['end_time'];
             $slotDateTime = $slot['datetime'];
+            $occStatus = $slot['occurrence_status'] ?? null;
 
             // Must be strictly after the original match date if postponed_from_date exists
             if ($fixture->postponed_from_date && $slotDateTime->lte($fixture->postponed_from_date)) {
@@ -494,14 +692,53 @@ class LeagueAssignmentService
                 continue;
             }
 
-            // Slot owner is always the host team
-            $newHostId = $slotOwnerId;
-            $newGuestId = ($newHostId === $teamAId) ? $teamBId : $teamAId;
+            $isOwnSlot = in_array($slotOwnerId, $involvedTeamIds, true);
+            $isFinishedTeam = in_array($slotOwnerId, $finishedTeamIds, true);
+            $isReleased = ($occStatus === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED);
+            $isFreed = ($occStatus === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED);
 
-            $hostTeam = ($newHostId === $teamAId) ? $fixture->homeTeam : $fixture->awayTeam;
-            $guestTeam = ($newGuestId === $teamAId) ? $fixture->homeTeam : $fixture->awayTeam;
+            // Determine categorization and warnings
+            $isSecondary = false;
+            $warning = null;
+            $sourceLabel = null;
+            $poolTag = 'own';
 
-            $isHostChanged = ($newHostId !== $teamAId);
+            if ($isOwnSlot) {
+                $poolTag = 'own';
+                $sourceLabel = 'موعد يخص أحد الفريقين';
+            } elseif ($isFinishedTeam) {
+                $poolTag = 'finished_team';
+                $sourceLabel = "موعد تحرر بعد انتهاء مباريات {$booking->team?->name}";
+            } elseif ($isReleased) {
+                $poolTag = 'released';
+                $sourceLabel = "موعد متاح لفرق البطولة (صاحب الحجز: {$booking->team?->name})";
+            } elseif ($isFreed) {
+                $poolTag = 'postpone_freed';
+                $sourceLabel = "موعد تحرر بعد تأجيل مباراة (حجز {$booking->team?->name})";
+            } else {
+                // Belongs to team with unfinished matches
+                $isSecondary = true;
+                $poolTag = 'team_pending';
+                $pendingInfo = $unfinishedTeamsData[$slotOwnerId] ?? ['count' => 1];
+                $sourceLabel = 'قد يحتاجها فريقها لاحقاً';
+                $warning = "فريق {$booking->team?->name} لديه {$pendingInfo['count']} مباريات متبقية قد يحتاج هذا الموعد لإقامتها";
+            }
+
+            // Determine host team
+            if ($isOwnSlot) {
+                $newHostId = $slotOwnerId;
+                $newGuestId = ($newHostId === $teamAId) ? $teamBId : $teamAId;
+                $hostTeam = ($newHostId === $teamAId) ? $fixture->homeTeam : $fixture->awayTeam;
+                $guestTeam = ($newGuestId === $teamAId) ? $fixture->homeTeam : $fixture->awayTeam;
+                $isHostChanged = ($newHostId !== $teamAId);
+            } else {
+                // Borrowed slot: keep original pairing order (team A is host)
+                $newHostId = $teamAId;
+                $newGuestId = $teamBId;
+                $hostTeam = $fixture->homeTeam;
+                $guestTeam = $fixture->awayTeam;
+                $isHostChanged = false;
+            }
 
             $suggestions[] = [
                 'id' => "postpone_sug_{$booking->id}_{$slot['date_str']}",
@@ -530,11 +767,23 @@ class LeagueAssignmentService
                 'is_host_changed' => $isHostChanged,
                 'host_changed_note' => $isHostChanged ? "المضيف سيتغير إلى {$hostTeam?->name} (صاحب الحجز)" : null,
                 'is_weekly' => $slot['is_weekly'],
+                'is_borrowed' => ! $isOwnSlot,
+                'borrowed_from_owner' => ! $isOwnSlot ? ($booking->team?->name ?? 'فريق آخر') : null,
+                'is_secondary' => $isSecondary,
+                'warning' => $warning,
+                'source_label' => $sourceLabel,
+                'pool_tag' => $poolTag,
             ];
         }
 
-        // Sorted by closest date after original date
-        usort($suggestions, fn ($a, $b) => strcmp($a['datetime'], $b['datetime']));
+        // Sort: primary suggestions first (by date), secondary suggestions after (by date)
+        usort($suggestions, function ($a, $b) {
+            if ($a['is_secondary'] !== $b['is_secondary']) {
+                return $a['is_secondary'] ? 1 : -1;
+            }
+
+            return strcmp($a['datetime'], $b['datetime']);
+        });
 
         return $suggestions;
     }
@@ -559,13 +808,19 @@ class LeagueAssignmentService
             $teamAId = (int) $fixture->home_team_id;
             $teamBId = (int) $fixture->away_team_id;
 
-            if ($slotOwnerId !== $teamAId && $slotOwnerId !== $teamBId) {
-                throw new DomainException('الحجز المحدد لا يتبع لأي من الفريقين المشاركين في المباراة');
-            }
+            $isBorrowed = ($slotOwnerId !== $teamAId && $slotOwnerId !== $teamBId);
 
-            // Assign slot owner as home team
-            $newHomeId = $slotOwnerId;
-            $newAwayId = ($newHomeId === $teamAId) ? $teamBId : $teamAId;
+            if ($isBorrowed) {
+                // Borrowed slot from tournament pool: keep original pairing
+                $newHomeId = $teamAId;
+                $newAwayId = $teamBId;
+                $notes = 'توقيت مستعار من حجز فريق '.($booking->team?->name ?? 'آخر');
+            } else {
+                // Slot owner is host team
+                $newHomeId = $slotOwnerId;
+                $newAwayId = ($newHomeId === $teamAId) ? $teamBId : $teamAId;
+                $notes = null;
+            }
 
             $scheduledAt = Carbon::parse($dateStr.' '.$booking->start_time);
 
@@ -584,6 +839,7 @@ class LeagueAssignmentService
                     'active_reservation_id' => $booking->id,
                     'match_duration_minutes' => $tournament->match_duration_minutes ?? 90,
                     'is_confirmed' => true,
+                    'notes' => $notes,
                     'created_by' => auth()->id() ?? $tournament->organizer_id,
                 ]);
             } else {
@@ -594,6 +850,7 @@ class LeagueAssignmentService
                     'active_reservation_id' => $booking->id,
                     'status' => MatchStatus::Scheduled,
                     'is_confirmed' => true,
+                    'notes' => $notes,
                 ]);
             }
 
@@ -610,23 +867,52 @@ class LeagueAssignmentService
                 'postponement_note' => null,
             ]);
 
-            // Link single booking
-            if (! $booking->isWeeklySubscription()) {
+            // Link booking
+            if ($booking->isWeeklySubscription()) {
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::updateOrCreate(
+                    [
+                        'terrain_booking_id' => $booking->id,
+                        'occurrence_date' => $dateStr,
+                    ],
+                    [
+                        'stadium_id' => $booking->terrain_id,
+                        'start_time' => $booking->start_time,
+                        'end_time' => $booking->end_time,
+                        'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH,
+                        'fixture_id' => $fixture->id,
+                        'notes' => 'مباراة دوري: '.$tournament->name.($isBorrowed ? ' (موعد مستعار)' : ''),
+                    ]
+                );
+            } else {
                 $booking->update([
                     'fixture_id' => $fixture->id,
                 ]);
             }
 
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $booking->terrain_id, $dateStr);
+
             // Re-sync league week numbers dynamically
             $fixtureService = $this->fixtureService ?? app(TournamentFixtureService::class);
             $fixtureService->syncLeagueMatchdays($tournament);
+
+            // If borrowed, notify slot owner manager and stadium manager
+            if ($isBorrowed && $booking->team?->manager_id) {
+                NotificationService::push(
+                    (int) $booking->team->manager_id,
+                    'announcement',
+                    'استخدام موعدك لمباراة دوري',
+                    "تم استخدام موعدك الأسبوعي لتاريخ {$dateStr} الساعة {$booking->start_time} لإقامة مباراة دوري ({$tournament->name})",
+                    ['tournament_id' => $tournament->id, 'fixture_id' => $fixture->id],
+                    '/dashboard'
+                );
+            }
 
             // Notify both teams
             $this->notifyMatchAssignment($tournament, $fixture, $booking);
 
             return [
                 'fixture' => $fixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']),
-                'message' => 'تمت إعادة جدولة وتثبيت المباراة بنجاح.',
+                'message' => 'تمت إعادة جدولة وتثبيت المباراة بنجاح'.($isBorrowed ? ' (موعد مستعار من حجز '.$booking->team?->name.')' : '.'),
             ];
         });
     }
@@ -948,7 +1234,24 @@ class LeagueAssignmentService
             $booking->update([
                 'fixture_id' => $fixture->id,
             ]);
+        } else {
+            \App\Domains\Booking\Models\TerrainBookingOccurrence::updateOrCreate(
+                [
+                    'terrain_booking_id' => $booking->id,
+                    'occurrence_date' => Carbon::parse($scheduledAt)->toDateString(),
+                ],
+                [
+                    'stadium_id' => $slot['terrain_id'],
+                    'start_time' => $booking->start_time,
+                    'end_time' => $booking->end_time,
+                    'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH,
+                    'fixture_id' => $fixture->id,
+                    'notes' => 'مباراة دوري: '.$tournament->name,
+                ]
+            );
         }
+
+        \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $slot['terrain_id']);
 
         $this->notifyMatchAssignment($tournament, $fixture, $booking);
     }
@@ -1361,7 +1664,24 @@ class LeagueAssignmentService
                 $booking->update([
                     'fixture_id' => $fixture->id,
                 ]);
+            } else {
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::updateOrCreate(
+                    [
+                        'terrain_booking_id' => $booking->id,
+                        'occurrence_date' => $bookingDateStr,
+                    ],
+                    [
+                        'stadium_id' => $booking->terrain_id,
+                        'start_time' => $booking->start_time,
+                        'end_time' => $booking->end_time,
+                        'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH,
+                        'fixture_id' => $fixture->id,
+                        'notes' => 'مباراة دوري: '.$tournament->name,
+                    ]
+                );
             }
+
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $booking->terrain_id, $bookingDateStr);
 
             // Notify team managers
             $this->notifyMatchAssignment($tournament, $fixture, $booking);
@@ -1555,5 +1875,659 @@ class LeagueAssignmentService
                 "/dashboard"
             );
         }
+    }
+
+    /**
+     * Step 2.3: Explicitly release a single occurrence to tournament teams.
+     */
+    public function releaseOccurrence(Tournament $tournament, \App\Domains\Booking\Models\TerrainBookingOccurrence $occurrence): array
+    {
+        return DB::transaction(function () use ($tournament, $occurrence) {
+            if ($occurrence->fixture_id) {
+                throw new DomainException('لا يمكن إتاحة موعد مستخدم بالفعل لمباراة مبرمجة');
+            }
+            if ($occurrence->status === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_WEATHER_BLOCKED) {
+                throw new DomainException('لا يمكن إتاحة موعد محظور بسبب الأحوال الجوية');
+            }
+
+            $origDateStr = $occurrence->occurrence_date?->toDateString();
+
+            $occurrence->update([
+                'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED,
+                'metadata' => array_merge($occurrence->metadata ?? [], [
+                    'tournament_id' => $tournament->id,
+                    'released_at' => now()->toDateTimeString(),
+                ]),
+                'notes' => 'متاح لفرق بطولة: '.$tournament->name,
+            ]);
+
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $occurrence->stadium_id, $origDateStr);
+
+            // Notify slot owner manager
+            $ownerTeam = $occurrence->booking?->team;
+            if ($ownerTeam?->manager_id) {
+                NotificationService::push(
+                    (int) $ownerTeam->manager_id,
+                    'announcement',
+                    'إتاحة موعدك الأسبوعي للبطولة',
+                    "تمت إتاحة موعدك الأسبوعي بتاريخ {$origDateStr} الساعة {$occurrence->start_time} لفرق بطولة {$tournament->name}",
+                    ['tournament_id' => $tournament->id, 'occurrence_id' => $occurrence->id],
+                    '/dashboard'
+                );
+            }
+
+            // Notify tournament registered team managers
+            $registeredTeams = TournamentTeam::query()
+                ->where('tournament_id', $tournament->id)
+                ->where('status', TournamentTeam::STATUS_REGISTERED)
+                ->with('team')
+                ->get();
+
+            foreach ($registeredTeams as $tt) {
+                if ($tt->team?->manager_id && (int) $tt->team_id !== (int) $occurrence->booking?->team_id) {
+                    NotificationService::push(
+                        (int) $tt->team->manager_id,
+                        'announcement',
+                        'موعد متاح جديد في البطولة',
+                        "تمت إتاحة موعد شاغر بتاريخ {$origDateStr} الساعة {$occurrence->start_time} في {$occurrence->stadium?->name} لفرق البطولة",
+                        ['tournament_id' => $tournament->id, 'occurrence_id' => $occurrence->id],
+                        '/dashboard'
+                    );
+                }
+            }
+
+            return [
+                'occurrence' => $occurrence->fresh(['stadium', 'booking.team']),
+                'message' => 'تمت إتاحة الموعد لفرق البطولة بنجاح.',
+            ];
+        });
+    }
+
+    /**
+     * Step 2.3 & 3.5: Organizer action "استرجاع الموعد" before it is booked or played.
+     */
+    public function reclaimOccurrence(Tournament $tournament, \App\Domains\Booking\Models\TerrainBookingOccurrence $occurrence): array
+    {
+        return DB::transaction(function () use ($tournament, $occurrence) {
+            $origDateStr = $occurrence->occurrence_date?->toDateString();
+
+            // If occurrence is linked to an unplayed fixture, unlink it and return fixture to waiting
+            if ($occurrence->fixture_id) {
+                $fixture = Fixture::find($occurrence->fixture_id);
+                if ($fixture) {
+                    if ($fixture->match && $fixture->match->status === MatchStatus::Finished) {
+                        throw new DomainException('لا يمكن استرجاع موعد مباراة مكتملة وملعوبة');
+                    }
+                    $fixture->update([
+                        'scheduled_at' => null,
+                        'stadium_id' => null,
+                        'status' => FixtureStatus::ReschedulingRequired,
+                        'unscheduled_reason' => 'تم استرجاع الموعد لصاحبه الأصلي',
+                    ]);
+                    if ($fixture->match) {
+                        $fixture->match->update([
+                            'status' => MatchStatus::Cancelled,
+                            'active_reservation_id' => null,
+                            'stadium_id' => null,
+                        ]);
+                    }
+                }
+            }
+
+            $meta = $occurrence->metadata ?? [];
+            unset($meta['tournament_id'], $meta['released_at']);
+
+            $occurrence->update([
+                'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_ACTIVE,
+                'fixture_id' => null,
+                'metadata' => $meta,
+                'notes' => 'تم استرجاع الموعد لصاحبه الأصلي',
+            ]);
+
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $occurrence->stadium_id, $origDateStr);
+
+            // Notify owner
+            $ownerTeam = $occurrence->booking?->team;
+            if ($ownerTeam?->manager_id) {
+                NotificationService::push(
+                    (int) $ownerTeam->manager_id,
+                    'announcement',
+                    'استرجاع موعدك الأسبوعي',
+                    "تم استرجاع موعدك الأسبوعي بتاريخ {$origDateStr} الساعة {$occurrence->start_time} وأصبح محجوزاً لك",
+                    ['tournament_id' => $tournament->id, 'occurrence_id' => $occurrence->id],
+                    '/dashboard'
+                );
+            }
+
+            return [
+                'occurrence' => $occurrence->fresh(['stadium', 'booking.team']),
+                'message' => 'تم استرجاع الموعد لصاحبه الأصلي بنجاح.',
+            ];
+        });
+    }
+
+    /**
+     * Step 2.1: One-tap action "نقل إلى موعد أحد الفريقين".
+     * Moves a borrowed match to an unused slot belonging to one of its two teams,
+     * removes the borrowed label, and returns the previously used slot to the pool.
+     */
+    public function moveToOwnSlot(
+        Tournament $tournament,
+        Fixture $fixture,
+        int $newBookingId,
+        ?string $newSlotDate = null
+    ): array {
+        return DB::transaction(function () use ($tournament, $fixture, $newBookingId, $newSlotDate) {
+            $eligibility = app(LeagueEligibilityEngineService::class);
+            $eligibility->assertNotLockedOrFinished($fixture);
+
+            $teamAId = (int) $fixture->home_team_id;
+            $teamBId = (int) $fixture->away_team_id;
+
+            $newBooking = TerrainBooking::with(['terrain', 'team'])->findOrFail($newBookingId);
+            $slotOwnerId = (int) $newBooking->team_id;
+
+            if ($slotOwnerId !== $teamAId && $slotOwnerId !== $teamBId) {
+                throw new DomainException('الموعد المختار لا يتبع لأي من فريقي المباراة');
+            }
+
+            $dateStr = $newSlotDate ?: ($newBooking->booking_date?->toDateString() ?: Carbon::today()->toDateString());
+            $scheduledAt = Carbon::parse($dateStr.' '.$newBooking->start_time);
+
+            // 1. Return previous slot to pool
+            $prevOcc = \App\Domains\Booking\Models\TerrainBookingOccurrence::where('fixture_id', $fixture->id)->first();
+            if ($prevOcc) {
+                $prevOcc->update([
+                    'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED,
+                    'fixture_id' => null,
+                    'notes' => 'تم تحرير الموعد بعد نقل المباراة إلى موعد أحد الفريقين',
+                ]);
+                \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $prevOcc->stadium_id, $prevOcc->occurrence_date?->toDateString());
+            }
+
+            $prevBooking = TerrainBooking::where('fixture_id', $fixture->id)->where('id', '!=', $newBooking->id)->first();
+            if ($prevBooking && ! $prevBooking->isWeeklySubscription()) {
+                $prevBooking->update(['fixture_id' => null]);
+                \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $prevBooking->terrain_id, $prevBooking->booking_date?->toDateString());
+            }
+
+            // 2. Assign slot owner as host
+            $newHomeId = $slotOwnerId;
+            $newAwayId = ($newHomeId === $teamAId) ? $teamBId : $teamAId;
+
+            // 3. Clear borrowed note from match
+            $match = $fixture->match;
+            if ($match) {
+                $cleanNotes = $match->notes ? preg_replace('/(توقيت|موعد)\s+مستعار[^\n\r]*/u', '', $match->notes) : null;
+                $cleanNotes = trim((string) $cleanNotes) ?: null;
+
+                $match->update([
+                    'home_team_id' => $newHomeId,
+                    'away_team_id' => $newAwayId,
+                    'stadium_id' => $newBooking->terrain_id,
+                    'active_reservation_id' => $newBooking->id,
+                    'notes' => $cleanNotes,
+                    'status' => MatchStatus::Scheduled,
+                    'is_confirmed' => true,
+                ]);
+            }
+
+            $fixture->update([
+                'home_team_id' => $newHomeId,
+                'away_team_id' => $newAwayId,
+                'stadium_id' => $newBooking->terrain_id,
+                'scheduled_at' => $scheduledAt,
+                'status' => FixtureStatus::Scheduled,
+                'unscheduled_reason' => null,
+            ]);
+
+            // 4. Link new booking
+            if ($newBooking->isWeeklySubscription()) {
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::updateOrCreate(
+                    [
+                        'terrain_booking_id' => $newBooking->id,
+                        'occurrence_date' => $dateStr,
+                    ],
+                    [
+                        'stadium_id' => $newBooking->terrain_id,
+                        'start_time' => $newBooking->start_time,
+                        'end_time' => $newBooking->end_time,
+                        'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH,
+                        'fixture_id' => $fixture->id,
+                        'notes' => 'مباراة دوري: '.$tournament->name,
+                    ]
+                );
+            } else {
+                $newBooking->update(['fixture_id' => $fixture->id]);
+            }
+
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $newBooking->terrain_id, $dateStr);
+
+            $this->notifyMatchAssignment($tournament, $fixture, $newBooking);
+
+            return [
+                'fixture' => $fixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']),
+                'message' => 'تم نقل المباراة إلى موعد '.$newBooking->team?->name.' بنجاح وإعادة الموعد السابق للمجموعة.',
+            ];
+        });
+    }
+
+    /**
+     * Step 3.1 & 3.2: Comprehensive slot pool for pending/postponed matches.
+     * Default list:
+     * (a) Weekly occurrences of teams that have finished all league matches
+     * (b) Explicitly released occurrences
+     * (c) Non-weather postponement freed occurrences
+     * Secondary collapsed list:
+     * (d) Unused occurrences of teams with pending matches (warning displayed)
+     */
+    public function unusedSlotPool(Tournament $tournament, ?Fixture $fixture = null): array
+    {
+        // 1. Identify finished vs unfinished teams
+        $allRegisteredTeams = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->with('team')
+            ->get();
+
+        $allRegisteredTeamIds = $allRegisteredTeams->pluck('team_id')->all();
+
+        $finishedTeamIds = [];
+        $unfinishedTeamsData = [];
+
+        foreach ($allRegisteredTeams as $tt) {
+            $tid = (int) $tt->team_id;
+            $unf = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->where(fn ($q) => $q->where('home_team_id', $tid)->orWhere('away_team_id', $tid))
+                ->where(function ($q) {
+                    $q->whereNull('scheduled_at')
+                        ->orWhereIn('status', [FixtureStatus::WaitingForBooking, FixtureStatus::ReschedulingRequired, FixtureStatus::Postponed]);
+                })
+                ->get(['id', 'matchday', 'home_team_id', 'away_team_id']);
+
+            if ($unf->isEmpty()) {
+                $finishedTeamIds[] = $tid;
+            } else {
+                $unfinishedTeamsData[$tid] = [
+                    'count' => $unf->count(),
+                    'team_name' => $tt->team?->name,
+                ];
+            }
+        }
+
+        $minDate = Carbon::today()->toDateString();
+        $slots = $this->projectAvailableSlots($tournament, $allRegisteredTeamIds, $minDate);
+
+        // Pre-fetch scheduled fixtures for rest/conflict checks
+        $scheduledMatches = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->when($fixture, fn ($q) => $q->where('id', '!=', $fixture->id))
+            ->whereNotNull('scheduled_at')
+            ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
+            ->get(['id', 'home_team_id', 'away_team_id', 'scheduled_at']);
+
+        $restDaysRequired = (int) ($tournament->rest_days_minimum ?? 1);
+
+        $postponedFixtures = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('status', FixtureStatus::Postponed)
+            ->whereNotNull('postponed_from_date')
+            ->get();
+
+        $pendingFixtures = Fixture::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where(function ($q) {
+                $q->whereNull('scheduled_at')
+                    ->orWhereIn('status', [
+                        FixtureStatus::WaitingForBooking,
+                        FixtureStatus::ReschedulingRequired,
+                        FixtureStatus::Postponed,
+                    ]);
+            })
+            ->with(['homeTeam', 'awayTeam'])
+            ->get();
+
+        $defaultPool = [];
+        $secondaryPool = [];
+
+        $teamAId = $fixture ? (int) $fixture->home_team_id : null;
+        $teamBId = $fixture ? (int) $fixture->away_team_id : null;
+
+        foreach ($slots as $slot) {
+            $booking = $slot['booking'];
+            $slotOwnerId = (int) $slot['owner_team_id'];
+            $slotDate = $slot['date'];
+            $slotStart = $slot['start_time'];
+            $slotEnd = $slot['end_time'];
+            $slotDateTime = $slot['datetime'];
+            $occStatus = $slot['occurrence_status'] ?? null;
+
+            // Optional fixture eligibility check
+            $canAssign = true;
+            $ineligibilityReasons = [];
+
+            if ($teamAId && $teamBId) {
+                if ($this->hasConflictOnDateTime($teamAId, $slotDate, $slotStart, $slotEnd, $scheduledMatches)) {
+                    $canAssign = false;
+                    $ineligibilityReasons[] = 'تعارض في موعد مباراة أخرى للفريق الأول';
+                }
+                if ($this->hasConflictOnDateTime($teamBId, $slotDate, $slotStart, $slotEnd, $scheduledMatches)) {
+                    $canAssign = false;
+                    $ineligibilityReasons[] = 'تعارض في موعد مباراة أخرى للفريق الثاني';
+                }
+                if (! $this->satisfiesRestRule($teamAId, $slotDate, $restDaysRequired, $scheduledMatches)) {
+                    $canAssign = false;
+                    $ineligibilityReasons[] = 'عدم استيفاء فترة الراحة الإلزامية للفريق الأول';
+                }
+                if (! $this->satisfiesRestRule($teamBId, $slotDate, $restDaysRequired, $scheduledMatches)) {
+                    $canAssign = false;
+                    $ineligibilityReasons[] = 'عدم استيفاء فترة الراحة الإلزامية للفريق الثاني';
+                }
+            }
+
+            // Find all pending fixtures eligible to use this slot
+            $eligibleFixtures = [];
+            foreach ($pendingFixtures as $pf) {
+                $hId = (int) $pf->home_team_id;
+                $aId = (int) $pf->away_team_id;
+
+                $hConflict = $this->hasConflictOnDateTime($hId, $slotDate, $slotStart, $slotEnd, $scheduledMatches);
+                $aConflict = $this->hasConflictOnDateTime($aId, $slotDate, $slotStart, $slotEnd, $scheduledMatches);
+                $hRest = $this->satisfiesRestRule($hId, $slotDate, $restDaysRequired, $scheduledMatches);
+                $aRest = $this->satisfiesRestRule($aId, $slotDate, $restDaysRequired, $scheduledMatches);
+
+                if (! $hConflict && ! $aConflict && $hRest && $aRest) {
+                    $isOwner = ($hId === $slotOwnerId || $aId === $slotOwnerId);
+                    $eligibleFixtures[] = [
+                        'id' => $pf->id,
+                        'matchday' => $pf->matchday,
+                        'status' => $pf->status instanceof FixtureStatus ? $pf->status->value : $pf->status,
+                        'home_team' => [
+                            'id' => $pf->homeTeam?->id,
+                            'name' => $pf->homeTeam?->name,
+                            'logo_url' => $pf->homeTeam?->logo_url,
+                        ],
+                        'away_team' => [
+                            'id' => $pf->awayTeam?->id,
+                            'name' => $pf->awayTeam?->name,
+                            'logo_url' => $pf->awayTeam?->logo_url,
+                        ],
+                        'is_owner_involved' => $isOwner,
+                        'borrowed_label' => $isOwner ? null : "موعد مستعار من {$booking->team?->name}",
+                    ];
+                }
+            }
+
+            $isFinishedTeam = in_array($slotOwnerId, $finishedTeamIds, true);
+            $isReleased = ($occStatus === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED);
+            $isFreed = ($occStatus === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED);
+
+            $matchingPostponed = $postponedFixtures->first(function ($pf) use ($slot) {
+                $pfDateStr = $pf->postponed_from_date ? Carbon::parse($pf->postponed_from_date)->toDateString() : null;
+                return $pfDateStr === $slot['date_str'] && (int) $pf->stadium_id === (int) $slot['terrain_id'];
+            });
+
+            $slotItem = [
+                'id' => "pool_slot_{$booking->id}_{$slot['date_str']}",
+                'booking_id' => $booking->id,
+                'date' => $slot['date_str'],
+                'day_name' => $slotDate->translatedFormat('l'),
+                'time' => $slotStart.' - '.$slotEnd,
+                'start_time' => $slotStart,
+                'end_time' => $slotEnd,
+                'datetime' => $slotDateTime->toDateTimeString(),
+                'owner_team_id' => $slotOwnerId,
+                'owner_team_name' => $booking->team?->name,
+                'owner_team_logo' => $booking->team?->logo_url,
+                'stadium' => $booking->terrain ? [
+                    'id' => $booking->terrain->id,
+                    'name' => $booking->terrain->name,
+                    'city' => $booking->terrain->city,
+                ] : null,
+                'is_weekly' => $slot['is_weekly'],
+                'can_assign' => $canAssign,
+                'ineligibility_reasons' => $ineligibilityReasons,
+                'eligible_fixtures' => $eligibleFixtures,
+            ];
+
+            if ($matchingPostponed || $isFreed) {
+                $slotItem['pool_tag'] = 'postpone_freed';
+                $slotItem['source_label'] = $matchingPostponed 
+                    ? "موعد تحرر بعد تأجيل مباراة الجولة {$matchingPostponed->matchday} ({$booking->team?->name})"
+                    : "موعد تحرر بعد تأجيل مباراة (حجز {$booking->team?->name})";
+                $defaultPool[] = $slotItem;
+            } elseif ($isReleased) {
+                $slotItem['pool_tag'] = 'released';
+                $slotItem['source_label'] = "موعد متاح لفرق البطولة (صاحب الحجز: {$booking->team?->name})";
+                $defaultPool[] = $slotItem;
+            } elseif ($isFinishedTeam) {
+                $slotItem['pool_tag'] = 'finished_team';
+                $slotItem['source_label'] = "موعد شاغر متاح للبطولة (حجز {$booking->team?->name})";
+                $defaultPool[] = $slotItem;
+            } else {
+                // Secondary pool: team has pending matches
+                $unfData = $unfinishedTeamsData[$slotOwnerId] ?? ['count' => 1];
+                $slotItem['pool_tag'] = 'team_pending';
+                $slotItem['source_label'] = 'قد يحتاجها فريقها لاحقاً';
+                $slotItem['warning'] = "فريق {$booking->team?->name} لديه {$unfData['count']} مباريات متبقية قد يحتاج هذا الموعد لإقامتها";
+                $secondaryPool[] = $slotItem;
+            }
+        }
+
+        // Sort both pools by earliest date
+        usort($defaultPool, fn ($a, $b) => strcmp($a['datetime'], $b['datetime']));
+        usort($secondaryPool, fn ($a, $b) => strcmp($a['datetime'], $b['datetime']));
+
+        return [
+            'default_pool' => $defaultPool,
+            'secondary_pool' => $secondaryPool,
+            'finished_teams' => $allRegisteredTeams->filter(fn ($t) => in_array($t->team_id, $finishedTeamIds, true))->values(),
+        ];
+    }
+
+    /**
+     * Step 3.4: Quick assign of nearest available slot to a pending/postponed match.
+     */
+    public function quickAssign(
+        Tournament $tournament,
+        Fixture $fixture,
+        int $bookingId,
+        string $dateStr,
+        ?int $hostTeamId = null
+    ): array {
+        return DB::transaction(function () use ($tournament, $fixture, $bookingId, $dateStr, $hostTeamId) {
+            $eligibility = app(LeagueEligibilityEngineService::class);
+            $eligibility->assertNotLockedOrFinished($fixture);
+
+            $booking = TerrainBooking::with(['terrain', 'team'])->findOrFail($bookingId);
+            $slotOwnerId = (int) $booking->team_id;
+
+            $teamAId = (int) $fixture->home_team_id;
+            $teamBId = (int) $fixture->away_team_id;
+
+            $isBorrowed = ($slotOwnerId !== $teamAId && $slotOwnerId !== $teamBId);
+
+            // Determine host team
+            if ($hostTeamId) {
+                $newHomeId = $hostTeamId;
+                $newAwayId = ($newHomeId === $teamAId) ? $teamBId : $teamAId;
+            } elseif ($slotOwnerId === $teamAId || $slotOwnerId === $teamBId) {
+                $newHomeId = $slotOwnerId;
+                $newAwayId = ($newHomeId === $teamAId) ? $teamBId : $teamAId;
+            } else {
+                $newHomeId = $teamAId;
+                $newAwayId = $teamBId;
+            }
+
+            $notes = $isBorrowed ? 'توقيت مستعار من حجز فريق '.($booking->team?->name ?? 'آخر') : null;
+            $scheduledAt = Carbon::parse($dateStr.' '.$booking->start_time);
+
+            // Snapshot for undo
+            $snapshot = [
+                'fixture_id' => $fixture->id,
+                'home_team_id' => $fixture->home_team_id,
+                'away_team_id' => $fixture->away_team_id,
+                'scheduled_at' => $fixture->scheduled_at?->toDateTimeString(),
+                'stadium_id' => $fixture->stadium_id,
+                'status' => $fixture->status?->value,
+                'match_id' => $fixture->match_id,
+            ];
+
+            // Match record
+            $match = $fixture->match;
+            if (! $match) {
+                $match = FootballMatch::create([
+                    'competition_id' => $tournament->competition_id,
+                    'season_id' => $tournament->season_id,
+                    'round_id' => $fixture->round_id,
+                    'group_id' => $fixture->group_id,
+                    'home_team_id' => $newHomeId,
+                    'away_team_id' => $newAwayId,
+                    'stadium_id' => $booking->terrain_id,
+                    'status' => MatchStatus::Scheduled,
+                    'active_reservation_id' => $booking->id,
+                    'match_duration_minutes' => $tournament->match_duration_minutes ?? 90,
+                    'is_confirmed' => true,
+                    'notes' => $notes,
+                    'created_by' => auth()->id() ?? $tournament->organizer_id,
+                ]);
+            } else {
+                $match->update([
+                    'home_team_id' => $newHomeId,
+                    'away_team_id' => $newAwayId,
+                    'stadium_id' => $booking->terrain_id,
+                    'active_reservation_id' => $booking->id,
+                    'status' => MatchStatus::Scheduled,
+                    'is_confirmed' => true,
+                    'notes' => $notes,
+                ]);
+            }
+
+            $fixture->update([
+                'home_team_id' => $newHomeId,
+                'away_team_id' => $newAwayId,
+                'match_id' => $match->id,
+                'stadium_id' => $booking->terrain_id,
+                'scheduled_at' => $scheduledAt,
+                'status' => FixtureStatus::Scheduled,
+                'unscheduled_reason' => null,
+                'postponement_reason' => null,
+                'postponement_note' => null,
+                'last_change_payload' => $snapshot,
+            ]);
+
+            if ($booking->isWeeklySubscription()) {
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::updateOrCreate(
+                    [
+                        'terrain_booking_id' => $booking->id,
+                        'occurrence_date' => $dateStr,
+                    ],
+                    [
+                        'stadium_id' => $booking->terrain_id,
+                        'start_time' => $booking->start_time,
+                        'end_time' => $booking->end_time,
+                        'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH,
+                        'fixture_id' => $fixture->id,
+                        'notes' => 'مباراة دوري: '.$tournament->name.($isBorrowed ? ' (موعد مستعار)' : ''),
+                    ]
+                );
+            } else {
+                $booking->update(['fixture_id' => $fixture->id]);
+            }
+
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $booking->terrain_id, $dateStr);
+
+            // Re-sync league matchdays
+            $fixtureService = $this->fixtureService ?? app(TournamentFixtureService::class);
+            $fixtureService->syncLeagueMatchdays($tournament);
+
+            // Notify slot owner manager if borrowed
+            if ($isBorrowed && $booking->team?->manager_id) {
+                NotificationService::push(
+                    (int) $booking->team->manager_id,
+                    'announcement',
+                    'استخدام موعدك لمباراة دوري',
+                    "تم استخدام موعدك الأسبوعي لتاريخ {$dateStr} الساعة {$booking->start_time} لإقامة مباراة دوري ({$tournament->name}) بين {$fixture->homeTeam?->name} و {$fixture->awayTeam?->name}.",
+                    ['tournament_id' => $tournament->id, 'fixture_id' => $fixture->id],
+                    '/dashboard'
+                );
+            }
+
+            $this->notifyMatchAssignment($tournament, $fixture, $booking);
+
+            return [
+                'fixture' => $fixture->fresh(['homeTeam', 'awayTeam', 'stadium', 'match']),
+                'message' => 'تم تعيين الموعد وتثبيته بنجاح'.($isBorrowed ? ' (موعد مستعار من حجز '.$booking->team?->name.')' : '.'),
+            ];
+        });
+    }
+
+    /**
+     * Step 3.6: Notify organizer when a team finishes all its league matches.
+     */
+    public function checkAndNotifyFinishedTeams(Tournament $tournament): array
+    {
+        $cacheKey = "tournament_{$tournament->id}_notified_finished_teams";
+        $notified = Cache::get($cacheKey, []);
+        $newlyNotified = [];
+
+        $registeredTeams = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->with('team')
+            ->get();
+
+        foreach ($registeredTeams as $tt) {
+            $tid = (int) $tt->team_id;
+            if (in_array($tid, $notified, true)) {
+                continue;
+            }
+
+            $unfCount = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->where(fn ($q) => $q->where('home_team_id', $tid)->orWhere('away_team_id', $tid))
+                ->where(function ($q) {
+                    $q->whereNull('scheduled_at')
+                        ->orWhereIn('status', [FixtureStatus::WaitingForBooking, FixtureStatus::ReschedulingRequired, FixtureStatus::Postponed]);
+                })
+                ->count();
+
+            if ($unfCount === 0) {
+                // Team has finished all league matches! Count remaining weekly occurrences
+                $futureWeeklyCount = TerrainBooking::query()
+                    ->where('team_id', $tid)
+                    ->where('reservation_type', 'weekly_subscription')
+                    ->whereIn('status', ['approved', 'confirmed'])
+                    ->whereNull('archived_at')
+                    ->whereNull('cancelled_at')
+                    ->count();
+
+                if ($tournament->organizer_id) {
+                    NotificationService::push(
+                        (int) $tournament->organizer_id,
+                        'announcement',
+                        'اكتمال مباريات فريق في الدوري',
+                        "فريق {$tt->team?->name} أنهى مبارياته: {$futureWeeklyCount} مواعيد أسبوعية قادمة أصبحت متاحة",
+                        ['tournament_id' => $tournament->id, 'team_id' => $tid],
+                        "/tournaments/{$tournament->id}"
+                    );
+                }
+
+                $notified[] = $tid;
+                $newlyNotified[] = $tt->team?->name;
+            }
+        }
+
+        if (! empty($newlyNotified)) {
+            Cache::put($cacheKey, $notified, now()->addMonths(6));
+        }
+
+        return $newlyNotified;
     }
 }

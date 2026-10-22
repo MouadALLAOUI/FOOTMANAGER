@@ -477,26 +477,29 @@ class TournamentFixtureController extends Controller
         ]);
     }
 
-    public function postpone(Tournament $tournament, Fixture $fixture): JsonResponse
+    public function postpone(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
     {
         $this->authorize('manage', $tournament);
         $this->assertBelongsToTournament($tournament, $fixture);
 
         $this->assertNotFinished($fixture);
 
-        $fixture->forceFill(['status' => FixtureStatus::Postponed])->save();
+        $reason = $request->input('reason', 'team_circumstances');
+        $note = $request->input('note');
+        $freedAction = $request->input('freed_action', 'freed');
 
-        if ($fixture->match) {
-            $fixture->match->forceFill([
-                'status' => MatchStatus::Postponed,
-                'is_confirmed' => false,
-                'active_reservation_id' => null,
-            ])->save();
-        }
+        $result = app(\App\Domains\Tournament\Services\LeagueAssignmentService::class)->postponeMatch(
+            $tournament,
+            $fixture,
+            $reason,
+            $note,
+            $freedAction
+        );
 
-        $this->bookings->archiveForFixture($fixture);
-
-        return response()->json(['message' => 'تم تأجيل المباراة']);
+        return response()->json([
+            'data' => $result,
+            'message' => $result['message'] ?? 'تم تأجيل المباراة',
+        ]);
     }
 
     public function cancel(Tournament $tournament, Fixture $fixture): JsonResponse

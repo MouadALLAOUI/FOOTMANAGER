@@ -16,11 +16,22 @@ class TournamentFixtureResource extends JsonResource
     {
         $roundStage = $this->round?->stage;
 
+        $isBorrowed = false;
+        $borrowedOwnerName = null;
+        if ($this->match && $this->match->notes && (str_contains($this->match->notes, 'مستعار') || str_contains($this->match->notes, 'حجز فريق'))) {
+            $isBorrowed = true;
+            if (preg_match('/(?:حجز\s+فريق|موعد\s+مستعار\s+من|توقيت\s+مستعار\s+من)\s+([^\s,\.]+)/u', $this->match->notes, $m)) {
+                $borrowedOwnerName = trim($m[1]);
+            }
+        }
+
         return [
             'id' => $this->id,
             'match_id' => $this->match_id,
             'matchday' => $this->matchday,
             'slot_type' => $this->slot_type,
+            'is_borrowed' => $isBorrowed,
+            'borrowed_owner_name' => $borrowedOwnerName,
             'bye_team' => $this->whenLoaded('byeTeam', fn () => $this->byeTeam ? [
                 'id' => $this->byeTeam->id,
                 'name' => $this->byeTeam->name,

@@ -3,6 +3,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
+  Clock4,
   MapPin,
   Sparkles,
   ShieldCheck,
@@ -41,7 +42,8 @@ export default function LeagueAssignmentPanel({
   onDetails,
 }) {
   const { toast } = useToast()
-  const [activeSubTab, setActiveSubTab] = useState('suggestions') // 'suggestions' | 'fixtures'
+  const [activeSubTab, setActiveSubTab] = useState('fixtures') // 'fixtures' | 'suggestions' | 'slot_pool'
+  const [viewMode, setViewMode] = useState('chronological') // 'chronological' | 'rounds' | 'action_required'
   const [assignBusyId, setAssignBusyId] = useState(null)
   const [unassignBusyId, setUnassignBusyId] = useState(null)
   const [genBusy, setGenBusy] = useState(false)
@@ -53,7 +55,9 @@ export default function LeagueAssignmentPanel({
   const [eligibleOpponents, setEligibleOpponents] = useState([])
   const [loadingEligibles, setLoadingEligibles] = useState(false)
   const [matchdayFilter, setMatchdayFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('scheduled')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [teamFilter, setTeamFilter] = useState('all')
+  const [dayFilter, setDayFilter] = useState('all')
 
   useEffect(() => {
     if (!opponentSwapFixture) {
@@ -96,9 +100,21 @@ export default function LeagueAssignmentPanel({
 
   // Postponement state
   const [postponeFixture, setPostponeFixture] = useState(null)
-  const [postponeReason, setPostponeReason] = useState('rain') // 'rain' | 'pitch_condition' | 'team_circumstances' | 'other'
+  const [postponeReason, setPostponeReason] = useState('team_circumstances') // 'rain' | 'pitch_condition' | 'team_circumstances' | 'other'
   const [postponeNote, setPostponeNote] = useState('')
   const [postponeBusy, setPostponeBusy] = useState(false)
+
+  // Step 2 & 3 State
+  const [freedAction, setFreedAction] = useState('freed')
+  const [moveToOwnSlotFixture, setMoveToOwnSlotFixture] = useState(null)
+  const [moveToOwnSlotsList, setMoveToOwnSlotsList] = useState([])
+  const [loadingMoveToOwnSlots, setLoadingMoveToOwnSlots] = useState(false)
+  const [quickAssignFixture, setQuickAssignFixture] = useState(null)
+  const [quickAssignSlot, setQuickAssignSlot] = useState(null)
+  const [selectedQuickHostId, setSelectedQuickHostId] = useState(null)
+  const [quickAssignBusy, setQuickAssignBusy] = useState(false)
+  const [slotPoolFixturePicker, setSlotPoolFixturePicker] = useState(null)
+  const [showSecondaryPool, setShowSecondaryPool] = useState(false)
 
   // Reschedule suggestions modal state
   const [rescheduleFixture, setRescheduleFixture] = useState(null)
@@ -114,7 +130,7 @@ export default function LeagueAssignmentPanel({
     refetch: refetchSuggestions,
   } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/league/suggestions`).then((r) => r.data),
-    [tournament.id, refreshKey],
+    [tournament.id, refreshKey, activeSubTab],
     { staleTime: 0 }
   )
 
@@ -130,6 +146,34 @@ export default function LeagueAssignmentPanel({
   )
 
   // Pre-check scheduling capacity against available slots, taking firstMatchDay into account
+  // Fetch Step 3 unused slot pool
+  const {
+    data: slotPoolData,
+    loading: slotPoolLoading,
+    refetch: refetchSlotPool,
+  } = useApi(
+    () => api.get(`/committee/tournaments/${tournament.id}/league/unused-slot-pool`).then((r) => r.data?.data),
+    [tournament.id, refreshKey],
+    { staleTime: 0 }
+  )
+
+  const defaultPool = slotPoolData?.default_pool || []
+  const secondaryPool = slotPoolData?.secondary_pool || []
+  const allAvailableSlots = useMemo(() => [...defaultPool, ...secondaryPool], [defaultPool, secondaryPool])
+
+  // Pre-calculate nearest available slot for pending/postponed fixtures
+  const nearestSlotMap = useMemo(() => {
+    if (!allAvailableSlots.length || !allFixtures?.length) return {}
+    const map = {}
+    allFixtures.forEach((f) => {
+      const isUnscheduled = !f.scheduled_at || f.status === 'waiting_for_booking' || f.status === 'rescheduling_required' || f.status === 'postponed'
+      if (isUnscheduled) {
+        map[f.id] = allAvailableSlots[0]
+      }
+    })
+    return map
+  }, [allAvailableSlots, allFixtures])
+
   const {
     data: capacityData,
     loading: capacityLoading,
@@ -184,6 +228,7 @@ export default function LeagueAssignmentPanel({
       refetchAllFixtures()
       refetchSuggestions()
       refetchCapacity()
+      refetchSlotPool()
       if (onRefresh) onRefresh()
     } catch (e) {
       toastApiError(e)
@@ -230,6 +275,7 @@ export default function LeagueAssignmentPanel({
       refetchAllFixtures()
       refetchSuggestions()
       refetchCapacity()
+      refetchSlotPool()
       if (onRefresh) onRefresh()
     } catch (e) {
       if (e?.response?.data?.requires_confirmation) {
@@ -255,6 +301,7 @@ export default function LeagueAssignmentPanel({
       refetchSuggestions()
       refetchAllFixtures()
       refetchCapacity()
+      refetchSlotPool()
       if (onRefresh) onRefresh()
     } catch (e) {
       toastApiError(e)
@@ -273,6 +320,7 @@ export default function LeagueAssignmentPanel({
       refetchSuggestions()
       refetchAllFixtures()
       refetchCapacity()
+      refetchSlotPool()
       if (onRefresh) onRefresh()
     } catch (e) {
       toastApiError(e)
@@ -288,19 +336,23 @@ export default function LeagueAssignmentPanel({
       const res = await api.post(`/committee/tournaments/${tournament.id}/league/fixtures/${postponeFixture.id}/postpone`, {
         reason: postponeReason,
         note: postponeNote || undefined,
+        freed_action: freedAction,
       })
       toast.success(res.data?.message || 'تم تأجيل المباراة بنجاح')
       const targetFixture = postponeFixture
       setPostponeFixture(null)
       setPostponeNote('')
-      setPostponeReason('rain')
+      setPostponeReason('team_circumstances')
+      setFreedAction('freed')
+
+      // Automatically navigate to freed slots tab
+      setActiveSubTab('slot_pool')
+
       refetchAllFixtures()
       refetchSuggestions()
       refetchCapacity()
+      refetchSlotPool()
       if (onRefresh) onRefresh()
-
-      // Immediately fetch and display suggestions for the postponed match
-      openRescheduleSuggestions(targetFixture)
     } catch (e) {
       toastApiError(e)
     } finally {
@@ -339,11 +391,155 @@ export default function LeagueAssignmentPanel({
       refetchAllFixtures()
       refetchSuggestions()
       refetchCapacity()
+      refetchSlotPool()
       if (onRefresh) onRefresh()
     } catch (e) {
       toastApiError(e)
     } finally {
       setApplyingSuggestionId(null)
+    }
+  }
+
+  const handleOpenMoveToOwnSlot = async (fixture) => {
+    setMoveToOwnSlotFixture(fixture)
+    setLoadingMoveToOwnSlots(true)
+    setMoveToOwnSlotsList([])
+    try {
+      const [resHome, resAway] = await Promise.all([
+        api.get(`/committee/tournaments/${tournament.id}/league/fixtures/${fixture.id}/host-slot-suggestions?host_team_id=${fixture.home_team_id}`),
+        api.get(`/committee/tournaments/${tournament.id}/league/fixtures/${fixture.id}/host-slot-suggestions?host_team_id=${fixture.away_team_id}`)
+      ])
+      const homeSlots = (resHome.data?.data || []).map(s => ({ ...s, team_name: fixture.home_team?.name }))
+      const awaySlots = (resAway.data?.data || []).map(s => ({ ...s, team_name: fixture.away_team?.name }))
+      setMoveToOwnSlotsList([...homeSlots, ...awaySlots])
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setLoadingMoveToOwnSlots(false)
+    }
+  }
+
+  const handleApplyMoveToOwnSlot = async (slot) => {
+    if (!moveToOwnSlotFixture) return
+    try {
+      const res = await api.post(`/committee/tournaments/${tournament.id}/league/fixtures/${moveToOwnSlotFixture.id}/move-to-own-slot`, {
+        booking_id: slot.booking_id,
+        date: slot.date,
+      })
+      toast.success(res.data?.message || 'تم نقل المباراة بنجاح')
+      setMoveToOwnSlotFixture(null)
+      refetchAllFixtures()
+      refetchSuggestions()
+      refetchSlotPool()
+      if (onRefresh) onRefresh()
+    } catch (err) {
+      toastApiError(err)
+    }
+  }
+
+  const handleQuickAssignClick = (fixture, slot) => {
+    setQuickAssignFixture(fixture)
+    setQuickAssignSlot(slot)
+    if (slot.owner_team_id === fixture.home_team_id || slot.owner_team_id === fixture.away_team_id) {
+      setSelectedQuickHostId(slot.owner_team_id)
+    } else {
+      setSelectedQuickHostId(fixture.home_team_id)
+    }
+  }
+
+  const handleDirectAssignSlotToFixture = async (fixture, slot) => {
+    try {
+      const hostTeamId = (slot.owner_team_id === fixture.home_team_id || slot.owner_team_id === fixture.away_team_id)
+        ? slot.owner_team_id
+        : (fixture.home_team_id || fixture.home_team?.id)
+
+      const res = await api.post(`/committee/tournaments/${tournament.id}/league/fixtures/${fixture.id}/quick-assign`, {
+        booking_id: slot.booking_id,
+        date: slot.date,
+        host_team_id: hostTeamId,
+      })
+      const updatedFixture = res.data?.data
+      refetchAllFixtures()
+      refetchSuggestions()
+      refetchSlotPool()
+      refetchCapacity()
+      if (onRefresh) onRefresh()
+
+      toast.success(res.data?.message || 'تم تعيين الموعد للمواجهة بنجاح', {
+        duration: 9000,
+        action: {
+          label: 'تراجع ↩',
+          onClick: async () => {
+            try {
+              const undoRes = await api.post(`/committee/tournaments/${tournament.id}/league/fixtures/${updatedFixture.id}/undo-change`)
+              toast.info(undoRes.data?.message || 'تم التراجع بنجاح')
+              refetchAllFixtures()
+              refetchSuggestions()
+              refetchSlotPool()
+              refetchCapacity()
+              if (onRefresh) onRefresh()
+            } catch (err) {
+              toastApiError(err)
+            }
+          },
+        },
+      })
+    } catch (e) {
+      toastApiError(e)
+    }
+  }
+
+  const handleConfirmQuickAssign = async () => {
+    if (!quickAssignFixture || !quickAssignSlot) return
+    setQuickAssignBusy(true)
+    try {
+      const res = await api.post(`/committee/tournaments/${tournament.id}/league/fixtures/${quickAssignFixture.id}/quick-assign`, {
+        booking_id: quickAssignSlot.booking_id,
+        date: quickAssignSlot.date,
+        host_team_id: selectedQuickHostId,
+      })
+      const updatedFixture = res.data?.data
+      setQuickAssignFixture(null)
+      setQuickAssignSlot(null)
+      refetchAllFixtures()
+      refetchSuggestions()
+      refetchSlotPool()
+      if (onRefresh) onRefresh()
+
+      toast.success(res.data?.message || 'تم تعيين الموعد بنجاح', {
+        duration: 9000,
+        action: {
+          label: 'تراجع ↩',
+          onClick: async () => {
+            try {
+              const undoRes = await api.post(`/committee/tournaments/${tournament.id}/league/fixtures/${updatedFixture.id}/undo-change`)
+              toast.info(undoRes.data?.message || 'تم التراجع بنجاح')
+              refetchAllFixtures()
+              refetchSuggestions()
+              refetchSlotPool()
+              if (onRefresh) onRefresh()
+            } catch (err) {
+              toastApiError(err)
+            }
+          }
+        }
+      })
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setQuickAssignBusy(false)
+    }
+  }
+
+  const handleReclaimOccurrence = async (occurrenceId) => {
+    try {
+      const res = await api.post(`/committee/tournaments/${tournament.id}/league/occurrences/${occurrenceId}/reclaim`)
+      toast.success(res.data?.message || 'تم استرجاع الموعد لصاحبه')
+      refetchSlotPool()
+      refetchSuggestions()
+      if (onRefresh) onRefresh()
+    } catch (err) {
+      toastApiError(err)
     }
   }
 
@@ -388,7 +584,7 @@ export default function LeagueAssignmentPanel({
 
   useEffect(() => {
     if (leagueWeeks && leagueWeeks.length > 0) {
-      if (!activeWeekId || (activeWeekId !== 'unscheduled' && !leagueWeeks.some((w) => w.id === activeWeekId))) {
+      if (!activeWeekId || (activeWeekId !== 'unscheduled' && activeWeekId !== 'all' && !leagueWeeks.some((w) => w.id === activeWeekId))) {
         setActiveWeekId(getDefaultWeekId(leagueWeeks, leagueUnscheduled))
       }
     } else if ((!leagueWeeks || leagueWeeks.length === 0) && (!activeWeekId || activeWeekId !== 'unscheduled')) {
@@ -401,33 +597,101 @@ export default function LeagueAssignmentPanel({
   const waitingFixtures = allFixtures?.filter((f) => !f.scheduled_at || f.status === 'waiting_for_booking') || []
   const exceptionsFixtures = allFixtures?.filter((f) => Boolean(f.unscheduled_reason) || f.status === 'rescheduling_required') || []
 
+  const actionRequiredFixtures = useMemo(() => {
+    return (allFixtures || []).filter(
+      (f) =>
+        !f.scheduled_at ||
+        f.status === 'postponed' ||
+        f.status === 'waiting_for_booking' ||
+        f.status === 'rescheduling_required' ||
+        Boolean(f.unscheduled_reason) ||
+        f.delegated_submission?.status === 'pending'
+    )
+  }, [allFixtures])
+  const actionRequiredCount = actionRequiredFixtures.length
+
+  const teamsList = useMemo(() => {
+    const map = new Map()
+    ;(allFixtures || []).forEach((f) => {
+      const h = f.home_team || f.homeTeam
+      const a = f.away_team || f.awayTeam
+      const hName = h?.name || h?.team_name
+      const aName = a?.name || a?.team_name
+      if (h?.id && hName) map.set(String(h.id), { id: h.id, name: hName })
+      if (a?.id && aName) map.set(String(a.id), { id: a.id, name: aName })
+    })
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'))
+  }, [allFixtures])
+
   // Filtered fixtures
   const filteredFixtures = useMemo(() => {
     let list = allFixtures || []
-    if (activeWeekId === 'unscheduled') {
-      list = leagueUnscheduled
-    } else if (activeWeekId) {
-      const found = leagueWeeks.find((w) => w.id === activeWeekId)
-      list = found ? found.fixtures : []
+
+    if (viewMode === 'action_required') {
+      list = actionRequiredFixtures
+    } else if (viewMode === 'rounds') {
+      if (matchdayFilter !== 'all') {
+        list = list.filter((f) => String(f.matchday) === String(matchdayFilter))
+      }
+    } else {
+      // chronological mode
+      if (activeWeekId === 'unscheduled') {
+        list = leagueUnscheduled
+      } else if (activeWeekId && activeWeekId !== 'all') {
+        const found = leagueWeeks.find((w) => w.id === activeWeekId)
+        list = found ? found.fixtures : []
+      } else {
+        // activeWeekId === 'all': all fixtures
+        list = allFixtures || []
+      }
+
+      if (matchdayFilter !== 'all') {
+        list = list.filter((f) => String(f.matchday) === String(matchdayFilter))
+      }
+
+      if (statusFilter !== 'all') {
+        list = list.filter((f) => {
+          const isScheduled = Boolean(f.scheduled_at) && f.status !== 'waiting_for_booking'
+          const isPlayed = f.status === 'played' || f.match?.status === 'finished'
+          const isWaitingOrException =
+            !f.scheduled_at ||
+            f.status === 'waiting_for_booking' ||
+            f.status === 'postponed' ||
+            f.status === 'rescheduling_required' ||
+            Boolean(f.unscheduled_reason)
+
+          if (statusFilter === 'scheduled') return isScheduled && !isPlayed
+          if (statusFilter === 'played') return isPlayed
+          if (statusFilter === 'waiting') return isWaitingOrException && !isPlayed
+          if (statusFilter === 'unscheduled') return Boolean(f.unscheduled_reason) || f.status === 'rescheduling_required'
+          return true
+        })
+      }
     }
 
-    if (matchdayFilter !== 'all') {
-      list = list.filter((f) => String(f.matchday) === String(matchdayFilter))
+    // Universal Team Filter (applies to chronological, rounds, action_required)
+    if (teamFilter !== 'all') {
+      const targetTeamId = String(teamFilter)
+      list = list.filter((f) => {
+        const hId = String(f.home_team_id ?? f.home_team?.id ?? f.homeTeam?.id ?? '')
+        const aId = String(f.away_team_id ?? f.away_team?.id ?? f.awayTeam?.id ?? '')
+        return hId === targetTeamId || aId === targetTeamId
+      })
     }
 
-    return list.filter((f) => {
-      const isScheduled = Boolean(f.scheduled_at) && f.status !== 'waiting_for_booking'
-      const isPlayed = f.status === 'played' || f.match?.status === 'finished'
-      const isWaitingOrException = !f.scheduled_at || f.status === 'waiting_for_booking' || f.status === 'postponed' || f.status === 'rescheduling_required' || Boolean(f.unscheduled_reason)
+    // Universal Day Filter (applies to chronological, rounds, action_required)
+    if (dayFilter !== 'all') {
+      const targetDay = String(dayFilter)
+      list = list.filter((f) => {
+        if (!f.scheduled_at) return false
+        const datePart = String(f.scheduled_at).split(' ')[0].split('T')[0]
+        const d = new Date(datePart + 'T12:00:00')
+        return String(d.getDay()) === targetDay
+      })
+    }
 
-      if (statusFilter === 'scheduled') return isScheduled && !isPlayed
-      if (statusFilter === 'played') return isPlayed
-      if (statusFilter === 'waiting') return isWaitingOrException && !isPlayed
-      if (statusFilter === 'unscheduled') return Boolean(f.unscheduled_reason) || f.status === 'rescheduling_required'
-      if (statusFilter === 'all') return true
-      return true
-    })
-  }, [allFixtures, activeWeekId, leagueWeeks, leagueUnscheduled, matchdayFilter, statusFilter])
+    return list
+  }, [allFixtures, viewMode, activeWeekId, leagueWeeks, leagueUnscheduled, matchdayFilter, statusFilter, teamFilter, dayFilter, actionRequiredFixtures])
 
   const dayGroups = useMemo(() => {
     return groupFixturesByDay(filteredFixtures, 'ar')
@@ -607,6 +871,18 @@ export default function LeagueAssignmentPanel({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => setActiveSubTab('fixtures')}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors ${
+                activeSubTab === 'fixtures'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              <CalendarDays className="size-4 text-emerald-400" />
+              برنامج الدوري ({totalFixtures})
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveSubTab('suggestions')}
               className={`relative flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors ${
                 activeSubTab === 'suggestions'
@@ -624,15 +900,20 @@ export default function LeagueAssignmentPanel({
             </button>
             <button
               type="button"
-              onClick={() => setActiveSubTab('fixtures')}
+              onClick={() => setActiveSubTab('slot_pool')}
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-colors ${
-                activeSubTab === 'fixtures'
+                activeSubTab === 'slot_pool'
                   ? 'bg-slate-900 text-white shadow-sm'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              <CalendarDays className="size-4 text-green-500" />
-              كافة مواجهات الدوري ({totalFixtures})
+              <Sparkles className="size-4 text-emerald-400" />
+              مجموعة المواعيد المحررة (البديلة)
+              {allAvailableSlots.length > 0 && (
+                <span className="ms-1 flex size-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black text-white">
+                  {allAvailableSlots.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -796,21 +1077,182 @@ export default function LeagueAssignmentPanel({
       {/* VIEW 2: ALL FIXTURES */}
       {activeSubTab === 'fixtures' && totalFixtures > 0 && (
         <div className="space-y-4">
-          {/* Header Row: Title & Subtitle */}
+          {/* Header Row: Title & Subtitle + 3-Way Apple View Switcher + Filters */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-emerald-100 bg-emerald-50 text-emerald-600 shadow-2xs">
                 <Calendar className="size-5" />
               </div>
               <div>
-                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">المباريات</h3>
-                <p className="text-xs font-semibold text-slate-400 mt-0.5">جدول مباريات الدوري وإدارتها بالأسابيع</p>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">برنامج الدوري</h3>
+                <p className="text-xs font-semibold text-slate-400 mt-0.5">
+                  {viewMode === 'chronological' && 'عرض جدول المباريات حسب الترتيب الزمني والأسابيع'}
+                  {viewMode === 'rounds' && 'عرض جدول المباريات مجمعة حسب الجولات'}
+                  {viewMode === 'action_required' && 'المباريات التي تتطلب إجراء (مؤجلة أو بانتظار توقيت)'}
+                </p>
+              </div>
+            </div>
+
+            {/* Controls: Filters placed right next to 'الترتيب الزمني' in Apple 3-way View Control */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Day Filter */}
+              <div className="relative min-w-[115px]">
+                <select
+                  value={dayFilter}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setDayFilter(val)
+                    if (val !== 'all' && activeWeekId !== 'all') {
+                      setActiveWeekId('all')
+                    }
+                  }}
+                  className={`w-full appearance-none rounded-2xl border py-2 pe-7 ps-3 text-xs font-bold transition shadow-2xs cursor-pointer ${
+                    dayFilter !== 'all'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-950 font-black ring-1 ring-emerald-500/30'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <option value="all">كل الأيام 📅</option>
+                  <option value="5">الجمعة</option>
+                  <option value="6">السبت</option>
+                  <option value="0">الأحد</option>
+                  <option value="1">الإثنين</option>
+                  <option value="2">الثلاثاء</option>
+                  <option value="3">الأربعاء</option>
+                  <option value="4">الخميس</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute end-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+              </div>
+
+              {/* Team Filter */}
+              <div className="relative min-w-[145px] max-w-[210px]">
+                <select
+                  value={teamFilter}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setTeamFilter(val)
+                    if (val !== 'all' && activeWeekId !== 'all') {
+                      setActiveWeekId('all')
+                    }
+                  }}
+                  className={`w-full appearance-none truncate rounded-2xl border py-2 pe-7 ps-3 text-xs font-bold transition shadow-2xs cursor-pointer ${
+                    teamFilter !== 'all'
+                      ? 'border-emerald-500 bg-emerald-50 text-emerald-950 font-black ring-1 ring-emerald-500/30'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  <option value="all">كل الفرق ({teamsList.length}) 👥</option>
+                  {teamsList.map((tm) => (
+                    <option key={tm.id} value={tm.id}>
+                      {tm.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute end-2.5 top-1/2 size-3.5 -translate-y-1/2 text-slate-400" />
+              </div>
+
+              {/* Reset Filters Button */}
+              {(teamFilter !== 'all' || dayFilter !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeamFilter('all')
+                    setDayFilter('all')
+                  }}
+                  className="flex items-center gap-1 rounded-2xl border border-rose-200 bg-rose-50 px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-100 transition shadow-2xs active:scale-95"
+                  title="إلغاء الفلاتر"
+                >
+                  <X className="size-3.5" />
+                  <span>إلغاء</span>
+                </button>
+              )}
+
+              {/* Apple-inspired 3-way View Control (starts with 'الترتيب الزمني') */}
+              <div className="flex items-center p-1 rounded-2xl bg-slate-100 border border-slate-200/60 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('chronological')
+                  }}
+                  className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
+                    viewMode === 'chronological'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Clock className="size-3.5 text-emerald-600" />
+                  الترتيب الزمني
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('rounds')
+                  }}
+                  className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
+                    viewMode === 'rounds'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <CalendarDays className="size-3.5 text-blue-600" />
+                  حسب الجولات
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewMode('action_required')
+                  }}
+                  className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-black transition-all ${
+                    viewMode === 'action_required'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <AlertCircle className="size-3.5 text-amber-500" />
+                  تحتاج إلى إجراء
+                  {actionRequiredCount > 0 && (
+                    <span className="ms-1 flex size-4 items-center justify-center rounded-full bg-amber-500 text-[10px] font-black text-white">
+                      {actionRequiredCount}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Week Selector */}
-          {leagueWeeks.length > 0 && (
+          {/* If viewMode === 'rounds', show Round Pills */}
+          {viewMode === 'rounds' && matchdays.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => setMatchdayFilter('all')}
+                className={`rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
+                  matchdayFilter === 'all'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                كل الجولات
+              </button>
+              {matchdays.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setMatchdayFilter(String(m))}
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
+                    String(matchdayFilter) === String(m)
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  الجولة {m}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Week Selector in chronological mode */}
+          {viewMode === 'chronological' && leagueWeeks.length > 0 && (
             <LeagueWeekSelector
               weeks={leagueWeeks}
               activeWeekId={activeWeekId}
@@ -820,31 +1262,39 @@ export default function LeagueAssignmentPanel({
             />
           )}
 
-          {/* Segmented Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            {[
-              { id: 'scheduled', label: 'القادمة' },
-              { id: 'played', label: 'المنتهية' },
-              { id: 'waiting', label: 'المؤجلة' },
-              { id: 'all', label: 'الكل' },
-            ].map((tab) => {
-              const active = statusFilter === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setStatusFilter(tab.id)}
-                  className={`rounded-full px-4 py-1.5 text-xs font-black transition-all duration-150 ${
-                    active
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
+          {/* Status Filter Bar (Chronological mode) */}
+          {viewMode === 'chronological' && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-2 sm:px-3 shadow-2xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto">
+                {[
+                  { id: 'all', label: 'الكل' },
+                  { id: 'scheduled', label: 'القادمة' },
+                  { id: 'played', label: 'المنتهية' },
+                  { id: 'waiting', label: 'المؤجلة' },
+                ].map((tab) => {
+                  const active = statusFilter === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setStatusFilter(tab.id)}
+                      className={`rounded-full px-3.5 py-1.5 text-xs font-black transition-all duration-150 ${
+                        active
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="text-xs font-bold text-slate-500 pe-2">
+                <span>{filteredFixtures.length} مباراة</span>
+              </div>
+            </div>
+          )}
 
           {/* Fixtures List */}
           {filteredFixtures.length === 0 ? (
@@ -878,13 +1328,17 @@ export default function LeagueAssignmentPanel({
                       onManageMatch={(f) => setManagingFixture(f)}
                       onReschedule={onReschedule}
                       onUnassign={handleUnassign}
+                      onMoveToOwnSlot={(f) => handleOpenMoveToOwnSlot(f)}
+                      nearestSlot={nearestSlotMap[fixture.id]}
+                      onQuickAssign={(f, s) => handleQuickAssignClick(f, s)}
                       onSwapOpponent={(f) => {
                         setOpponentSwapFixture(f)
                         setSelectedNewOpponentId('')
                       }}
                       onPostpone={(f) => {
                         setPostponeFixture(f)
-                        setPostponeReason('rain')
+                        setPostponeReason('team_circumstances')
+                        setFreedAction('freed')
                         setPostponeNote('')
                       }}
                       onRescheduleSuggestion={(f) => openRescheduleSuggestions(f)}
@@ -892,6 +1346,234 @@ export default function LeagueAssignmentPanel({
                   ))}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VIEW 3: UNUSED SLOT POOL (Step 3) */}
+      {activeSubTab === 'slot_pool' && (
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+                <Sparkles className="size-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">مجموعة المواعيد المحررة والبديلة للبطولة</h3>
+                <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                  مواعيد محررة تلبي قواعد الراحة وصلاحية الملاعب، مخصصة لجدولة المباريات المعلقة أو المؤجلة بنقرة واحدة.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-bold text-slate-600">
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-emerald-800">
+                <CheckCircle2 className="size-3.5 text-emerald-600" />
+                المواعيد المؤكدة المتاحة: {defaultPool.length}
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-1.5 text-amber-800">
+                <AlertTriangle className="size-3.5 text-amber-600" />
+                مواعيد لفرق لم تنه مبارياتها: {secondaryPool.length}
+              </span>
+            </div>
+          </div>
+
+          {/* Section 1: Default Pool */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+              <span>المواعيد الجاهزة للاستعمال فوراً</span>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-600">
+                {defaultPool.length}
+              </span>
+            </h4>
+
+            {slotPoolLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-2">
+                <Loader2 className="size-7 animate-spin text-emerald-600" />
+                <p className="text-xs font-bold text-slate-400">جاري فحص مجموعة المواعيد وصلاحيتها...</p>
+              </div>
+            ) : defaultPool.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/70 p-8 text-center space-y-2">
+                <CalendarCheck className="mx-auto size-9 text-slate-300" />
+                <h4 className="text-sm font-black text-slate-700">لا توجد مواعيد شاغرة حالياً في المجموعة الأساسية</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
+                  تظهر هنا المواعيد بعد انتهاء مباريات أي فريق أو عند إتاحة المواعيد للبطولة أو بعد تأجيل المباريات.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {defaultPool.map((slot) => (
+                  <div
+                    key={slot.id}
+                    className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-4 shadow-2xs hover:border-emerald-300 transition-all space-y-3"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-black text-emerald-800">
+                          {slot.day_name} • {slot.date}
+                        </span>
+                        <span className="flex items-center gap-1 text-xs font-bold text-slate-600">
+                          <Clock className="size-3 text-slate-400" />
+                          {slot.time}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                          <MapPin className="size-3.5 text-slate-400 shrink-0" />
+                          <span>{slot.stadium?.name}</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          يخص: <strong className="text-slate-800">{slot.owner_team_name}</strong>
+                        </span>
+                      </div>
+
+                      <div className="pt-1">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-extrabold ${
+                          slot.pool_tag === 'postpone_freed'
+                            ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                            : slot.pool_tag === 'released'
+                            ? 'bg-sky-100 text-sky-800'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          <Sparkles className="size-2.5" />
+                          <span>{slot.source_label}</span>
+                        </span>
+                      </div>
+
+                      {/* Eligible matches satisfying conditions */}
+                      {slot.eligible_fixtures && slot.eligible_fixtures.length > 0 ? (
+                        <div className="mt-2.5 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-2.5 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-black text-emerald-950">
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle2 className="size-3.5 text-emerald-600" />
+                              <span>المواجهات المؤهلة للاستفادة ({slot.eligible_fixtures.length}):</span>
+                            </div>
+                            <span className="text-[10px] text-emerald-700 font-bold">مستوفية لشروط الراحة والملاعب ✅</span>
+                          </div>
+
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto pe-0.5">
+                            {slot.eligible_fixtures.map((ef) => (
+                              <div
+                                key={ef.id}
+                                className="flex items-center justify-between gap-2 rounded-xl bg-white p-2 border border-emerald-100 shadow-2xs"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                                    <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-black text-slate-600 shrink-0">
+                                      جولة {ef.matchday}
+                                    </span>
+                                    <span className="truncate">{ef.home_team?.name} ضد {ef.away_team?.name}</span>
+                                  </div>
+                                  {ef.borrowed_label && (
+                                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                                      🏷️ {ef.borrowed_label}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <Button
+                                  size="sm"
+                                  className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold h-7 px-2.5 shadow-2xs"
+                                  onClick={() => handleDirectAssignSlotToFixture(ef, slot)}
+                                >
+                                  <Zap className="size-3 me-1" />
+                                  برمجة
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-2 rounded-xl bg-slate-50 border border-slate-200/60 p-2 text-center text-[11px] font-semibold text-slate-500">
+                          لا توجد مباريات معلقة حالياً تتطابق مع شروط هذا الموعد
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-2.5">
+                      {slot.pool_tag === 'released' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs text-slate-600 hover:bg-slate-100"
+                          onClick={() => handleReclaimOccurrence(slot.booking_id)}
+                        >
+                          استرجاع الموعد
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs font-bold px-3.5 border-slate-200 text-slate-700 hover:bg-slate-50"
+                        onClick={() => setSlotPoolFixturePicker(slot)}
+                      >
+                        اختيار مواجهة أخرى
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Secondary Collapsed Pool */}
+          {secondaryPool.length > 0 && (
+            <div className="rounded-3xl border border-amber-200/80 bg-amber-50/30 p-4 space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowSecondaryPool(!showSecondaryPool)}
+                className="w-full flex items-center justify-between text-start text-xs font-black text-amber-950"
+              >
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="size-4 text-amber-600" />
+                  <span>مواعيد لفرق لم تكمل كافة مبارياتها (قد يحتاجها فريقها لاحقاً) ({secondaryPool.length})</span>
+                </div>
+                <ChevronDown className={`size-4 text-amber-700 transition-transform ${(showSecondaryPool || defaultPool.length === 0) ? 'rotate-180' : ''}`} />
+              </button>
+
+              {(showSecondaryPool || defaultPool.length === 0) && (
+                <div className="space-y-3 pt-2">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 font-semibold leading-relaxed">
+                    تنبيه: هذه المواعيد تخص فرقاً لديها مواجهات غير ملعوبة في جدول الدوري، تعيينها لمباراة أخرى يعد ممكناً تنظيمياً لكن قد يؤثر على مرونة جدولة مباريات الفريق المالك لاحقاً.
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {secondaryPool.map((slot) => (
+                      <div
+                        key={slot.id}
+                        className="flex flex-col justify-between rounded-2xl border border-amber-200/90 bg-white p-3.5 space-y-2.5 shadow-2xs"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="rounded-lg bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-900">
+                              {slot.day_name} • {slot.date}
+                            </span>
+                            <span className="text-xs font-bold text-slate-600">{slot.time}</span>
+                          </div>
+                          <div className="text-xs font-bold text-slate-800">
+                            {slot.stadium?.name} • يخص: <span className="text-amber-800">{slot.owner_team_name}</span>
+                          </div>
+                          <p className="text-[11px] font-semibold text-amber-800">
+                            {slot.warning}
+                          </p>
+                        </div>
+                        <div className="flex justify-end pt-2 border-t border-slate-100">
+                          <Button
+                            size="sm"
+                            className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3"
+                            onClick={() => setSlotPoolFixturePicker(slot)}
+                          >
+                            تعيين لمباراة معلقة
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1208,60 +1890,64 @@ export default function LeagueAssignmentPanel({
 
       {/* MODAL A: Postpone Match Dialog with Reason Selector */}
       {postponeFixture && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setPostponeFixture(null)}
           />
-          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="relative w-full max-w-lg max-h-[92vh] flex flex-col rounded-3xl bg-white shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-3.5">
               <div className="flex items-center gap-2">
                 <Clock4 className="size-5 text-amber-600" />
                 <h3 className="text-sm font-black text-slate-900">تأجيل المباراة</h3>
               </div>
               <button
                 type="button"
-                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
                 onClick={() => setPostponeFixture(null)}
               >
                 <X className="size-5" />
               </button>
             </div>
 
-            <div className="space-y-4 text-xs">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 space-y-1.5 font-bold">
-                <div className="flex items-center justify-between text-slate-700">
-                  <span>المواجهة:</span>
-                  <span className="text-slate-900">
+            {/* Scrollable / auto body */}
+            <div className="flex-1 overflow-y-auto px-5 py-3.5 space-y-3 text-xs">
+              {/* Fixture preview */}
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 px-3 py-2 flex flex-wrap items-center justify-between gap-2 font-bold text-slate-800">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400 text-[11px]">المواجهة:</span>
+                  <span className="text-slate-900 font-black">
                     {postponeFixture.home_team?.name} ضد {postponeFixture.away_team?.name}
                   </span>
                 </div>
                 {postponeFixture.scheduled_at && (
-                  <div className="flex items-center justify-between text-slate-500 text-[11px]">
-                    <span>الموعد الأصلي:</span>
-                    <span dir="ltr">{postponeFixture.scheduled_at}</span>
+                  <div className="flex items-center gap-1 text-slate-500 text-[11px]">
+                    <span className="text-slate-400">الموعد:</span>
+                    <span dir="ltr" className="font-semibold text-slate-700">{postponeFixture.scheduled_at}</span>
                   </div>
                 )}
               </div>
 
+              {/* Reasons */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   سبب التأجيل:
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {[
                     { id: 'rain', label: 'أمطار 🌧️' },
                     { id: 'pitch_condition', label: 'ظروف الملعب 🏟️' },
-                    { id: 'team_circumstances', label: 'ظروف أحد الفريقين 👥' },
+                    { id: 'team_circumstances', label: 'ظروف الفريقين 👥' },
                     { id: 'other', label: 'أخرى 📝' },
                   ].map((r) => (
                     <button
                       key={r.id}
                       type="button"
                       onClick={() => setPostponeReason(r.id)}
-                      className={`rounded-xl border p-2.5 text-xs font-bold text-center transition-all ${
+                      className={`rounded-xl border py-2 px-2 text-xs font-bold text-center transition-all ${
                         postponeReason === r.id
-                          ? 'border-amber-500 bg-amber-50/80 text-amber-900 shadow-2xs'
+                          ? 'border-amber-500 bg-amber-50/90 text-amber-900 shadow-2xs'
                           : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       }`}
                     >
@@ -1271,34 +1957,87 @@ export default function LeagueAssignmentPanel({
                 </div>
               </div>
 
+              {/* Freed action options for non-weather reasons */}
+              {!['rain', 'pitch_condition'].includes(postponeReason) && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3 space-y-2">
+                  <label className="block text-xs font-black text-amber-950">
+                    خيارات الموعد المحرر بعد التأجيل:
+                  </label>
+                  <div className="space-y-1.5">
+                    {[
+                      {
+                        id: 'freed',
+                        title: '1. تحرير الموعد وإتاحته للبطولة (الافتراضي)',
+                        desc: 'يضاف مباشرة لمجموعة المواعيد المتاحة للمباريات المعلقة والمؤجلة في البطولة.',
+                      },
+                      {
+                        id: 'release_to_tournament',
+                        title: '2. إتاحة الموعد لطلب حجز فرق البطولة',
+                        desc: 'يتاح لفرق البطولة فقط لطلب الحجز، ويسترد تلقائياً إذا لم يُحجز.',
+                      },
+                      {
+                        id: 'keep_reserved',
+                        title: '3. إبقاؤه محجوزاً لصاحب الحجز',
+                        desc: 'يبقى الموعد محجوزاً لصاحب الاشتراك الأسبوعي ولا يتاح للفرق الأخرى.',
+                      },
+                    ].map((opt) => (
+                      <label
+                        key={opt.id}
+                        className={`flex items-start gap-2 rounded-xl border p-2 cursor-pointer transition ${
+                          freedAction === opt.id
+                            ? 'border-amber-500 bg-white shadow-2xs'
+                            : 'border-slate-200/80 bg-white/70 hover:bg-white'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="freedAction"
+                          value={opt.id}
+                          checked={freedAction === opt.id}
+                          onChange={() => setFreedAction(opt.id)}
+                          className="mt-0.5 text-amber-600 focus:ring-amber-500"
+                        />
+                        <div className="text-[11px] leading-tight">
+                          <span className="font-bold text-slate-900 block">{opt.title}</span>
+                          <span className="text-slate-500 font-normal">{opt.desc}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Note */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700 mb-1">
                   ملاحظة إضافية (اختياري):
                 </label>
                 <textarea
-                  className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none"
-                  rows={2}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 focus:border-amber-500 focus:outline-none resize-none"
+                  rows={1}
                   placeholder="أدخل أي تفاصيل أو أسباب إضافية..."
                   value={postponeNote}
                   onChange={(e) => setPostponeNote(e.target.value)}
                 />
               </div>
 
-              <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-3 text-[11px] leading-relaxed text-amber-900 font-semibold">
-                سيتم حفظ سبب التأجيل على المباراة، وإلغاء حجز الملعب ليعود متاحاً فوراً، وإشعار مديري الفريقين عبر الواتساب والمنصة، وفتح نافذة الاقتراحات المتاحة لإعادة الجدولة.
+              {/* Brief info */}
+              <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-[10px] leading-relaxed text-amber-900 font-medium">
+                💡 سيتم حفظ سبب التأجيل، وإلغاء حجز الملعب ليعود متاحاً فوراً، وإشعار المديرين عبر الواتساب والمنصة، وفتح نافذة اقتراحات إعادة الجدولة.
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+            {/* Footer Buttons - Always Visible (shrink-0) */}
+            <div className="shrink-0 flex items-center justify-end gap-2 border-t border-slate-100 px-5 py-3 bg-slate-50/50">
               <Button
                 variant="outline"
-                className="text-xs"
+                className="text-xs h-9 px-3.5"
                 onClick={() => setPostponeFixture(null)}
               >
                 إلغاء
               </Button>
               <Button
-                className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4"
+                className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold h-9 px-4 shadow-sm"
                 disabled={postponeBusy}
                 onClick={handlePostponeSubmit}
               >
@@ -1545,6 +2284,199 @@ export default function LeagueAssignmentPanel({
             if (onReschedule) onReschedule(f)
           }}
         />
+      )}
+
+      {/* Modal 1: Move to Own Slot Dialog (Step 2.1) */}
+      {moveToOwnSlotFixture && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setMoveToOwnSlotFixture(null)}
+          />
+          <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-5 text-purple-600" />
+                <h3 className="text-sm font-black text-slate-900">نقل المباراة إلى موعد أحد الفريقين</h3>
+              </div>
+              <button
+                type="button"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                onClick={() => setMoveToOwnSlotFixture(null)}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed font-semibold">
+              اختر أحد المواعيد الأسبوعية الشاغرة لأحد فريقي المباراة. سيتم نقل المباراة فوراً، إزالة وسم التوقيت المستعار، وإرجاع الموعد المستعار السابق لمجموعة البطولة:
+            </p>
+
+            {loadingMoveToOwnSlots ? (
+              <div className="py-8 flex flex-col items-center justify-center gap-2">
+                <Loader2 className="size-6 animate-spin text-purple-600" />
+                <p className="text-xs font-bold text-slate-400">جاري فحص مواعيد الفريقين...</p>
+              </div>
+            ) : moveToOwnSlotsList.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-xs text-slate-500 font-bold">
+                لا تتوفر فترات حجز شاغرة لأي من الفريقين تلبي قواعد الراحة.
+              </div>
+            ) : (
+              <div className="space-y-2.5 max-h-60 overflow-y-auto">
+                {moveToOwnSlotsList.map((slot) => (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    onClick={() => handleApplyMoveToOwnSlot(slot)}
+                    className="w-full flex items-center justify-between rounded-2xl border border-slate-200 p-3 hover:border-purple-400 hover:bg-purple-50/50 transition text-start"
+                  >
+                    <div className="text-xs space-y-1">
+                      <div className="font-extrabold text-slate-900">
+                        {slot.day_name} • {slot.date} ({slot.time})
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-semibold">
+                        {slot.stadium?.name} • حجز فريق: <strong className="text-purple-700">{slot.team_name}</strong>
+                      </div>
+                    </div>
+                    <span className="rounded-xl bg-purple-600 text-white text-[11px] font-black px-3 py-1 shadow-2xs">
+                      نقل فوراً
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Quick Assign Confirm Dialog (Step 3.4) */}
+      {quickAssignFixture && quickAssignSlot && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => { setQuickAssignFixture(null); setQuickAssignSlot(null); }}
+          />
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-5 text-emerald-600" />
+                <h3 className="text-sm font-black text-slate-900">تأكيد تعيين الموعد الأقرب</h3>
+              </div>
+              <button
+                type="button"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                onClick={() => { setQuickAssignFixture(null); setQuickAssignSlot(null); }}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-3.5 space-y-2 text-xs font-bold text-slate-800">
+              <div className="flex justify-between">
+                <span className="text-slate-500">المواجهة:</span>
+                <span>{quickAssignFixture.home_team?.name} ضد {quickAssignFixture.away_team?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">الموعد:</span>
+                <span>{quickAssignSlot.day_name} {quickAssignSlot.date} ({quickAssignSlot.time})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">الملعب:</span>
+                <span>{quickAssignSlot.stadium?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">صاحب الحجز:</span>
+                <span className="text-emerald-800">{quickAssignSlot.owner_team_name}</span>
+              </div>
+            </div>
+
+            {/* Host Choice */}
+            <div className="space-y-1.5 text-xs">
+              <label className="block font-bold text-slate-700">الفريق المضيف:</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedQuickHostId(quickAssignFixture.home_team_id)}
+                  className={`rounded-xl border p-2 text-center font-bold text-xs transition ${selectedQuickHostId === quickAssignFixture.home_team_id ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-2xs" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+                >
+                  {quickAssignFixture.home_team?.name} (مضيف)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedQuickHostId(quickAssignFixture.away_team_id)}
+                  className={`rounded-xl border p-2 text-center font-bold text-xs transition ${selectedQuickHostId === quickAssignFixture.away_team_id ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-2xs" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+                >
+                  {quickAssignFixture.away_team?.name} (مضيف)
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => { setQuickAssignFixture(null); setQuickAssignSlot(null); }}
+              >
+                إلغاء
+              </Button>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4"
+                disabled={quickAssignBusy}
+                onClick={handleConfirmQuickAssign}
+              >
+                {quickAssignBusy ? <Loader2 className="me-1.5 size-3.5 animate-spin" /> : null}
+                تأكيد التعيين فوراً
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 3: Slot Pool Fixture Picker */}
+      {slotPoolFixturePicker && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setSlotPoolFixturePicker(null)}
+          />
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-5 text-emerald-600" />
+                <h3 className="text-sm font-black text-slate-900">اختر مباراة لتعيينها على هذا الموعد</h3>
+              </div>
+              <button
+                type="button"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                onClick={() => setSlotPoolFixturePicker(null)}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {(allFixtures || [])
+                .filter(f => !f.scheduled_at || f.status === 'waiting_for_booking' || f.status === 'rescheduling_required' || f.status === 'postponed')
+                .map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => {
+                      const chosenSlot = slotPoolFixturePicker;
+                      setSlotPoolFixturePicker(null);
+                      handleQuickAssignClick(f, chosenSlot);
+                    }}
+                    className="w-full flex items-center justify-between rounded-2xl border border-slate-200 p-3 hover:border-emerald-400 hover:bg-emerald-50/40 transition text-start text-xs font-bold"
+                  >
+                    <span>{f.home_team?.name} ضد {f.away_team?.name}</span>
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg">اختيار</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

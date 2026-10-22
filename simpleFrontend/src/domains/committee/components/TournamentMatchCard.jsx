@@ -88,6 +88,9 @@ export default function TournamentMatchCard({
   onDelegatedLink,
   onReviewSubmission,
   onManageMatch,
+  onMoveToOwnSlot,
+  nearestSlot,
+  onQuickAssign,
   isUnassigning = false,
   busy = false,
   locked = false,
@@ -99,7 +102,8 @@ export default function TournamentMatchCard({
   const isCancelled = fixture.status === 'cancelled' || fixture.match?.status === 'cancelled'
   const isPostponed = fixture.status === 'postponed' || fixture.match?.status === 'postponed'
   const hasScore = isPlayed || isLive || (fixture.match?.home_score !== null && fixture.match?.home_score !== undefined)
-  const isBorrowed = Boolean(fixture.match?.notes?.includes('توقيت مستعار'))
+  const isBorrowed = Boolean(fixture.is_borrowed || fixture.match?.notes?.includes('توقيت مستعار') || fixture.match?.notes?.includes('موعد مستعار'))
+  const borrowedOwner = fixture.borrowed_owner_name || (fixture.match?.notes ? fixture.match.notes.replace(/.*(فريق|من)\s+/, '') : null)
   const hasExceptionReason = Boolean(fixture.unscheduled_reason)
 
   const { toast } = useToast()
@@ -199,7 +203,7 @@ export default function TournamentMatchCard({
               {isBorrowed && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-[10px] font-extrabold text-purple-700">
                   <Sparkles className="size-3 text-purple-500" />
-                  <span>توقيت مستعار</span>
+                  <span>موعد مستعار{borrowedOwner ? (' من ' + borrowedOwner) : ''}</span>
                 </span>
               )}
 
@@ -361,6 +365,26 @@ export default function TournamentMatchCard({
         </div>
       </div>
 
+      {/* Step 3.4: Nearest Available Slot Banner */}
+      {!isScheduled && nearestSlot && onQuickAssign && !isPlayed && (
+        <div className="mt-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/90 p-2.5 text-xs">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Sparkles className="size-4 shrink-0 text-emerald-600" />
+            <span className="text-[11px] font-bold text-emerald-950 truncate">
+              أقرب موعد متاح: <strong>{nearestSlot.day_name} {nearestSlot.date} ({nearestSlot.time})</strong> في {nearestSlot.stadium?.name} (يخص {nearestSlot.owner_team_name})
+            </span>
+          </div>
+          <Button
+            size="sm"
+            className="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black px-3 py-1 rounded-xl shadow-2xs"
+            onClick={() => onQuickAssign(fixture, nearestSlot)}
+            disabled={busy || locked}
+          >
+            تعيين بنقرة واحدة
+          </Button>
+        </div>
+      )}
+
       {/* Bottom Action Buttons Row */}
       <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
         {/* Review Delegated Submission Button (if pending) */}
@@ -448,6 +472,20 @@ export default function TournamentMatchCard({
               </Button>
             )}
           </>
+        )}
+
+                {/* Step 2.1: Move Borrowed Match to Own Slot */}
+        {onMoveToOwnSlot && isBorrowed && !isPlayed && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1.5 rounded-xl border-purple-200 bg-purple-50 px-2.5 py-1.5 text-xs font-bold text-purple-800 hover:bg-purple-100 transition"
+            onClick={() => onMoveToOwnSlot(fixture)}
+            disabled={busy || locked}
+          >
+            <ArrowLeftRight className="size-3.5 text-purple-600" />
+            <span>نقل إلى موعد أحد الفريقين</span>
+          </Button>
         )}
 
         {/* Main Entry Point: تعديل المباراة */}

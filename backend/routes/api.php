@@ -895,6 +895,8 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
             Route::get('/league/suggestions', [TournamentLeagueController::class, 'suggestions']);
             Route::get('/league/capacity-check', [TournamentLeagueController::class, 'capacityCheck']);
+            Route::get('/league/unused-slot-pool', [TournamentLeagueController::class, 'unusedSlotPool']);
+            Route::get('/league/released-occurrences', [TournamentLeagueController::class, 'releasedOccurrences']);
             Route::get('/league/fixtures/{fixture}/postpone-suggestions', [TournamentLeagueController::class, 'postponementSuggestions']);
             Route::get('/league/fixtures/{fixture}/eligible-opponents', [TournamentLeagueController::class, 'eligibleOpponents']);
             Route::get('/league/fixtures/{fixture}/swap-schedule-candidates', [TournamentLeagueController::class, 'swapScheduleCandidates']);
@@ -908,6 +910,10 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::put('/league/fixtures/{fixture}/change-opponent', [TournamentLeagueController::class, 'changeOpponent']);
                 Route::post('/league/fixtures/{fixture}/postpone', [TournamentLeagueController::class, 'postpone']);
                 Route::post('/league/fixtures/{fixture}/reschedule-suggestion', [TournamentLeagueController::class, 'rescheduleWithSuggestion']);
+                Route::post('/league/fixtures/{fixture}/move-to-own-slot', [TournamentLeagueController::class, 'moveToOwnSlot']);
+                Route::post('/league/fixtures/{fixture}/quick-assign', [TournamentLeagueController::class, 'quickAssign']);
+                Route::post('/league/occurrences/{occurrence}/release', [TournamentLeagueController::class, 'releaseOccurrence']);
+                Route::post('/league/occurrences/{occurrence}/reclaim', [TournamentLeagueController::class, 'reclaimOccurrence']);
                 Route::post('/league/fixtures/{fixture}/swap-schedule', [TournamentLeagueController::class, 'swapSchedule']);
                 Route::post('/league/fixtures/{fixture}/replace-with-pending', [TournamentLeagueController::class, 'replaceWithPending']);
                 Route::put('/league/fixtures/{fixture}/change-side', [TournamentLeagueController::class, 'changeSide']);

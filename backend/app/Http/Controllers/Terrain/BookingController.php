@@ -12,6 +12,7 @@ use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Booking\Models\TerrainSchedule;
 use App\Domains\Booking\Models\TerrainSlotClosure;
 use App\Domains\Booking\Services\CalendarSlotService;
+use App\Domains\Booking\Services\SlotAvailabilityService;
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Notification\Services\WhatsAppNotificationService;
@@ -29,6 +30,7 @@ class BookingController extends Controller
     public function __construct(
         private WhatsAppNotificationService $whatsapp,
         private CalendarSlotService $calendarSlotService,
+        private SlotAvailabilityService $availabilityService,
     ) {}
 
     public function getTerrainSlots(Request $request, int $terrainId): JsonResponse
@@ -38,161 +40,19 @@ class BookingController extends Controller
         ]);
 
         $terrain = Stadium::findOrFail($terrainId);
-
-        if (! $terrain->is_open) {
-            return response()->json([
-                'terrain' => $terrain->only(['id', 'name', 'type', 'player_format', 'price_per_team', 'is_open', 'closure_reason']),
-                'slots' => [],
-                'terrain_closed' => true,
-                'closure_reason' => $terrain->closure_reason,
-                'message' => 'الملعب مغلق حالياً',
-            ]);
-        }
-
-        $date = Carbon::parse($request->date);
-        $dayOfWeek = $date->dayOfWeek;
-
-        $schedule = TerrainSchedule::where('terrain_id', $terrainId)
-            ->where('day_of_week', $dayOfWeek)
-            ->where('is_active', true)
-            ->first();
-
-        if (! $schedule) {
-            return response()->json([
-                'terrain' => $terrain->only(['id', 'name', 'type', 'player_format', 'price_per_team', 'is_open', 'closure_reason']),
-                'slots' => [],
-                'message' => 'الملعب غير متاح في هذا اليوم',
-            ]);
-        }
-
-        $slots = $this->calendarSlotService->generateSlots(
-            $schedule->open_time,
-            $schedule->close_time,
-            $schedule->slot_duration_minutes,
-        );
-
-        // Get single bookings for this specific date
-        $singleBookings = TerrainBooking::where('terrain_id', $terrainId)
-            ->where('booking_date', $request->date)
-            ->whereIn('status', ['pending', 'confirmed', 'approved'])
-            ->get();
-
-        // Get active weekly subscriptions that cover this day_of_week
-        $dateStr = $date->toDateString();
-        $weeklySubscriptions = TerrainBooking::where('terrain_id', $terrainId)
-            ->where('reservation_type', 'weekly_subscription')
-            ->where('day_of_week', $dayOfWeek)
-            ->whereIn('status', ['pending', 'confirmed', 'approved'])
-            ->where(function ($q) use ($dateStr) {
-                $q->where(function ($sq) use ($dateStr) {
-                    $sq->whereNull('start_date')->orWhere('start_date', '<=', $dateStr);
-                });
-                $q->where(function ($sq) use ($dateStr) {
-                    $sq->whereNull('end_date')->orWhere('end_date', '>=', $dateStr);
-                });
-            })
-            ->get();
-
         $excludeFixtureId = $request->integer('exclude_fixture_id') ?: null;
         $excludeBookingId = $request->integer('exclude_booking_id') ?: null;
+        $forTournamentId = $request->integer('tournament_id') ?: null;
 
-        $allBookings = $singleBookings->merge($weeklySubscriptions)
-            ->filter(function ($b) use ($excludeBookingId, $excludeFixtureId) {
-                if ($excludeBookingId && $b->id === $excludeBookingId) {
-                    return false;
-                }
-                if ($excludeFixtureId && $b->fixture_id === $excludeFixtureId) {
-                    return false;
-                }
-                return true;
-            });
+        $detailed = $this->availabilityService->getDetailedSlotsForDate(
+            terrain: $terrain,
+            date: $request->date,
+            excludeFixtureId: $excludeFixtureId,
+            excludeBookingId: $excludeBookingId,
+            forTournamentId: $forTournamentId,
+        );
 
-        $closures = TerrainSlotClosure::where('terrain_id', $terrainId)
-            ->where('closure_date', $dateStr)
-            ->get();
-
-        $fixtureConflicts = Fixture::where('stadium_id', $terrainId)
-            ->whereDate('scheduled_at', $dateStr)
-            ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
-            ->get(['id', 'scheduled_at']);
-
-        $slotResults = collect($slots)->map(function ($slot) use ($allBookings, $closures, $fixtureConflicts) {
-            $booking = $allBookings->first(function ($b) use ($slot) {
-                return $b->start_time <= $slot['start'] && $b->end_time > $slot['start']
-                    || $b->start_time < $slot['end'] && $b->end_time >= $slot['end']
-                    || $b->start_time >= $slot['start'] && $b->end_time <= $slot['end'];
-            });
-
-            if ($booking) {
-                return [
-                    'start' => $slot['start'],
-                    'end' => $slot['end'],
-                    'status' => 'booked',
-                    'booking' => [
-                        'id' => $booking->id,
-                        'booking_type' => $booking->booking_type,
-                        'reservation_type' => $booking->reservation_type,
-                        'status' => $booking->status,
-                        'start_time' => $booking->start_time,
-                        'end_time' => $booking->end_time,
-                        'manager' => $booking->manager?->only(['id', 'name']),
-                        'team' => $booking->team?->only(['id', 'name']),
-                    ],
-                ];
-            }
-
-            $closure = $closures->first(function ($c) use ($slot) {
-                return $c->start_time <= $slot['start'] && $c->end_time > $slot['start'];
-            });
-
-            if ($closure) {
-                return [
-                    'start' => $slot['start'],
-                    'end' => $slot['end'],
-                    'status' => 'closed',
-                    'closure' => [
-                        'id' => $closure->id,
-                        'reason' => $closure->reason,
-                    ],
-                ];
-            }
-
-            $hasFixture = $fixtureConflicts->contains(function ($f) use ($slot) {
-                $start = Carbon::parse($f->scheduled_at);
-                $end = $start->copy()->addHours(2);
-
-                return $start->format('H:i') < $slot['end'] && $end->format('H:i') > $slot['start'];
-            });
-
-            if ($hasFixture) {
-                return [
-                    'start' => $slot['start'],
-                    'end' => $slot['end'],
-                    'status' => 'closed',
-                    'closure' => [
-                        'id' => null,
-                        'reason' => 'مباراة ضمن مسابقة',
-                    ],
-                ];
-            }
-
-            return [
-                'start' => $slot['start'],
-                'end' => $slot['end'],
-                'status' => 'available',
-            ];
-        });
-
-        return response()->json([
-            'terrain' => $terrain->only(['id', 'name', 'type', 'player_format', 'price_per_team', 'is_open', 'closure_reason']),
-            'schedule' => [
-                'open_time' => $schedule->open_time,
-                'close_time' => $schedule->close_time,
-                'slot_duration' => $schedule->slot_duration_minutes,
-            ],
-            'date' => $request->date,
-            'slots' => $slotResults,
-        ]);
+        return response()->json($detailed);
     }
 
     public function createTrainingBooking(Request $request): JsonResponse
@@ -365,47 +225,24 @@ class BookingController extends Controller
         $weeks = min((int) $request->input('weeks', 1), 12);
         $rangeEnd = $startOfWeek->copy()->addDays(7 * $weeks - 1);
 
-        $schedules = TerrainSchedule::where('terrain_id', $terrainId)
-            ->where('is_active', true)
-            ->get()
-            ->keyBy('day_of_week');
+        $weekData = $this->availabilityService->getDetailedSlotsForWeek($terrain, $startOfWeek->toDateString(), $weeks);
+        $days = $weekData['days'] ?? [];
 
-        // Get single bookings for the week
-        $singleBookings = TerrainBooking::where('terrain_id', $terrainId)
-            ->where('reservation_type', 'single')
-            ->whereIn('status', ['pending', 'approved'])
-            ->whereNull('archived_at')
-            ->whereBetween('booking_date', [$startOfWeek->toDateString(), $rangeEnd->toDateString()])
-            ->with(['manager.playerProfile', 'team', 'matchRequest'])
-            ->get();
-
-        // Get active weekly subscriptions covering any day in this week range
-        $weekDays = [];
-        for ($d = $startOfWeek->copy(); $d->lte($endOfWeek); $d->addDay()) {
-            $weekDays[] = $d->dayOfWeek;
+        // Attach manager summaries and metadata to days slots
+        foreach ($days as &$day) {
+            foreach ($day['slots'] as &$slot) {
+                if (! empty($slot['booking']['manager']['id'])) {
+                    $mgr = User::find($slot['booking']['manager']['id']);
+                    $slot['booking']['manager'] = $this->managerSummary($mgr);
+                }
+            }
         }
-        $weekDays = array_unique($weekDays);
-
-        $weeklySubscriptions = TerrainBooking::where('terrain_id', $terrainId)
-            ->where('reservation_type', 'weekly_subscription')
-            ->whereIn('day_of_week', $weekDays)
-            ->whereIn('status', ['pending', 'approved'])
-            ->whereNull('archived_at')
-            ->with(['manager.playerProfile', 'team'])
-            ->get()
-            ->filter(function ($sub) use ($startOfWeek, $rangeEnd) {
-                if ($sub->start_date && $sub->start_date->gt($rangeEnd)) {
-                    return false;
-                }
-                if ($sub->end_date && $sub->end_date->lt($startOfWeek)) {
-                    return false;
-                }
-
-                return true;
-            });
+        unset($day, $slot);
 
         $pendingBookings = TerrainBooking::where('terrain_id', $terrainId)
             ->where('status', 'pending')
+            ->whereNull('archived_at')
+            ->whereNull('cancelled_at')
             ->with(['manager.playerProfile', 'team', 'terrain.owner'])
             ->orderBy('created_at', 'desc')
             ->get()
@@ -435,110 +272,24 @@ class BookingController extends Controller
 
         // Compute stats
         $totalBookings = TerrainBooking::where('terrain_id', $terrainId)
-            ->whereIn('status', ['pending', 'approved'])
+            ->whereIn('status', ['pending', 'approved', 'confirmed'])
             ->whereNull('archived_at')
+            ->whereNull('cancelled_at')
             ->count();
         $activeSubscriptions = TerrainBooking::where('terrain_id', $terrainId)
             ->where('reservation_type', 'weekly_subscription')
-            ->where('status', 'approved')
+            ->whereIn('status', ['approved', 'confirmed'])
             ->whereNull('archived_at')
+            ->whereNull('cancelled_at')
             ->count();
+
         $emptySlots = 0;
-
-        $closures = TerrainSlotClosure::where('terrain_id', $terrainId)
-            ->whereBetween('closure_date', [$startOfWeek->toDateString(), $rangeEnd->toDateString()])
-            ->get();
-
-        $days = [];
-        for ($d = $startOfWeek->copy(); $d->lte($rangeEnd); $d->addDay()) {
-            $daySingleBookings = $singleBookings->filter(fn($b) => $b->booking_date?->isSameDay($d));
-            $schedule = $schedules->get($d->dayOfWeek);
-
-            $slots = [];
-            if ($schedule) {
-                $generatedSlots = $this->calendarSlotService->generateSlots(
-                    $schedule->open_time,
-                    $schedule->close_time,
-                    $schedule->slot_duration_minutes,
-                );
-
-                foreach ($generatedSlots as $slot) {
-                    // Check single booking
-                    $booking = $daySingleBookings->first(function ($b) use ($slot) {
-                        return $b->start_time <= $slot['start'] && $b->end_time > $slot['start']
-                            || $b->start_time < $slot['end'] && $b->end_time >= $slot['end']
-                            || $b->start_time >= $slot['start'] && $b->end_time <= $slot['end'];
-                    });
-
-                    $slotStatus = $booking ? 'booked' : 'available';
-                    $slotBooking = $booking;
-
-                    // Check weekly subscription if no single booking
-                    if (! $booking) {
-                        $subscription = $weeklySubscriptions->first(function ($sub) use ($d, $slot) {
-                            return $sub->day_of_week === $d->dayOfWeek
-                                && $sub->coversDate($d)
-                                && ($sub->start_time <= $slot['start'] && $sub->end_time > $slot['start']
-                                    || $sub->start_time < $slot['end'] && $sub->end_time >= $slot['end']
-                                    || $sub->start_time >= $slot['start'] && $sub->end_time <= $slot['end']);
-                        });
-
-                        if ($subscription) {
-                            $slotStatus = 'booked';
-                            $slotBooking = $subscription;
-                        }
-                    }
-
-                    $slotClosure = null;
-                    if ($slotStatus === 'available') {
-                        $slotClosure = $closures->first(function ($c) use ($d, $slot) {
-                            return $c->closure_date->isSameDay($d)
-                                && $c->start_time <= $slot['start'] && $c->end_time > $slot['start'];
-                        });
-
-                        if ($slotClosure) {
-                            $slotStatus = 'closed';
-                        }
-                    }
-
-                    if ($slotStatus === 'available') {
-                        $emptySlots++;
-                    }
-
-                    $slots[] = [
-                        'start' => $slot['start'],
-                        'end' => $slot['end'],
-                        'status' => $slotStatus,
-                        'booking' => $slotBooking ? [
-                            'id' => $slotBooking->id,
-                            'booking_type' => $slotBooking->booking_type,
-                            'flow_type' => $slotBooking->flow_type ?? 'direct',
-                            'reservation_type' => $slotBooking->reservation_type ?? 'single',
-                            'status' => $slotBooking->status,
-                            'price' => $slotBooking->price,
-                            'start_time' => $slotBooking->start_time,
-                            'end_time' => $slotBooking->end_time,
-                    'manager' => $this->managerSummary($slotBooking->manager),
-                    'team' => $slotBooking->team?->only(['id', 'name']),
-                    'guest_name' => $slotBooking->guest_name,
-                    'guest_phone' => $slotBooking->guest_phone,
-                    'guest_email' => $slotBooking->guest_email,
-                    'is_guest' => $slotBooking->isGuest(),
-                ] : null,
-                        'closure' => $slotClosure ? [
-                            'id' => $slotClosure->id,
-                            'reason' => $slotClosure->reason,
-                        ] : null,
-                    ];
+        foreach ($days as $d) {
+            foreach ($d['slots'] as $s) {
+                if ($s['status'] === 'available') {
+                    $emptySlots++;
                 }
             }
-
-            $days[] = [
-                'date' => $d->toDateString(),
-                'day_name' => $d->translatedFormat('l'),
-                'is_open' => $schedule !== null,
-                'slots' => $slots,
-            ];
         }
 
         return response()->json([
@@ -618,9 +369,14 @@ class BookingController extends Controller
                 if ($bookingLock->status !== 'pending') {
                     return;
                 }
-                $bookingLock->update(['status' => $statusToSet]);
+                $updateData = ['status' => $statusToSet];
+                if ($statusToSet === 'cancelled') {
+                    $updateData['cancelled_at'] = now();
+                }
+                $bookingLock->update($updateData);
             });
             $booking->refresh();
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate($booking->terrain_id, $booking->booking_date?->toDateString());
         }
 
         $booking->load(['manager', 'team', 'terrain']);

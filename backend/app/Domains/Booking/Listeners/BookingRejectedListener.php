@@ -9,6 +9,9 @@ class BookingRejectedListener
 {
     public function handle(BookingRejected $event): void
     {
+        if ($event->booking->terrain_id) {
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate($event->booking->terrain_id);
+        }
         $manager = $event->booking->manager;
         if ($manager) {
             $manager->notify(new BookingRejectedNotification($event->booking));

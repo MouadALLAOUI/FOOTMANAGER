@@ -133,7 +133,7 @@ export default function Calendar({
         </span>
         <span className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500">
           <span className="size-3.5 rounded border border-dashed border-slate-300 bg-slate-100" />
-          {t('terrain.calendar.closed')}
+          {t('terrain.calendar.closed', 'مغلق / خارج أوقات العمل')}
         </span>
       </div>
     </div>

@@ -10,6 +10,9 @@ class BookingApprovedListener
     public function handle(BookingApproved $event): void
     {
         $booking = $event->booking;
+        if ($booking->terrain_id) {
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate($booking->terrain_id);
+        }
 
         if ($booking->confirmed_at === null) {
             $booking->update(['confirmed_at' => now()]);

@@ -221,6 +221,7 @@ class TournamentLeagueController extends Controller
         $validated = $request->validate([
             'reason' => 'required|string|in:rain,pitch_condition,team_circumstances,other',
             'note' => 'nullable|string|max:500',
+            'freed_action' => 'nullable|string|in:keep_reserved,release_to_tournament,freed',
         ], [
             'reason.required' => 'يرجى اختيار سبب التأجيل',
             'reason.in' => 'سبب التأجيل المختار غير صالح',
@@ -230,7 +231,8 @@ class TournamentLeagueController extends Controller
             $tournament,
             $fixture,
             $validated['reason'],
-            $validated['note'] ?? null
+            $validated['note'] ?? null,
+            $validated['freed_action'] ?? 'freed'
         );
 
         return response()->json([
@@ -447,6 +449,133 @@ class TournamentLeagueController extends Controller
         return response()->json([
             'data' => $result,
             'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Step 2.3: Release an occurrence to tournament teams.
+     */
+    public function releaseOccurrence(Tournament $tournament, \App\Domains\Booking\Models\TerrainBookingOccurrence $occurrence): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $result = $this->leagueAssignment->releaseOccurrence($tournament, $occurrence);
+
+        return response()->json([
+            'data' => $result['occurrence'],
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Step 2.3 & 3.5: Organizer action "استرجاع الموعد".
+     */
+    public function reclaimOccurrence(Tournament $tournament, \App\Domains\Booking\Models\TerrainBookingOccurrence $occurrence): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $result = $this->leagueAssignment->reclaimOccurrence($tournament, $occurrence);
+
+        return response()->json([
+            'data' => $result['occurrence'],
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Step 2.1: Move borrowed match to an unused slot belonging to one of its two teams.
+     */
+    public function moveToOwnSlot(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'booking_id' => 'required|integer|exists:terrain_bookings,id',
+            'date' => 'nullable|date',
+        ], [
+            'booking_id.required' => 'يرجى اختيار الموعد المراد النقل إليه',
+        ]);
+
+        $result = $this->leagueAssignment->moveToOwnSlot(
+            $tournament,
+            $fixture,
+            $validated['booking_id'],
+            $validated['date'] ?? null
+        );
+
+        return response()->json([
+            'data' => $result['fixture'],
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Step 3.1 & 3.2: Get comprehensive unused slot pool.
+     */
+    public function unusedSlotPool(Request $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        // Check and notify finished teams if any
+        $this->leagueAssignment->checkAndNotifyFinishedTeams($tournament);
+
+        $fixtureId = $request->integer('fixture_id');
+        $fixture = $fixtureId ? Fixture::find($fixtureId) : null;
+
+        $result = $this->leagueAssignment->unusedSlotPool($tournament, $fixture);
+
+        return response()->json([
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Step 3.4: Quick assign nearest available slot to a pending/postponed match.
+     */
+    public function quickAssign(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'booking_id' => 'required|integer|exists:terrain_bookings,id',
+            'date' => 'required|date',
+            'host_team_id' => 'nullable|integer|exists:teams,id',
+        ], [
+            'booking_id.required' => 'معرف الحجز مطلوب',
+            'date.required' => 'تاريخ الحجز مطلوب',
+        ]);
+
+        $result = $this->leagueAssignment->quickAssign(
+            $tournament,
+            $fixture,
+            $validated['booking_id'],
+            $validated['date'],
+            $validated['host_team_id'] ?? null
+        );
+
+        return response()->json([
+            'data' => $result['fixture'],
+            'message' => $result['message'],
+        ]);
+    }
+
+    /**
+     * Step 2.3: List occurrences released to this tournament.
+     */
+    public function releasedOccurrences(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $occurrences = \App\Domains\Booking\Models\TerrainBookingOccurrence::query()
+            ->where('status', \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED)
+            ->where('metadata->tournament_id', $tournament->id)
+            ->with(['stadium', 'booking.team'])
+            ->orderBy('occurrence_date')
+            ->orderBy('start_time')
+            ->get();
+
+        return response()->json([
+            'data' => $occurrences,
         ]);
     }
 }

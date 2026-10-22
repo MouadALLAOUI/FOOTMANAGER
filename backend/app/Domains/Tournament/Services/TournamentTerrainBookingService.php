@@ -43,8 +43,34 @@ class TournamentTerrainBookingService
 
         $scheduledAt = $fixture->scheduled_at;
 
-        $booking = TerrainBooking::query()->where('fixture_id', $fixture->id)->first()
-            ?? ($fixture->match?->active_reservation_id ? TerrainBooking::find($fixture->match->active_reservation_id) : null)
+        // Never overwrite a weekly subscription! If the fixture was pointing to a weekly subscription,
+        // keep that subscription intact and manage occurrence / separate reservation.
+        $existing = null;
+        if ($fixture->match?->active_reservation_id) {
+            $candidate = TerrainBooking::find($fixture->match->active_reservation_id);
+            if ($candidate && ! $candidate->isWeeklySubscription()) {
+                $existing = $candidate;
+            } elseif ($candidate && $candidate->isWeeklySubscription()) {
+                // Ensure occurrence is tracked for this weekly booking and fixture
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::updateOrCreate(
+                    [
+                        'terrain_booking_id' => $candidate->id,
+                        'occurrence_date' => $scheduledAt->toDateString(),
+                    ],
+                    [
+                        'stadium_id' => $fixture->stadium_id,
+                        'start_time' => $scheduledAt->format('H:i'),
+                        'end_time' => $scheduledAt->copy()->addMinutes($tournament->match_duration_minutes ?? 90)->format('H:i'),
+                        'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH,
+                        'fixture_id' => $fixture->id,
+                        'notes' => 'مباراة بطولة: '.$tournament->name,
+                    ]
+                );
+            }
+        }
+
+        $booking = TerrainBooking::query()->where('fixture_id', $fixture->id)->where('reservation_type', 'single')->first()
+            ?? $existing
             ?? new TerrainBooking(['fixture_id' => $fixture->id]);
 
         $booking->fixture_id = $fixture->id;
@@ -130,13 +156,44 @@ class TournamentTerrainBookingService
             return 0;
         }
 
+        $affectedTerrainIds = TerrainBooking::query()
+            ->whereIn('fixture_id', $ids->all())
+            ->pluck('terrain_id')
+            ->unique()
+            ->all();
+
+        // 1. Only archive single bookings created for match slots.
+        // NEVER archive or end a weekly subscription!
         $count = TerrainBooking::query()
             ->whereIn('fixture_id', $ids->all())
+            ->where(function ($q) {
+                $q->whereNull('reservation_type')
+                    ->orWhere('reservation_type', '!=', 'weekly_subscription');
+            })
             ->whereNull('archived_at')
             ->update(['archived_at' => now()]);
 
-        // Detach the owning match from the released reservation so the resource
-        // advertises the slot as no longer actively claimed.
+        // 2. If any weekly subscription had fixture_id linked, safely detach without archiving
+        TerrainBooking::query()
+            ->whereIn('fixture_id', $ids->all())
+            ->where('reservation_type', 'weekly_subscription')
+            ->update(['fixture_id' => null]);
+
+        // 3. Mark occurrences linked to these fixtures as freed
+        \App\Domains\Booking\Models\TerrainBookingOccurrence::query()
+            ->whereIn('fixture_id', $ids->all())
+            ->where('status', \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH)
+            ->update([
+                'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED,
+                'fixture_id' => null,
+            ]);
+
+        // 4. Invalidate availability cache for affected terrains
+        foreach ($affectedTerrainIds as $tid) {
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate((int) $tid);
+        }
+
+        // 5. Detach the owning match from the released reservation
         FootballMatch::query()
             ->whereIn('id', Fixture::query()->whereIn('id', $ids->all())->pluck('match_id')->filter()->all())
             ->update(['active_reservation_id' => null]);

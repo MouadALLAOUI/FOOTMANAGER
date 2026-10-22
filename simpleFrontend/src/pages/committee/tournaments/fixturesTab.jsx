@@ -1297,44 +1297,9 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     </>
   )
 
-  const leagueViewToggle = tournament.tournament_format === 'league' ? (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-2xs">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setLeagueViewMode('assignment')}
-          className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-black transition-all ${
-            leagueViewMode === 'assignment'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Sparkles className="size-3.5 text-amber-400" />
-          <span>محرك البرمجة والربط الذكي</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setLeagueViewMode('rounds')}
-          className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-black transition-all ${
-            leagueViewMode === 'rounds'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <CalendarDays className="size-3.5 text-emerald-500" />
-          <span>جدول الجولات والبطاقات</span>
-        </button>
-      </div>
-      <span className="text-[11px] font-bold text-slate-400 px-2">
-        نظام الدوري (النقاط)
-      </span>
-    </div>
-  ) : null
-
-  if (tournament.tournament_format === 'league' && leagueViewMode === 'assignment') {
+  if (tournament.tournament_format === 'league') {
     return (
       <>
-        {leagueViewToggle}
         <LeagueAssignmentPanel
           tournament={tournament}
           onReschedule={(fixture) => setRescheduleFixture(fixture)}

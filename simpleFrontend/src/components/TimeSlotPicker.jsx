@@ -44,10 +44,10 @@ export default function TimeSlotPicker({
 
   const slots = useMemo(
     () =>
-      [...new Set(availableSlots)]
+      [...new Set([...availableSlots, ...disabledSlots])]
         .filter(Boolean)
         .sort((a, b) => a.localeCompare(b)),
-    [availableSlots],
+    [availableSlots, disabledSlots],
   )
 
   const selectedIsMissing = selectedTime && !slots.includes(selectedTime)
@@ -164,6 +164,11 @@ export default function TimeSlotPicker({
                 <span dir="ltr" className="tabular-nums">
                   {time}
                 </span>
+                {disabled && (
+                  <span className="block text-[9px] font-bold text-slate-400 mt-0.5">
+                    محجوز
+                  </span>
+                )}
               </button>
             )
           })}

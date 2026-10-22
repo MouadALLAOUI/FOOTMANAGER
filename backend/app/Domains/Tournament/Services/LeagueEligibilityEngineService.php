@@ -500,7 +500,9 @@ class LeagueEligibilityEngineService
             }
 
             if ($bookingId) {
-                TerrainBooking::where('id', $bookingId)->update(['fixture_id' => $pending->id]);
+                TerrainBooking::where('id', $bookingId)
+                    ->where('reservation_type', 'single')
+                    ->update(['fixture_id' => $pending->id]);
             }
 
             // Current fixture becomes postponed
@@ -1138,7 +1140,9 @@ class LeagueEligibilityEngineService
 
         // Fix booking link
         if (! empty($snapshot['active_reservation_id'])) {
-            TerrainBooking::where('id', $snapshot['active_reservation_id'])->update(['fixture_id' => $fixture->id]);
+            TerrainBooking::where('id', $snapshot['active_reservation_id'])
+                ->where('reservation_type', 'single')
+                ->update(['fixture_id' => $fixture->id]);
         }
     }
 

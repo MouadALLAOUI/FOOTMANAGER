@@ -132,6 +132,11 @@ class TerrainBooking extends Model
         return $this->hasMany(Payment::class, 'booking_id');
     }
 
+    public function occurrences(): HasMany
+    {
+        return $this->hasMany(TerrainBookingOccurrence::class, 'terrain_booking_id');
+    }
+
     public function latestPayment(): ?Payment
     {
         return $this->payments()->latest()->first();

@@ -11,6 +11,10 @@ class BookingCancelledListener
     public function handle(BookingCancelled $event): void
     {
         $booking = $event->booking;
+        if ($booking->terrain_id) {
+            $dateStr = $booking->booking_date?->toDateString();
+            \App\Domains\Booking\Services\SlotAvailabilityService::invalidate($booking->terrain_id, $dateStr);
+        }
         $fixtureId = $booking->fixture_id ?? $booking->fresh()?->fixture_id;
 
         if ($fixtureId) {

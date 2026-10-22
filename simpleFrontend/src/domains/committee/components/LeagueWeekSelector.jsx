@@ -13,10 +13,11 @@ export default function LeagueWeekSelector({
 
   const currentWeekIndex = weeks.findIndex((w) => w.id === activeWeekId)
   const isUnscheduled = activeWeekId === 'unscheduled'
-  const activeWeek = !isUnscheduled && currentWeekIndex !== -1 ? weeks[currentWeekIndex] : null
+  const isAll = activeWeekId === 'all'
+  const activeWeek = !isUnscheduled && !isAll && currentWeekIndex !== -1 ? weeks[currentWeekIndex] : null
 
-  const canGoPrev = !isUnscheduled && currentWeekIndex > 0
-  const canGoNext = !isUnscheduled && currentWeekIndex < weeks.length - 1
+  const canGoPrev = !isUnscheduled && !isAll && currentWeekIndex > 0
+  const canGoNext = !isUnscheduled && !isAll && currentWeekIndex < weeks.length - 1
 
   const handlePrev = () => {
     if (canGoPrev) {
@@ -56,6 +57,7 @@ export default function LeagueWeekSelector({
             value={activeWeekId}
             onChange={(e) => onChangeWeek(e.target.value)}
           >
+            <option value="all">{isAr ? 'كل الأسابيع' : 'All Weeks'} ({totalCount} {isAr ? 'مباراة' : 'matches'})</option>
             {weeks.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.fullLabel} ({w.count} {isAr ? 'مباراة' : 'matches'})
@@ -90,6 +92,22 @@ export default function LeagueWeekSelector({
 
       {/* Horizontal Pills for Fast 1-Tap Week Jumping + Dedicated Unscheduled Tab */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-1">
+        <button
+          type="button"
+          onClick={() => onChangeWeek('all')}
+          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
+            isAll
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+          }`}
+        >
+          <span>{isAr ? 'كل الأسابيع' : 'All Weeks'}</span>
+          <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+            isAll ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-500'
+          }`}>
+            {totalCount}
+          </span>
+        </button>
         {weeks.map((w) => {
           const isActive = activeWeekId === w.id
           return (

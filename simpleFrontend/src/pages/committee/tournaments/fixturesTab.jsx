@@ -1366,7 +1366,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   return (
     <div>
-      {leagueViewToggle}
+
       <div className={`grid gap-5 ${isLeague ? '' : 'lg:grid-cols-[240px_1fr]'}`}>
         {!isLeague && (
           <aside className="hidden lg:block">

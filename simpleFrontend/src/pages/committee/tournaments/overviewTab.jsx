@@ -10,8 +10,10 @@ import {
   DoorClosed,
   Eye,
   Globe,
+  LayoutGrid,
   Loader2,
   Play,
+  Swords,
   Trash2,
   Users,
   Wallet,
@@ -109,13 +111,61 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-            <p className="text-2xl font-black tracking-tight text-slate-900">{s.value}</p>
-            <p className="mt-0.5 text-xs font-semibold text-slate-500">{s.label}</p>
+      {/* Single Horizontal Statistics Card (Four Sections) */}
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-3 sm:p-4 shadow-xs">
+        <div className="grid grid-cols-4 divide-x divide-x-reverse divide-slate-100 text-center">
+          {/* الفرق المسجلة */}
+          <div className="flex flex-col items-center justify-center px-1 sm:px-2">
+            <div className="flex size-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 mb-1.5 shadow-2xs">
+              <Users className="size-4" />
+            </div>
+            <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 font-mono">
+              {registered}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500 mt-0.5 truncate max-w-full">
+              {t('committee.detail.stat.teams') || 'الفرق المسجلة'}
+            </span>
           </div>
-        ))}
+
+          {/* المجموعات */}
+          <div className="flex flex-col items-center justify-center px-1 sm:px-2">
+            <div className="flex size-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600 mb-1.5 shadow-2xs">
+              <LayoutGrid className="size-4" />
+            </div>
+            <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 font-mono">
+              {tournament.stats?.groups ?? 0}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500 mt-0.5 truncate max-w-full">
+              {t('committee.detail.stat.groups') || 'المجموعات'}
+            </span>
+          </div>
+
+          {/* المباريات */}
+          <div className="flex flex-col items-center justify-center px-1 sm:px-2">
+            <div className="flex size-8 items-center justify-center rounded-xl bg-rose-50 text-rose-600 mb-1.5 shadow-2xs">
+              <Swords className="size-4" />
+            </div>
+            <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 font-mono">
+              {tournament.stats?.fixtures ?? 0}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500 mt-0.5 truncate max-w-full">
+              {t('committee.detail.stat.fixtures') || 'المباريات'}
+            </span>
+          </div>
+
+          {/* المباريات المنتهية */}
+          <div className="flex flex-col items-center justify-center px-1 sm:px-2">
+            <div className="flex size-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 mb-1.5 shadow-2xs">
+              <CheckCheck className="size-4" />
+            </div>
+            <span className="text-lg sm:text-2xl font-black tracking-tight text-slate-900 font-mono">
+              {tournament.stats?.finished_matches ?? 0}
+            </span>
+            <span className="text-[10px] sm:text-xs font-bold text-slate-500 mt-0.5 truncate max-w-full">
+              {t('committee.detail.stat.finished') || 'المباريات المنتهية'}
+            </span>
+          </div>
+        </div>
       </div>
 
       <LiveMatchActivity

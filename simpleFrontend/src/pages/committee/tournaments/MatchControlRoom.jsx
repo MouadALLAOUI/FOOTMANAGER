@@ -81,7 +81,7 @@ const formatClock = (totalSec) => {
 
 
 
-export default function MatchControlRoom({ fixture, tournament, onClose, onSaved }) {
+export default function MatchControlRoom({ fixture, tournament, onClose, onSaved, initialTab = 'timeline' }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const retryRef = useRef(null)
@@ -136,7 +136,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [pickerOpen, setPickerOpen] = useState(false)
   const [quickPlayer, setQuickPlayer] = useState(null)
   const [quickBusyId, setQuickBusyId] = useState(null)
-  const [activeTab, setActiveTab] = useState('timeline')
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [foulNotifCount, setFoulNotifCount] = useState(0)
   const [convertTarget, setConvertTarget] = useState(null)
   const [delegatedLinkOpen, setDelegatedLinkOpen] = useState(false)

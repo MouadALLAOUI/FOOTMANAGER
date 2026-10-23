@@ -131,8 +131,8 @@ export default function Shell({
         title={t(item.label)}
         className={`group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-200 ${
           isActive
-            ? 'bg-emerald-700 text-white shadow-sm'
-            : 'text-emerald-100/70 hover:bg-emerald-800/40 hover:text-white'
+            ? 'bg-[#0F9D58] text-white shadow-sm'
+            : 'text-white/70 hover:bg-white/[0.08] hover:text-white'
         }`}
       >
         <span
@@ -225,7 +225,7 @@ export default function Shell({
   )
 
   return (
-    <div className="min-h-screen bg-[#f6f7fb]">
+    <div className="min-h-screen bg-[#F4F7FB]">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[200] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-bold focus:text-slate-900 focus:shadow-lg focus:ring-2 focus:ring-green-500"
@@ -233,14 +233,14 @@ export default function Shell({
         {t('common.skipToContent')}
       </a>
       <aside
-        className={`fixed inset-y-0 start-0 z-40 hidden flex-col bg-[#04291e] transition-all duration-300 lg:flex ${
+        className={`fixed inset-y-0 start-0 z-40 hidden flex-col bg-[#0B1F3A] transition-all duration-300 lg:flex ${
           collapsed ? 'w-[84px]' : 'w-[264px]'
         }`}
       >
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          className="absolute -end-3 top-16 z-10 grid size-6 place-items-center rounded-full border border-white/10 bg-[#063e2c] text-white/70 transition-colors hover:text-white"
+          className="absolute -end-3 top-16 z-10 grid size-6 place-items-center rounded-full border border-white/10 bg-[#132A4C] text-white/70 transition-colors hover:text-white"
           title={collapsed ? t('shell.expand') : t('shell.collapse')}
         >
           <ChevronDown className={`size-3.5 ${collapsed ? 'rotate-180 rtl:rotate-0' : 'rotate-0 rtl:rotate-180'} transition-transform`} />
@@ -251,7 +251,7 @@ export default function Shell({
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="absolute inset-y-0 start-0 w-[290px] bg-[#04291e]">{sidebarContent}</aside>
+          <aside className="absolute inset-y-0 start-0 w-[290px] bg-[#0B1F3A]">{sidebarContent}</aside>
         </div>
       )}
 

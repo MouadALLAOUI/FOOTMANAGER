@@ -276,7 +276,7 @@ class TournamentFixtureService
         $fixtureConflictIds = [];
         if ($stadiums->isNotEmpty()) {
             $fixtures = Fixture::query()
-                ->with(['match:id,match_duration_minutes', 'competition:id,match_duration_minutes'])
+                ->with(['match:id,match_duration_minutes'])
                 ->whereIn('competition_id', $activeCompetitionIds)
                 ->whereIn('stadium_id', $stadiums->pluck('id')->all())
                 ->where('scheduled_at', '>', $slotStart->copy()->subHours(3))
@@ -287,7 +287,7 @@ class TournamentFixtureService
 
             foreach ($fixtures as $f) {
                 $fStart = Carbon::parse($f->scheduled_at);
-                $fDuration = (int) ($f->match?->match_duration_minutes ?? $f->competition?->match_duration_minutes ?? 60);
+                $fDuration = (int) ($f->match?->match_duration_minutes ?? 60);
                 $fEnd = $fStart->copy()->addMinutes($fDuration);
 
                 if ($fStart->lt($slotEnd) && $fEnd->gt($slotStart)) {
@@ -2019,7 +2019,7 @@ class TournamentFixtureService
         $slotEnd = $datetime->copy()->addMinutes($durationMinutes);
 
         $candidates = Fixture::query()
-            ->with(['match:id,match_duration_minutes', 'competition:id,match_duration_minutes'])
+            ->with(['match:id,match_duration_minutes'])
             ->whereIn('competition_id', $this->activeTournamentCompetitionIds())
             ->where('stadium_id', $stadiumId)
             ->where('scheduled_at', '>', $datetime->copy()->subHours(3))
@@ -2032,7 +2032,7 @@ class TournamentFixtureService
 
         foreach ($candidates as $c) {
             $fStart = Carbon::parse($c->scheduled_at);
-            $fDuration = (int) ($c->match?->match_duration_minutes ?? $c->competition?->match_duration_minutes ?? 60);
+            $fDuration = (int) ($c->match?->match_duration_minutes ?? 60);
             $fEnd = $fStart->copy()->addMinutes($fDuration);
 
             if ($fStart->lt($slotEnd) && $fEnd->gt($slotStart)) {

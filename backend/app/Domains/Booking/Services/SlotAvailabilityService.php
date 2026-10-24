@@ -175,7 +175,7 @@ class SlotAvailabilityService
 
         // 4. Check active scheduled fixtures
         $hasFixture = Fixture::query()
-            ->with(['match:id,match_duration_minutes', 'competition:id,match_duration_minutes'])
+            ->with(['match:id,match_duration_minutes'])
             ->where('stadium_id', $terrainId)
             ->whereDate('scheduled_at', $dateStr)
             ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
@@ -183,7 +183,7 @@ class SlotAvailabilityService
             ->get(['id', 'competition_id', 'match_id', 'scheduled_at'])
             ->contains(function (Fixture $f) use ($startTime, $endTime) {
                 $fStart = Carbon::parse($f->scheduled_at);
-                $duration = (int) ($f->match?->match_duration_minutes ?? $f->competition?->match_duration_minutes ?? 60);
+                $duration = (int) ($f->match?->match_duration_minutes ?? 60);
                 $fEnd = $fStart->copy()->addMinutes($duration);
                 return $fStart->format('H:i') < $endTime && $fEnd->format('H:i') > $startTime;
             });
@@ -270,7 +270,7 @@ class SlotAvailabilityService
         }
 
         $fixture = Fixture::query()
-            ->with(['competition:id,match_duration_minutes', 'match:id,match_duration_minutes', 'homeTeam:id,name', 'awayTeam:id,name'])
+            ->with(['match:id,match_duration_minutes', 'homeTeam:id,name', 'awayTeam:id,name'])
             ->where('stadium_id', $terrainId)
             ->whereDate('scheduled_at', $dateStr)
             ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
@@ -278,7 +278,7 @@ class SlotAvailabilityService
             ->get()
             ->first(function (Fixture $f) use ($startTime, $endTime) {
                 $fStart = Carbon::parse($f->scheduled_at);
-                $duration = (int) ($f->match?->match_duration_minutes ?? $f->competition?->match_duration_minutes ?? 60);
+                $duration = (int) ($f->match?->match_duration_minutes ?? 60);
                 $fEnd = $fStart->copy()->addMinutes($duration);
                 return $fStart->format('H:i') < $endTime && $fEnd->format('H:i') > $startTime;
             });
@@ -387,7 +387,7 @@ class SlotAvailabilityService
             ->whereDate('scheduled_at', $dateStr)
             ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
             ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
-            ->with(['homeTeam', 'awayTeam', 'competition:id,match_duration_minutes', 'match:id,match_duration_minutes'])
+            ->with(['homeTeam', 'awayTeam', 'match:id,match_duration_minutes'])
             ->get();
 
         $slots = collect($rawSlots)->map(function ($slot) use (
@@ -453,7 +453,7 @@ class SlotAvailabilityService
             if (! $booking && ! $closure && ! $weatherBlock) {
                 $fixture = $fixtures->first(function ($f) use ($start, $end, &$fixtureDuration) {
                     $fStart = Carbon::parse($f->scheduled_at);
-                    $fixtureDuration = (int) ($f->match?->match_duration_minutes ?? $f->competition?->match_duration_minutes ?? 60);
+                    $fixtureDuration = (int) ($f->match?->match_duration_minutes ?? 60);
                     $fEnd = $fStart->copy()->addMinutes($fixtureDuration);
                     return $fStart->format('H:i') < $end && $fEnd->format('H:i') > $start;
                 });

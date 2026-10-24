@@ -2126,7 +2126,8 @@
         "howItWorks": "How it works",
         "statTournaments": "Total tournaments",
         "statUpcoming": "Upcoming soon",
-        "statOpen": "Open registration"
+        "statOpen": "Open registration",
+        "organize": "Organize With Us"
       },
       "howItWorks": {
         "title": "How it works",
@@ -2141,7 +2142,8 @@
       "upcoming": {
         "title": "Upcoming tournaments",
         "subtitle": "Registrations are open — grab your spot",
-        "viewAll": "View all"
+        "viewAll": "View all",
+        "eyebrow": "Featured Tournaments"
       },
       "search": {
         "placeholder": "Search by name, city or description…"
@@ -2162,7 +2164,31 @@
       "loadErrorDesc": "Check your connection and try again.",
       "viewDetails": "View details",
       "spotsLeft": "{{count}} spots left",
-      "listTitle": "All tournaments"
+      "listTitle": "All tournaments",
+      "seoTitle": "Amateur Football Tournaments & Leagues in Morocco | AJI NQSSRO",
+      "seoDesc": "Discover amateur football tournaments and leagues across Morocco on AJI NQSSRO. Track live fixtures, groups, results, standings, or organize your tournament professionally.",
+      "directoryEyebrow": "Competitions Directory",
+      "organizerSection": {
+        "badge": "For Associations & Committees",
+        "title": "Organize Your Tournament Professionally with AJI NQSSRO",
+        "subtitle": "We handle logistics for you: automated match scheduling, live standings, team & player registration, and instant match graphics sharing.",
+        "feat1Title": "Smart Scheduling & Conflict Prevention",
+        "feat1Desc": "Automated fixtures generation respecting rest days and field availability.",
+        "feat2Title": "Live Standings & Accurate Stats",
+        "feat2Desc": "Automatic points, goal differential, head-to-head tiebreakers, and top scorer charts.",
+        "feat3Title": "Team Registration & Squad Management",
+        "feat3Desc": "Digital team enrollment, verified player rosters, and simple roster management.",
+        "feat4Title": "WhatsApp-Ready Summaries & Graphics",
+        "feat4Desc": "Export polished standings tables, results matrix, and fixture cards with one tap.",
+        "cta": "Contact Us on WhatsApp to Organize",
+        "ctaHint": "Our team is ready to answer questions and assist you step by step"
+      },
+      "finalCta": {
+        "title": "Looking for an upcoming competition or want to follow your team?",
+        "subtitle": "Join Morocco’s amateur football community and enjoy a complete sports experience combining passion, competition, and fair play.",
+        "exploreAll": "Browse All Tournaments",
+        "contactUs": "Contact Platform Team"
+      }
     },
     "overview": {
       "dates": "Date",

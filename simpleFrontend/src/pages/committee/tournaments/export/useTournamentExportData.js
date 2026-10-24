@@ -1,22 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import api from '../../../../api/client'
 
-const EVENT_FETCH_CONCURRENCY = 6
-
-async function mapWithConcurrency(items, limit, fn) {
-  const results = new Array(items.length)
-  let cursor = 0
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor
-      cursor += 1
-      results[index] = await fn(items[index], index)
-    }
-  })
-  await Promise.all(workers)
-  return results
-}
-
 export function useTournamentExportData(tournamentId) {
   const [state, setState] = useState({ data: null, loading: true, error: '' })
   const [attempt, setAttempt] = useState(0)
@@ -46,18 +30,7 @@ export function useTournamentExportData(tournamentId) {
 
         const unwrap = (res) => res.data?.data ?? res.data ?? []
         const tournament = detailRes.data?.data ?? null
-
         const fixtures = unwrap(fixturesRes)
-        const finished = (fixtures || []).filter((f) => f.match?.status === 'finished')
-
-        const eventRows = await mapWithConcurrency(finished, EVENT_FETCH_CONCURRENCY, async (fixture) => {
-          try {
-            const res = await api.get(`/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/events`)
-            return { fixtureId: fixture.id, events: res.data?.data ?? [] }
-          } catch {
-            return { fixtureId: fixture.id, events: [] }
-          }
-        })
 
         if (cancelled) return
         setState({
@@ -74,7 +47,7 @@ export function useTournamentExportData(tournamentId) {
             sponsors: unwrap(sponsorsRes),
             partners: unwrap(partnersRes),
             contact: unwrap(contactRes),
-            eventsMap: new Map(eventRows.map((r) => [r.fixtureId, r.events])),
+            eventsMap: new Map(),
           },
         })
       } catch (e) {

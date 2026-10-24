@@ -102,7 +102,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const { toast } = useToast()
 
   const [active, setActive] = useState(null)
-  const [filters, setFilters] = useState({ status: 'all', group: 'all', stadium: 'all', date: 'all', customDate: '', q: '' })
+  const [filters, setFilters] = useState({ status: 'upcoming', group: 'all', stadium: 'all', date: 'all', customDate: '', q: '' })
   const [queryInput, setQueryInput] = useState('')
   const [genOpen, setGenOpen] = useState(false)
   const [genView, setGenView] = useState('form')
@@ -195,7 +195,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   useEffect(() => {
     setQueryInput('')
-    setFilters((f) => ({ ...f, status: 'all', group: 'all', stadium: 'all', date: 'all', customDate: '', q: '' }))
+    setFilters((f) => ({ ...f, status: 'upcoming', group: 'all', stadium: 'all', date: 'all', customDate: '', q: '' }))
     setPrevState(null)
   }, [activeKey])
 

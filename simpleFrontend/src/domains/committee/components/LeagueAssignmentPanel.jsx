@@ -72,7 +72,7 @@ export default function LeagueAssignmentPanel({
 
   // Filters
   const [matchdayFilter, setMatchdayFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all') // 'all' | 'scheduled' | 'played' | 'waiting'
+  const [statusFilter, setStatusFilter] = useState('scheduled') // 'all' | 'scheduled' | 'played' | 'waiting'
   const [teamFilter, setTeamFilter] = useState('all')
   const [dayFilter, setDayFilter] = useState('all')
 
@@ -717,7 +717,7 @@ export default function LeagueAssignmentPanel({
   const handleResetFilters = () => {
     setTeamFilter('all')
     setDayFilter('all')
-    setStatusFilter('all')
+    setStatusFilter('scheduled')
     setMatchdayFilter('all')
     setViewMode('chronological')
     setActiveWeekId(defaultWeekId)
@@ -726,7 +726,7 @@ export default function LeagueAssignmentPanel({
   const handleNextWeekAction = () => {
     if (hasUpcomingWeek) {
       setActiveWeekId(leagueWeeks[currentWeekIndex + 1].id)
-      setStatusFilter('all')
+      setStatusFilter('scheduled')
       setTeamFilter('all')
       setDayFilter('all')
     }

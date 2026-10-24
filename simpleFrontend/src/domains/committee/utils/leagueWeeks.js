@@ -117,15 +117,33 @@ export function getDefaultWeekId(weeks, unscheduled = []) {
   }
   const now = new Date()
 
-  // 1. Current week (contains today)
+  // 1. Current week that contains today and has unplayed matches
+  const currentWeekWithUpcoming = weeks.find(
+    (w) => now >= w.monday && now <= w.sunday && w.fixtures?.some((f) => f.match?.status !== 'finished' && f.status !== 'played')
+  )
+  if (currentWeekWithUpcoming) return currentWeekWithUpcoming.id
+
+  // 2. Current week (contains today)
   const currentWeek = weeks.find((w) => now >= w.monday && now <= w.sunday)
   if (currentWeek) return currentWeek.id
 
-  // 2. First upcoming week
+  // 3. First upcoming week with unplayed matches
+  const upcomingWeekWithMatches = weeks.find(
+    (w) => w.sunday >= now && w.fixtures?.some((f) => f.match?.status !== 'finished' && f.status !== 'played')
+  )
+  if (upcomingWeekWithMatches) return upcomingWeekWithMatches.id
+
+  // 4. First upcoming week by date
   const upcomingWeek = weeks.find((w) => w.sunday >= now)
   if (upcomingWeek) return upcomingWeek.id
 
-  // 3. If tournament is in the past, return the first week or nearest
+  // 5. Fallback to any week with upcoming matches
+  const anyWeekWithUpcoming = weeks.find(
+    (w) => w.fixtures?.some((f) => f.match?.status !== 'finished' && f.status !== 'played')
+  )
+  if (anyWeekWithUpcoming) return anyWeekWithUpcoming.id
+
+  // 6. Final fallback
   return weeks[0]?.id || weeks[weeks.length - 1].id
 }
 

@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Calendar, AlertCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar, AlertCircle, Layers } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 export default function LeagueWeekSelector({
@@ -7,164 +7,129 @@ export default function LeagueWeekSelector({
   onChangeWeek,
   unscheduledCount = 0,
   totalCount = 0,
+  onOpenFilterSheet,
 }) {
   const { t, i18n } = useTranslation()
-  const isAr = i18n.language.startsWith('ar')
+  const isAr = i18n.language?.startsWith('ar')
 
   const currentWeekIndex = weeks.findIndex((w) => w.id === activeWeekId)
   const isUnscheduled = activeWeekId === 'unscheduled'
   const isAll = activeWeekId === 'all'
   const activeWeek = !isUnscheduled && !isAll && currentWeekIndex !== -1 ? weeks[currentWeekIndex] : null
 
+  // In RTL:
+  // Prev button (Earlier week): can go if currentWeekIndex > 0
+  // Next button (Later week): can go if currentWeekIndex < weeks.length - 1
   const canGoPrev = !isUnscheduled && !isAll && currentWeekIndex > 0
   const canGoNext = !isUnscheduled && !isAll && currentWeekIndex < weeks.length - 1
 
   const handlePrev = () => {
     if (canGoPrev) {
       onChangeWeek(weeks[currentWeekIndex - 1].id)
+    } else if (isAll && weeks.length > 0) {
+      onChangeWeek(weeks[0].id)
     }
   }
 
   const handleNext = () => {
     if (canGoNext) {
       onChangeWeek(weeks[currentWeekIndex + 1].id)
+    } else if (isAll && weeks.length > 0) {
+      onChangeWeek(weeks[0].id)
     }
   }
 
   return (
-    <div className="space-y-3 rounded-3xl border border-slate-200/90 bg-white p-3 sm:p-4 shadow-sm">
-      {/* Top Main Navigation Bar: Prev Arrow, Active Week Pill / Dropdown, Next Arrow */}
+    <div className="rounded-2xl border border-[#D7E0EA] bg-white p-2.5 sm:p-3 shadow-xs">
       <div className="flex items-center justify-between gap-2">
-        {/* Previous Week Button (RTL: points right towards earlier weeks) */}
+        {/* Previous Week Button (RTL: points right) */}
         <button
           type="button"
           onClick={handlePrev}
-          disabled={!canGoPrev}
+          disabled={!canGoPrev && !isAll}
           aria-label={t('committee.detail.prevWeek', 'الأسبوع السابق')}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-all active:scale-95 ${
-            canGoPrev
-              ? 'border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300 hover:bg-slate-100 shadow-2xs'
-              : 'border-slate-100 bg-slate-50/50 text-slate-300 cursor-not-allowed'
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all active:scale-95 ${
+            canGoPrev || isAll
+              ? 'border-[#D7E0EA] bg-[#F3F6FA] text-[#102A43] hover:bg-slate-200 hover:border-slate-300'
+              : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed opacity-50'
           }`}
         >
-          {isAr ? <ChevronRight className="size-5" /> : <ChevronLeft className="size-5" />}
+          {isAr ? <ChevronRight className="size-5 stroke-[2.5]" /> : <ChevronLeft className="size-5 stroke-[2.5]" />}
         </button>
 
-        {/* Center Week Selector (Clickable / Select Dropdown on Mobile & Desktop) */}
-        <div className="relative min-w-0 flex-1">
-          <select
-            className="w-full appearance-none rounded-2xl border border-emerald-500/30 bg-emerald-50/40 py-2.5 ps-3.5 pe-9 text-center text-xs sm:text-sm font-black text-slate-900 shadow-2xs transition hover:border-emerald-500/60 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
-            value={activeWeekId}
-            onChange={(e) => onChangeWeek(e.target.value)}
-          >
-            <option value="all">{isAr ? 'كل الأسابيع' : 'All Weeks'} ({totalCount} {isAr ? 'مباراة' : 'matches'})</option>
-            {weeks.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.fullLabel} ({w.count} {isAr ? 'مباراة' : 'matches'})
-              </option>
-            ))}
-            {unscheduledCount > 0 && (
-              <option value="unscheduled">
-                {isAr ? 'بانتظار البرمجة' : 'Unscheduled'} ({unscheduledCount})
-              </option>
-            )}
-          </select>
-          <div className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-emerald-700">
-            <Calendar className="size-4 opacity-75" />
-          </div>
-        </div>
+        {/* Center Stepper Display (Tappable to open filter sheet or show week info) */}
+        <button
+          type="button"
+          onClick={onOpenFilterSheet}
+          className="group min-w-0 flex-1 flex flex-col items-center justify-center py-1 px-2 rounded-xl transition hover:bg-slate-50 cursor-pointer"
+        >
+          {isAll ? (
+            <>
+              <div className="flex items-center gap-1.5 text-sm sm:text-base font-black text-[#102A43]">
+                <Layers className="size-4 text-[#00C853]" />
+                <span>{isAr ? 'كل الأسابيع' : 'All Weeks'}</span>
+              </div>
+              <p className="text-[11px] sm:text-xs font-semibold text-[#52657A] mt-0.5">
+                {isAr ? 'عرض جدول مباريات البطولة بالكامل' : 'Showing all fixtures'}
+              </p>
+              <span className="inline-block mt-0.5 text-[11px] font-black text-[#008F46]">
+                {totalCount} {isAr ? 'مباراة' : 'matches'}
+              </span>
+            </>
+          ) : isUnscheduled ? (
+            <>
+              <div className="flex items-center gap-1.5 text-sm sm:text-base font-black text-amber-700">
+                <AlertCircle className="size-4 text-amber-600" />
+                <span>{isAr ? 'بانتظار البرمجة' : 'Unscheduled'}</span>
+              </div>
+              <p className="text-[11px] sm:text-xs font-semibold text-[#52657A] mt-0.5">
+                {isAr ? 'مباريات غير محددة الموعد' : 'Matches waiting for schedule'}
+              </p>
+              <span className="inline-block mt-0.5 text-[11px] font-black text-amber-800">
+                {unscheduledCount} {isAr ? 'مباراة' : 'matches'}
+              </span>
+            </>
+          ) : activeWeek ? (
+            <>
+              <div className="flex items-center gap-1.5 text-sm sm:text-base font-black text-[#102A43]">
+                <Calendar className="size-4 text-[#00C853]" />
+                <span>{activeWeek.label}</span>
+              </div>
+              <p className="text-[11px] sm:text-xs font-semibold text-[#52657A] mt-0.5 dir-rtl">
+                {activeWeek.dateRange}
+              </p>
+              <span className="inline-block mt-0.5 text-[11px] font-black text-[#008F46]">
+                {activeWeek.count} {isAr ? 'مباريات' : 'matches'}
+              </span>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5 text-sm sm:text-base font-black text-[#102A43]">
+                <Layers className="size-4 text-[#00C853]" />
+                <span>{isAr ? 'كل الأسابيع' : 'All Weeks'}</span>
+              </div>
+              <span className="inline-block mt-0.5 text-[11px] font-black text-[#008F46]">
+                {totalCount} {isAr ? 'مباراة' : 'matches'}
+              </span>
+            </>
+          )}
+        </button>
 
-        {/* Next Week Button (RTL: points left towards later weeks) */}
+        {/* Next Week Button (RTL: points left) */}
         <button
           type="button"
           onClick={handleNext}
-          disabled={!canGoNext}
+          disabled={!canGoNext && !isAll}
           aria-label={t('committee.detail.nextWeek', 'الأسبوع التالي')}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition-all active:scale-95 ${
-            canGoNext
-              ? 'border-slate-200 bg-slate-50 text-slate-800 hover:border-slate-300 hover:bg-slate-100 shadow-2xs'
-              : 'border-slate-100 bg-slate-50/50 text-slate-300 cursor-not-allowed'
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all active:scale-95 ${
+            canGoNext || isAll
+              ? 'border-[#D7E0EA] bg-[#F3F6FA] text-[#102A43] hover:bg-slate-200 hover:border-slate-300'
+              : 'border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed opacity-50'
           }`}
         >
-          {isAr ? <ChevronLeft className="size-5" /> : <ChevronRight className="size-5" />}
+          {isAr ? <ChevronLeft className="size-5 stroke-[2.5]" /> : <ChevronRight className="size-5 stroke-[2.5]" />}
         </button>
       </div>
-
-      {/* Horizontal Pills for Fast 1-Tap Week Jumping + Dedicated Unscheduled Tab */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-1">
-        <button
-          type="button"
-          onClick={() => onChangeWeek('all')}
-          className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
-            isAll
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-          }`}
-        >
-          <span>{isAr ? 'كل الأسابيع' : 'All Weeks'}</span>
-          <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
-            isAll ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-500'
-          }`}>
-            {totalCount}
-          </span>
-        </button>
-        {weeks.map((w) => {
-          const isActive = activeWeekId === w.id
-          return (
-            <button
-              key={w.id}
-              type="button"
-              onClick={() => onChangeWeek(w.id)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
-                isActive
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-              }`}
-            >
-              <span>{w.label}</span>
-              <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
-                isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-500'
-              }`}>
-                {w.count}
-              </span>
-            </button>
-          )
-        })}
-
-        {/* Dedicated Unscheduled Tab / Pill */}
-        {unscheduledCount > 0 && (
-          <button
-            type="button"
-            onClick={() => onChangeWeek('unscheduled')}
-            className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
-              isUnscheduled
-                ? 'bg-amber-600 text-white shadow-xs ring-2 ring-amber-400/40'
-                : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
-            }`}
-          >
-            <AlertCircle className="size-3.5" />
-            <span>{isAr ? 'بدون موعد / بانتظار البرمجة' : 'Unscheduled'}</span>
-            <span className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
-              isUnscheduled ? 'bg-white/20 text-white' : 'bg-amber-200 text-amber-900'
-            }`}>
-              {unscheduledCount}
-            </span>
-          </button>
-        )}
-      </div>
-
-      {/* Active Week Date Range Sub-Header */}
-      {activeWeek && (
-        <div className="flex items-center justify-between border-t border-slate-100/90 pt-2 px-1 text-[11px] font-bold text-slate-500">
-          <div className="flex items-center gap-1.5 text-slate-700">
-            <span className="font-black text-emerald-700">{activeWeek.label}:</span>
-            <span>{activeWeek.dateRange}</span>
-          </div>
-          <span className="text-slate-400">
-            {activeWeek.count} {isAr ? 'مباراة مجدولة' : 'scheduled'}
-          </span>
-        </div>
-      )}
     </div>
   )
 }

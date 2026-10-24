@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
-import { CalendarClock, Check, Eye, EyeOff, ImagePlus, Lock, MapPin, Palette, Save, ScrollText, ShieldAlert, SlidersHorizontal, Trash2, Trophy, Unlock, Users, AlertTriangle } from 'lucide-react'
+import { CalendarClock, RotateCcw, Check, Eye, EyeOff, ImagePlus, Lock, MapPin, Palette, Save, ScrollText, ShieldAlert, SlidersHorizontal, Trash2, Trophy, Unlock, Users, AlertTriangle } from 'lucide-react'
 import api from '../../../api/client'
 import { Button, Card, Field, FieldRow, Toggle, inputClass, selectClass } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
@@ -87,7 +87,9 @@ export default function SettingsTab({ tournament, refresh }) {
   const [brandingBusy, setBrandingBusy] = useState(false)
   const [hiddenBusy, setHiddenBusy] = useState(false)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [regenBusy, setRegenBusy] = useState(false)
   const removeConfirm = useConfirm()
+  const regenConfirm = useConfirm()
 
   const isGroupFormat = format === 'groups_knockout' || format === 'groups_only'
   const derivedGroups = isGroupFormat
@@ -182,6 +184,23 @@ export default function SettingsTab({ tournament, refresh }) {
       toastApiError(e, t)
     } finally {
       setHiddenBusy(false)
+    }
+  }
+
+  
+  const handleRegenerateFixtures = async () => {
+    setRegenBusy(true)
+    try {
+      const res = await api.post('/committee/tournaments/' + tournament.id + '/fixtures', {
+        stage: 'league',
+        regenerate: true,
+      })
+      toast.success(res.data?.message || 'تمت إعادة توليد جدول مواجهات الدوري بنجاح')
+      refresh()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setRegenBusy(false)
     }
   }
 
@@ -743,6 +762,35 @@ export default function SettingsTab({ tournament, refresh }) {
           desc={t('committee.detail.settingsSectionDangerDesc')}
         />
         <div className="space-y-3">
+          {tournament.tournament_format === 'league' && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-3.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-extrabold text-amber-800">إعادة توليد جدول الدوري</p>
+                <p className="text-[11px] font-semibold text-amber-600">
+                  إعادة إنشاء جميع مواجهات الدوري من جديد. سيتم مسح أي مواعيد محددة للمباريات غير الملعوبة. لن يتم التنفيذ إذا كانت هناك نتائج مسجلة.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-300 text-amber-800 hover:bg-amber-100"
+                loading={regenBusy}
+                onClick={() =>
+                  regenConfirm.run(handleRegenerateFixtures, {
+                    title: 'تأكيد إعادة توليد جدول مواجهات الدوري',
+                    description:
+                      'هل أنت متأكد من رغبتك في إعادة توليد جدول الدوري؟ سيؤدي ذلك إلى حذف كافة المواعيد غير الملعوبة وإعادة ترتيب المواجهات عشوائياً. يرجى العلم أنه إذا كانت هناك أي مباراة ملعوبة ومسجلة نتيجتها، فلن يسمح النظام بالإجراء حفاظاً على سلامة النتائج.',
+                    confirmLabel: 'إعادة التوليد الآن',
+                    tone: 'danger',
+                  })
+                }
+              >
+                <RotateCcw className="size-3.5" />
+                إعادة التوليد
+              </Button>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 px-4 py-3.5">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-extrabold text-slate-800">{t('committee.detail.settingsHideTitle')}</p>
@@ -777,6 +825,13 @@ export default function SettingsTab({ tournament, refresh }) {
         </div>
       </Card>
 
+            <ConfirmDialog
+        open={regenConfirm.open}
+        loading={regenConfirm.loading || regenBusy}
+        onConfirm={regenConfirm.confirm}
+        onClose={regenConfirm.close}
+        {...regenConfirm.options}
+      />
       <ConfirmDialog
         open={removeConfirm.open}
         loading={removeConfirm.loading || deleteBusy}

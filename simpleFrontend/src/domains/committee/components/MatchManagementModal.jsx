@@ -171,6 +171,7 @@ export default function MatchManagementModal({
   const handleChangeSideSubmit = async (override = false) => {
     if (!selectedNewTeamId) return
     setChangeSideBusy(true)
+    const isOverride = override === true
     try {
       // If side is host, check if we need to offer host slots or apply directly
       const res = await api.put(
@@ -178,7 +179,7 @@ export default function MatchManagementModal({
         {
           side: selectedSide,
           new_team_id: Number(selectedNewTeamId),
-          override_warnings: override,
+          override_warnings: isOverride,
         }
       )
 
@@ -680,6 +681,7 @@ export default function MatchManagementModal({
                         {team.other_fixture
                           ? ` (مواجهة الجولة ${team.other_fixture.matchday} ستُستبدل تلقائياً)`
                           : ''}
+                        {team.has_rest_warning ? ' ⚠️ (تعارض فترة راحة - قابل للفرض)' : ''}
                       </option>
                     ))}
                   </select>
@@ -697,7 +699,7 @@ export default function MatchManagementModal({
                 <Button
                   className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4"
                   disabled={!selectedNewTeamId || changeSideBusy || loadingTeams}
-                  onClick={handleChangeSideSubmit}
+                  onClick={() => handleChangeSideSubmit(false)}
                 >
                   {changeSideBusy && <Loader2 className="me-1.5 size-3.5 animate-spin" />}
                   تأكيد التغيير والمقايضة

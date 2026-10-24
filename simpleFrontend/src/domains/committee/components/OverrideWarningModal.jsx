@@ -30,12 +30,12 @@ export default function OverrideWarningModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4 animate-in fade-in duration-150"
       dir="rtl"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-amber-200 overflow-hidden flex flex-col p-6 animate-in zoom-in-95 duration-150"
+        className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-amber-300 overflow-hidden flex flex-col p-6 animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Warning Icon & Header */}
@@ -47,8 +47,8 @@ export default function OverrideWarningModal({
             <h3 className="text-base font-black text-slate-900 leading-snug">
               {warningTitle}
             </h3>
-            <p className="text-xs font-bold text-slate-500 mt-1">
-              تنبيه تنظيمي للجنة المنظمة
+            <p className="text-xs font-bold text-amber-700 mt-1">
+              صلاحية اللجنة المنظمة: تجاوز التحذير وفرض الموعد
             </p>
           </div>
           <button
@@ -76,41 +76,24 @@ export default function OverrideWarningModal({
         </div>
 
         {/* Committee Responsibility Note */}
-        <div className="mt-3 flex items-start gap-2 text-[11px] font-bold text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200/70">
-          <ShieldAlert className="size-4 text-slate-400 shrink-0 mt-0.5" />
+        <div className="mt-3 flex items-start gap-2 text-[11px] font-bold text-slate-600 bg-amber-50/50 p-3 rounded-xl border border-amber-200/60">
+          <ShieldAlert className="size-4 text-amber-600 shrink-0 mt-0.5" />
           <span>
-            تتحمل اللجنة المنظمة المسؤولية التنظيمية عند تجاوز هذا التحذير، وسيتم توثيق القرار في سجل تدقيق العمليات.
+            تتحمل اللجنة المنظمة المسؤولية التنظيمية عند فرض هذا الموعد، وسيتم توثيق القرار في سجل تدقيق البطولة.
           </span>
         </div>
 
-        {/* Confirmation Word Input */}
-        <div className="mt-5 space-y-2">
-          <label className="block text-xs font-black text-slate-700">
-            لتأكيد المتابعة وتجاوز التحذير، اكتب كلمة <span className="text-rose-600 font-black px-1">تأكيد</span> أدناه:
-          </label>
-          <input
-            type="text"
-            value={confirmWord}
-            onChange={(e) => setConfirmWord(e.target.value)}
-            placeholder="اكتب: تأكيد"
-            disabled={busy}
-            autoFocus
-            className="w-full h-11 px-3.5 rounded-xl border-2 border-slate-200 focus:border-amber-500 focus:outline-none text-sm font-black text-slate-900 bg-white placeholder-slate-400 transition-colors text-center"
-          />
-        </div>
-
-        {/* Actions */}
-        <div className="mt-6 flex items-center gap-2.5">
+        {/* Actions - Immediate 1-Click Override */}
+        <div className="mt-5 flex items-center gap-2.5">
           <Button
             type="button"
-            variant="danger"
-            disabled={!isConfirmed || busy}
+            disabled={busy}
             loading={busy}
             onClick={onConfirm}
-            className="flex-1 h-11 text-xs font-black shadow-md shadow-rose-600/20"
+            className="flex-1 h-11 text-xs font-black bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20 active:scale-95 transition-all"
           >
-            <CheckCircle2 className="size-4" />
-            <span>تأكيد المتابعة وتجاوز التحذير</span>
+            <CheckCircle2 className="size-4 me-1.5" />
+            <span>تجاوز التحذير وفرض الموعد الآن</span>
           </Button>
 
           <Button
@@ -118,9 +101,9 @@ export default function OverrideWarningModal({
             variant="outline"
             disabled={busy}
             onClick={onClose}
-            className="h-11 px-4 text-xs font-bold text-slate-600"
+            className="h-11 px-4 text-xs font-bold text-slate-600 hover:bg-slate-100"
           >
-            <span>إلغاء واختيار موعد آخر</span>
+            <span>إلغاء</span>
           </Button>
         </div>
       </div>

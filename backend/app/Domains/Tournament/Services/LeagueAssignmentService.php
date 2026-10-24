@@ -192,6 +192,44 @@ class LeagueAssignmentService
             }
         }
 
+        // 3. Freed or Released Occurrences from Postponements / Tournament Releases
+        $freedOccurrences = \App\Domains\Booking\Models\TerrainBookingOccurrence::query()
+            ->whereIn('status', [
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED,
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED,
+            ])
+            ->whereBetween('occurrence_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
+            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('stadium_id', $allowedStadiumIds))
+            ->with(['booking.terrain', 'booking.team'])
+            ->get();
+
+        foreach ($freedOccurrences as $fOcc) {
+            $fDate = Carbon::parse($fOcc->occurrence_date);
+            $fDatetime = Carbon::parse($fDate->toDateString().' '.$fOcc->start_time);
+            if ($fDatetime->isPast()) {
+                continue;
+            }
+            $key = $fOcc->stadium_id.'_'.$fDatetime->format('Y-m-d H:i');
+            if (isset($occupiedSlots[$key])) {
+                continue;
+            }
+            $alreadyAdded = $slots->contains(fn ($s) => $s['terrain_id'] === (int) $fOcc->stadium_id && $s['date_str'] === $fDate->toDateString() && $s['start_time'] === $fOcc->start_time);
+            if (! $alreadyAdded && $fOcc->booking) {
+                $slots->push([
+                    'booking' => $fOcc->booking,
+                    'date' => $fDate,
+                    'date_str' => $fDate->toDateString(),
+                    'start_time' => $fOcc->start_time,
+                    'end_time' => $fOcc->end_time,
+                    'datetime' => $fDatetime,
+                    'terrain_id' => (int) $fOcc->stadium_id,
+                    'owner_team_id' => (int) ($fOcc->booking->team_id ?? 0),
+                    'is_weekly' => true,
+                    'occurrence_status' => $fOcc->status,
+                ]);
+            }
+        }
+
         return $slots->sortBy('datetime')->values();
     }
 
@@ -673,12 +711,12 @@ class LeagueAssignmentService
             $slotDateTime = $slot['datetime'];
             $occStatus = $slot['occurrence_status'] ?? null;
 
-            // Must be strictly after the original match date if postponed_from_date exists
-            if ($fixture->postponed_from_date && $slotDateTime->lte($fixture->postponed_from_date)) {
+            // Must be today or future
+            if ($slotDateTime->isPast()) {
                 continue;
             }
 
-            // Both teams must be free from overlapping matches
+            // Both teams must be free from overlapping matches at the exact same hour
             if ($this->hasConflictOnDateTime($teamAId, $slotDate, $slotStart, $slotEnd, $scheduledMatches)) {
                 continue;
             }
@@ -686,13 +724,9 @@ class LeagueAssignmentService
                 continue;
             }
 
-            // Both teams must satisfy the rest day rule
-            if (! $this->satisfiesRestRule($teamAId, $slotDate, $restDaysRequired, $scheduledMatches)) {
-                continue;
-            }
-            if (! $this->satisfiesRestRule($teamBId, $slotDate, $restDaysRequired, $scheduledMatches)) {
-                continue;
-            }
+            $satisfiesRestA = $this->satisfiesRestRule($teamAId, $slotDate, $restDaysRequired, $scheduledMatches);
+            $satisfiesRestB = $this->satisfiesRestRule($teamBId, $slotDate, $restDaysRequired, $scheduledMatches);
+            $hasRestWarning = (! $satisfiesRestA || ! $satisfiesRestB);
 
             $isOwnSlot = in_array($slotOwnerId, $involvedTeamIds, true);
             $isFinishedTeam = in_array($slotOwnerId, $finishedTeamIds, true);
@@ -772,6 +806,9 @@ class LeagueAssignmentService
                 'is_borrowed' => ! $isOwnSlot,
                 'borrowed_from_owner' => ! $isOwnSlot ? ($booking->team?->name ?? 'فريق آخر') : null,
                 'is_secondary' => $isSecondary,
+                'has_rest_warning' => $hasRestWarning,
+                'rest_warning' => $hasRestWarning ? 'تعارض مع فترة الراحة (صلاحية فرض الموعد متاحة)' : null,
+                'can_assign' => true,
                 'warning' => $warning,
                 'source_label' => $sourceLabel,
                 'pool_tag' => $poolTag,
@@ -2281,7 +2318,8 @@ class LeagueAssignmentService
                 $hRest = $this->satisfiesRestRule($hId, $slotDate, $restDaysRequired, $scheduledMatches);
                 $aRest = $this->satisfiesRestRule($aId, $slotDate, $restDaysRequired, $scheduledMatches);
 
-                if (! $hConflict && ! $aConflict && $hRest && $aRest) {
+                if (! $hConflict && ! $aConflict) {
+                    $hasRestWarning = (! $hRest || ! $aRest);
                     $isOwner = ($hId === $slotOwnerId || $aId === $slotOwnerId);
                     $eligibleFixtures[] = [
                         'id' => $pf->id,
@@ -2298,6 +2336,8 @@ class LeagueAssignmentService
                             'logo_url' => $pf->awayTeam?->logo_url,
                         ],
                         'is_owner_involved' => $isOwner,
+                        'has_rest_warning' => $hasRestWarning,
+                        'rest_warning' => $hasRestWarning ? 'تعارض مع فترة الراحة (يمكن فرضه)' : null,
                         'borrowed_label' => $isOwner ? null : "موعد مستعار من {$booking->team?->name}",
                     ];
                 }

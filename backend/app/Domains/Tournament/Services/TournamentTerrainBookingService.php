@@ -162,16 +162,14 @@ class TournamentTerrainBookingService
             ->unique()
             ->all();
 
-        // 1. Only archive single bookings created for match slots.
-        // NEVER archive or end a weekly subscription!
+        // 1. Release single bookings back to available pool (detach fixture, do not archive so others can reuse)
         $count = TerrainBooking::query()
             ->whereIn('fixture_id', $ids->all())
             ->where(function ($q) {
                 $q->whereNull('reservation_type')
                     ->orWhere('reservation_type', '!=', 'weekly_subscription');
             })
-            ->whereNull('archived_at')
-            ->update(['archived_at' => now()]);
+            ->update(['fixture_id' => null]);
 
         // 2. If any weekly subscription had fixture_id linked, safely detach without archiving
         TerrainBooking::query()

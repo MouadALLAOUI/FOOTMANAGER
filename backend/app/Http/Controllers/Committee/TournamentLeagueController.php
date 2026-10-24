@@ -381,11 +381,14 @@ class TournamentLeagueController extends Controller
             'new_team_id' => 'required|integer|exists:teams,id',
             'new_booking_id' => 'nullable|integer|exists:terrain_bookings,id',
             'new_slot_date' => 'nullable|date',
+            'override_warnings' => 'nullable|boolean',
         ], [
             'side.required' => 'يرجى تحديد الطرف المراد تغييره (مضيف أو ضيف)',
             'new_team_id.required' => 'يرجى اختيار الفريق الجديد',
             'new_team_id.exists' => 'الفريق المختار غير موجود',
         ]);
+
+        $overrideWarnings = $request->boolean('override_warnings');
 
         $result = $this->eligibilityEngine->changeSide(
             $tournament,
@@ -393,7 +396,8 @@ class TournamentLeagueController extends Controller
             $validated['side'],
             $validated['new_team_id'],
             $validated['new_booking_id'] ?? null,
-            $validated['new_slot_date'] ?? null
+            $validated['new_slot_date'] ?? null,
+            $overrideWarnings
         );
 
         return response()->json([

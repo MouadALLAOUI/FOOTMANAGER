@@ -19,7 +19,7 @@ class TournamentStadiumController extends Controller
     {
         $this->authorize('view', $tournament);
 
-        $stadiums = $tournament->stadiums()->orderBy('name')->get(['id', 'name', 'city']);
+        $stadiums = $tournament->stadiums()->orderBy('stadiums.name')->get(['stadiums.id', 'stadiums.name', 'stadiums.city']);
 
         return response()->json([
             'data' => [

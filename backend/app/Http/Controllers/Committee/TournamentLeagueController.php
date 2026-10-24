@@ -591,4 +591,40 @@ class TournamentLeagueController extends Controller
             'data' => $occurrences,
         ]);
     }
+
+    /**
+     * Advance a future scheduled match into an earlier vacant booking slot (Requirement 8).
+     */
+    public function advanceMatch(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'booking_id' => 'required|integer|exists:terrain_bookings,id',
+            'date' => 'required|date',
+            'override_warnings' => 'nullable|boolean',
+            'override_reason' => 'nullable|string|max:500',
+        ], [
+            'booking_id.required' => 'معرف الحجز مطلوب',
+            'date.required' => 'تاريخ الحجز مطلوب',
+        ]);
+
+        $overrideWarnings = $request->boolean('override_warnings');
+        $overrideReason = $validated['override_reason'] ?? 'تقديم موعد المباراة بقرار من اللجنة المنظمة';
+
+        $result = $this->leagueAssignment->advanceMatch(
+            $tournament,
+            $fixture,
+            $validated['booking_id'],
+            $validated['date'],
+            $overrideWarnings,
+            $overrideReason
+        );
+
+        return response()->json([
+            'data' => $result['fixture'],
+            'days_saved' => $result['days_saved'] ?? 0,
+            'message' => $result['message'],
+        ]);
+    }
 }

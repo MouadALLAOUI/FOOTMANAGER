@@ -351,13 +351,21 @@ class TournamentFixtureService
 
             $time = $datetime->format('H:i');
 
-            if (TerrainBooking::getConflictMessage(
-                $stadiumId,
-                $datetime->toDateString(),
-                $time,
-                $this->endTimeFor($time),
+            $conflictBooking = app(\App\Domains\Booking\Services\SlotAvailabilityService::class)->firstConflict(
+                terrainId: $stadiumId,
+                date: $datetime->toDateString(),
+                startTime: $time,
+                endTime: $this->endTimeFor($time),
                 excludeId: $excludeBookingId,
-            )) {
+            );
+
+            // A booking owned by one of the participating teams (and not occupied by another match) is an eligible option, NOT a conflict!
+            $participatingTeamIds = array_filter([(int) $homeTeamId, (int) $awayTeamId]);
+            $isOwnTeamBooking = $conflictBooking
+                && in_array((int) $conflictBooking->team_id, $participatingTeamIds, true)
+                && (! $conflictBooking->fixture_id || (int) $conflictBooking->fixture_id === (int) $excludeFixtureId);
+
+            if ($conflictBooking && ! $isOwnTeamBooking) {
                 if (! $overrideWarnings) {
                     $stadium = Stadium::find($stadiumId);
                     throw new SchedulingWarningException(

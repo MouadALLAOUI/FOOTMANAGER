@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, CheckCircle2 } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Sparkles, Clock, MapPin, Loader2 } from 'lucide-react'
+import { useEffect } from 'react'
 import Drawer from '../../../components/dashboard/Drawer'
 import { Field, FieldRow, Button, inputClass, selectClass } from '../../../components/dashboard/ui'
 import api from '../../../api/client'
@@ -18,6 +19,42 @@ export default function RescheduleDrawer({ fixture, tournament, stadiums, onClos
   const [busy, setBusy] = useState(false)
   const [busyConfirm, setBusyConfirm] = useState(false)
   const [warningModalData, setWarningModalData] = useState(null)
+  const [nearestSlot, setNearestSlot] = useState(null)
+  const [loadingNearest, setLoadingNearest] = useState(false)
+
+  useEffect(() => {
+    if (!fixture?.id || !tournament?.id) return
+    let isMounted = true
+    setLoadingNearest(true)
+    api
+      .get(`/committee/tournaments/${tournament.id}/league/fixtures/${fixture.id}/postpone-suggestions`)
+      .then((res) => {
+        if (isMounted) {
+          const slots = res.data?.data || []
+          if (slots.length > 0) {
+            setNearestSlot(slots[0])
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (isMounted) setLoadingNearest(false)
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [fixture?.id, tournament?.id])
+
+  const applyNearestSlot = () => {
+    if (!nearestSlot) return
+    setForm((prev) => ({
+      ...prev,
+      date: nearestSlot.date,
+      time: nearestSlot.time ? nearestSlot.time.slice(0, 5) : prev.time,
+      stadium_id: nearestSlot.stadium_id || nearestSlot.stadium?.id || prev.stadium_id,
+    }))
+    toast.info('تم تطبيق أقرب موعد متاح في الخانات أدناه')
+  }
   const initialDate = fixture.scheduled_at ? fixture.scheduled_at.slice(0, 10) : new Date().toISOString().slice(0, 10)
   const initialTime = fixture.scheduled_at ? fixture.scheduled_at.slice(11, 16) : '20:00'
   const [form, setForm] = useState({ date: initialDate, time: initialTime, stadium_id: fixture.stadium?.id ?? '' })
@@ -100,6 +137,53 @@ export default function RescheduleDrawer({ fixture, tournament, stadiums, onClos
     <>
       <Drawer open onClose={onClose} title="إعادة جدولة المباراة" subtitle="اختر تاريخًا ووقتًا جديدًا للمباراة">
         <div className="space-y-5">
+          {/* Top Banner: Nearest Available Slot */}
+          {loadingNearest ? (
+            <div className="flex items-center gap-2 rounded-2xl bg-slate-50 border border-slate-100 p-3 text-xs text-slate-400">
+              <Loader2 className="size-4 animate-spin text-emerald-600" />
+              <span>جاري فحص أقرب موعد متاح للمباراة...</span>
+            </div>
+          ) : nearestSlot ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-black text-emerald-950">
+                  <Sparkles className="size-4 text-emerald-600" />
+                  <span>أقرب موعد متاح ومؤهل للمباراة:</span>
+                </div>
+                <span className="rounded bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-black">
+                  مقترح ذكي ⭐
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-700 font-bold">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-white px-2 py-0.5 border border-emerald-100 text-slate-900">
+                    {nearestSlot.day_name ? `${nearestSlot.day_name} • ` : ''}{nearestSlot.date}
+                  </span>
+                  <span className="flex items-center gap-1 text-slate-600">
+                    <Clock className="size-3 text-slate-400" />
+                    {nearestSlot.time}
+                  </span>
+                  <span className="flex items-center gap-1 text-slate-600">
+                    <MapPin className="size-3 text-slate-400" />
+                    {nearestSlot.stadium_name || nearestSlot.stadium?.name}
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  type="button"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black h-7 px-2.5 shadow-2xs"
+                  onClick={applyNearestSlot}
+                >
+                  تطبيق الموعد
+                </Button>
+              </div>
+              {nearestSlot.has_rest_warning && (
+                <div className="text-[10px] font-bold text-amber-800 bg-amber-100/70 rounded-lg p-1.5 flex items-center gap-1">
+                  <span>⚠️ {nearestSlot.warning_message || 'تنبيه: تعارض جزئي مع فترة الراحة المحددة'}</span>
+                </div>
+              )}
+            </div>
+          ) : null}
           <FieldRow>
             <Field label="التاريخ">
               <input type="date" className={inputClass} value={form.date} onChange={set('date')} />

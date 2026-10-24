@@ -61,6 +61,11 @@ export default function MatchManagementModal({
   const [swapRolesBusy, setSwapRolesBusy] = useState(false)
   const [warningModalData, setWarningModalData] = useState(null)
 
+  // Action 4 State: Reschedule / Available Slots
+  const [slotSuggestions, setSlotSuggestions] = useState([])
+  const [loadingSlotSuggestions, setLoadingSlotSuggestions] = useState(false)
+  const [applyingSuggestionId, setApplyingSuggestionId] = useState(null)
+
   // Helper: Trigger Undo Toast
   const triggerUndoToast = (message, updatedFixture) => {
     toast.success(message, {
@@ -213,6 +218,44 @@ export default function MatchManagementModal({
       }
     } finally {
       setChangeSideBusy(false)
+    }
+  }
+
+  // Action 4: Load Postpone Suggestions
+  const loadPostponeSuggestions = async () => {
+    setLoadingSlotSuggestions(true)
+    setSlotSuggestions([])
+    try {
+      const res = await api.get(
+        '/committee/tournaments/' + tournament.id + '/league/fixtures/' + fixture.id + '/postpone-suggestions'
+      )
+      setSlotSuggestions(res.data?.data || [])
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setLoadingSlotSuggestions(false)
+    }
+  }
+
+  const handleApplySlotSuggestion = async (sug) => {
+    setApplyingSuggestionId(sug.id)
+    try {
+      const res = await api.post(
+        '/committee/tournaments/' + tournament.id + '/league/fixtures/' + fixture.id + '/reschedule-suggestion',
+        {
+          booking_id: sug.booking_id,
+          date: sug.date,
+          override_warnings: Boolean(sug.has_rest_warning),
+          override_reason: 'تثبيت موعد المباراة من المواعيد المتاحة بقرار اللجنة المنظمة',
+        }
+      )
+      triggerUndoToast(res.data?.message || 'تمت إعادة جدولة وتثبيت المباراة بنجاح', res.data?.data || fixture)
+      if (onSuccess) onSuccess()
+      onClose()
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setApplyingSuggestionId(null)
     }
   }
 
@@ -437,6 +480,31 @@ export default function MatchManagementModal({
                   </div>
                   <p className="text-[11px] font-medium text-slate-500 mt-1 leading-relaxed">
                     عكس دور الاستضافة بين الفريقين مع بقاء التاريخ والملعب، أو النقل الاختياري لموعد المضيف الجديد.
+                  </p>
+                </div>
+              </button>
+
+              {/* ACTION 4 TILE */}
+              <button
+                type="button"
+                className="w-full text-start rounded-2xl border border-emerald-200/90 bg-emerald-50/30 p-4 shadow-2xs hover:border-emerald-500 hover:bg-emerald-50/60 transition-all flex items-start gap-3.5 group"
+                onClick={() => {
+                  setActiveView('reschedule_slot')
+                  loadPostponeSuggestions()
+                }}
+              >
+                <div className="size-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Sparkles className="size-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs sm:text-sm font-black text-slate-900 group-hover:text-emerald-900">
+                      الإجراء 4: أقرب المواعيد الشاغرة والحجوزات المتاحة
+                    </h4>
+                    <ChevronRight className="size-4 text-emerald-700 rotate-180" />
+                  </div>
+                  <p className="text-[11px] font-medium text-slate-500 mt-1 leading-relaxed">
+                    اكتشاف أقرب المواعيد المحررة وحجوزات طرفي المواجهة المتاحة تلقائياً، أو الانتقال لتحديد موعد يدوي مخصص.
                   </p>
                 </div>
               </button>
@@ -736,6 +804,116 @@ export default function MatchManagementModal({
                 >
                   {swapRolesBusy && <Loader2 className="me-1.5 size-3.5 animate-spin" />}
                   تأكيد عكس الأدوار (نقرة واحدة)
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: ACTION 4 (RESCHEDULE / AVAILABLE SLOTS) */}
+          {activeView === 'reschedule_slot' && (
+            <div className="space-y-4 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-slate-800">
+                  المواعيد المتاحة المناسبة لهذه المواجهة (أقرب موعد أولاً):
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs font-bold text-slate-600"
+                  onClick={() => setActiveView('menu')}
+                >
+                  العودة للقائمة
+                </Button>
+              </div>
+
+              {loadingSlotSuggestions ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2">
+                  <Loader2 className="size-6 animate-spin text-emerald-600" />
+                  <p className="text-slate-400 font-bold">جاري البحث عن أقرب المواعيد الشاغرة وحجوزات الفريقين...</p>
+                </div>
+              ) : slotSuggestions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center space-y-2">
+                  <CalendarDays className="size-8 mx-auto text-slate-300" />
+                  <p className="text-slate-600 font-bold">لا توجد مواعيد شاغرة أو حجوزات متاحة حالياً تطابق الشروط.</p>
+                  <p className="text-[11px] text-slate-400">يمكنك تحديد تاريخ ووقت مخصص يدوياً باستخدام نافذة إعادة الجدولة.</p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-72 overflow-y-auto pe-1">
+                  {slotSuggestions.map((sug, idx) => (
+                    <div
+                      key={sug.id || idx}
+                      className={
+                        'rounded-2xl border p-3.5 shadow-2xs flex items-center justify-between gap-3 transition-all ' +
+                        (idx === 0
+                          ? 'border-emerald-300 bg-emerald-50/40 ring-1 ring-emerald-200'
+                          : 'border-slate-200 bg-white hover:border-slate-300')
+                      }
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          {idx === 0 && (
+                            <span className="rounded-lg bg-emerald-600 text-white px-2 py-0.5 text-[10px] font-black">
+                              ⭐ أقرب موعد
+                            </span>
+                          )}
+                          <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[11px] font-black text-slate-800">
+                            {sug.day_name ? sug.day_name + ' • ' : ''}{sug.date}
+                          </span>
+                          <span className="flex items-center gap-1 text-[11px] font-bold text-slate-600">
+                            <Clock className="size-3 text-slate-400" />
+                            {sug.time}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[11px] text-slate-700 font-bold">
+                          <MapPin className="size-3 text-slate-400" />
+                          <span>{sug.stadium_name || sug.stadium?.name || 'الملعب المعتمد'}</span>
+                        </div>
+                        {sug.has_rest_warning && (
+                          <div className="pt-0.5">
+                            <span className="inline-flex items-center gap-1 rounded bg-amber-100 text-amber-900 px-1.5 py-0.5 text-[10px] font-bold">
+                              ⚠️ {sug.warning_message || 'تنبيه: تعارض مع فترة الراحة المحددة'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <Button
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 shrink-0"
+                        disabled={Boolean(applyingSuggestionId)}
+                        onClick={() => handleApplySlotSuggestion(sug)}
+                      >
+                        {applyingSuggestionId === sug.id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          'تثبيت الموعد'
+                        )}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Manual Reschedule Option */}
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 flex items-center justify-between gap-3">
+                <div className="text-slate-600 text-[11px] font-medium">
+                  هل تفضل تحديد تاريخ ووقت مخصصين يدوياً للمباراة؟
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs font-bold shrink-0 border-slate-300"
+                  onClick={() => {
+                    if (onOpenManualReschedule) onOpenManualReschedule(fixture)
+                    onClose()
+                  }}
+                >
+                  موعد مخصص ⚙️
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-end border-t border-slate-100 pt-3">
+                <Button variant="outline" className="text-xs" onClick={() => setActiveView('menu')}>
+                  العودة للقائمة الرئيسية
                 </Button>
               </div>
             </div>

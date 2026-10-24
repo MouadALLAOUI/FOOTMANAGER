@@ -920,6 +920,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/league/fixtures/{fixture}/reschedule-suggestion', [TournamentLeagueController::class, 'rescheduleWithSuggestion']);
                 Route::post('/league/fixtures/{fixture}/move-to-own-slot', [TournamentLeagueController::class, 'moveToOwnSlot']);
                 Route::post('/league/fixtures/{fixture}/quick-assign', [TournamentLeagueController::class, 'quickAssign']);
+                Route::post('/league/fixtures/{fixture}/advance-match', [TournamentLeagueController::class, 'advanceMatch']);
                 Route::post('/league/occurrences/{occurrence}/release', [TournamentLeagueController::class, 'releaseOccurrence']);
                 Route::post('/league/occurrences/{occurrence}/reclaim', [TournamentLeagueController::class, 'reclaimOccurrence']);
                 Route::post('/league/fixtures/{fixture}/swap-schedule', [TournamentLeagueController::class, 'swapSchedule']);

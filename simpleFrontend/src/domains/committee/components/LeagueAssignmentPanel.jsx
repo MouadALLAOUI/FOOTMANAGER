@@ -140,6 +140,11 @@ export default function LeagueAssignmentPanel({
   const [applyingSuggestionId, setApplyingSuggestionId] = useState(null)
   const [pendingConfirmSuggestion, setPendingConfirmSuggestion] = useState(null)
 
+  // Early match advancement state
+  const [advanceCandidateModal, setAdvanceCandidateModal] = useState(null)
+  const [advanceBusy, setAdvanceBusy] = useState(false)
+  const [overrideRest, setOverrideRest] = useState(false)
+
   // Fetch match suggestions
   const {
     data: suggestionsData,
@@ -395,6 +400,8 @@ export default function LeagueAssignmentPanel({
         {
           booking_id: suggestion.booking_id,
           date: suggestion.date,
+          override_warnings: Boolean(suggestion.has_rest_warning),
+          override_reason: 'تثبيت موعد المباراة من المقترحات بقرار اللجنة المنظمة',
         }
       )
       toast.success(res.data?.message || 'تمت إعادة جدولة وتثبيت المباراة بنجاح')
@@ -409,6 +416,35 @@ export default function LeagueAssignmentPanel({
       toastApiError(e)
     } finally {
       setApplyingSuggestionId(null)
+    }
+  }
+
+  const handleConfirmAdvance = async () => {
+    if (!advanceCandidateModal) return
+    const { fixture, slot } = advanceCandidateModal
+    setAdvanceBusy(true)
+    try {
+      const res = await api.post(
+        `/committee/tournaments/${tournament.id}/league/fixtures/${fixture.id}/advance-match`,
+        {
+          booking_id: slot.booking_id,
+          date: slot.date,
+          override_warnings: overrideRest,
+          override_reason: 'تقديم موعد المباراة لتقليص مدة الدوري بقرار اللجنة المنظمة',
+        }
+      )
+      toast.success(res.data?.message || 'تم تقديم موعد المباراة بنجاح')
+      setAdvanceCandidateModal(null)
+      setOverrideRest(false)
+      refetchAllFixtures()
+      refetchSuggestions()
+      refetchSlotPool()
+      refetchCapacity()
+      if (onRefresh) onRefresh()
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setAdvanceBusy(false)
     }
   }
 
@@ -1282,6 +1318,62 @@ export default function LeagueAssignmentPanel({
                           لا توجد مباريات معلقة حالياً تتطابق مع شروط هذا الموعد
                         </div>
                       )}
+
+                      {/* Advancement Candidates (تقديم المباريات لتسريع البطولة) */}
+                      {slot.advancement_candidates && slot.advancement_candidates.length > 0 && (
+                        <div className="mt-2.5 rounded-xl border border-sky-200/90 bg-sky-50/50 p-2.5 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-black text-sky-950">
+                            <div className="flex items-center gap-1.5">
+                              <Sparkles className="size-3.5 text-sky-600" />
+                              <span>مباريات مؤهلة للتقديم ({slot.advancement_candidates.length}):</span>
+                            </div>
+                            <span className="text-[10px] text-sky-700 font-bold">تسريع البطولة ⚡</span>
+                          </div>
+
+                          <div className="space-y-1.5 max-h-48 overflow-y-auto pe-0.5">
+                            {slot.advancement_candidates.map((cand) => (
+                              <div
+                                key={cand.id}
+                                className="flex items-center justify-between gap-2 rounded-xl bg-white p-2 border border-sky-100 shadow-2xs"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 flex-wrap">
+                                    <span className="rounded bg-sky-100 text-sky-900 px-1.5 py-0.2 text-[10px] font-black shrink-0">
+                                      جولة {cand.matchday}
+                                    </span>
+                                    <span className="truncate">{cand.home_team?.name} ضد {cand.away_team?.name}</span>
+                                    {cand.days_saved > 0 && (
+                                      <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[10px] font-black shrink-0">
+                                        وفر {cand.days_saved} يوم
+                                      </span>
+                                    )}
+                                    {cand.has_rest_warning && (
+                                      <span className="rounded bg-amber-100 px-1 py-0.2 text-[9px] font-black text-amber-800 shrink-0" title={cand.rest_warning_message}>
+                                        ⚠️ راحة
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 mt-0.5">
+                                    الموعد الحالي: {cand.current_date} • {cand.current_time}
+                                  </div>
+                                </div>
+
+                                <Button
+                                  size="sm"
+                                  className="shrink-0 bg-sky-600 hover:bg-sky-700 text-white text-[11px] font-bold h-7 px-2.5 shadow-2xs"
+                                  onClick={() => {
+                                    setAdvanceCandidateModal({ fixture: cand, slot })
+                                    setOverrideRest(Boolean(cand.has_rest_warning))
+                                  }}
+                                >
+                                  <Sparkles className="size-3 me-1" />
+                                  تقديم
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-2.5">
@@ -2052,6 +2144,113 @@ export default function LeagueAssignmentPanel({
         </div>
       )}
 
+      {/* Advance Match Confirmation Modal */}
+      {advanceCandidateModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setAdvanceCandidateModal(null)}
+          />
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-5 text-sky-600" />
+                <h3 className="text-sm font-black text-slate-900">تقديم موعد المباراة (تسريع البطولة)</h3>
+              </div>
+              <button
+                type="button"
+                className="rounded-xl p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                onClick={() => setAdvanceCandidateModal(null)}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="rounded-2xl bg-sky-50 border border-sky-100 p-3.5 space-y-2">
+                <div className="flex items-center justify-between font-bold text-slate-800">
+                  <span className="rounded bg-sky-100 text-sky-900 px-2 py-0.5 text-[11px] font-black">
+                    جولة {advanceCandidateModal.fixture.matchday}
+                  </span>
+                  <span>{advanceCandidateModal.fixture.home_team?.name} ضد {advanceCandidateModal.fixture.away_team?.name}</span>
+                </div>
+                {advanceCandidateModal.fixture.days_saved > 0 && (
+                  <div className="text-emerald-700 font-extrabold flex items-center gap-1">
+                    <Zap className="size-3.5 text-emerald-600" />
+                    <span>تقليص مدة الدوري بمقدار {advanceCandidateModal.fixture.days_saved} يوم كامل!</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-slate-600">
+                <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                  <span className="block text-[10px] text-slate-400 font-bold mb-1">الموعد الحالي السابق:</span>
+                  <p className="font-extrabold text-slate-700">{advanceCandidateModal.fixture.current_date}</p>
+                  <p className="text-[11px] font-bold text-slate-500">{advanceCandidateModal.fixture.current_time}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-50/70 p-2.5 border border-emerald-100">
+                  <span className="block text-[10px] text-emerald-700 font-bold mb-1">الموعد الجديد المتقدم:</span>
+                  <p className="font-extrabold text-emerald-900">{advanceCandidateModal.slot.date}</p>
+                  <p className="text-[11px] font-bold text-emerald-700">{advanceCandidateModal.slot.time} • {advanceCandidateModal.slot.stadium?.name}</p>
+                </div>
+              </div>
+
+              {advanceCandidateModal.fixture.has_rest_warning && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-amber-900 font-black">
+                    <AlertTriangle className="size-4 text-amber-600 shrink-0" />
+                    <span>تنبيه بشأن فترة الراحة:</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800 font-medium">
+                    {advanceCandidateModal.fixture.rest_warning_message}
+                  </p>
+                  <label className="flex items-center gap-2 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={overrideRest}
+                      onChange={(e) => setOverrideRest(e.target.checked)}
+                      className="size-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="text-xs font-black text-amber-950">
+                      موافقة اللجنة المنظمة على تجاوز فترة الراحة لتقديم المباراة
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-2 rounded-xl">
+                ℹ️ عند تأكيد التقديم، سيتم حجز الموعد المتقدم للمباراة تلقائياً، وتحرير الموعد السابق للمباراة ليعود إلى مجموعة المواعيد الشاغرة للبطولة ليتاح لتقديم مباريات أخرى!
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs font-bold"
+                onClick={() => setAdvanceCandidateModal(null)}
+                disabled={advanceBusy}
+              >
+                إلغاء
+              </Button>
+              <Button
+                size="sm"
+                className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold px-4"
+                onClick={handleConfirmAdvance}
+                disabled={advanceBusy}
+              >
+                {advanceBusy ? (
+                  <Loader2 className="size-3.5 animate-spin me-1.5" />
+                ) : (
+                  <Sparkles className="size-3.5 me-1.5" />
+                )}
+                تأكيد تقديم المباراة
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reschedule Suggestions Modal */}
       {rescheduleFixture && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -2094,7 +2293,12 @@ export default function LeagueAssignmentPanel({
                         <p className="text-xs font-black text-slate-900">
                           {sug.date} • {sug.time}
                         </p>
-                        <p className="text-[11px] text-slate-500">{sug.stadium_name}</p>
+                        <p className="text-[11px] text-slate-500">{sug.stadium_name || sug.stadium?.name || 'الملعب المعتمد'}</p>
+                        {sug.has_rest_warning && (
+                          <span className="inline-block mt-1 rounded bg-amber-100 text-amber-900 px-1.5 py-0.5 text-[10px] font-bold">
+                            ⚠️ {sug.warning_message || 'تنبيه: تعارض مع فترة الراحة المحددة'}
+                          </span>
+                        )}
                       </div>
                       <Button
                         size="sm"

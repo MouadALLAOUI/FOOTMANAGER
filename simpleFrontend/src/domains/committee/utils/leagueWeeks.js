@@ -1,41 +1,52 @@
-// Helpers for computing and filtering league weeks
+// League Weeks Calculation Utilities
+// Designed for reliable week computation without timezone shifting
 
-export function getMondayOfWeek(date) {
-  const d = new Date(date)
-  const day = d.getDay() // 0 = Sunday, 1 = Monday, ...
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  const monday = new Date(d.setDate(diff))
-  monday.setHours(0, 0, 0, 0)
-  return monday
+export function formatLocalDateKey(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+export function getMondayOfWeek(dateInput) {
+  let d
+  if (typeof dateInput === 'string') {
+    const clean = dateInput.includes('T') ? dateInput : `${dateInput.split(' ')[0]}T12:00:00`
+    d = new Date(clean)
+  } else {
+    d = new Date(dateInput)
+  }
+
+  // Adjust to Monday: 0 (Sun) -> -6, 1 (Mon) -> 0, 2 (Tue) -> -1, etc.
+  const day = d.getDay()
+  const diff = (day === 0 ? -6 : 1) - day
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
 }
 
 export function formatWeekDateRange(monday, lang = 'ar') {
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
-  sunday.setHours(23, 59, 59, 999)
 
   const isAr = Boolean(lang?.startsWith('ar'))
   const locale = isAr ? 'ar-MA' : 'en-GB'
 
   const startDay = monday.getDate()
   const endDay = sunday.getDate()
-
-  const startMonth = new Intl.DateTimeFormat(locale, { month: isAr ? 'long' : 'short' }).format(monday)
-  const endMonth = new Intl.DateTimeFormat(locale, { month: isAr ? 'long' : 'short' }).format(sunday)
+  const monthName = new Intl.DateTimeFormat(locale, { month: 'long' }).format(sunday)
 
   if (monday.getMonth() === sunday.getMonth()) {
-    return `${startDay} - ${endDay} ${startMonth}`
+    return isAr ? `${startDay}–${endDay} ${monthName}` : `${startDay}–${endDay} ${monthName}`
   }
-  return `${startDay} ${startMonth} - ${endDay} ${endMonth}`
+
+  const startMonthName = new Intl.DateTimeFormat(locale, { month: isAr ? 'long' : 'short' }).format(monday)
+  return isAr ? `${startDay} ${startMonthName} – ${endDay} ${monthName}` : `${startDay} ${startMonthName} – ${endDay} ${monthName}`
 }
 
-export function computeLeagueWeeks(fixtures, lang = 'ar') {
-  if (!fixtures || fixtures.length === 0) {
-    return { weeks: [], unscheduled: [], chronologicalNumberMap: new Map() }
-  }
-
-  const unscheduled = []
+export function computeLeagueWeeks(fixtures = [], lang = 'ar') {
   const scheduled = []
+  const unscheduled = []
 
   for (const f of fixtures) {
     if (f.scheduled_at && f.status !== 'waiting_for_booking') {
@@ -47,8 +58,8 @@ export function computeLeagueWeeks(fixtures, lang = 'ar') {
 
   // Sort all scheduled fixtures chronologically by scheduled_at, then id
   scheduled.sort((a, b) => {
-    const diff = new Date(a.scheduled_at) - new Date(b.scheduled_at)
-    if (diff !== 0) return diff
+    const diff = new Date((a.scheduled_at || '').replace(' ', 'T')) - new Date((b.scheduled_at || '').replace(' ', 'T'))
+    if (!isNaN(diff) && diff !== 0) return diff
     return (a.id || 0) - (b.id || 0)
   })
 
@@ -65,7 +76,7 @@ export function computeLeagueWeeks(fixtures, lang = 'ar') {
   const weekMap = new Map()
   for (const f of scheduled) {
     const monday = getMondayOfWeek(f.scheduled_at)
-    const key = monday.toISOString().slice(0, 10)
+    const key = formatLocalDateKey(monday)
     if (!weekMap.has(key)) {
       weekMap.set(key, { monday, fixtures: [] })
     }
@@ -114,8 +125,114 @@ export function getDefaultWeekId(weeks, unscheduled = []) {
   const upcomingWeek = weeks.find((w) => w.sunday >= now)
   if (upcomingWeek) return upcomingWeek.id
 
-  // 3. Last week
-  return weeks[weeks.length - 1].id
+  // 3. If tournament is in the past, return the first week or nearest
+  return weeks[0]?.id || weeks[weeks.length - 1].id
+}
+
+/**
+ * Returns distinctive color configuration for match days
+ * Friday: Blue (#1769FF)
+ * Saturday: Green (#00A84F)
+ * Sunday: Orange (#FF7900)
+ */
+export function getDayColorConfig(dayKey) {
+  if (!dayKey || dayKey === 'unscheduled') {
+    return {
+      dayIndex: -1,
+      name: 'غير محدد',
+      primary: '#64748B',
+      headerBg: 'bg-[#64748B]',
+      headerPillBg: '#475569',
+      cardTint: '#F8FAFC',
+      accentColor: '#64748B',
+      borderColor: '#E2E8F0',
+    }
+  }
+
+  const clean = dayKey.includes('T') ? dayKey : `${dayKey}T12:00:00`
+  const d = new Date(clean)
+  const day = d.getDay() // 0: Sun, 1: Mon, 2: Tue, 3: Wed, 4: Thu, 5: Fri, 6: Sat
+
+  switch (day) {
+    case 5: // Friday (الجمعة) - BLUE
+      return {
+        dayIndex: 5,
+        name: 'الجمعة',
+        primary: '#1769FF',
+        headerBg: 'bg-[#1769FF]',
+        headerPillBg: '#0F52CC',
+        cardTint: '#EBF3FF',
+        accentColor: '#1769FF',
+        borderColor: '#C7DCFE',
+      }
+    case 6: // Saturday (السبت) - GREEN
+      return {
+        dayIndex: 6,
+        name: 'السبت',
+        primary: '#00A84F',
+        headerBg: 'bg-[#00A84F]',
+        headerPillBg: '#007A38',
+        cardTint: '#E6F7ED',
+        accentColor: '#00A84F',
+        borderColor: '#A7F3D0',
+      }
+    case 0: // Sunday (الأحد) - ORANGE
+      return {
+        dayIndex: 0,
+        name: 'الأحد',
+        primary: '#FF7900',
+        headerBg: 'bg-[#FF7900]',
+        headerPillBg: '#C85E00',
+        cardTint: '#FFF4E6',
+        accentColor: '#FF7900',
+        borderColor: '#FED7AA',
+      }
+    case 4: // Thursday (الخميس) - PURPLE
+      return {
+        dayIndex: 4,
+        name: 'الخميس',
+        primary: '#7C3AED',
+        headerBg: 'bg-[#7C3AED]',
+        headerPillBg: '#5B21B6',
+        cardTint: '#F5F3FF',
+        accentColor: '#7C3AED',
+        borderColor: '#DDD6FE',
+      }
+    case 3: // Wednesday (الأربعاء) - TEAL
+      return {
+        dayIndex: 3,
+        name: 'الأربعاء',
+        primary: '#0D9488',
+        headerBg: 'bg-[#0D9488]',
+        headerPillBg: '#0F766E',
+        cardTint: '#F0FDFA',
+        accentColor: '#0D9488',
+        borderColor: '#99F6E4',
+      }
+    case 2: // Tuesday (الثلاثاء) - SKY BLUE
+      return {
+        dayIndex: 2,
+        name: 'الثلاثاء',
+        primary: '#0284C7',
+        headerBg: 'bg-[#0284C7]',
+        headerPillBg: '#0369A1',
+        cardTint: '#F0F9FF',
+        accentColor: '#0284C7',
+        borderColor: '#BAE6FD',
+      }
+    case 1: // Monday (الإثنين) - INDIGO
+    default:
+      return {
+        dayIndex: 1,
+        name: 'الإثنين',
+        primary: '#4F46E5',
+        headerBg: 'bg-[#4F46E5]',
+        headerPillBg: '#3730A3',
+        cardTint: '#EEF2FF',
+        accentColor: '#4F46E5',
+        borderColor: '#C7D2FE',
+      }
+  }
 }
 
 export function groupFixturesByDay(fixtures, lang = 'ar') {
@@ -141,7 +258,8 @@ export function groupFixturesByDay(fixtures, lang = 'ar') {
     if (dayKey === 'unscheduled') {
       headerLabel = isAr ? 'مباريات بانتظار تحديد الموعد' : 'Unscheduled Matches'
     } else {
-      const d = new Date(`${dayKey}T12:00:00`)
+      const clean = dayKey.includes('T') ? dayKey : `${dayKey}T12:00:00`
+      const d = new Date(clean)
       headerLabel = new Intl.DateTimeFormat(locale, {
         weekday: 'long',
         day: 'numeric',
@@ -154,6 +272,7 @@ export function groupFixturesByDay(fixtures, lang = 'ar') {
       dayKey,
       headerLabel,
       matches: dayMatches,
+      dayConfig: getDayColorConfig(dayKey),
     }
   })
 }

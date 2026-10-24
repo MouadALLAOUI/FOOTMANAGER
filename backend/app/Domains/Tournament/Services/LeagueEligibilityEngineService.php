@@ -632,10 +632,12 @@ class LeagueEligibilityEngineService
             }
             $activeMatches = $scheduledMatches->reject(fn ($m) => in_array($m->id, $excludedIds, true));
 
+            $hasRestWarning = false;
+
             // Check candidate team at current fixture date/time
             if ($fixtureDate) {
                 if (! $this->satisfiesRestRule($candidateId, $fixtureDate, $restDaysRequired, $activeMatches)) {
-                    continue;
+                    $hasRestWarning = true;
                 }
 
                 $duration = (int) ($fixture->match?->match_duration_minutes ?? 90);
@@ -650,7 +652,7 @@ class LeagueEligibilityEngineService
                 $otherDuration = (int) ($otherFixture->match?->match_duration_minutes ?? 90);
 
                 if (! $this->satisfiesRestRule($currentSideTeamId, $otherDate, $restDaysRequired, $activeMatches)) {
-                    continue;
+                    $hasRestWarning = true;
                 }
                 if ($this->hasConflictOnDateTime($currentSideTeamId, $otherDate, $otherDate->format('H:i'), $otherDate->copy()->addMinutes($otherDuration)->format('H:i'), $activeMatches)) {
                     continue;
@@ -661,6 +663,7 @@ class LeagueEligibilityEngineService
                 'team_id' => $candidateId,
                 'team_name' => $candidateTeam->name,
                 'team_logo' => $candidateTeam->logo_url ?? $candidateTeam->logo,
+                'has_rest_warning' => $hasRestWarning,
                 'other_fixture' => $otherFixture ? [
                     'id' => $otherFixture->id,
                     'matchday' => $otherFixture->matchday,
@@ -685,9 +688,10 @@ class LeagueEligibilityEngineService
         string $side,
         int $newTeamId,
         ?int $newBookingId = null,
-        ?string $newSlotDate = null
+        ?string $newSlotDate = null,
+        bool $overrideWarnings = false
     ): array {
-        return DB::transaction(function () use ($tournament, $fixture, $side, $newTeamId, $newBookingId, $newSlotDate) {
+        return DB::transaction(function () use ($tournament, $fixture, $side, $newTeamId, $newBookingId, $newSlotDate, $overrideWarnings) {
             $this->assertBelongsToTournament($tournament, $fixture);
             $this->assertNotLockedOrFinished($fixture);
 
@@ -718,6 +722,42 @@ class LeagueEligibilityEngineService
 
             if ($otherFixture) {
                 $this->assertNotLockedOrFinished($otherFixture);
+            }
+
+            // Rest Rules & Conflict validation if not overriding
+            $restDaysRequired = (int) ($tournament->rest_days_minimum ?? 1);
+            $fixtureDate = $fixture->scheduled_at ? Carbon::parse($fixture->scheduled_at) : null;
+            $scheduledMatches = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->whereNotIn('id', array_filter([$fixture->id, $otherFixture?->id]))
+                ->whereNotNull('scheduled_at')
+                ->whereNotIn('status', [FixtureStatus::Cancelled])
+                ->get(['id', 'home_team_id', 'away_team_id', 'scheduled_at']);
+
+            if ($fixtureDate && ! $overrideWarnings) {
+                if (! $this->satisfiesRestRule($newTeamId, $fixtureDate, $restDaysRequired, $scheduledMatches)) {
+                    $newTeam = \App\Domains\Team\Models\Team::find($newTeamId);
+                    throw new \App\Domains\Tournament\Exceptions\SchedulingWarningException(
+                        'الفريق الجديد ('.($newTeam?->name ?? '').') لديه تعارض مع قاعدة فترة الراحة الإلزامية في موعد هذه المباراة',
+                        'rest_rule_conflict',
+                        'تعارض فترة الراحة للفريق الجديد',
+                        $newTeam?->name
+                    );
+                }
+            }
+
+            if ($otherFixture && $otherFixture->scheduled_at && ! $overrideWarnings) {
+                $otherDate = Carbon::parse($otherFixture->scheduled_at);
+                if (! $this->satisfiesRestRule($oldSideTeamId, $otherDate, $restDaysRequired, $scheduledMatches)) {
+                    $oldTeam = \App\Domains\Team\Models\Team::find($oldSideTeamId);
+                    throw new \App\Domains\Tournament\Exceptions\SchedulingWarningException(
+                        'الفريق السابق ('.($oldTeam?->name ?? '').') لديه تعارض مع قاعدة فترة الراحة الإلزامية في موعد المواجهة المقابلة',
+                        'rest_rule_conflict',
+                        'تعارض فترة الراحة للفريق المستبدل',
+                        $oldTeam?->name
+                    );
+                }
             }
 
             // Snapshot before states

@@ -578,7 +578,7 @@ export default function LeagueAssignmentPanel({
     }
   }
 
-  const [activeWeekId, setActiveWeekId] = useState(null)
+  const [activeWeekId, setActiveWeekId] = useState('all')
 
   const { weeks: leagueWeeks, unscheduled: leagueUnscheduled, chronologicalNumberMap } = useMemo(() => {
     return computeLeagueWeeks(allFixtures || [], 'ar')
@@ -589,14 +589,18 @@ export default function LeagueAssignmentPanel({
   }, [leagueWeeks, leagueUnscheduled])
 
   useEffect(() => {
-    if (leagueWeeks && leagueWeeks.length > 0) {
-      if (!activeWeekId || (activeWeekId !== 'unscheduled' && activeWeekId !== 'all' && !leagueWeeks.some((w) => w.id === activeWeekId))) {
-        setActiveWeekId(defaultWeekId)
-      }
-    } else if ((!leagueWeeks || leagueWeeks.length === 0) && (!activeWeekId || activeWeekId !== 'unscheduled')) {
-      setActiveWeekId('unscheduled')
+    // If activeWeekId is unset, default to 'all' so that upcoming scheduled matches appear directly
+    if (!activeWeekId) {
+      setActiveWeekId('all')
+      return
     }
-  }, [leagueWeeks, leagueUnscheduled, activeWeekId, defaultWeekId])
+    // Only reset if an invalid week was selected that does not exist in leagueWeeks
+    if (activeWeekId !== 'all' && activeWeekId !== 'unscheduled' && leagueWeeks && leagueWeeks.length > 0) {
+      if (!leagueWeeks.some((w) => w.id === activeWeekId)) {
+        setActiveWeekId('all')
+      }
+    }
+  }, [leagueWeeks, activeWeekId])
 
   const totalFixtures = allFixtures?.length || 0
   const scheduledFixtures = allFixtures?.filter((f) => f.scheduled_at && f.status !== 'waiting_for_booking') || []
@@ -1217,15 +1221,28 @@ export default function LeagueAssignmentPanel({
                         </span>
                       </div>
 
+                      {slot.source_label && (
+                        <div className="pt-0.5">
+                          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${
+                            slot.pool_tag === 'postpone_freed'
+                              ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            <Sparkles className="size-2.5 text-amber-600" />
+                            <span>{slot.source_label}</span>
+                          </span>
+                        </div>
+                      )}
+
                       {/* Eligible matches */}
                       {slot.eligible_fixtures && slot.eligible_fixtures.length > 0 ? (
                         <div className="mt-2.5 rounded-xl border border-emerald-200/80 bg-emerald-50/50 p-2.5 space-y-2">
                           <div className="flex items-center justify-between text-xs font-black text-emerald-950">
                             <div className="flex items-center gap-1.5">
                               <CheckCircle2 className="size-3.5 text-emerald-600" />
-                              <span>المواجهات المؤهلة ({slot.eligible_fixtures.length}):</span>
+                              <span>المواجهات المتاحة ({slot.eligible_fixtures.length}):</span>
                             </div>
-                            <span className="text-[10px] text-emerald-700 font-bold">مستوفية لشروط الراحة ✅</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">جاهزة للبرمجة المباشرة ✅</span>
                           </div>
 
                           <div className="space-y-1.5 max-h-48 overflow-y-auto pe-0.5">
@@ -1235,11 +1252,16 @@ export default function LeagueAssignmentPanel({
                                 className="flex items-center justify-between gap-2 rounded-xl bg-white p-2 border border-emerald-100 shadow-2xs"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900 flex-wrap">
                                     <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-black text-slate-600 shrink-0">
                                       جولة {ef.matchday}
                                     </span>
                                     <span className="truncate">{ef.home_team?.name} ضد {ef.away_team?.name}</span>
+                                    {ef.has_rest_warning && (
+                                      <span className="rounded bg-amber-100 px-1 py-0.2 text-[9px] font-black text-amber-800 shrink-0" title="تعارض مع فترة الراحة ولكن يمكن فرضه">
+                                        ⚠️ راحة
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
 

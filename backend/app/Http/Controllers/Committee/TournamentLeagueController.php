@@ -175,12 +175,21 @@ class TournamentLeagueController extends Controller
 
         $validated = $request->validate([
             'new_opponent_id' => 'required|integer|exists:teams,id',
+            'override_warnings' => 'nullable|boolean',
+            'override_reason' => 'nullable|string|max:500',
         ], [
             'new_opponent_id.required' => 'معرف الفريق الخصم الجديد مطلوب',
             'new_opponent_id.exists' => 'الفريق المحدد غير موجود',
         ]);
 
-        $result = $this->leagueAssignment->changeOpponent($tournament, $fixture, $validated['new_opponent_id']);
+        $overrideWarnings = $request->boolean('override_warnings');
+
+        $result = $this->leagueAssignment->changeOpponent(
+            $tournament,
+            $fixture,
+            $validated['new_opponent_id'],
+            $overrideWarnings
+        );
 
         return response()->json([
             'data' => $result,

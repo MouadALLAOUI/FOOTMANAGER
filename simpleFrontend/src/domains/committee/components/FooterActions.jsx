@@ -41,83 +41,33 @@ export default function FooterActions({
   }
 
   return (
-    <footer className="shrink-0 border-t border-slate-100 bg-white px-5 py-4 sm:px-6">
+    <footer className="shrink-0 border-t border-slate-200/90 bg-white/95 backdrop-blur-md px-3 sm:px-5 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
       {saveError && (
-        <div className="mb-3 flex items-center justify-between gap-3 rounded-xl bg-rose-50 px-3.5 py-2.5 text-xs font-bold text-rose-600 ring-1 ring-rose-100">
+        <div className="mb-2.5 flex items-center justify-between gap-3 rounded-xl bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 ring-1 ring-rose-100">
           <span className="min-w-0">{saveError}</span>
-          <button type="button" onClick={() => retryRef.current?.()} disabled={saving} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-rose-500 px-2.5 py-1.5 text-[11px] font-black text-white transition-colors hover:bg-rose-600 disabled:opacity-50">
+          <button type="button" onClick={() => retryRef.current?.()} disabled={saving} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-rose-500 px-2.5 py-1 text-[11px] font-black text-white transition-colors hover:bg-rose-600 disabled:opacity-50">
             <RefreshCw className="size-3.5" />
             {t('committee.result.retry')}
           </button>
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        {/* Timer Clock Badge at bottom */}
-        {isLiveMatch && timerText && (
-          <div className={`flex items-center gap-1.5 px-3 h-12 rounded-xl border text-xs font-mono font-black tabular-nums transition-colors ${
-            isPaused ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-slate-900 border-slate-900 text-white'
-          }`}>
-            <Clock className={`size-3.5 ${!isPaused ? 'animate-pulse text-emerald-400' : ''}`} />
-            <span>{timerText}</span>
-          </div>
-        )}
-
-        {/* Pause / Resume Button */}
-        {isLiveMatch && !alreadyFinished && onTogglePause && (
-          <button
-            type="button"
-            onClick={onTogglePause}
-            className={`h-12 px-3.5 rounded-xl font-black text-xs flex items-center gap-1.5 transition-all select-none shadow-xs active:scale-95 ${
-              isPaused
-                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/20'
-                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
-            }`}
-            title={isPaused ? 'استئناف المؤقت' : 'إيقاف مؤقت'}
-          >
-            {isPaused ? <Play className="size-4 fill-current" /> : <Pause className="size-4 fill-current" />}
-            <span className="hidden sm:inline">{isPaused ? 'استئناف' : 'إيقاف مؤقت'}</span>
-          </button>
-        )}
-
-        {primary ? (
-          <Button
-            className="h-12 flex-1 min-w-0 text-sm"
-            variant={primary.variant}
-            loading={saving}
-            onClick={primary.action}
-          >
-            {primary.icon}
-            {primary.label}
-          </Button>
-        ) : (
-          <Button className="h-12 flex-1 min-w-0 text-sm" variant="outline" loading={saving} onClick={saveDraft}>
-            {t('committee.result.saveDraft')}
-          </Button>
-        )}
-
-        {/* Finish match button appears ONLY when finished or allowed at end of second half */}
-        {!alreadyFinished && canFinishMatch && onQuickFinish && (
-          <Button className="h-12 shrink-0 text-sm font-black bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md ring-2 ring-emerald-500/20" loading={saving} onClick={onQuickFinish}>
-            {t('committee.result.finishMatch')}
-          </Button>
-        )}
-
-        {/* Overflow menu for secondary actions */}
+      <div className="flex items-center gap-2 max-w-5xl mx-auto">
+        {/* 1. Menu hamburger button */}
         <div className="relative shrink-0">
           <button
             type="button"
             aria-label={t('committee.result.moreActions')}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((o) => !o)}
-            className="grid size-12 place-items-center rounded-xl border border-slate-200/80 bg-slate-50 text-slate-600 transition-colors hover:border-slate-300 hover:bg-white"
+            className="grid size-12 place-items-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition-colors hover:border-slate-300 hover:bg-white active:scale-95 shadow-xs"
           >
             <Menu className="size-5" />
           </button>
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-              <div className="absolute bottom-full end-0 z-50 mb-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+              <div className="absolute bottom-full start-0 z-50 mb-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
                 {!alreadyFinished && (
                   <MenuItem label={t('committee.result.saveDraft')} onClick={() => { setMenuOpen(false); saveDraft() }} />
                 )}
@@ -143,6 +93,76 @@ export default function FooterActions({
             </>
           )}
         </div>
+
+        {/* 2. Main Action Stage Button */}
+        {primary ? (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={primary.action}
+            className={`h-12 flex-1 min-w-0 rounded-2xl px-4 text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-98 shadow-md ${
+              primary.variant === 'danger'
+                ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25'
+                : primary.variant === 'outline'
+                  ? 'border-2 border-emerald-600 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100'
+                  : 'bg-gradient-to-r from-[#00C853] to-[#009E3D] hover:from-[#00B84D] hover:to-[#008A35] text-white shadow-emerald-500/25'
+            }`}
+          >
+            {primary.icon}
+            <span className="truncate">{primary.label}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={saveDraft}
+            className="h-12 flex-1 min-w-0 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-98 shadow-xs"
+          >
+            <span>{t('committee.result.saveDraft')}</span>
+          </button>
+        )}
+
+        {/* Finish match extra shortcut if allowed */}
+        {!alreadyFinished && canFinishMatch && onQuickFinish && (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={onQuickFinish}
+            className="h-12 shrink-0 px-3.5 rounded-2xl text-xs sm:text-sm font-black bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md active:scale-98 transition-all"
+          >
+            <span>{t('committee.result.finishMatch')}</span>
+          </button>
+        )}
+
+        {/* 3. Orange Pause / Resume Button */}
+        {isLiveMatch && !alreadyFinished && onTogglePause && (
+          <button
+            type="button"
+            onClick={onTogglePause}
+            className={`size-12 rounded-2xl font-black text-xs flex items-center justify-center shrink-0 transition-all select-none shadow-md active:scale-95 ${
+              isPaused
+                ? 'bg-[#00C853] hover:bg-[#00B048] text-white shadow-emerald-500/25'
+                : 'bg-[#FF9100] hover:bg-[#E68200] text-white shadow-amber-500/25'
+            }`}
+            title={isPaused ? 'استئناف المؤقت' : 'إيقاف مؤقت'}
+          >
+            {isPaused ? <Play className="size-5 fill-current" /> : <Pause className="size-5 fill-current" />}
+          </button>
+        )}
+
+        {/* 4. Navy Timer Pill */}
+        {isLiveMatch && timerText && (
+          <div
+            className={`flex items-center gap-1.5 px-3 h-12 rounded-2xl border text-xs font-mono font-black tabular-nums shrink-0 transition-colors shadow-xs ${
+              isPaused
+                ? 'bg-amber-50 border-amber-300 text-amber-900'
+                : 'bg-[#10213A] border-[#10213A] text-white'
+            }`}
+          >
+            <Clock className={`size-3.5 ${!isPaused ? 'animate-pulse text-[#00C853]' : 'text-amber-500'}`} />
+            <span>{timerText}</span>
+          </div>
+        )}
       </div>
     </footer>
   )

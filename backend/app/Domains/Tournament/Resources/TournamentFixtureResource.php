@@ -27,6 +27,8 @@ class TournamentFixtureResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'competition_id' => $this->competition_id,
+            'tournament_id' => $this->tournament()?->id,
             'match_id' => $this->match_id,
             'matchday' => $this->matchday,
             'slot_type' => $this->slot_type,
@@ -51,12 +53,38 @@ class TournamentFixtureResource extends JsonResource
                 'id' => $this->homeTeam->id,
                 'name' => $this->homeTeam->name,
                 'logo_url' => $this->homeTeam->logo_url,
+                'status' => $this->teamTournamentStatus($this->home_team_id),
             ] : null),
             'away_team' => $this->whenLoaded('awayTeam', fn () => $this->awayTeam ? [
                 'id' => $this->awayTeam->id,
                 'name' => $this->awayTeam->name,
                 'logo_url' => $this->awayTeam->logo_url,
+                'status' => $this->teamTournamentStatus($this->away_team_id),
             ] : null),
+            'is_default_result' => (bool) (
+                ($this->match?->notes && str_contains($this->match->notes, '[default_result:points_only]'))
+                || (! empty($this->last_change_payload['is_default_result']))
+            ),
+            'can_reassign_slot' => (bool) (
+                (($this->match?->notes && str_contains($this->match->notes, '[default_result:points_only]'))
+                    || (! empty($this->last_change_payload['is_default_result'])))
+                && (($this->last_change_payload['booking_handling']['type'] ?? '') !== 'team_own')
+                && empty($this->last_change_payload['slot_reassigned'])
+                && (! empty($this->scheduled_at) || ! empty($this->last_change_payload['freed_scheduled_at']))
+            ),
+            'is_expelled_team_slot' => (bool) (
+                (($this->last_change_payload['booking_handling']['type'] ?? '') === 'team_own')
+            ),
+            'slot_reassigned' => (bool) (! empty($this->last_change_payload['slot_reassigned'])),
+            'slot_reassigned_to' => ! empty($this->last_change_payload['slot_reassigned']) ? [
+                'id' => $this->last_change_payload['reassigned_to_fixture_id'] ?? null,
+                'title' => $this->last_change_payload['reassigned_to_title'] ?? null,
+                'at' => $this->last_change_payload['reassigned_at'] ?? null,
+            ] : null,
+            'freed_slot' => (! empty($this->scheduled_at) || ! empty($this->last_change_payload['freed_scheduled_at'])) ? [
+                'scheduled_at' => $this->scheduled_at?->toDateTimeString() ?? ($this->last_change_payload['freed_scheduled_at'] ?? null),
+                'stadium' => $this->stadium ? ['id' => $this->stadium->id, 'name' => $this->stadium->name] : null,
+            ] : null,
             'stadium' => $this->whenLoaded('stadium', fn () => $this->stadium ? [
                 'id' => $this->stadium->id,
                 'name' => $this->stadium->name,
@@ -252,5 +280,25 @@ class TournamentFixtureResource extends JsonResource
         }
 
         return false;
+    }
+
+    private function teamTournamentStatus(?int $teamId): ?string
+    {
+        if (! $teamId || ! $this->tournament()) {
+            return null;
+        }
+
+        static $cache = [];
+        $key = "{$this->tournament()->id}_{$teamId}";
+
+        if (! array_key_exists($key, $cache)) {
+            $tt = \App\Domains\Tournament\Models\TournamentTeam::query()
+                ->where('tournament_id', $this->tournament()->id)
+                ->where('team_id', $teamId)
+                ->first(['status']);
+            $cache[$key] = $tt?->status;
+        }
+
+        return $cache[$key];
     }
 }

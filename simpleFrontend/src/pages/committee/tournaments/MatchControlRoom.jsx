@@ -23,7 +23,9 @@ import StatsFoulsTab from '../../../domains/committee/components/StatsFoulsTab'
 import NotesMvpTab from '../../../domains/committee/components/NotesMvpTab'
 import PlayersTab from '../../../domains/committee/components/PlayersTab'
 import PresenceTab from '../../../domains/committee/components/PresenceTab'
+import EventRow from '../../../domains/committee/components/EventRow'
 import PlayerSelector from '../../../domains/committee/components/PlayerSelector'
+import CumulativePenaltyModal from '../../../domains/committee/components/CumulativePenaltyModal'
 import DelegatedMatchLinkModal from '../../../domains/committee/components/DelegatedMatchLinkModal'
 import OneTapEventSheet from '../../../domains/committee/components/OneTapEventSheet'
 import { QUICK_ACTIONS, REFEREE_ROLES } from '../../../data/matchConstants'
@@ -139,6 +141,9 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [activeTab, setActiveTab] = useState(initialTab)
   const [foulNotifCount, setFoulNotifCount] = useState(0)
   const [convertTarget, setConvertTarget] = useState(null)
+  const [pendingPenaltyModalData, setPendingPenaltyModalData] = useState(null)
+  const [pendingPenaltyModalBusy, setPendingPenaltyModalBusy] = useState(false)
+  const [dismissedPenaltyKeys, setDismissedPenaltyKeys] = useState(new Set())
   const [delegatedLinkOpen, setDelegatedLinkOpen] = useState(false)
 
   // One-Tap Event Recording & Timer Pause states
@@ -309,6 +314,61 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     return () => { cancelled = true }
   }, [tournament.id, fixture.id])
 
+  // Automatically detect foul limit thresholds and pending awards to surface the prominent visual modal immediately
+  useEffect(() => {
+    let cancelled = false
+    const checkPenalties = async () => {
+      try {
+        const r = await api.get(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/penalties`)
+        if (cancelled) return
+        const st = r.data?.data
+        if (!st || !st.enabled) return
+
+        const sugg = (st.suggestions || []).find((s) => s.type === 'team_penalty' || s.type === 'award')
+        const award = (st.pending_awards || [])[0]
+        if (sugg || award) {
+          const key = sugg ? `sugg-${sugg.event_id}-${sugg.batch}` : `award-${award.id}`
+          if (!dismissedPenaltyKeys.has(key)) {
+            const benId = Number(sugg?.awarded_to_team_id ?? award?.awarded_to_team_id)
+            const offId = Number(sugg?.committing_team_id ?? award?.committing_team_id ?? (benId === Number(homeId) ? awayId : homeId))
+            const targetRoster = rosters[benId] || rosters[Number(benId)] || rosters[String(benId)] || (benId === Number(homeId) ? fixture.home_team?.players : fixture.away_team?.players) || []
+            setPendingPenaltyModalData({
+              key,
+              suggestion: sugg,
+              award,
+              offenderId: offId,
+              offenderName: sugg?.committing_team_name || (benId === Number(homeId) ? awayName : homeName),
+              offenderTeam: offId === Number(homeId) ? homeTeam : awayTeam,
+              beneficiaryId: benId,
+              beneficiaryName: sugg?.awarded_to_team_name || award?.awarded_to_name || (benId === Number(homeId) ? homeName : awayName),
+              beneficiaryTeam: benId === Number(homeId) ? homeTeam : awayTeam,
+              threshold: sugg?.threshold || st?.settings?.team_threshold || 5,
+              minute: sugg?.minute || award?.minute || 1,
+              half: sugg?.half || award?.half || 'first',
+              roster: targetRoster,
+              isHome: benId === Number(homeId),
+              initialStep: 'decide',
+            })
+          }
+        }
+      } catch (_) {}
+    }
+    checkPenalties()
+    return () => { cancelled = true }
+  }, [
+    tournament.id,
+    fixture.id,
+    foulRefetchTick,
+    rosters,
+    homeId,
+    awayId,
+    homeName,
+    awayName,
+    homeTeam,
+    awayTeam,
+    dismissedPenaltyKeys,
+  ])
+
   const setFormField = (key) => (e) => {
     const value = e?.target?.value ?? e
     setForm((f) => ({ ...f, [key]: value }))
@@ -407,7 +467,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     setOneTapSheetOpen(true)
   }
 
-  const handleOneTapRecord = async (type, player, teamId) => {
+  const handleOneTapRecord = async (type, player, teamId, note = '') => {
     if (matchNotStarted || isPaused) return
     const now = Date.now()
     if (lastTapRef.current && (now - lastTapRef.current.ts < 500) && lastTapRef.current.pid === player.id && lastTapRef.current.type === type) {
@@ -445,13 +505,15 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     } else if (type === 'red_card') {
       evType = 'foul'
       punishment = 'red'
+    } else if (type === 'other') {
+      evType = 'other'
     }
 
     const newEv = {
       _key: uid(),
       type: evType,
       team_id: tid,
-      player_id: pid,
+      player_id: evType === 'other' ? null : pid,
       player: player.name,
       assist_player_id: null,
       assist_player: '',
@@ -461,6 +523,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       goalType: evType === 'goal' ? 'regular' : undefined,
       punishment: punishment,
       description: player.name,
+      note: note ? String(note).trim() : '',
     }
 
     const nextEvents = [...events, newEv].sort((a, b) => (Number(a.minute) || 0) - (Number(b.minute) || 0))
@@ -961,44 +1024,141 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
     }
   }
 
-  const handleConvertPick = async (player) => {
-    const award = convertTarget
-    if (!award) return
-    const ev = {
-      _key: uid(),
-      type: 'penalty_goal',
-      goalType: 'penalty',
-      team_id: award.awarded_to_team_id != null ? Number(award.awarded_to_team_id) : null,
-      player_id: player?.id || null,
-      player: player?.name || '',
-      assist_player_id: null,
-      assist_player: '',
-      minute: Number(award.minute) || 1,
-      added_time: 0,
-      half: award.half === 'second' ? 'second' : 'first',
-      punishment: '',
-      reason: '',
-      note: '',
-    }
-    setConvertTarget(null)
-    const nextEvents = [...events, ev].sort((a, b) => a.minute - b.minute || 0)
-    setEvents(nextEvents)
-    setTimelineDirty(true)
-    const ok = await persist({ events: nextEvents })
-    if (ok) {
-      setSuccessTick(ev._key)
-      toast.success(t('committee.result.eventResultLive'))
-    }
+  const handlePenaltyModalScore = async (player) => {
+    if (!pendingPenaltyModalData) return
+    const { suggestion, award, beneficiaryId, minute, half, threshold } = pendingPenaltyModalData
+    setPendingPenaltyModalBusy(true)
     try {
-      await api.post(
-        `/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/penalties/award/${award.id}/resolve`,
-        { outcome: 'converted' },
-      )
+      let targetAward = award
+      // If triggered directly from suggestion, confirm award on backend first
+      if (!targetAward && suggestion) {
+        const r = await api.post(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/penalties/award`, {
+          event_id: suggestion.event_id,
+          action_confirm: true,
+        })
+        targetAward = r.data?.data
+      }
+
+      const ev = {
+        _key: uid(),
+        type: 'penalty_goal',
+        goalType: 'penalty',
+        team_id: beneficiaryId != null ? Number(beneficiaryId) : null,
+        player_id: player?.id || null,
+        player: player?.name || '',
+        assist_player_id: null,
+        assist_player: '',
+        minute: Number(minute) || 1,
+        added_time: 0,
+        half: half === 'second' ? 'second' : 'first',
+        punishment: '',
+        reason: '',
+        note: `هدف من ركلة جزاء تراكمية (الخطأ ${threshold})`,
+      }
+
+      const nextEvents = [...events, ev].sort((a, b) => a.minute - b.minute || 0)
+      setEvents(nextEvents)
+      setTimelineDirty(true)
+      const ok = await persist({ events: nextEvents })
+      if (ok) {
+        setSuccessTick(ev._key)
+      }
+
+      if (targetAward?.id) {
+        await api.post(
+          `/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/penalties/award/${targetAward.id}/resolve`,
+          { outcome: 'converted' },
+        )
+      }
+
       setFoulRefetchTick((v) => v + 1)
-      toast.success(t('committee.result.penaltyConverted'))
-    } catch (e) {
-      toast.error(e.response?.data?.message || t('committee.result.saveFailed'))
+      toast.success(t('committee.result.penaltyConverted', 'تم تسجيل هدف ركلة الجزاء بنجاح'))
+      setPendingPenaltyModalData(null)
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('committee.result.saveFailed', 'حدث خطأ أثناء الحفظ'))
+    } finally {
+      setPendingPenaltyModalBusy(false)
     }
+  }
+
+  const handlePenaltyModalMiss = async () => {
+    if (!pendingPenaltyModalData) return
+    const { suggestion, award, beneficiaryId, minute, half, threshold } = pendingPenaltyModalData
+    setPendingPenaltyModalBusy(true)
+    try {
+      let targetAward = award
+      if (!targetAward && suggestion) {
+        const r = await api.post(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/penalties/award`, {
+          event_id: suggestion.event_id,
+          action_confirm: true,
+        })
+        targetAward = r.data?.data
+      }
+
+      const missEv = {
+        _key: uid(),
+        type: 'missed_penalty',
+        team_id: beneficiaryId != null ? Number(beneficiaryId) : null,
+        player_id: null,
+        player: '',
+        assist_player_id: null,
+        assist_player: '',
+        minute: Number(minute) || 1,
+        added_time: 0,
+        half: half === 'second' ? 'second' : 'first',
+        punishment: '',
+        reason: '',
+        note: `ركلة جزاء تراكمية ضائعة (الخطأ ${threshold})`,
+      }
+
+      const nextEvents = [...events, missEv].sort((a, b) => a.minute - b.minute || 0)
+      setEvents(nextEvents)
+      setTimelineDirty(true)
+      await persist({ events: nextEvents })
+
+      if (targetAward?.id) {
+        await api.post(
+          `/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/penalties/award/${targetAward.id}/resolve`,
+          { outcome: 'missed' },
+        )
+      }
+
+      setFoulRefetchTick((v) => v + 1)
+      toast.success('تم تسجيل ركلة الجزاء الضائعة وتصفير عداد الأخطاء بنجاح')
+      setPendingPenaltyModalData(null)
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('committee.result.saveFailed', 'حدث خطأ أثناء الحفظ'))
+    } finally {
+      setPendingPenaltyModalBusy(false)
+    }
+  }
+
+  const handlePenaltyModalClose = () => {
+    if (pendingPenaltyModalData?.key) {
+      setDismissedPenaltyKeys((prev) => new Set([...prev, pendingPenaltyModalData.key]))
+    }
+    setPendingPenaltyModalData(null)
+  }
+
+  const handleAwardConvertedFromStats = (award) => {
+    const benId = Number(award.awarded_to_team_id)
+    const offId = Number(award.committing_team_id ?? (benId === Number(homeId) ? awayId : homeId))
+    const targetRoster = rosters[benId] || rosters[Number(benId)] || rosters[String(benId)] || (benId === Number(homeId) ? fixture.home_team?.players : fixture.away_team?.players) || []
+    setPendingPenaltyModalData({
+      award,
+      offenderId: offId,
+      offenderName: benId === Number(homeId) ? awayName : homeName,
+      offenderTeam: offId === Number(homeId) ? homeTeam : awayTeam,
+      beneficiaryId: benId,
+      beneficiaryName: award.awarded_to_name || (benId === Number(homeId) ? homeName : awayName),
+      beneficiaryTeam: benId === Number(homeId) ? homeTeam : awayTeam,
+      threshold: 5,
+      minute: award.minute || 1,
+      half: award.half || 'first',
+      roster: targetRoster,
+      isHome: benId === Number(homeId),
+      initialStep: 'pick_shooter',
+    })
   }
 
   const saveDraft = async () => {
@@ -1286,38 +1446,95 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
                     homeId={homeId}
                     awayId={awayId}
                     foulRefetchTick={foulRefetchTick}
-                    onAwardConverted={setConvertTarget}
+                    onAwardConverted={handleAwardConvertedFromStats}
+                    onSuggestionConfirmed={(sugg, createdAward) => {
+                      const benId = Number(sugg?.awarded_to_team_id || createdAward?.awarded_to_team_id)
+                      const offId = Number(sugg?.committing_team_id || (benId === Number(homeId) ? awayId : homeId))
+                      const targetRoster = rosters[benId] || rosters[Number(benId)] || rosters[String(benId)] || (benId === Number(homeId) ? fixture.home_team?.players : fixture.away_team?.players) || []
+                      setPendingPenaltyModalData({
+                        suggestion: sugg,
+                        award: createdAward,
+                        offenderId: offId,
+                        offenderName: sugg?.committing_team_name || (benId === Number(homeId) ? awayName : homeName),
+                        offenderTeam: offId === Number(homeId) ? homeTeam : awayTeam,
+                        beneficiaryId: benId,
+                        beneficiaryName: sugg?.awarded_to_team_name || (benId === Number(homeId) ? homeName : awayName),
+                        beneficiaryTeam: benId === Number(homeId) ? homeTeam : awayTeam,
+                        threshold: sugg?.threshold || 5,
+                        minute: sugg?.minute || 1,
+                        half: sugg?.half || 'first',
+                        roster: targetRoster,
+                        isHome: benId === Number(homeId),
+                        initialStep: 'decide',
+                      })
+                    }}
                     t={t}
                   />
                 )}
 
                 {activeTab === 'players' && (
-                  <PlayersTab
-                    homeId={homeId}
-                    homeName={homeName}
-                    homeTeam={homeTeam}
-                    awayId={awayId}
-                    awayName={awayName}
-                    awayTeam={awayTeam}
-                    homeRoster={rosters[homeId] || []}
-                    awayRoster={rosters[awayId] || []}
-                    suspendedByTeam={suspendedByTeam}
-                    redCardedIds={redCardedIds}
-                    busyId={quickBusyId}
-                    events={events}
-                    tournament={tournament}
-                    fixture={fixture}
-                    onTapPlayer={(player, teamId, variant, bench) => tapPlayer(player, teamId, variant, bench)}
-                    onActionPick={(player, teamId, type) => {
-                      setSelectedType(type)
-                      setEditingKey(null)
-                      setValidation(null)
-                      setSaveError(null)
-                      setForm(buildQuickForm(player, teamId, type))
-                    }}
-                    onAddPlayer={addPlayerToTeam}
-                    t={t}
-                  />
+                  <div className="space-y-4">
+                    <PlayersTab
+                      homeId={homeId}
+                      homeName={homeName}
+                      homeTeam={homeTeam}
+                      awayId={awayId}
+                      awayName={awayName}
+                      awayTeam={awayTeam}
+                      homeRoster={rosters[homeId] || []}
+                      awayRoster={rosters[awayId] || []}
+                      suspendedByTeam={suspendedByTeam}
+                      redCardedIds={redCardedIds}
+                      busyId={quickBusyId}
+                      events={events}
+                      tournament={tournament}
+                      fixture={fixture}
+                      onTapPlayer={(player, teamId, variant, bench) => tapPlayer(player, teamId, variant, bench)}
+                      onActionPick={(player, teamId, type) => {
+                        setSelectedType(type)
+                        setEditingKey(null)
+                        setValidation(null)
+                        setSaveError(null)
+                        setForm(buildQuickForm(player, teamId, type))
+                      }}
+                      onAddPlayer={addPlayerToTeam}
+                      t={t}
+                    />
+
+                    {/* Recent Events Section directly below Player cards */}
+                    {events.length > 0 && (
+                      <div className="rounded-3xl border border-slate-200/90 bg-white p-4 shadow-xs">
+                        <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm sm:text-base font-black text-slate-900">آخر الأحداث المسجلة</span>
+                            <span className="text-xs font-bold text-slate-400">({events.length})</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openTab('timeline')}
+                            className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                          >
+                            عرض السجل بالكامل ↵
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {[...events].reverse().slice(0, 3).map((ev, idx) => (
+                            <EventRow
+                              key={ev._key || idx}
+                              ev={ev}
+                              index={0}
+                              total={1}
+                              fresh={successTick === ev._key}
+                              onEdit={() => startEdit(ev)}
+                              onDelete={() => deleteEvent(ev)}
+                              halfDuration={timerCfg.halfDurationMinutes}
+                              alreadyFinished={alreadyFinished}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
 
                 {activeTab === 'notes' && (
@@ -1445,40 +1662,15 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         }}
       />
 
-      {convertTarget && (
-        <div className="absolute inset-0 z-40 flex items-end justify-center bg-slate-900/40 backdrop-blur-[2px] sm:items-center">
-          <div className="w-full max-w-md rounded-t-3xl bg-white p-4 shadow-2xl sm:rounded-2xl">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-sm font-black text-slate-800">{t('committee.result.penaltyShooter.title')}</p>
-              <button
-                type="button"
-                onClick={() => setConvertTarget(null)}
-                className="rounded-lg px-2 py-1 text-xs font-bold text-slate-400 transition-colors hover:text-slate-700"
-              >
-                {t('committee.result.penaltyShooter.cancel')}
-              </button>
-            </div>
-            <p className="mb-3 text-[11px] font-bold text-slate-500">
-              {t('committee.result.penaltyShooter.pickBy', { team: convertTarget.awarded_to_name || '' })}
-            </p>
-            <PlayerSelector
-              teamId={convertTarget.awarded_to_team_id}
-              value={null}
-              valueName={null}
-              onSelect={handleConvertPick}
-              label={t('committee.result.penaltyShooter.shooter')}
-              placeholder={t('committee.result.penaltyShooter.searchShooter')}
-              autoFocus
-              t={t}
-            />
-            <div className="mt-2 flex justify-end gap-2">
-              <Button size="sm" variant="outline" onClick={() => setConvertTarget(null)}>
-                {t('committee.result.penaltyShooter.cancel')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* World-Class Cumulative Foul Penalty Award Modal with One-Tap Player Grid */}
+      <CumulativePenaltyModal
+        open={Boolean(pendingPenaltyModalData)}
+        data={pendingPenaltyModalData}
+        onScore={handlePenaltyModalScore}
+        onMiss={handlePenaltyModalMiss}
+        onClose={handlePenaltyModalClose}
+        isBusy={pendingPenaltyModalBusy}
+      />
 
       {delegatedLinkOpen && (
         <DelegatedMatchLinkModal

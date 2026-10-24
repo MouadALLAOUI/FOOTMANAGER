@@ -112,6 +112,16 @@ export function StandingsTable({ groups }) {
                       >
                         <TeamAvatar team={row.team} className="size-7" />
                         <span className="truncate font-bold text-slate-800 transition-colors hover:text-green-700">{row.team?.name || '—'}</span>
+                        {(row.status === 'withdrawn' || row.team?.status === 'withdrawn') && (
+                          <span className="ms-1.5 inline-block shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-200">
+                            منسحب
+                          </span>
+                        )}
+                        {(row.status === 'disqualified' || row.team?.status === 'disqualified') && (
+                          <span className="ms-1.5 inline-block shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-black text-rose-700 ring-1 ring-rose-200">
+                            مُقصى
+                          </span>
+                        )}
                       </button>
                     </td>
                     <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.played}</td>

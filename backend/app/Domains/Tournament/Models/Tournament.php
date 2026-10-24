@@ -201,7 +201,14 @@ class Tournament extends Model
 
     public function tournamentTeams(): HasMany
     {
-        return $this->hasMany(TournamentTeam::class)->where('status', TournamentTeam::STATUS_REGISTERED)->orderBy('group_id')->orderBy('group_position');
+        return $this->hasMany(TournamentTeam::class)
+            ->whereIn('status', [
+                TournamentTeam::STATUS_REGISTERED,
+                TournamentTeam::STATUS_WITHDRAWN,
+                TournamentTeam::STATUS_DISQUALIFIED,
+            ])
+            ->orderBy('group_id')
+            ->orderBy('group_position');
     }
 
     public function allRegistrations(): HasMany
@@ -222,8 +229,12 @@ class Tournament extends Model
     public function teams(): BelongsToMany
     {
         return $this->belongsToMany(Team::class, 'tournament_teams')
-            ->wherePivot('status', TournamentTeam::STATUS_REGISTERED)
-            ->withPivot(['group_id', 'group_position', 'id']);
+            ->wherePivotIn('status', [
+                TournamentTeam::STATUS_REGISTERED,
+                TournamentTeam::STATUS_WITHDRAWN,
+                TournamentTeam::STATUS_DISQUALIFIED,
+            ])
+            ->withPivot(['group_id', 'group_position', 'id', 'status']);
     }
 
     public function tournamentStadiums(): HasMany

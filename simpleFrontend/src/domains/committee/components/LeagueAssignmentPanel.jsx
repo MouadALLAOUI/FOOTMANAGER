@@ -1323,6 +1323,7 @@ export default function LeagueAssignmentPanel({
                       fixture={fixture}
                       index={chronologicalNumberMap.get(fixture.id) || 0}
                       isUnassigning={unassignBusyId === fixture.id}
+                      onRefresh={onRefresh}
                       onResult={onResult}
                       onDetails={onDetails}
                       onManageMatch={(f) => setManagingFixture(f)}

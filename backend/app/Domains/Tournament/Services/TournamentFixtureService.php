@@ -14,6 +14,7 @@ use App\Domains\Match\Services\PlayerMatchGuard;
 use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Exceptions\FixtureSlotValidationException;
+use App\Domains\Tournament\Exceptions\SchedulingWarningException;
 use App\Domains\Stadium\Models\Stadium;
 use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
@@ -330,12 +331,22 @@ class TournamentFixtureService
         ?int $excludeMatchId = null,
         ?int $excludeBookingId = null,
         ?int $excludeFixtureId = null,
+        bool $overrideWarnings = false,
+        ?Tournament $tournament = null,
     ): void {
         if ($stadiumId !== null) {
             $this->assertStadiumsValid([$stadiumId]);
 
             if ($this->stadiumHasFixtureConflict($stadiumId, $datetime, $excludeMatchId, $excludeFixtureId)) {
-                throw new DomainException('هذا التوقيت محجوز لمباراة بطولة أخرى في هذا الملعب');
+                if (! $overrideWarnings) {
+                    $stadium = Stadium::find($stadiumId);
+                    throw new SchedulingWarningException(
+                        'هذا التوقيت محجوز لمباراة بطولة أخرى في هذا الملعب. يمكنك المتابعة بتأكيد اللجنة.',
+                        'stadium_fixture_conflict',
+                        'تعارض في حجز الملعب',
+                        $stadium?->name
+                    );
+                }
             }
 
             $time = $datetime->format('H:i');
@@ -347,16 +358,78 @@ class TournamentFixtureService
                 $this->endTimeFor($time),
                 excludeId: $excludeBookingId,
             )) {
-                throw new DomainException('هذا التوقيت محجوز في الملعب المحدد');
+                if (! $overrideWarnings) {
+                    $stadium = Stadium::find($stadiumId);
+                    throw new SchedulingWarningException(
+                        'هذا التوقيت محجوز في الملعب المحدد مسبقاً. يمكنك المتابعة بتأكيد اللجنة.',
+                        'stadium_booking_conflict',
+                        'تعارض في توقيت الملعب',
+                        $stadium?->name
+                    );
+                }
             }
         }
 
         if ($homeTeamId > 0 && MatchMembershipService::teamHasMatchConflict($homeTeamId, $datetime, $excludeMatchId)) {
-            throw new DomainException('الفريق المضيف لديه مباراة أخرى في هذا التوقيت');
+            if (! $overrideWarnings) {
+                $homeTeam = Team::find($homeTeamId);
+                throw new SchedulingWarningException(
+                    "الفريق المضيف ({$homeTeam?->name}) لديه مباراة أخرى مبرمجة في هذا التوقيت (نافذة ساعتين).",
+                    'team_interval_conflict',
+                    'تعارض في موعد مباراة الفريق المضيف',
+                    $homeTeam?->name
+                );
+            }
         }
 
         if ($awayTeamId > 0 && MatchMembershipService::teamHasMatchConflict($awayTeamId, $datetime, $excludeMatchId)) {
-            throw new DomainException('الفريق الضيف لديه مباراة أخرى في هذا التوقيت');
+            if (! $overrideWarnings) {
+                $awayTeam = Team::find($awayTeamId);
+                throw new SchedulingWarningException(
+                    "الفريق الضيف ({$awayTeam?->name}) لديه مباراة أخرى مبرمجة في هذا التوقيت (نافذة ساعتين).",
+                    'team_interval_conflict',
+                    'تعارض في موعد مباراة الفريق الضيف',
+                    $awayTeam?->name
+                );
+            }
+        }
+
+        // Advisory Rest days minimum check
+        if ($tournament && ($tournament->rest_days_minimum ?? 0) > 0) {
+            $restDays = (int) $tournament->rest_days_minimum;
+            $scheduledMatches = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->whereNotNull('scheduled_at')
+                ->whereNotIn('status', [FixtureStatus::Cancelled->value])
+                ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
+                ->get(['id', 'home_team_id', 'away_team_id', 'scheduled_at']);
+
+            $eligibility = app(\App\Domains\Tournament\Services\LeagueEligibilityEngineService::class);
+
+            if ($homeTeamId > 0 && ! $eligibility->satisfiesRestRule($homeTeamId, $datetime, $restDays, $scheduledMatches)) {
+                if (! $overrideWarnings) {
+                    $homeTeam = Team::find($homeTeamId);
+                    throw new SchedulingWarningException(
+                        "الفريق المضيف ({$homeTeam?->name}) لم يستوف فترة الراحة المقررة في لائحة البطولة ({$restDays} يوم راحة على الأقل).",
+                        'rest_period_warning',
+                        'تعارض فترة الراحة المقررة',
+                        $homeTeam?->name
+                    );
+                }
+            }
+
+            if ($awayTeamId > 0 && ! $eligibility->satisfiesRestRule($awayTeamId, $datetime, $restDays, $scheduledMatches)) {
+                if (! $overrideWarnings) {
+                    $awayTeam = Team::find($awayTeamId);
+                    throw new SchedulingWarningException(
+                        "الفريق الضيف ({$awayTeam?->name}) لم يستوف فترة الراحة المقررة في لائحة البطولة ({$restDays} يوم راحة على الأقل).",
+                        'rest_period_warning',
+                        'تعارض فترة الراحة المقررة',
+                        $awayTeam?->name
+                    );
+                }
+            }
         }
     }
 

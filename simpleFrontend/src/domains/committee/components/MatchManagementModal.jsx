@@ -22,6 +22,7 @@ import { Button } from '../../../components/dashboard/ui'
 import TeamLogo from '../../../components/profile/TeamLogo'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
+import OverrideWarningModal from './OverrideWarningModal'
 
 export default function MatchManagementModal({
   tournament,
@@ -58,6 +59,7 @@ export default function MatchManagementModal({
 
   // Action 3 State: Swap Roles
   const [swapRolesBusy, setSwapRolesBusy] = useState(false)
+  const [warningModalData, setWarningModalData] = useState(null)
 
   // Helper: Trigger Undo Toast
   const triggerUndoToast = (message, updatedFixture) => {
@@ -166,7 +168,7 @@ export default function MatchManagementModal({
   }
 
   // Action 2: Execute Change Side
-  const handleChangeSideSubmit = async () => {
+  const handleChangeSideSubmit = async (override = false) => {
     if (!selectedNewTeamId) return
     setChangeSideBusy(true)
     try {
@@ -176,10 +178,12 @@ export default function MatchManagementModal({
         {
           side: selectedSide,
           new_team_id: Number(selectedNewTeamId),
+          override_warnings: override,
         }
       )
 
       const updatedFixture = res.data?.data?.fixture || fixture
+      setWarningModalData(null)
 
       if (selectedSide === 'home') {
         // Host changed: show host slots suggestions
@@ -196,7 +200,16 @@ export default function MatchManagementModal({
         onClose()
       }
     } catch (err) {
-      toastApiError(err)
+      if (err.response?.data?.requires_override) {
+        setWarningModalData({
+          title: err.response.data.warning_title || 'تحذير في برمجة المباراة',
+          message: err.response.data.message,
+          affectedTeam: err.response.data.affected_team,
+          action: 'change_side',
+        })
+      } else {
+        toastApiError(err)
+      }
     } finally {
       setChangeSideBusy(false)
     }
@@ -227,7 +240,7 @@ export default function MatchManagementModal({
   }
 
   // Apply Selected Host Slot Suggestion
-  const handleApplyHostSlot = async (slot) => {
+  const handleApplyHostSlot = async (slot, override = false) => {
     setApplyingSlotId(slot.id)
     try {
       if (pendingFollowUp?.type === 'host_change') {
@@ -238,8 +251,10 @@ export default function MatchManagementModal({
             new_team_id: pendingFollowUp.newHostId,
             new_booking_id: slot.booking_id,
             new_slot_date: slot.date,
+            override_warnings: override,
           }
         )
+        setWarningModalData(null)
         triggerUndoToast('تم نقل المباراة وتثبيتها في موعد المضيف الجديد بنجاح', res.data?.data?.fixture || fixture)
       } else if (pendingFollowUp?.type === 'role_swap') {
         const res = await api.put(
@@ -247,14 +262,26 @@ export default function MatchManagementModal({
           {
             new_booking_id: slot.booking_id,
             new_slot_date: slot.date,
+            override_warnings: override,
           }
         )
+        setWarningModalData(null)
         triggerUndoToast('تم نقل المباراة وتثبيتها في موعد المضيف الجديد بنجاح', res.data?.data?.fixture || fixture)
       }
       if (onSuccess) onSuccess()
       onClose()
     } catch (err) {
-      toastApiError(err)
+      if (err.response?.data?.requires_override) {
+        setWarningModalData({
+          title: err.response.data.warning_title || 'تحذير في برمجة المباراة',
+          message: err.response.data.message,
+          affectedTeam: err.response.data.affected_team,
+          action: 'apply_host_slot',
+          slot,
+        })
+      } else {
+        toastApiError(err)
+      }
     } finally {
       setApplyingSlotId(null)
     }
@@ -809,6 +836,22 @@ export default function MatchManagementModal({
           )}
         </div>
       </div>
+
+      <OverrideWarningModal
+        isOpen={Boolean(warningModalData)}
+        onClose={() => setWarningModalData(null)}
+        onConfirm={() => {
+          if (warningModalData?.action === 'change_side') {
+            handleChangeSideSubmit(true)
+          } else if (warningModalData?.action === 'apply_host_slot') {
+            handleApplyHostSlot(warningModalData.slot, true)
+          }
+        }}
+        warningTitle={warningModalData?.title}
+        warningMessage={warningModalData?.message}
+        affectedTeam={warningModalData?.affectedTeam}
+        busy={changeSideBusy || Boolean(applyingSlotId)}
+      />
     </div>
   )
 }

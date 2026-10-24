@@ -57,6 +57,17 @@ class TournamentResultService
                 throw new DomainException('لا يمكن تعديل النتائج بعد انتهاء البطولة');
             }
 
+            // Block normal score entry if either team is withdrawn or disqualified
+            $disciplinedTeamExists = TournamentTeam::query()
+                ->where('tournament_id', $tournament->id)
+                ->whereIn('team_id', array_filter([(int) $fixture->home_team_id, (int) $fixture->away_team_id]))
+                ->whereIn('status', [TournamentTeam::STATUS_WITHDRAWN, TournamentTeam::STATUS_DISQUALIFIED])
+                ->exists();
+
+            if ($disciplinedTeamExists && empty($data['force_disciplined'])) {
+                throw new DomainException('أحد فريقي المباراة في حالة طرد أو انسحاب — استخدم زر إعطاء النقاط الاعتبارية للفريق الخصم');
+            }
+
             $match = $fixture->match;
 
             if ($match) {
@@ -217,6 +228,17 @@ class TournamentResultService
 
             if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
                 throw new DomainException('لا يمكن تعديل النتائج بعد انتهاء البطولة');
+            }
+
+            // Block normal score entry if either team is withdrawn or disqualified
+            $disciplinedTeamExists = TournamentTeam::query()
+                ->where('tournament_id', $tournament->id)
+                ->whereIn('team_id', array_filter([(int) $fixture->home_team_id, (int) $fixture->away_team_id]))
+                ->whereIn('status', [TournamentTeam::STATUS_WITHDRAWN, TournamentTeam::STATUS_DISQUALIFIED])
+                ->exists();
+
+            if ($disciplinedTeamExists && empty($data['force_disciplined'])) {
+                throw new DomainException('أحد فريقي المباراة في حالة طرد أو انسحاب — استخدم زر إعطاء النقاط الاعتبارية للفريق الخصم');
             }
 
             $match = $fixture->match;

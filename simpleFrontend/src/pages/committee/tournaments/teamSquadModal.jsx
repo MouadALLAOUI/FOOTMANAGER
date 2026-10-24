@@ -22,6 +22,9 @@ import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import { TeamAvatar } from '../../tournaments/shared'
 import Jersey from '../../manager/live/components/Jersey'
+import { Ban, DoorOpen, RotateCcw } from 'lucide-react'
+import TeamDisciplinePreviewModal from '../../../domains/committee/components/TeamDisciplinePreviewModal'
+import DisciplineMatchesReviewModal from '../../../domains/committee/components/DisciplineMatchesReviewModal'
 
 const inputClass =
   'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10'
@@ -33,7 +36,7 @@ const POSITIONS = [
   { value: 'forward', label: 'مهاجم' },
 ]
 
-export default function TeamSquadModal({ team, tournamentId, open, onClose }) {
+export default function TeamSquadModal({ team, tournamentId, open, onClose, tournamentTeam, onRefresh }) {
   const { t } = useTranslation()
   const { toast } = useToast()
 
@@ -66,6 +69,8 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose }) {
 
   // Fast inline toggling / removing busy flags
   const [busyActionId, setBusyActionId] = useState(null)
+  const [disciplineAction, setDisciplineAction] = useState(null)
+  const [reviewMatchesOpen, setReviewMatchesOpen] = useState(false)
 
   const { data: payload, loading, refetch } = useApi(
     () => api.get(`/committee/tournaments/${tournamentId}/teams/${team?.id}/squad`).then((r) => r.data ?? {}),
@@ -652,8 +657,87 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose }) {
               </div>
             </div>
           )}
+
+          {/* Team Discipline & Status Actions */}
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black text-slate-900">إجراءات انضباط ومشاركة الفريق في البطولة</p>
+                <p className="text-[11px] font-medium text-slate-500">
+                  صلاحيات اللجنة المنظمة لتسجيل انسحاب أو طرد الفريق أو مراجعة المباريات المتبقية
+                </p>
+              </div>
+
+              {tournamentTeam?.status === 'withdrawn' ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="warning">حالة الفريق: منسحب</Badge>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setReviewMatchesOpen(true)}
+                  >
+                    مراجعة المباريات والنتائج الاعتبارية
+                  </Button>
+                </div>
+              ) : tournamentTeam?.status === 'disqualified' ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="danger">حالة الفريق: مُقصى</Badge>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setReviewMatchesOpen(true)}
+                  >
+                    مراجعة المباريات والنتائج الاعتبارية
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDisciplineAction('withdraw')}
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-black text-amber-800 transition-colors hover:bg-amber-100 shadow-xs cursor-pointer"
+                  >
+                    <DoorOpen className="size-4 text-amber-600" />
+                    <span>انسحاب — Withdraw Team</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDisciplineAction('disqualify')}
+                    className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-3.5 py-2 text-xs font-black text-rose-800 transition-colors hover:bg-rose-100 shadow-xs cursor-pointer"
+                  >
+                    <Ban className="size-4 text-rose-600" />
+                    <span>طرد — Disqualify Team</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </Modal>
+
+      {/* Consequences Preview Modal */}
+      <TeamDisciplinePreviewModal
+        open={Boolean(disciplineAction)}
+        onClose={() => setDisciplineAction(null)}
+        tournamentId={tournamentId}
+        team={team}
+        actionType={disciplineAction || 'withdraw'}
+        onSuccess={() => {
+          if (onRefresh) onRefresh()
+          onClose()
+        }}
+      />
+
+      {/* Discipline Matches Review Modal */}
+      <DisciplineMatchesReviewModal
+        open={reviewMatchesOpen}
+        onClose={() => setReviewMatchesOpen(false)}
+        tournamentId={tournamentId}
+        team={team}
+        onSuccess={() => {
+          if (onRefresh) onRefresh()
+        }}
+      />
 
       {/* Add / Edit Player Modal */}
       <Modal

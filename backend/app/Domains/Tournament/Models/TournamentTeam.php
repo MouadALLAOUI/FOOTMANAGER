@@ -19,6 +19,10 @@ class TournamentTeam extends Model
 
     public const STATUS_REMOVED = 'removed';
 
+    public const STATUS_WITHDRAWN = 'withdrawn';
+
+    public const STATUS_DISQUALIFIED = 'disqualified';
+
     public const PAYMENT_NOT_REQUIRED = 'not_required';
 
     public const PAYMENT_PENDING = 'pending';

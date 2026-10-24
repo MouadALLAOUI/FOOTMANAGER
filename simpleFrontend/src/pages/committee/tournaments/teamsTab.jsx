@@ -345,6 +345,8 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     <p className="truncate text-sm font-extrabold text-slate-900">{p.team?.name || (isDeleted ? 'فريق محذوف' : '—')}</p>
                     {isDeleted && <Badge variant="danger">محذوف</Badge>}
                     {p.team?.is_free && <Badge variant="info">{t('committee.detail.freeBadge')}</Badge>}
+                    {p.status === 'withdrawn' && <Badge variant="warning">منسحب</Badge>}
+                    {p.status === 'disqualified' && <Badge variant="danger">مُقصى</Badge>}
                   </div>
                   <p className="text-[11px] font-semibold text-slate-400">
                     {p.group?.name || t('committee.detail.unassigned')}
@@ -533,9 +535,11 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
       <TeamSquadModal
         key={squadTeam?.team?.id ?? 'none'}
         team={squadTeam?.team}
+        tournamentTeam={squadTeam}
         tournamentId={tournament?.id}
         open={Boolean(squadTeam)}
         onClose={() => setSquadTeam(null)}
+        onRefresh={refresh}
       />
 
       <EditFreeTeamModal

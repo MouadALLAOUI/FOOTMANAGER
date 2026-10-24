@@ -16,6 +16,8 @@ class RescheduleFixtureRequest extends FormRequest
         return [
             'scheduled_at' => 'required|date',
             'stadium_id' => 'nullable|integer|exists:stadiums,id',
+            'override_warnings' => 'nullable|boolean',
+            'override_reason' => 'nullable|string|max:500',
         ];
     }
 

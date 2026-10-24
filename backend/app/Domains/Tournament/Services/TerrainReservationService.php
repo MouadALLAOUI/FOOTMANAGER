@@ -9,6 +9,7 @@ use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Services\MatchMembershipService;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Tournament\Exceptions\SchedulingWarningException;
 use App\Domains\Tournament\Models\Tournament;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -129,9 +130,9 @@ class TerrainReservationService
      * calendar is never double-booked and a conflicting slot never partially
      * commits.
      */
-    public function confirm(Fixture $fixture): array
+    public function confirm(Fixture $fixture, bool $overrideWarnings = false): array
     {
-        return DB::transaction(function () use ($fixture) {
+        return DB::transaction(function () use ($fixture, $overrideWarnings) {
             $this->assertNotFinished($fixture);
 
             if (! $fixture->stadium_id || ! $fixture->scheduled_at) {
@@ -151,28 +152,54 @@ class TerrainReservationService
             $this->fixtures->assertStadiumsValid([$fixture->stadium_id]);
 
             if ($this->fixtures->stadiumHasFixtureConflict($fixture->stadium_id, $datetime, $fixture->match_id, $fixture->id)) {
-                throw new DomainException('هذا التوقيت محجوز لمباراة بطولة أخرى في هذا الملعب');
+                if (! $overrideWarnings) {
+                    throw new SchedulingWarningException(
+                        'هذا التوقيت محجوز لمباراة بطولة أخرى في هذا الملعب',
+                        'stadium_fixture_conflict',
+                        'تعارض موعد الملعب مع بطولة أخرى'
+                    );
+                }
             }
 
-            if (TerrainBooking::getConflictMessage(
+            if ($conflict = TerrainBooking::getConflictMessage(
                 $fixture->stadium_id,
                 $datetime->toDateString(),
                 $time,
                 $endTime,
                 excludeId: $excludeBookingId,
             )) {
-                throw new DomainException('هذا التوقيت محجوز في الملعب المحدد — عدّل الموعد ثم أعد التأكيد');
+                if (! $overrideWarnings) {
+                    throw new SchedulingWarningException(
+                        'هذا التوقيت محجوز في الملعب المحدد — تأكيد الموعد سيتجاوز تعارض الملعب',
+                        'terrain_booking_conflict',
+                        'تعارض حجز الملعب'
+                    );
+                }
             }
 
             $homeTeamId = (int) ($fixture->home_team_id ?? 0);
             $awayTeamId = (int) ($fixture->away_team_id ?? 0);
 
             if ($homeTeamId > 0 && MatchMembershipService::teamHasMatchConflict($homeTeamId, $datetime, $fixture->match_id)) {
-                throw new DomainException('الفريق المضيف لديه مباراة أخرى في هذا التوقيت');
+                if (! $overrideWarnings) {
+                    throw new SchedulingWarningException(
+                        'الفريق المضيف (' . ($fixture->homeTeam?->name ?? 'المضيف') . ') لديه مباراة أخرى في هذا التوقيت أو فترة راحة غير كافية',
+                        'team_match_conflict',
+                        'تعارض توقيت أو فترة راحة الفريق المضيف',
+                        $fixture->homeTeam?->name
+                    );
+                }
             }
 
             if ($awayTeamId > 0 && MatchMembershipService::teamHasMatchConflict($awayTeamId, $datetime, $fixture->match_id)) {
-                throw new DomainException('الفريق الضيف لديه مباراة أخرى في هذا التوقيت');
+                if (! $overrideWarnings) {
+                    throw new SchedulingWarningException(
+                        'الفريق الضيف (' . ($fixture->awayTeam?->name ?? 'الضيف') . ') لديه مباراة أخرى في هذا التوقيت أو فترة راحة غير كافية',
+                        'team_match_conflict',
+                        'تعارض توقيت أو فترة راحة الفريق الضيف',
+                        $fixture->awayTeam?->name
+                    );
+                }
             }
 
             // Claim the slot for the fixture's current schedule (idempotent,

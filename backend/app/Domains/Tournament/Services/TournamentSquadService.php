@@ -74,8 +74,26 @@ class TournamentSquadService
 
         $annotated = $players->map(fn (Player $player) => $this->serializePlayer($player, $memberIds->contains($player->id)));
 
+        $subscriptions = $team->terrainBookings()
+            ->where('reservation_type', 'weekly_subscription')
+            ->whereIn('status', ['approved', 'confirmed'])
+            ->whereNull('archived_at')
+            ->whereNull('cancelled_at')
+            ->with('terrain:id,name,city')
+            ->get()
+            ->map(fn ($b) => [
+                'id' => $b->id,
+                'terrain_id' => $b->terrain_id,
+                'terrain_name' => $b->terrain?->name,
+                'day_of_week' => $b->day_of_week,
+                'start_time' => $b->start_time,
+                'end_time' => $b->end_time,
+            ])
+            ->all();
+
         return [
             'players' => $annotated->values(),
+            'weekly_subscriptions' => $subscriptions,
             'squad_count' => $memberIds->count(),
             'max' => $this->maxPlayers($tournament),
             'min' => $this->minPlayers($tournament),

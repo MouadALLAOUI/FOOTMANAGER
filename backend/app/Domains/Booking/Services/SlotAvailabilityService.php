@@ -175,14 +175,16 @@ class SlotAvailabilityService
 
         // 4. Check active scheduled fixtures
         $hasFixture = Fixture::query()
+            ->with(['match:id,match_duration_minutes', 'competition:id,match_duration_minutes'])
             ->where('stadium_id', $terrainId)
             ->whereDate('scheduled_at', $dateStr)
             ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
             ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
-            ->get(['id', 'scheduled_at'])
+            ->get(['id', 'competition_id', 'match_id', 'scheduled_at'])
             ->contains(function (Fixture $f) use ($startTime, $endTime) {
                 $fStart = Carbon::parse($f->scheduled_at);
-                $fEnd = $fStart->copy()->addMinutes(90);
+                $duration = (int) ($f->match?->match_duration_minutes ?? $f->competition?->match_duration_minutes ?? 60);
+                $fEnd = $fStart->copy()->addMinutes($duration);
                 return $fStart->format('H:i') < $endTime && $fEnd->format('H:i') > $startTime;
             });
 
@@ -268,14 +270,24 @@ class SlotAvailabilityService
         }
 
         $fixture = Fixture::query()
+            ->with(['competition:id,match_duration_minutes', 'match:id,match_duration_minutes', 'homeTeam:id,name', 'awayTeam:id,name'])
             ->where('stadium_id', $terrainId)
             ->whereDate('scheduled_at', $dateStr)
             ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
             ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
-            ->first();
+            ->get()
+            ->first(function (Fixture $f) use ($startTime, $endTime) {
+                $fStart = Carbon::parse($f->scheduled_at);
+                $duration = (int) ($f->match?->match_duration_minutes ?? $f->competition?->match_duration_minutes ?? 60);
+                $fEnd = $fStart->copy()->addMinutes($duration);
+                return $fStart->format('H:i') < $endTime && $fEnd->format('H:i') > $startTime;
+            });
 
         if ($fixture) {
-            return 'هذا التوقيت محجوز لمباراة رسمية ضمن البطولة.';
+            $matchLabel = ($fixture->homeTeam?->name && $fixture->awayTeam?->name)
+                ? "هذا التوقيت محجوز لمباراة بطولة ({$fixture->homeTeam->name} ضد {$fixture->awayTeam->name})."
+                : 'هذا التوقيت محجوز لمباراة رسمية ضمن البطولة.';
+            return $matchLabel;
         }
 
         return null;
@@ -375,7 +387,7 @@ class SlotAvailabilityService
             ->whereDate('scheduled_at', $dateStr)
             ->whereNotIn('status', [FixtureStatus::Cancelled, FixtureStatus::Postponed])
             ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
-            ->with(['homeTeam', 'awayTeam'])
+            ->with(['homeTeam', 'awayTeam', 'competition:id,match_duration_minutes', 'match:id,match_duration_minutes'])
             ->get();
 
         $slots = collect($rawSlots)->map(function ($slot) use (
@@ -437,10 +449,12 @@ class SlotAvailabilityService
 
             // E. Check active fixture
             $fixture = null;
+            $fixtureDuration = 60;
             if (! $booking && ! $closure && ! $weatherBlock) {
-                $fixture = $fixtures->first(function ($f) use ($start, $end) {
+                $fixture = $fixtures->first(function ($f) use ($start, $end, &$fixtureDuration) {
                     $fStart = Carbon::parse($f->scheduled_at);
-                    $fEnd = $fStart->copy()->addMinutes(90);
+                    $fixtureDuration = (int) ($f->match?->match_duration_minutes ?? $f->competition?->match_duration_minutes ?? 60);
+                    $fEnd = $fStart->copy()->addMinutes($fixtureDuration);
                     return $fStart->format('H:i') < $end && $fEnd->format('H:i') > $start;
                 });
             }
@@ -507,20 +521,34 @@ class SlotAvailabilityService
 
             if ($fixture) {
                 $matchLabel = ($fixture->homeTeam?->name && $fixture->awayTeam?->name)
-                    ? "مباراة: {$fixture->homeTeam->name} ضد {$fixture->awayTeam->name}"
-                    : 'مباراة ضمن مسابقة';
+                    ? "مباراة بطولة: {$fixture->homeTeam->name} ضد {$fixture->awayTeam->name}"
+                    : 'مباراة بطولة مبرمجة';
 
                 return [
                     'start' => $start,
                     'end' => $end,
-                    'status' => 'closed',
+                    'status' => 'booked',
                     'is_available' => false,
                     'unavailability_reason' => $matchLabel,
-                    'booking' => null,
-                    'closure' => [
+                    'booking' => [
                         'id' => null,
-                        'reason' => $matchLabel,
+                        'booking_type' => 'match',
+                        'reservation_type' => 'single',
+                        'status' => 'fixture_scheduled',
+                        'price' => 0,
+                        'start_time' => Carbon::parse($fixture->scheduled_at)->format('H:i'),
+                        'end_time' => Carbon::parse($fixture->scheduled_at)->addMinutes($fixtureDuration)->format('H:i'),
+                        'manager' => null,
+                        'team' => $fixture->homeTeam?->only(['id', 'name']),
+                        'guest_name' => ($fixture->homeTeam?->name && $fixture->awayTeam?->name) ? "{$fixture->homeTeam->name} vs {$fixture->awayTeam->name}" : 'مباراة بطولة',
                     ],
+                    'fixture' => [
+                        'id' => $fixture->id,
+                        'home_team' => $fixture->homeTeam?->only(['id', 'name']),
+                        'away_team' => $fixture->awayTeam?->only(['id', 'name']),
+                        'scheduled_at' => $fixture->scheduled_at,
+                    ],
+                    'closure' => null,
                 ];
             }
 

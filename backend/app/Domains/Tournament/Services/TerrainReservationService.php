@@ -143,7 +143,9 @@ class TerrainReservationService
 
             $datetime = $fixture->scheduled_at;
             $time = $datetime->format('H:i');
-            $endTime = $datetime->copy()->addHours(2)->format('H:i');
+            $tournament = $this->tournamentFor($fixture);
+            $duration = (int) ($fixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
+            $endTime = $datetime->copy()->addMinutes($duration)->format('H:i');
 
             // Exclude this match's own active reservation from the conflict check
             // so it never counts against itself, and so re-confirming is idempotent.
@@ -151,7 +153,7 @@ class TerrainReservationService
 
             $this->fixtures->assertStadiumsValid([$fixture->stadium_id]);
 
-            if ($this->fixtures->stadiumHasFixtureConflict($fixture->stadium_id, $datetime, $fixture->match_id, $fixture->id)) {
+            if ($this->fixtures->stadiumHasFixtureConflict($fixture->stadium_id, $datetime, $fixture->match_id, $fixture->id, $duration)) {
                 if (! $overrideWarnings) {
                     throw new SchedulingWarningException(
                         'هذا التوقيت محجوز لمباراة بطولة أخرى في هذا الملعب',

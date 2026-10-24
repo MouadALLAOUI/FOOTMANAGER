@@ -29,6 +29,7 @@ import {
   Users,
 } from 'lucide-react'
 import api from '../../../api/client'
+import { queryClient } from '../../../api/queryClient'
 import { useApi } from '../../../hooks/useApi'
 import { useAuth } from '../../../context/AuthContext'
 import TeamLogo from '../../../components/profile/TeamLogo'
@@ -129,12 +130,13 @@ export default function Overview({ onActiveTournamentChange = null }) {
   }
 
   // 2. Load selected tournament details & statistics
-  const { data: tourDetail, loading: tourDetailLoading } = useApi(
+  const { data: tourDetail, loading: tourDetailLoading, refetch: refetchTourDetail } = useApi(
     () => {
       if (!activeTour?.id) return Promise.resolve(null)
       return api.get(`/committee/tournaments/${activeTour.id}`).then((r) => r.data.data)
     },
     [activeTour?.id],
+    { staleTime: 0 }
   )
 
   // 3. Load fixtures for the active tournament
@@ -148,6 +150,7 @@ export default function Overview({ onActiveTournamentChange = null }) {
       return api.get(`/committee/tournaments/${activeTour.id}/fixtures`).then((r) => r.data)
     },
     [activeTour?.id],
+    { staleTime: 0 }
   )
   const fixtures = fixturesData?.data || []
 
@@ -158,6 +161,7 @@ export default function Overview({ onActiveTournamentChange = null }) {
       return api.get(`/committee/tournaments/${activeTour.id}/registrations`).then((r) => r.data)
     },
     [activeTour?.id],
+    { staleTime: 0 }
   )
   const registrations = registrationsData?.data || []
   const pendingRegistrationsCount = (registrations || []).filter((r) => r.status === 'pending').length
@@ -169,16 +173,19 @@ export default function Overview({ onActiveTournamentChange = null }) {
       return api.get(`/committee/tournaments/${activeTour.id}/stadiums`).then((r) => r.data)
     },
     [activeTour?.id],
+    { staleTime: 0 }
   )
   const stadiums = stadiumsData?.data?.stadiums || []
 
   // Derived Stats & Lists
+  const isMatchFinished = (f) => f.status === 'played' || f.match?.status === 'finished'
+
   const upcomingFixtures = useMemo(() => {
-    return fixtures.filter((f) => !f.match || f.match.status !== 'finished')
+    return fixtures.filter((f) => !isMatchFinished(f) && f.status !== 'cancelled')
   }, [fixtures])
 
   const finishedFixtures = useMemo(() => {
-    return fixtures.filter((f) => f.match && (f.match.status === 'finished' || f.match.home_score !== null))
+    return fixtures.filter((f) => isMatchFinished(f))
   }, [fixtures])
 
   const upcomingMatch = useMemo(() => {
@@ -191,7 +198,12 @@ export default function Overview({ onActiveTournamentChange = null }) {
   }, [upcomingFixtures])
 
   const recentResults = useMemo(() => {
-    return finishedFixtures.slice(-4).reverse()
+    return [...finishedFixtures].sort((a, b) => {
+      const timeA = new Date(a.match?.ended_at || a.scheduled_at || 0).getTime()
+      const timeB = new Date(b.match?.ended_at || b.scheduled_at || 0).getTime()
+      if (timeA !== timeB) return timeB - timeA
+      return (b.matchday || 0) - (a.matchday || 0)
+    })
   }, [finishedFixtures])
 
   const postponedFixtures = useMemo(() => {
@@ -231,7 +243,23 @@ export default function Overview({ onActiveTournamentChange = null }) {
   const activeTourSeason =
     activeTour?.edition || new Date(activeTour?.start_date || Date.now()).getFullYear() || 2026
 
-  // Urgent tasks calculation
+  const handleRefreshAll = () => {
+    if (refetchTourDetail) refetchTourDetail()
+    if (refetchFixtures) refetchFixtures()
+    queryClient.invalidateQueries({ queryKey: ['api'] })
+  }
+
+  useEffect(() => {
+    const handleUpdate = () => handleRefreshAll()
+    window.addEventListener('aji_match_updated', handleUpdate)
+    window.addEventListener('focus', handleUpdate)
+    return () => {
+      window.removeEventListener('aji_match_updated', handleUpdate)
+      window.removeEventListener('focus', handleUpdate)
+    }
+  }, [refetchTourDetail, refetchFixtures])
+
+    // Urgent tasks calculation
   const pendingResultsCount =
     fixtures.filter((f) => f.match && f.match.status === 'awaiting_confirmation').length ||
     tourDetail?.stats?.pending_delegated_submissions ||
@@ -745,6 +773,14 @@ export default function Overview({ onActiveTournamentChange = null }) {
               <div className="flex items-center gap-2.5">
                 <BarChart3 className="size-5 text-[#0F9D58] stroke-[2]" />
                 <h2 className="text-lg sm:text-xl font-bold text-[#0F172A]">آخر النتائج</h2>
+                <button
+                  type="button"
+                  onClick={handleRefreshAll}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-[#0F9D58] transition-colors cursor-pointer"
+                  title="تحديث النتائج"
+                >
+                  <RefreshCw className={`size-4 ${fixturesLoading ? 'animate-spin text-[#0F9D58]' : ''}`} />
+                </button>
               </div>
               <Link
                 to={activeTour ? `/committee/tournaments/${activeTour.id}?tab=standings` : '/committee/tournaments'}
@@ -760,7 +796,9 @@ export default function Overview({ onActiveTournamentChange = null }) {
                 recentResults.slice(0, 3).map((fixture) => (
                   <div
                     key={fixture.id}
-                    className="flex items-center justify-between p-4 rounded-xl border border-[#E6EBF2] bg-[#F4F7FB]/50 hover:bg-[#F4F7FB] transition-colors"
+                    onClick={() => handleOpenMatchRecording(fixture)}
+                    className="flex items-center justify-between p-4 rounded-xl border border-[#E6EBF2] bg-[#F4F7FB]/50 hover:bg-[#F4F7FB] transition-colors cursor-pointer group"
+                    title="انقر لمراجعة أو تعديل النتيجة"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <TeamLogo
@@ -906,10 +944,13 @@ export default function Overview({ onActiveTournamentChange = null }) {
           fixture={controlRoomFixture}
           tournament={activeTour}
           initialTab={controlRoomTab}
-          onClose={() => setControlRoomFixture(null)}
+          onClose={() => {
+            setControlRoomFixture(null)
+            handleRefreshAll()
+          }}
           onSaved={() => {
             setControlRoomFixture(null)
-            if (refetchFixtures) refetchFixtures()
+            handleRefreshAll()
           }}
         />
       )}

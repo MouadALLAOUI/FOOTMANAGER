@@ -361,6 +361,29 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
             </div>
           </div>
 
+          {/* Recurring Subscriptions Banner */}
+          {payload?.weekly_subscriptions?.length > 0 && (
+            <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/50 p-3 text-xs">
+              <div className="flex items-center gap-2 font-bold text-emerald-900 mb-1.5">
+                <span>📅 اشتراكات الملعب الأسبوعية الخاصة بالفريق:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {payload.weekly_subscriptions.map((sub) => {
+                  const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+                  return (
+                    <span key={sub.id} className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-800 shadow-sm border border-emerald-100">
+                      <span>{sub.terrain_name || 'الملعب'}</span>
+                      <span className="text-emerald-500">•</span>
+                      <span>كل {days[sub.day_of_week] || ''}</span>
+                      <span className="text-emerald-500">•</span>
+                      <span>{sub.start_time} - {sub.end_time}</span>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Warnings & Max banners */}
           {atMax && (
             <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs font-bold text-amber-800">

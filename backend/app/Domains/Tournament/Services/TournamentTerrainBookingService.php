@@ -42,6 +42,7 @@ class TournamentTerrainBookingService
         }
 
         $scheduledAt = $fixture->scheduled_at;
+        $duration = (int) ($fixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
 
         // Never overwrite a weekly subscription! If the fixture was pointing to a weekly subscription,
         // keep that subscription intact and manage occurrence / separate reservation.
@@ -60,7 +61,7 @@ class TournamentTerrainBookingService
                     [
                         'stadium_id' => $fixture->stadium_id,
                         'start_time' => $scheduledAt->format('H:i'),
-                        'end_time' => $scheduledAt->copy()->addMinutes($tournament->match_duration_minutes ?? 90)->format('H:i'),
+                        'end_time' => $scheduledAt->copy()->addMinutes($duration)->format('H:i'),
                         'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH,
                         'fixture_id' => $fixture->id,
                         'notes' => 'مباراة بطولة: '.$tournament->name,
@@ -75,6 +76,10 @@ class TournamentTerrainBookingService
 
         $booking->fixture_id = $fixture->id;
 
+        $stadium = $fixture->stadium ?: \App\Domains\Stadium\Models\Stadium::find($fixture->stadium_id);
+        $isOrganizerOwner = $stadium && ((int) $stadium->owner_id === (int) $tournament->organizer_id);
+        $bookingStatus = ($isOrganizerOwner || $tournament->is_terrain_managed) ? 'approved' : 'pending';
+
         $booking->fill([
             'terrain_id' => $fixture->stadium_id,
             'manager_id' => $tournament->organizer_id,
@@ -84,14 +89,14 @@ class TournamentTerrainBookingService
             'reservation_type' => 'single',
             'booking_date' => $scheduledAt->toDateString(),
             'start_time' => $scheduledAt->format('H:i'),
-            'end_time' => $scheduledAt->copy()->addHours(2)->format('H:i'),
+            'end_time' => $scheduledAt->copy()->addMinutes($duration)->format('H:i'),
             'price' => 0,
             'subtotal' => 0,
             'service_fee' => 0,
             'total' => 0,
             'payment_required' => false,
             'payment_status' => 'paid',
-            'status' => 'approved',
+            'status' => $bookingStatus,
             'notes' => 'مباراة بطولة: '.$tournament->name,
             'archived_at' => null,
         ]);
@@ -162,14 +167,18 @@ class TournamentTerrainBookingService
             ->unique()
             ->all();
 
-        // 1. Release single bookings back to available pool (detach fixture, do not archive so others can reuse)
+        // 1. Release single bookings back to available pool
         $count = TerrainBooking::query()
             ->whereIn('fixture_id', $ids->all())
             ->where(function ($q) {
                 $q->whereNull('reservation_type')
                     ->orWhere('reservation_type', '!=', 'weekly_subscription');
             })
-            ->update(['fixture_id' => null]);
+            ->update([
+                'fixture_id' => null,
+                'archived_at' => now(),
+                'status' => 'cancelled',
+            ]);
 
         // 2. If any weekly subscription had fixture_id linked, safely detach without archiving
         TerrainBooking::query()

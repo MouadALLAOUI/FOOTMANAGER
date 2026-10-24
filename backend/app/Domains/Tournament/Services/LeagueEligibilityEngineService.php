@@ -178,16 +178,21 @@ class LeagueEligibilityEngineService
             $fixtureDate = $fixture->scheduled_at ? Carbon::parse($fixture->scheduled_at) : null;
 
             // Check if teams A and B can play at candidate's date & time
-            $durationMinutes = (int) ($candidate->match?->match_duration_minutes ?? 90);
+            $durationMinutes = (int) ($candidate->match?->match_duration_minutes ?? $fixture->competition?->match_duration_minutes ?? 60);
             $candidateStart = $candidateDate->format('H:i');
             $candidateEnd = $candidateDate->copy()->addMinutes($durationMinutes)->format('H:i');
 
-            if (! $this->satisfiesRestRule($teamAId, $candidateDate, $restDaysRequired, $otherMatches)) {
-                continue;
+            $hasRestWarning = false;
+            $restWarnings = [];
+
+            $restA = $this->satisfiesRestRule($teamAId, $candidateDate, $restDaysRequired, $otherMatches);
+            $restB = $this->satisfiesRestRule($teamBId, $candidateDate, $restDaysRequired, $otherMatches);
+            if (! $restA || ! $restB) {
+                $hasRestWarning = true;
+                if (! $restA) $restWarnings[] = ($fixture->homeTeam?->name ?? 'الفريق الأول');
+                if (! $restB) $restWarnings[] = ($fixture->awayTeam?->name ?? 'الفريق الثاني');
             }
-            if (! $this->satisfiesRestRule($teamBId, $candidateDate, $restDaysRequired, $otherMatches)) {
-                continue;
-            }
+
             if ($this->hasConflictOnDateTime($teamAId, $candidateDate, $candidateStart, $candidateEnd, $otherMatches)) {
                 continue;
             }
@@ -197,16 +202,18 @@ class LeagueEligibilityEngineService
 
             // If current fixture is scheduled, candidate teams C and D must also be free at current fixture's date & time
             if ($fixtureDate) {
-                $fDurationMinutes = (int) ($fixture->match?->match_duration_minutes ?? 90);
+                $fDurationMinutes = (int) ($fixture->match?->match_duration_minutes ?? $fixture->competition?->match_duration_minutes ?? 60);
                 $fixtureStart = $fixtureDate->format('H:i');
                 $fixtureEnd = $fixtureDate->copy()->addMinutes($fDurationMinutes)->format('H:i');
 
-                if (! $this->satisfiesRestRule($candidateTeamCId, $fixtureDate, $restDaysRequired, $otherMatches)) {
-                    continue;
+                $restC = $this->satisfiesRestRule($candidateTeamCId, $fixtureDate, $restDaysRequired, $otherMatches);
+                $restD = $this->satisfiesRestRule($candidateTeamDId, $fixtureDate, $restDaysRequired, $otherMatches);
+                if (! $restC || ! $restD) {
+                    $hasRestWarning = true;
+                    if (! $restC) $restWarnings[] = ($candidate->homeTeam?->name ?? 'الفريق المقابل');
+                    if (! $restD) $restWarnings[] = ($candidate->awayTeam?->name ?? 'الخصم المقابل');
                 }
-                if (! $this->satisfiesRestRule($candidateTeamDId, $fixtureDate, $restDaysRequired, $otherMatches)) {
-                    continue;
-                }
+
                 if ($this->hasConflictOnDateTime($candidateTeamCId, $fixtureDate, $fixtureStart, $fixtureEnd, $otherMatches)) {
                     continue;
                 }
@@ -255,6 +262,8 @@ class LeagueEligibilityEngineService
                     'name' => $candidate->stadium->name,
                 ] : null,
                 'is_borrowed' => $isCandidateSlotBorrowed,
+                'has_rest_warning' => $hasRestWarning,
+                'rest_warning' => $hasRestWarning ? ('تعارض مع فترة الراحة ('.implode(' و ', array_unique($restWarnings)).') — يمكن للجنة تجاوزه') : null,
                 'sort_borrowed_weight' => ($isCandidateSlotBorrowed ? 1 : 0) + ($currentSlotBorrowed ? 1 : 0),
                 'days_diff' => $fixtureDate ? abs($fixtureDate->diffInDays($candidateDate)) : 0,
             ];
@@ -287,12 +296,10 @@ class LeagueEligibilityEngineService
                 $pHomeId = (int) $pw->home_team_id;
                 $pAwayId = (int) $pw->away_team_id;
 
-                if (! $this->satisfiesRestRule($pHomeId, $fixtureDate, $restDaysRequired, $activeMatches)) {
-                    continue;
-                }
-                if (! $this->satisfiesRestRule($pAwayId, $fixtureDate, $restDaysRequired, $activeMatches)) {
-                    continue;
-                }
+                $pHomeRest = $this->satisfiesRestRule($pHomeId, $fixtureDate, $restDaysRequired, $activeMatches);
+                $pAwayRest = $this->satisfiesRestRule($pAwayId, $fixtureDate, $restDaysRequired, $activeMatches);
+                $hasRestWarning = (! $pHomeRest || ! $pAwayRest);
+
                 if ($this->hasConflictOnDateTime($pHomeId, $fixtureDate, $fixtureStart, $fixtureEnd, $activeMatches)) {
                     continue;
                 }
@@ -305,6 +312,8 @@ class LeagueEligibilityEngineService
                     'matchday' => $pw->matchday,
                     'status' => $pw->status?->value,
                     'status_label' => $pw->status === FixtureStatus::Postponed ? 'مؤجلة' : 'تحتاج جدولة',
+                    'has_rest_warning' => $hasRestWarning,
+                    'rest_warning' => $hasRestWarning ? 'تعارض مع فترة الراحة المقررة (يمكن للجنة تجاوزه)' : null,
                     'home_team' => [
                         'id' => $pw->homeTeam?->id,
                         'name' => $pw->homeTeam?->name,
@@ -1089,7 +1098,7 @@ class LeagueEligibilityEngineService
             $slotEnd = $slot['end_time'];
             $slotDateTime = $slot['datetime'];
 
-            // Both host and guest must be free
+            // Both host and guest must be free from overlapping matches at the exact same hour
             if ($this->hasConflictOnDateTime($hostTeamId, $slotDate, $slotStart, $slotEnd, $scheduledMatches)) {
                 continue;
             }
@@ -1097,13 +1106,14 @@ class LeagueEligibilityEngineService
                 continue;
             }
 
-            // Both must satisfy rest rule
-            if (! $this->satisfiesRestRule($hostTeamId, $slotDate, $restDaysRequired, $scheduledMatches)) {
-                continue;
-            }
-            if (! $this->satisfiesRestRule($guestTeamId, $slotDate, $restDaysRequired, $scheduledMatches)) {
-                continue;
-            }
+            // Rest rule violations are warnings, not hidden
+            $satisfiesRestHost = $this->satisfiesRestRule($hostTeamId, $slotDate, $restDaysRequired, $scheduledMatches);
+            $satisfiesRestGuest = $this->satisfiesRestRule($guestTeamId, $slotDate, $restDaysRequired, $scheduledMatches);
+            $hasRestWarning = (! $satisfiesRestHost || ! $satisfiesRestGuest);
+
+            $restViolations = [];
+            if (! $satisfiesRestHost) $restViolations[] = 'الفريق المضيف';
+            if (! $satisfiesRestGuest) $restViolations[] = 'الفريق الضيف';
 
             $suggestions[] = [
                 'id' => "host_slot_{$booking->id}_{$slot['date_str']}",
@@ -1120,6 +1130,8 @@ class LeagueEligibilityEngineService
                     'city' => $booking->terrain->city,
                 ] : null,
                 'is_weekly' => $slot['is_weekly'],
+                'has_rest_warning' => $hasRestWarning,
+                'rest_warning' => $hasRestWarning ? ('تعارض مع فترة الراحة ('.implode(' و ', $restViolations).') — يمكن للجنة التجاوز') : null,
             ];
         }
 

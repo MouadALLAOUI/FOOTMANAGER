@@ -50,11 +50,13 @@ class TournamentStandingsService
             ->where('season_id', $tournament->season_id)
             ->where('status', MatchStatus::Finished)
             ->when($groupIds !== null, fn ($q) => $q->whereIn('group_id', $groupIds))
-            ->get(['id', 'group_id', 'home_team_id', 'away_team_id', 'home_score', 'away_score']);
+            ->get(['id', 'group_id', 'home_team_id', 'away_team_id', 'home_score', 'away_score', 'notes']);
 
         $aggregates = [];
 
         foreach ($matches as $match) {
+            $isDefaultResult = (bool) ($match->notes && str_contains($match->notes, '[default_result:points_only]'));
+
             foreach ([
                 ['team_id' => $match->home_team_id, 'group_id' => $match->group_id, 'for' => $match->home_score, 'against' => $match->away_score, 'result' => $match->home_score <=> $match->away_score],
                 ['team_id' => $match->away_team_id, 'group_id' => $match->group_id, 'for' => $match->away_score, 'against' => $match->home_score, 'result' => $match->away_score <=> $match->home_score],
@@ -78,8 +80,12 @@ class TournamentStandingsService
                 }
 
                 $aggregates[$teamId]['played']++;
-                $aggregates[$teamId]['goals_for'] += (int) $row['for'];
-                $aggregates[$teamId]['goals_against'] += (int) $row['against'];
+
+                // Default wins award points only. They must not add goals to goals scored, conceded, or GD.
+                if (! $isDefaultResult) {
+                    $aggregates[$teamId]['goals_for'] += (int) $row['for'];
+                    $aggregates[$teamId]['goals_against'] += (int) $row['against'];
+                }
 
                 match ($row['result']) {
                     1 => $aggregates[$teamId]['wins']++,
@@ -103,12 +109,18 @@ class TournamentStandingsService
 
         $pivots = TournamentTeam::query()
             ->where('tournament_id', $tournament->id)
-            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->whereIn('status', [
+                TournamentTeam::STATUS_REGISTERED,
+                TournamentTeam::STATUS_WITHDRAWN,
+                TournamentTeam::STATUS_DISQUALIFIED,
+            ])
             ->when($groupIds !== null, fn ($q) => $q->whereIn('group_id', $groupIds))
-            ->get(['team_id', 'group_id']);
+            ->get(['team_id', 'group_id', 'status']);
 
+        $teamStatuses = [];
         foreach ($pivots as $pivot) {
             $teamId = (int) $pivot->team_id;
+            $teamStatuses[$teamId] = $pivot->status;
 
             if (! isset($aggregates[$teamId])) {
                 $aggregates[$teamId] = [
@@ -136,6 +148,8 @@ class TournamentStandingsService
 
         foreach ($aggregates as &$agg) {
             $team = $teams->firstWhere('id', $agg['team_id']);
+            $teamStatus = $teamStatuses[$agg['team_id']] ?? TournamentTeam::STATUS_REGISTERED;
+            $agg['status'] = $teamStatus;
             $agg['goal_difference'] = $agg['goals_for'] - $agg['goals_against'];
             $agg['points'] = $agg['wins'] * $pointsWin + $agg['draws'] * $pointsDraw + $agg['losses'] * $pointsLoss;
             $agg['form'] = array_slice(array_values($agg['form']), -5);
@@ -144,6 +158,7 @@ class TournamentStandingsService
                 'name' => $team->name,
                 'logo_url' => $team->logo_url,
                 'city' => $team->city,
+                'status' => $teamStatus,
             ] : null;
             $rows[] = $agg;
         }

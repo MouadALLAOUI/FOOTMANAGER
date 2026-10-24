@@ -13,6 +13,7 @@ import {
   Home,
   Loader2,
   Calendar,
+  CalendarCheck,
   RotateCcw,
   Ban,
   Clock4,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 import TeamLogo from '../../../components/profile/TeamLogo'
+import ReassignFreedSlotModal from './ReassignFreedSlotModal'
 import { useToast } from '../../../components/ui/Toast'
 import api from '../../../api/client'
 
@@ -91,6 +93,7 @@ export default function TournamentMatchCard({
   onMoveToOwnSlot,
   nearestSlot,
   onQuickAssign,
+  onRefresh,
   isUnassigning = false,
   busy = false,
   locked = false,
@@ -106,8 +109,67 @@ export default function TournamentMatchCard({
   const borrowedOwner = fixture.borrowed_owner_name || (fixture.match?.notes ? fixture.match.notes.replace(/.*(فريق|من)\s+/, '') : null)
   const hasExceptionReason = Boolean(fixture.unscheduled_reason)
 
+  const homeStatus = fixture.home_team?.status
+  const awayStatus = fixture.away_team?.status
+  const homeWithdrawnOrDisqualified = homeStatus === 'withdrawn' || homeStatus === 'disqualified'
+  const awayWithdrawnOrDisqualified = awayStatus === 'withdrawn' || awayStatus === 'disqualified'
+  const hasDisciplinedTeam = homeWithdrawnOrDisqualified || awayWithdrawnOrDisqualified
+  const isDefaultResult = Boolean(
+    fixture.is_default_result ||
+    fixture.match?.notes?.includes('[default_result:points_only]')
+  )
+  const isExpelledTeamSlot = Boolean(fixture.is_expelled_team_slot)
+  const slotReassigned = Boolean(fixture.slot_reassigned)
+  const canReassignSlot = Boolean(
+    fixture.can_reassign_slot ||
+    (isDefaultResult && !isExpelledTeamSlot && !slotReassigned && (fixture.scheduled_at || fixture.freed_slot?.scheduled_at))
+  )
+
   const { toast } = useToast()
   const [copyingPublicLink, setCopyingPublicLink] = useState(false)
+  const [applyingDefault, setApplyingDefault] = useState(false)
+  const [showReassignModal, setShowReassignModal] = useState(false)
+
+  const handleAwardDefaultPoints = async (e) => {
+    e?.stopPropagation?.()
+    const withdrawnTeamId = homeWithdrawnOrDisqualified
+      ? (fixture.home_team_id || fixture.home_team?.id)
+      : (fixture.away_team_id || fixture.away_team?.id)
+
+    const opponentName = homeWithdrawnOrDisqualified
+      ? (fixture.away_team?.name || 'الفريق الخصم')
+      : (fixture.home_team?.name || 'الفريق الخصم')
+
+    const disciplinedName = homeWithdrawnOrDisqualified
+      ? (fixture.home_team?.name || 'الفريق المنسحب/المُقصى')
+      : (fixture.away_team?.name || 'الفريق المنسحب/المُقصى')
+
+    const confirmed = window.confirm(
+      `هل تريد اعتماد الفوز الاعتباري ومنح 3 نقاط لصالح (${opponentName}) بسبب طرد/انسحاب (${disciplinedName})؟\n\n` +
+      `- تُمنح 3 نقاط فقط في الترتيب دون احتساب أهداف إضافية.\n` +
+      `- يتم تحرير موعد المباراة إذا كان معاراً، أو إلغاء حجز المطرود إن كان خاصاً به.`
+    )
+    if (!confirmed) return
+
+    setApplyingDefault(true)
+    try {
+      const tournamentId = fixture.tournament_id || fixture.competition_id || fixture.competition?.id
+      const res = await api.post(
+        `/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/apply-default-result`,
+        { withdrawn_team_id: withdrawnTeamId }
+      )
+      toast.success(res.data?.message || 'تم احتساب الفوز الاعتباري (3 نقاط) للفريق الخصم بنجاح')
+      if (onRefresh) {
+        onRefresh()
+      } else {
+        window.dispatchEvent(new CustomEvent('tournament:refreshed'))
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'تعذر احتساب الفوز الاعتباري')
+    } finally {
+      setApplyingDefault(false)
+    }
+  }
 
   const handleCopyPublicLiveLink = async (e) => {
     e?.stopPropagation?.()
@@ -247,8 +309,38 @@ export default function TournamentMatchCard({
                 </span>
               )}
 
+              {/* Default Win Badge */}
+              {isDefaultResult && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[10px] font-black text-amber-900">
+                  <CheckCircle2 className="size-3 text-amber-600" />
+                  <span>فوز اعتباري (3 نقاط)</span>
+                </span>
+              )}
+
+              {/* Slot Reassigned Badge */}
+              {slotReassigned && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border border-sky-300 bg-sky-50 px-2.5 py-0.5 text-[10px] font-black text-sky-900"
+                  title={`تم إسناد الموعد إلى: ${fixture.slot_reassigned_to?.title || 'مباراة أخرى'}`}
+                >
+                  <CalendarCheck className="size-3 text-sky-600" />
+                  <span>تم تحويل الموعد إلى: {fixture.slot_reassigned_to?.title || 'مباراة أخرى'}</span>
+                </span>
+              )}
+
+              {/* Expelled Team Slot (Not reusable) Badge */}
+              {isExpelledTeamSlot && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold text-slate-600"
+                  title="توقيت يخص حجز الفريق المطرود — ملغى وغير متاح للعب"
+                >
+                  <Ban className="size-3 text-slate-400" />
+                  <span>توقيت يخص المطرود (غير متاح)</span>
+                </span>
+              )}
+
               {/* Finished Badge */}
-              {isPlayed && (
+              {isPlayed && !isDefaultResult && (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
                   <CheckCircle2 className="size-3 text-emerald-600" />
                   <span>انتهت المباراة</span>
@@ -307,6 +399,16 @@ export default function TournamentMatchCard({
                   <span className="truncate text-xs sm:text-sm font-extrabold text-slate-900">
                     {fixture.home_team?.name || 'فريق مضيف'}
                   </span>
+                  {fixture.home_team?.status === 'withdrawn' && (
+                    <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">
+                      منسحب
+                    </span>
+                  )}
+                  {fixture.home_team?.status === 'disqualified' && (
+                    <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-800">
+                      مُقصى
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -323,9 +425,21 @@ export default function TournamentMatchCard({
             {/* Away Team (Left side in Arabic RTL) */}
             <div className="flex flex-1 items-center justify-end gap-2 min-w-0 text-end">
               <div className="min-w-0 flex-1">
-                <span className="truncate text-xs sm:text-sm font-extrabold text-slate-900 block">
-                  {fixture.away_team?.name || 'فريق ضيف'}
-                </span>
+                <div className="flex items-center justify-end gap-1">
+                  {fixture.away_team?.status === 'withdrawn' && (
+                    <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">
+                      منسحب
+                    </span>
+                  )}
+                  {fixture.away_team?.status === 'disqualified' && (
+                    <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-800">
+                      مُقصى
+                    </span>
+                  )}
+                  <span className="truncate text-xs sm:text-sm font-extrabold text-slate-900 block">
+                    {fixture.away_team?.name || 'فريق ضيف'}
+                  </span>
+                </div>
               </div>
               <TeamLogo
                 team={fixture.away_team}
@@ -433,7 +547,7 @@ export default function TournamentMatchCard({
         </Button>
 
         {/* Play/Enter Result Button */}
-        {onResult && !isPlayed && (
+        {onResult && !isPlayed && !hasDisciplinedTeam && (
           <Button
             size="sm"
             className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
@@ -442,6 +556,38 @@ export default function TournamentMatchCard({
           >
             <Play className="size-3 fill-current" />
             <span>تسجيل النتيجة والأحداث</span>
+          </Button>
+        )}
+
+        {/* Reassign Freed Slot Button */}
+        {canReassignSlot && (
+          <Button
+            size="sm"
+            className="flex items-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition cursor-pointer"
+            onClick={() => setShowReassignModal(true)}
+            disabled={busy || locked}
+            title="إسناد هذا التوقيت المحرر لمباراة لم تلعب بعد"
+          >
+            <CalendarCheck className="size-3.5" />
+            <span>إسناد الموعد لمباراة أخرى</span>
+          </Button>
+        )}
+
+        {/* Direct Button for Disciplined Team */}
+        {hasDisciplinedTeam && !isPlayed && (
+          <Button
+            size="sm"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-black text-white shadow-xs hover:bg-amber-700"
+            onClick={handleAwardDefaultPoints}
+            disabled={busy || locked || applyingDefault}
+            title="إعطاء 3 نقاط اعتبارية للفريق الخصم وتحرير/إلغاء الموعد"
+          >
+            {applyingDefault ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <CheckCircle2 className="size-3.5" />
+            )}
+            <span>إعطاء 3 نقاط اعتبارية للفريق الخصم</span>
           </Button>
         )}
 
@@ -460,7 +606,7 @@ export default function TournamentMatchCard({
                 <span>عرض التفاصيل</span>
               </Button>
             )}
-            {onResult && (
+            {onResult && !isDefaultResult && !hasDisciplinedTeam && (
               <Button
                 size="sm"
                 className="flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 px-3.5 py-1.5 text-xs font-bold"
@@ -470,6 +616,12 @@ export default function TournamentMatchCard({
                 <Play className="size-3 text-emerald-600" />
                 <span>تعديل النتيجة والأحداث</span>
               </Button>
+            )}
+            {isDefaultResult && (
+              <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200/80 px-3 py-1.5 text-xs font-bold text-slate-500">
+                <CheckCircle2 className="size-3.5 text-slate-400" />
+                <span>مباراة محسومة اعتبارياً (أرشيف)</span>
+              </span>
             )}
           </>
         )}
@@ -602,6 +754,22 @@ export default function TournamentMatchCard({
           </Button>
         )}
       </div>
+      {showReassignModal && (
+        <ReassignFreedSlotModal
+          open={showReassignModal}
+          onClose={() => setShowReassignModal(false)}
+          tournamentId={fixture.tournament_id || fixture.competition_id || fixture.competition?.id}
+          fixture={fixture}
+          onSuccess={() => {
+            setShowReassignModal(false)
+            if (onRefresh) {
+              onRefresh()
+            } else {
+              window.dispatchEvent(new CustomEvent('tournament:refreshed'))
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

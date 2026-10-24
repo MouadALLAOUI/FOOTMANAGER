@@ -6,6 +6,7 @@ use App\Domains\Competition\Enums\FixtureStatus;
 use App\Domains\Competition\Enums\RoundStage;
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Enums\MatchStatus;
+use App\Domains\Match\Models\MatchResultAudit;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
@@ -417,6 +418,7 @@ class TournamentFixtureController extends Controller
         }
 
         $data = $request->validated();
+        $overrideWarnings = $request->boolean('override_warnings');
 
         // INDEPENDENT mode keeps the legacy behaviour: validate the slot and
         // auto-claim. INTEGRATED mode saves a draft and releases the previous
@@ -433,6 +435,20 @@ class TournamentFixtureController extends Controller
                 $fixture->match_id,
                 $existingBookingId,
                 $fixture->id,
+                $overrideWarnings,
+                $tournament,
+            );
+        } else {
+            $this->fixtures->assertRescheduleAvailable(
+                $data['stadium_id'] ?? $fixture->stadium_id,
+                Carbon::parse($data['scheduled_at']),
+                (int) ($fixture->home_team_id ?? 0),
+                (int) ($fixture->away_team_id ?? 0),
+                $fixture->match_id,
+                null,
+                $fixture->id,
+                $overrideWarnings,
+                $tournament,
             );
         }
 
@@ -442,6 +458,21 @@ class TournamentFixtureController extends Controller
             Carbon::parse($data['scheduled_at']),
             $data['stadium_id'] ?? $fixture->stadium_id,
         );
+
+        if ($overrideWarnings) {
+            MatchResultAudit::create([
+                'fixture_id' => $fixture->id,
+                'match_id' => $fixture->match_id,
+                'user_id' => auth()->id(),
+                'action' => 'scheduling_override',
+                'description' => 'تجاوز تحذير الجدولة واعتماد الموعد بقرار من اللجنة المنظمة',
+                'changes' => [
+                    'scheduled_at' => $data['scheduled_at'],
+                    'stadium_id' => $data['stadium_id'] ?? $fixture->stadium_id,
+                    'reason' => $data['override_reason'] ?? 'تأكيد اللجنة',
+                ],
+            ]);
+        }
 
         if ($tournament->tournament_format === 'league') {
             $this->fixtures->syncLeagueMatchdays($tournament);
@@ -468,7 +499,24 @@ class TournamentFixtureController extends Controller
             throw new DomainException('وضع الحجز المستقل لا يتطلب تأكيداً — الحجز مفعّل تلقائياً');
         }
 
-        $result = $this->reservations->confirm($fixture);
+        $overrideWarnings = $request->boolean('override_warnings');
+
+        $result = $this->reservations->confirm($fixture, $overrideWarnings);
+
+        if ($overrideWarnings) {
+            MatchResultAudit::create([
+                'fixture_id' => $fixture->id,
+                'match_id' => $fixture->match_id,
+                'user_id' => auth()->id(),
+                'action' => 'scheduling_override',
+                'description' => 'تجاوز تحذير الجدولة وتأكيد الحجز بقرار من اللجنة المنظمة',
+                'changes' => [
+                    'scheduled_at' => (string) $fixture->scheduled_at,
+                    'stadium_id' => $fixture->stadium_id,
+                    'reason' => $request->input('override_reason', 'تأكيد اللجنة'),
+                ],
+            ]);
+        }
 
         return response()->json([
             'data' => new TournamentFixtureResource($result['fixture']->load(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])),

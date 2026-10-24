@@ -7,8 +7,10 @@ use App\Domains\Competition\Enums\FixtureStatus;
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
+use App\Domains\Match\Models\MatchResultAudit;
 use App\Domains\Notification\Services\NotificationService;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Tournament\Exceptions\SchedulingWarningException;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use Carbon\Carbon;
@@ -1415,9 +1417,9 @@ class LeagueAssignmentService
      *
      * @return array<string, mixed>
      */
-    public function changeOpponent(Tournament $tournament, Fixture $fixture, int $newOpponentId): array
+    public function changeOpponent(Tournament $tournament, Fixture $fixture, int $newOpponentId, bool $overrideWarnings = false): array
     {
-        return DB::transaction(function () use ($tournament, $fixture, $newOpponentId) {
+        return DB::transaction(function () use ($tournament, $fixture, $newOpponentId, $overrideWarnings) {
             if ((int) $fixture->competition_id !== (int) $tournament->competition_id) {
                 throw new DomainException('المباراة لا تنتمي إلى هذا الدوري');
             }
@@ -1490,8 +1492,14 @@ class LeagueAssignmentService
                 $targetDate = Carbon::parse($fixture->scheduled_at);
 
                 $restOk = $this->satisfiesRestRule($newOpponentId, $targetDate, $restDaysRequired, $scheduledMatches);
-                if (! $restOk) {
-                    throw new DomainException('الفريق الجديد لديه تعارض مع قاعدة فترة الراحة الإلزامية في موعد هذه المباراة');
+                if (! $restOk && ! $overrideWarnings) {
+                    $newTeam = \App\Domains\Team\Models\Team::find($newOpponentId);
+                    throw new SchedulingWarningException(
+                        'الفريق الجديد ('.($newTeam?->name ?? '').') لديه تعارض مع قاعدة فترة الراحة الإلزامية في موعد هذه المباراة',
+                        'rest_rule_conflict',
+                        'تعارض فترة الراحة للفريق الجديد',
+                        $newTeam?->name
+                    );
                 }
 
                 $conflict = $this->hasConflictOnDateTime(
@@ -1501,8 +1509,14 @@ class LeagueAssignmentService
                     $targetDate->copy()->addHours(2)->format('H:i'),
                     $scheduledMatches
                 );
-                if ($conflict) {
-                    throw new DomainException('الفريق الجديد لديه مباراة أخرى مبرمجة في نفس التوقيت');
+                if ($conflict && ! $overrideWarnings) {
+                    $newTeam = \App\Domains\Team\Models\Team::find($newOpponentId);
+                    throw new SchedulingWarningException(
+                        'الفريق الجديد ('.($newTeam?->name ?? '').') لديه مباراة أخرى مبرمجة في نفس التوقيت',
+                        'team_match_conflict',
+                        'تعارض توقيت المباراة للفريق الجديد',
+                        $newTeam?->name
+                    );
                 }
             }
 
@@ -1511,8 +1525,14 @@ class LeagueAssignmentService
                 $otherTargetDate = Carbon::parse($otherFixture->scheduled_at);
 
                 $oldRestOk = $this->satisfiesRestRule($oldOpponentId, $otherTargetDate, $restDaysRequired, $scheduledMatches);
-                if (! $oldRestOk) {
-                    throw new DomainException('الفريق الخصم السابق لديه تعارض مع قاعدة فترة الراحة الإلزامية في موعد المواجهة البديلة');
+                if (! $oldRestOk && ! $overrideWarnings) {
+                    $oldTeam = \App\Domains\Team\Models\Team::find($oldOpponentId);
+                    throw new SchedulingWarningException(
+                        'الفريق الخصم السابق ('.($oldTeam?->name ?? '').') لديه تعارض مع قاعدة فترة الراحة الإلزامية في موعد المواجهة البديلة',
+                        'rest_rule_conflict',
+                        'تعارض فترة الراحة للخصم السابق',
+                        $oldTeam?->name
+                    );
                 }
 
                 $oldConflict = $this->hasConflictOnDateTime(
@@ -1522,9 +1542,29 @@ class LeagueAssignmentService
                     $otherTargetDate->copy()->addHours(2)->format('H:i'),
                     $scheduledMatches
                 );
-                if ($oldConflict) {
-                    throw new DomainException('الفريق الخصم السابق لديه مباراة أخرى مبرمجة في توقيت المواجهة البديلة');
+                if ($oldConflict && ! $overrideWarnings) {
+                    $oldTeam = \App\Domains\Team\Models\Team::find($oldOpponentId);
+                    throw new SchedulingWarningException(
+                        'الفريق الخصم السابق ('.($oldTeam?->name ?? '').') لديه مباراة أخرى مبرمجة في توقيت المواجهة البديلة',
+                        'team_match_conflict',
+                        'تعارض توقيت المباراة للخصم السابق',
+                        $oldTeam?->name
+                    );
                 }
+            }
+
+            if ($overrideWarnings) {
+                MatchResultAudit::create([
+                    'fixture_id' => $fixture->id,
+                    'match_id' => $fixture->match_id,
+                    'user_id' => auth()->id(),
+                    'action' => 'scheduling_override',
+                    'description' => 'تجاوز تحذير الجدولة وتغيير الخصم بقرار من اللجنة المنظمة',
+                    'changes' => [
+                        'new_opponent_id' => $newOpponentId,
+                        'old_opponent_id' => $oldOpponentId,
+                    ],
+                ]);
             }
 
             // Apply update to Fixture 1: away_team_id becomes newOpponentId
@@ -1809,7 +1849,7 @@ class LeagueAssignmentService
      * Verify minimum rest rule: $|Date_{target} - Date_{match}| > restDays$.
      * E.g. restDays = 1 means adjacent calendar days are forbidden.
      */
-    private function satisfiesRestRule(
+    public function satisfiesRestRule(
         int $teamId,
         Carbon $targetDate,
         int $restDays,

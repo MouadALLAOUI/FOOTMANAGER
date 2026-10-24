@@ -87,6 +87,7 @@ use App\Http\Controllers\Committee\TournamentStadiumController;
 use App\Http\Controllers\Committee\TournamentStandingController;
 use App\Http\Controllers\Committee\TournamentStatisticsController;
 use App\Http\Controllers\Committee\TournamentTeamController;
+use App\Http\Controllers\Committee\TournamentTeamDisciplineController;
 use App\Http\Controllers\Committee\DelegatedMatchLinkController;
 use App\Http\Controllers\Committee\TournamentContactController;
 use App\Http\Controllers\Committee\TournamentSponsorController;
@@ -837,8 +838,15 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
             Route::get('/teams', [TournamentTeamController::class, 'index']);
             Route::get('/teams/{team}/squad', [TournamentSquadController::class, 'index']);
+            Route::get('/teams/{teamId}/discipline-preview', [TournamentTeamDisciplineController::class, 'preview']);
+            Route::get('/unplayed-fixtures', [TournamentTeamDisciplineController::class, 'unplayedFixtures']);
 
             Route::middleware('activity.not_locked')->group(function () {
+                Route::post('/teams/{teamId}/withdraw', [TournamentTeamDisciplineController::class, 'withdraw']);
+                Route::post('/teams/{teamId}/disqualify', [TournamentTeamDisciplineController::class, 'disqualify']);
+                Route::post('/teams/{teamId}/reverse-discipline', [TournamentTeamDisciplineController::class, 'reverse']);
+                Route::post('/fixtures/{fixture}/apply-default-result', [TournamentTeamDisciplineController::class, 'applyDefaultResult']);
+                Route::post('/fixtures/{fixture}/reassign-freed-slot', [TournamentTeamDisciplineController::class, 'reassignFreedSlot']);
                 Route::post('/teams', [TournamentTeamController::class, 'store']);
                 Route::post('/teams/free', [TournamentTeamController::class, 'storeFree']);
                 Route::post('/teams/free/bulk', [TournamentTeamController::class, 'storeBulkFree']);

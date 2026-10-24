@@ -6,7 +6,21 @@ import { Button } from '../../../components/dashboard/ui'
 
 const minuteText = (m, added) => (Number(added) > 0 ? `${Number(m) || 0}'+${Number(added)}` : `${Number(m) || 0}'`)
 
-export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, homeName, awayName, refetchTick, onAwardConverted, t, token, readOnly = false }) {
+export default function FoulPanel({
+  tournamentId,
+  fixtureId,
+  homeId,
+  awayId,
+  homeName,
+  awayName,
+  refetchTick,
+  onAwardConverted,
+  t,
+  token,
+  readOnly = false,
+  onStatusUpdate = null,
+  onSuggestionConfirmed = null,
+}) {
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -19,14 +33,16 @@ export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, hom
         ? `/v1/match-entry/${token}/penalties`
         : `/committee/tournaments/${tournamentId}/fixtures/${fixtureId}/penalties`
       const r = await api.get(url)
-      setStatus(r.data?.data || null)
+      const st = r.data?.data || null
+      setStatus(st)
+      if (onStatusUpdate) onStatusUpdate(st)
       setError(false)
     } catch (e) {
       setError(true)
     } finally {
       setLoading(false)
     }
-  }, [tournamentId, fixtureId, token])
+  }, [tournamentId, fixtureId, token, onStatusUpdate])
 
   useEffect(() => { load() }, [load, refetchTick])
 
@@ -39,6 +55,9 @@ export default function FoulPanel({ tournamentId, fixtureId, homeId, awayId, hom
         action_confirm: actionConfirm,
       })
       if (r.data?.status) setStatus(r.data.status)
+      if (actionConfirm && onSuggestionConfirmed) {
+        onSuggestionConfirmed(suggestion, r.data?.data)
+      }
     } catch (e) {
       // surface via a lightweight rerender; keep panel usable
       setError(true)

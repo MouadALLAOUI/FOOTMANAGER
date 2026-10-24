@@ -174,7 +174,7 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
         <label className="block">
           <span className="mb-1.5 block text-xs font-bold text-slate-700">{t('committee.result.goalType')}</span>
           <div className="relative">
-            <select className={`${selectClass} pe-9`} value={form.goalType} onChange={setField('goalType')}>
+            <select className={`${selectClass} pe-9`} value={form.goalType ?? 'regular'} onChange={setField('goalType')}>
               {GOAL_TYPES.map((g) => <option key={g.value} value={g.value}>{t(g.labelKey)}</option>)}
             </select>
             <ChevronDown className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />

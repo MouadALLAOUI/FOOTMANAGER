@@ -3,7 +3,28 @@ import MiniStat from './MiniStat'
 import FoulPanel from './FoulPanel'
 import ShootoutCard from './ShootoutCard'
 
-export default function StatsFoulsTab({ displayScore, counts, isKnockout, homeName, awayName, homePen, awayPen, setHomePen, setAwayPen, homeTeam, awayTeam, tournamentId, fixtureId, homeId, awayId, foulRefetchTick, onAwardConverted, t }) {
+export default function StatsFoulsTab({
+  displayScore,
+  counts,
+  isKnockout,
+  homeName,
+  awayName,
+  homePen,
+  awayPen,
+  setHomePen,
+  setAwayPen,
+  homeTeam,
+  awayTeam,
+  tournamentId,
+  fixtureId,
+  homeId,
+  awayId,
+  foulRefetchTick,
+  onAwardConverted,
+  t,
+  onStatusUpdate = null,
+  onSuggestionConfirmed = null,
+}) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -23,6 +44,8 @@ export default function StatsFoulsTab({ displayScore, counts, isKnockout, homeNa
         awayName={awayName}
         refetchTick={foulRefetchTick}
         onAwardConverted={onAwardConverted}
+        onStatusUpdate={onStatusUpdate}
+        onSuggestionConfirmed={onSuggestionConfirmed}
         t={t}
       />
 

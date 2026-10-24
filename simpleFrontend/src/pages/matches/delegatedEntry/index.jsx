@@ -526,11 +526,13 @@ export default function DelegatedMatchEntryPage() {
         half: half || activeHalf || 'first',
         minute: minute || currentLiveMinute || 1,
         threshold: teamFoulThreshold,
+        roster: beneficiaryId === Number(homeId) ? homeRoster : awayRoster,
+        isHome: beneficiaryId === Number(homeId),
       })
     }
   }
 
-  const handleResolvePenaltyScored = () => {
+  const handleResolvePenaltyScored = (player) => {
     if (!penaltyModalData) return
     const { beneficiaryId, offenderId, minute, half, threshold } = penaltyModalData
 
@@ -538,8 +540,8 @@ export default function DelegatedMatchEntryPage() {
       _key: uid(),
       type: 'goal',
       team_id: beneficiaryId,
-      player_id: null,
-      player: '',
+      player_id: player?.id || null,
+      player: player?.name || '',
       assist_player_id: null,
       assist: '',
       minute: minute,

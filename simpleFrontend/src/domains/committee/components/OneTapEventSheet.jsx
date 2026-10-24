@@ -3,23 +3,24 @@ import {
   X,
   ArrowRight,
   Play,
-  RotateCcw,
   Users,
-  AlertCircle,
   Clock,
-  Shield,
+  FileText,
+  AlertTriangle,
+  RotateCcw,
 } from 'lucide-react'
 import Jersey from '../../../pages/manager/live/components/Jersey'
 
 /**
  * OneTapEventSheet:
- * Mobile-first compact bottom sheet for one-tap match event recording.
+ * Mobile-first centered modal matching the visual target for fast event recording.
  *
  * Rules:
- * 1. 5 Big buttons: هدف · خطأ · تبديل · بطاقة صفراء · بطاقة حمراء
- * 2. ONE tap on (هدف / خطأ / صفراء / حمراء) records immediately without forms.
+ * 1. 6 Big action tiles (3x2 grid): هدف · بطاقة صفراء · بطاقة حمراء · خطأ · تبديل · أخرى
+ * 2. ONE tap on (هدف / بطاقة / خطأ) records immediately using current match minute without extra forms.
  * 3. Tapping "تبديل" shows the team's bench players; ONE tap performs substitution immediately.
- * 4. Guard: if match not started or timer paused, show clear message + start/resume action.
+ * 4. Guards for unstarted or paused matches.
+ * 5. Optional note input.
  */
 export default function OneTapEventSheet({
   isOpen,
@@ -38,6 +39,7 @@ export default function OneTapEventSheet({
   currentMinute = 1,
 }) {
   const [view, setView] = useState('main') // 'main' | 'bench'
+  const [note, setNote] = useState('')
 
   if (!isOpen || !player) return null
 
@@ -49,37 +51,37 @@ export default function OneTapEventSheet({
       setView('bench')
       return
     }
-    onRecordEvent(type, player, teamId)
+    onRecordEvent(type, player, teamId, note)
+    setNote('')
     onClose()
   }
 
   const handleSelectBench = (benchPlayer) => {
     onSubstitute(player, benchPlayer, teamId)
+    setNote('')
+    setView('main')
     onClose()
   }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 backdrop-blur-xs transition-opacity sm:items-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 transition-all"
       dir="rtl"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-3xl sm:rounded-3xl bg-white shadow-2xl border border-slate-200/80 overflow-hidden flex flex-col max-h-[90vh] animate-in slide-in-from-bottom-6 duration-200"
+        className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200/90 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Handle bar on mobile */}
-        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0" />
-
-        {/* Header: Player summary & Close */}
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/60 shrink-0">
+        {/* Header: Player Photo, Name, and Close Button */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             {photoSrc ? (
               <div className="relative shrink-0">
                 <img
                   src={photoSrc}
                   alt={player.name}
-                  className="size-12 rounded-2xl object-cover ring-2 ring-white shadow-sm"
+                  className="size-13 rounded-2xl object-cover ring-2 ring-white shadow-sm"
                 />
                 {player.number != null && (
                   <span className="absolute -bottom-1 -end-1 size-5 rounded-full bg-slate-900 text-white text-[10px] font-black grid place-items-center shadow">
@@ -91,13 +93,23 @@ export default function OneTapEventSheet({
               <Jersey
                 number={player.number}
                 variant={teamVariant}
-                className="h-11 w-10 shrink-0"
+                className="h-12 w-11 shrink-0"
               />
             )}
             <div className="min-w-0">
-              <h3 className="text-base font-black text-slate-900 truncate">{player.name}</h3>
-              <p className="text-xs font-bold text-slate-500 truncate">
-                {teamName} • الدقيقة {currentMinute}'
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-black text-slate-900 truncate">{player.name}</h3>
+                {player.number != null && (
+                  <span className="text-xs font-black text-slate-400">#{player.number}</span>
+                )}
+              </div>
+              <p className="text-xs font-bold text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                <span>{teamName}</span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1 text-emerald-700 font-black">
+                  <Clock className="size-3" />
+                  الدقيقة {currentMinute}'
+                </span>
               </p>
             </div>
           </div>
@@ -131,7 +143,7 @@ export default function OneTapEventSheet({
                     onStartMatch()
                     onClose()
                   }}
-                  className="w-full h-13 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-black text-sm flex items-center justify-center gap-2 shadow-md transition-all"
+                  className="w-full h-12 rounded-2xl bg-[#00C853] hover:bg-[#00B048] active:scale-98 text-white font-black text-sm flex items-center justify-center gap-2 shadow-md transition-all"
                 >
                   <Play className="size-5 fill-current" />
                   <span>ابدأ المباراة أولاً</span>
@@ -155,7 +167,7 @@ export default function OneTapEventSheet({
                     onResumeTimer()
                     onClose()
                   }}
-                  className="w-full h-13 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-black text-sm flex items-center justify-center gap-2 shadow-md transition-all"
+                  className="w-full h-12 rounded-2xl bg-[#00C853] hover:bg-[#00B048] active:scale-98 text-white font-black text-sm flex items-center justify-center gap-2 shadow-md transition-all"
                 >
                   <Play className="size-5 fill-current" />
                   <span>استئناف المؤقت للمتابعة</span>
@@ -197,7 +209,7 @@ export default function OneTapEventSheet({
                         key={bp.id}
                         type="button"
                         onClick={() => handleSelectBench(bp)}
-                        className="group flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-sky-400 hover:shadow-md active:scale-95 transition-all text-center select-none"
+                        className="group flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200/90 bg-slate-50/70 hover:bg-white hover:border-[#8A2BE2] hover:shadow-md active:scale-95 transition-all text-center select-none"
                       >
                         <div className="relative my-1">
                           {bpPhoto ? (
@@ -222,7 +234,7 @@ export default function OneTapEventSheet({
                         <span className="mt-1 text-xs font-bold text-slate-800 truncate w-full">
                           {bp.name}
                         </span>
-                        <span className="text-[10px] font-black text-sky-600 mt-0.5">
+                        <span className="text-[10px] font-black text-[#8A2BE2] mt-0.5">
                           دخول ↵
                         </span>
                       </button>
@@ -232,65 +244,82 @@ export default function OneTapEventSheet({
               )}
             </div>
           ) : (
-            /* View 1: 5 BIG Action Buttons (One-Tap) */
-            <div className="space-y-2.5">
-              {/* 1. GOAL (هدف) */}
-              <button
-                type="button"
-                onClick={() => handleAction('goal')}
-                className="w-full h-15 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-black text-base flex items-center justify-between px-5 shadow-[0_4px_14px_rgba(16,185,129,0.35)] transition-all select-none"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl leading-none">⚽</span>
-                  <span>هدف</span>
-                </div>
-                <span className="text-xs bg-emerald-700/80 px-2.5 py-1 rounded-xl font-bold">
-                  تسجيل فوري
-                </span>
-              </button>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                {/* 2. FOUL (خطأ) */}
+            /* View 1: 6 Big Action Tiles in 3x2 Grid */
+            <div className="space-y-3.5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                {/* 1. GOAL (هدف) - Green #00C853 */}
                 <button
                   type="button"
-                  onClick={() => handleAction('foul')}
-                  className="h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-sm transition-all select-none"
+                  onClick={() => handleAction('goal')}
+                  className="h-20 rounded-2xl bg-gradient-to-br from-[#00C853] to-[#00A844] hover:from-[#00B84D] hover:to-[#00943C] active:scale-96 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-emerald-500/25 transition-all select-none group"
                 >
-                  <span className="text-xl leading-none">🚦</span>
-                  <span>خطأ</span>
+                  <span className="text-2xl leading-none transition-transform group-hover:scale-110">⚽</span>
+                  <span className="text-xs sm:text-sm">هدف</span>
                 </button>
 
-                {/* 3. SUBSTITUTION (تبديل) */}
-                <button
-                  type="button"
-                  onClick={() => handleAction('substitution')}
-                  className="h-14 rounded-2xl bg-sky-500 hover:bg-sky-600 active:scale-98 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-sm transition-all select-none"
-                >
-                  <span className="text-xl leading-none">🔄</span>
-                  <span>تبديل</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5">
-                {/* 4. YELLOW CARD (بطاقة صفراء) */}
+                {/* 2. YELLOW CARD (بطاقة صفراء) - Amber #FFC400 */}
                 <button
                   type="button"
                   onClick={() => handleAction('yellow_card')}
-                  className="h-14 rounded-2xl bg-amber-100 hover:bg-amber-200 border-2 border-amber-300 text-amber-950 active:scale-98 font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-xs transition-all select-none"
+                  className="h-20 rounded-2xl bg-gradient-to-br from-[#FFD54F] to-[#FFB300] hover:from-[#FFE082] hover:to-[#FFA000] active:scale-96 text-amber-950 font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-amber-500/20 transition-all select-none group"
                 >
-                  <span className="text-xl leading-none">🟨</span>
-                  <span>بطاقة صفراء</span>
+                  <span className="text-2xl leading-none transition-transform group-hover:scale-110">🟨</span>
+                  <span className="text-xs sm:text-sm">بطاقة صفراء</span>
                 </button>
 
-                {/* 5. RED CARD (بطاقة حمراء) */}
+                {/* 3. RED CARD (بطاقة حمراء) - Red #FF1744 */}
                 <button
                   type="button"
                   onClick={() => handleAction('red_card')}
-                  className="h-14 rounded-2xl bg-rose-600 hover:bg-rose-700 active:scale-98 text-white font-black text-sm sm:text-base flex items-center justify-center gap-2 shadow-sm transition-all select-none"
+                  className="h-20 rounded-2xl bg-gradient-to-br from-[#FF1744] to-[#D50000] hover:from-[#FF4569] hover:to-[#C50000] active:scale-96 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-rose-500/25 transition-all select-none group"
                 >
-                  <span className="text-xl leading-none">🟥</span>
-                  <span>بطاقة حمراء</span>
+                  <span className="text-2xl leading-none transition-transform group-hover:scale-110">🟥</span>
+                  <span className="text-xs sm:text-sm">بطاقة حمراء</span>
                 </button>
+
+                {/* 4. FOUL (خطأ) - Blue #087FFF */}
+                <button
+                  type="button"
+                  onClick={() => handleAction('foul')}
+                  className="h-20 rounded-2xl bg-gradient-to-br from-[#087FFF] to-[#0066D6] hover:from-[#2190FF] hover:to-[#0052B3] active:scale-96 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-blue-500/25 transition-all select-none group"
+                >
+                  <span className="text-2xl leading-none transition-transform group-hover:scale-110">⚠️</span>
+                  <span className="text-xs sm:text-sm">خطأ</span>
+                </button>
+
+                {/* 5. SUBSTITUTION (تبديل) - Purple #8A2BE2 */}
+                <button
+                  type="button"
+                  onClick={() => handleAction('substitution')}
+                  className="h-20 rounded-2xl bg-gradient-to-br from-[#8A2BE2] to-[#701ED1] hover:from-[#9D44EB] hover:to-[#5E14B8] active:scale-96 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-purple-500/25 transition-all select-none group"
+                >
+                  <span className="text-2xl leading-none transition-transform group-hover:scale-110">🔄</span>
+                  <span className="text-xs sm:text-sm">تبديل</span>
+                </button>
+
+                {/* 6. OTHER / NOTE (أخرى) - Slate #64748B */}
+                <button
+                  type="button"
+                  onClick={() => handleAction('other')}
+                  className="h-20 rounded-2xl bg-gradient-to-br from-slate-600 to-slate-800 hover:from-slate-500 hover:to-slate-700 active:scale-96 text-white font-black flex flex-col items-center justify-center gap-1 shadow-md shadow-slate-600/20 transition-all select-none group"
+                >
+                  <span className="text-2xl leading-none transition-transform group-hover:scale-110">📝</span>
+                  <span className="text-xs sm:text-sm">أخرى</span>
+                </button>
+              </div>
+
+              {/* Optional Note Field */}
+              <div className="pt-1">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="أضف ملاحظة (اختياري)..."
+                    className="w-full h-11 pe-9 ps-3.5 rounded-xl border border-slate-200 bg-slate-50/80 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
+                  />
+                  <FileText className="size-4 text-slate-400 absolute end-3 top-3.5 pointer-events-none" />
+                </div>
               </div>
             </div>
           )}

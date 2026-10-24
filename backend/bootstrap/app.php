@@ -76,9 +76,23 @@ return Application::configure(basePath: dirname(__DIR__))
             $code = $e->getCode() >= 400 ? $e->getCode() : 422;
             $errors = method_exists($e, 'getErrorPayload') ? $e->getErrorPayload() : [];
 
-            return response()->json([
+            $payload = [
                 'message' => $e->getMessage(),
                 'errors' => $errors,
-            ], $code);
+            ];
+
+            if ($e instanceof \App\Domains\Tournament\Exceptions\SchedulingWarningException) {
+                $payload['requires_override'] = true;
+                $payload['warning_code'] = $e->getWarningCode();
+                $payload['warning_title'] = $e->getWarningTitle();
+                $payload['affected_team'] = $e->getAffectedTeam();
+            } elseif (! empty($errors['requires_override'])) {
+                $payload['requires_override'] = true;
+                $payload['warning_code'] = $errors['warning_code'] ?? null;
+                $payload['warning_title'] = $errors['warning_title'] ?? null;
+                $payload['affected_team'] = $errors['affected_team'] ?? null;
+            }
+
+            return response()->json($payload, $code);
         });
     })->create();

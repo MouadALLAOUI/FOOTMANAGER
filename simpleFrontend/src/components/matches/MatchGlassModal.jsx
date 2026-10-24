@@ -318,6 +318,210 @@ export function groupCategorizedEvents(events = [], homeId, awayId) {
   return { home, away }
 }
 
+function TeamEventsList({
+  team,
+  events,
+  teamLogo,
+  teamScore,
+  isRtl,
+  t,
+}) {
+  const hasAnyEvent =
+    events.goals.length > 0 ||
+    events.cards.length > 0 ||
+    events.subs.length > 0 ||
+    events.others.length > 0
+
+  return (
+    <div className="space-y-3 text-start">
+      {/* Team Header Bar */}
+      <div className="flex items-center gap-2 pb-2 border-b border-emerald-500/20">
+        <div className="size-6 shrink-0 rounded-lg bg-white/5 border border-white/10 p-0.5 flex items-center justify-center overflow-hidden">
+          <TeamLogo team={team} src={teamLogo} className="size-full object-contain" rounded="rounded-md" />
+        </div>
+        <span className="text-xs sm:text-sm font-black text-emerald-200 truncate" dir="auto">
+          {team?.name || (isRtl ? 'الفريق' : 'Team')}
+        </span>
+        {teamScore != null && (
+          <span className="ms-auto text-xs font-mono font-black text-amber-300 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30">
+            {teamScore}
+          </span>
+        )}
+      </div>
+
+      {/* Goals */}
+      {events.goals.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-black text-amber-300">
+            <span className="text-xs select-none">⚽</span>
+            <span>{t('public.matchDetail.goals', isRtl ? 'الأهداف' : 'Goals')}</span>
+            <span className="text-[10px] font-mono text-amber-300/70 font-bold">({events.goals.length})</span>
+          </p>
+          <ul className="space-y-1.5">
+            {events.goals.map((g, idx) => (
+              <li
+                key={idx}
+                className="flex items-center gap-2 rounded-xl bg-emerald-950/70 border border-emerald-500/25 px-2.5 py-1.5 text-xs transition-colors hover:border-emerald-500/40"
+              >
+                {/* Dedicated minute pill */}
+                <span className="inline-flex items-center justify-center min-w-[2.4rem] h-5.5 px-1.5 rounded-md bg-emerald-900/90 border border-emerald-500/40 font-mono text-[11px] font-black text-emerald-300 shrink-0 tabular-nums">
+                  {g.minutes.length > 0 ? g.minutes.join(', ') : '—'}
+                </span>
+                {/* Flexible player name area */}
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap" dir="auto">
+                  <span className="font-bold text-white text-xs sm:text-[13px] leading-snug break-words">
+                    {g.name}
+                  </span>
+                  {g.isOwn && (
+                    <span className="inline-block px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-semibold">
+                      {isRtl ? 'عكسي' : 'OG'}
+                    </span>
+                  )}
+                  {g.isPen && (
+                    <span className="inline-block px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-semibold">
+                      {isRtl ? 'ركلة جزاء' : 'Pen'}
+                    </span>
+                  )}
+                </div>
+                <span className="shrink-0 text-xs select-none opacity-80" aria-hidden="true">⚽</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Disciplinary Cards */}
+      {events.cards.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-black text-yellow-300">
+            <span className="text-xs select-none">🟨</span>
+            <span>{t('public.matchDetail.cards', isRtl ? 'البطاقات' : 'Cards')}</span>
+            <span className="text-[10px] font-mono text-yellow-300/70 font-bold">({events.cards.length})</span>
+          </p>
+          <ul className="space-y-1.5">
+            {events.cards.map((c, idx) => (
+              <li
+                key={idx}
+                className="flex items-center gap-2 rounded-xl bg-emerald-950/70 border border-emerald-500/25 px-2.5 py-1.5 text-xs transition-colors hover:border-emerald-500/40"
+              >
+                <span className="inline-flex items-center justify-center min-w-[2.4rem] h-5.5 px-1.5 rounded-md bg-slate-900/90 border border-white/15 font-mono text-[11px] font-bold text-white/80 shrink-0 tabular-nums">
+                  {c.minute || '—'}
+                </span>
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap" dir="auto">
+                  <span className="font-bold text-white text-xs sm:text-[13px] leading-snug break-words">
+                    {c.name}
+                  </span>
+                  {c.reason && c.reason !== c.name && (
+                    <span className="text-[10px] text-white/60 font-normal">
+                      ({c.reason})
+                    </span>
+                  )}
+                </div>
+                <span className="shrink-0 text-xs select-none" aria-hidden="true">
+                  {c.cardType === 'red_card' ? '🟥' : c.cardType === 'second_yellow' ? '🟨🟥' : '🟨'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Substitutions */}
+      {events.subs.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-black text-sky-300">
+            <span className="text-xs select-none">🔄</span>
+            <span>{t('public.matchDetail.subs', isRtl ? 'التبديلات' : 'Substitutions')}</span>
+            <span className="text-[10px] font-mono text-sky-300/70 font-bold">({events.subs.length})</span>
+          </p>
+          <ul className="space-y-1.5">
+            {events.subs.map((s, idx) => (
+              <li
+                key={idx}
+                className="flex items-center gap-2 rounded-xl bg-emerald-950/70 border border-emerald-500/25 px-2.5 py-1.5 text-xs transition-colors hover:border-emerald-500/40"
+              >
+                <span className="inline-flex items-center justify-center min-w-[2.4rem] h-5.5 px-1.5 rounded-md bg-slate-900/90 border border-white/15 font-mono text-[11px] font-bold text-white/80 shrink-0 tabular-nums">
+                  {s.minute || '—'}
+                </span>
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap text-xs" dir="auto">
+                  <span className="font-bold text-emerald-300 break-words">
+                    {s.inName || (isRtl ? 'بديل' : 'Sub')}
+                  </span>
+                  <span className="text-white/40 text-[11px] shrink-0">➔</span>
+                  <span className="font-semibold text-rose-300/90 break-words">
+                    {s.outName}
+                  </span>
+                </div>
+                <span className="shrink-0 text-xs select-none" aria-hidden="true">🔄</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Other Events */}
+      {events.others.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="flex items-center gap-1.5 text-xs font-black text-violet-300">
+            <span className="text-xs select-none">📋</span>
+            <span>{t('public.matchDetail.otherEvents', isRtl ? 'أحداث أخرى' : 'Other Events')}</span>
+            <span className="text-[10px] font-mono text-violet-300/70 font-bold">({events.others.length})</span>
+          </p>
+          <ul className="space-y-1.5">
+            {events.others.map((o, idx) => {
+              const kindLabel = o.eventKind === 'foul' && o.foulKey
+                ? t(`public.matchDetail.events.${o.foulKey}`, isRtl ? (o.defaultAr || 'خطأ') : (o.defaultEn || 'Foul'))
+                : t(`public.matchDetail.events.${o.eventKind}`, 
+                    o.eventKind === 'injury' ? (isRtl ? 'إصابة' : 'Injury') :
+                    o.eventKind === 'missedPenalty' ? (isRtl ? 'ضربة جزاء ضائعة' : 'Missed Penalty') :
+                    o.eventKind === 'assist' ? (isRtl ? 'صناعة هدف' : 'Assist') :
+                    o.eventKind === 'timeout' ? (isRtl ? 'وقت مستقطع' : 'Timeout') :
+                    o.eventKind === 'var' ? (isRtl ? 'مراجعة VAR' : 'VAR Review') :
+                    (isRtl ? 'حدث' : 'Event')
+                  )
+              return (
+                <li
+                  key={idx}
+                  className="flex items-center gap-2 rounded-xl bg-emerald-950/70 border border-emerald-500/25 px-2.5 py-1.5 text-xs transition-colors hover:border-emerald-500/40"
+                >
+                  <span className="inline-flex items-center justify-center min-w-[2.4rem] h-5.5 px-1.5 rounded-md bg-slate-900/90 border border-white/15 font-mono text-[11px] font-bold text-white/80 shrink-0 tabular-nums">
+                    {o.minute || '—'}
+                  </span>
+                  <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap" dir="auto">
+                    <span className="font-bold text-emerald-200 text-xs">
+                      {kindLabel}:
+                    </span>
+                    {o.name && (
+                      <span className="font-bold text-white text-xs break-words">
+                        {o.name}
+                      </span>
+                    )}
+                    {o.detail && o.detail !== o.name && !kindLabel.includes(o.detail) && (
+                      <span className="text-[10px] text-white/60 font-normal">
+                        ({o.detail})
+                      </span>
+                    )}
+                  </div>
+                  <span className="shrink-0 text-xs select-none" aria-hidden="true">
+                    {o.icon}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* Empty fallback */}
+      {!hasAnyEvent && (
+        <p className="py-3 text-center text-xs font-semibold text-white/40">
+          {isRtl ? 'لا توجد أحداث لهذا الفريق' : 'No events recorded'}
+        </p>
+      )}
+    </div>
+  )
+}
+
 function MatchCardBody({
   isRtl,
   statusText,
@@ -352,7 +556,7 @@ function MatchCardBody({
   return (
     <div className="relative z-10">
       {/* Status Capsule */}
-      <div className="relative mx-auto mt-2 w-fit min-w-[200px] max-w-[340px]">
+      <div className="relative mx-auto mt-2 w-fit min-w-[180px] max-w-[340px]">
         <div className="flex items-center justify-center rounded-2xl border border-emerald-400/60 bg-gradient-to-r from-emerald-950/90 via-emerald-900/90 to-emerald-950/90 py-2 px-6 shadow-[0_0_30px_rgba(16,185,129,0.35),inset_0_1px_2px_rgba(255,255,255,0.25)] backdrop-blur-md">
           <span className="whitespace-nowrap text-sm sm:text-base md:text-lg font-black tracking-wide text-white drop-shadow">
             {statusText}
@@ -376,36 +580,34 @@ function MatchCardBody({
         {/* Home Team */}
         <div className="flex flex-col items-center text-center">
           <div
-            className={`relative flex items-center justify-center ${!forExport && onTeamClick && homeTeam ? 'cursor-pointer transition-transform hover:scale-105' : ''}`}
+            className={`relative flex items-center justify-center shrink-0 ${!forExport && onTeamClick && homeTeam ? 'cursor-pointer transition-transform hover:scale-105' : ''}`}
             onClick={!forExport && onTeamClick && homeTeam ? () => onTeamClick(homeTeam) : undefined}
             title={!forExport && homeTeam?.name ? `عرض ملف ${homeTeam.name}` : undefined}
           >
-            {hasHomeLogo ? (
-              <div className={`flex ${forExport ? 'size-28' : 'size-20 sm:size-24 md:size-28 lg:size-32'} items-center justify-center p-1`}>
+            <div className={`relative ${forExport ? 'size-24 sm:size-28' : 'size-18 xs:size-20 sm:size-24 md:size-28'} aspect-square rounded-2xl bg-white/5 border border-white/10 p-2 flex items-center justify-center shadow-lg shrink-0 overflow-hidden`}>
+              {hasHomeLogo ? (
                 <TeamLogo
                   team={homeTeam}
                   src={homeDataUrl || homeLogoUrl}
-                  className="max-h-full max-w-full object-contain filter drop-shadow-[0_6px_18px_rgba(0,0,0,0.6)]"
+                  className="max-h-full max-w-full object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
                   rounded="rounded-none"
                   bg="bg-transparent"
                 />
-              </div>
-            ) : (
-              <div className={`grid ${forExport ? 'size-28' : 'size-20 sm:size-24 md:size-28 lg:size-32'} place-items-center rounded-full bg-gradient-to-b from-emerald-950 to-slate-950 p-1 ring-2 ring-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.5)]`}>
-                <TeamLogo team={homeTeam} className="size-full" rounded="rounded-full" fontSize="text-2xl sm:text-3xl" />
-              </div>
-            )}
+              ) : (
+                <TeamLogo team={homeTeam} className="size-full" rounded="rounded-xl" fontSize="text-xl sm:text-2xl font-black" />
+              )}
+            </div>
             {homeWinner && (
-              <span className="absolute -top-1.5 end-0 grid size-6 sm:size-7 place-items-center rounded-full bg-amber-400 text-amber-950 shadow ring-1 ring-white/50">
+              <span className="absolute -top-1.5 end-0 grid size-6 sm:size-7 place-items-center rounded-full bg-amber-400 text-amber-950 shadow ring-2 ring-emerald-950">
                 <Trophy className="size-3.5 sm:size-4" />
               </span>
             )}
           </div>
-          <p className={`mt-2.5 ${forExport ? 'max-w-[220px] text-base' : 'max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-sm sm:text-base md:text-lg'} font-extrabold text-white drop-shadow leading-tight line-clamp-2`}>
+          <p className={`mt-2.5 w-full ${forExport ? 'max-w-[220px] text-base' : 'max-w-[120px] xs:max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-xs sm:text-base md:text-lg'} font-black text-white drop-shadow leading-tight line-clamp-2 break-words text-center`} dir="auto">
             {homeTeam?.name || '—'}
           </p>
           {homeSubtitle && (
-            <p className="text-[11px] sm:text-xs font-semibold text-emerald-200/60">
+            <p className="text-[10px] sm:text-xs font-semibold text-emerald-200/60 line-clamp-1">
               {homeSubtitle}
             </p>
           )}
@@ -413,21 +615,33 @@ function MatchCardBody({
 
         {/* Center Score & Details */}
         <div className="flex flex-col items-center text-center px-1">
-          <span className={`${forExport ? 'text-5xl' : 'text-4xl sm:text-5xl md:text-6xl'} font-black tracking-wider text-amber-100 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] font-mono`}>
+          <span className={`${forExport ? 'text-5xl' : 'text-3xl sm:text-5xl md:text-6xl'} font-black tracking-wider text-amber-100 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] font-mono`}>
             {showScore ? `${homeScore ?? 0} - ${awayScore ?? 0}` : 'VS'}
           </span>
+          {/* Clarified Secondary Scores: Penalties or Half-Time */}
           {hasPenalties && (
-            <p className="mt-1 whitespace-nowrap text-[11px] sm:text-xs font-black text-amber-300 drop-shadow">
-              ({match.home_penalties} - {match.away_penalties} {isRtl ? 'ر.ت' : 'PEN'})
-            </p>
+            <div className="mt-1.5 flex items-center justify-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 border border-amber-400/40 px-2.5 py-0.5 text-[10px] sm:text-xs font-black text-amber-300 drop-shadow">
+                <span>{isRtl ? 'ركلات الترجيح:' : 'Penalties:'}</span>
+                <span className="font-mono tabular-nums">{match.home_penalties} - {match.away_penalties}</span>
+              </span>
+            </div>
+          )}
+          {Boolean(match?.half_time_score || (match?.half_time_home_score != null && match?.half_time_away_score != null)) && (
+            <div className="mt-1 flex items-center justify-center">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 border border-emerald-400/30 px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-emerald-200 drop-shadow">
+                <span>{isRtl ? 'الشوط الأول:' : 'HT:'}</span>
+                <span className="font-mono tabular-nums">{match?.half_time_score || `${match.half_time_home_score} - ${match.half_time_away_score}`}</span>
+              </span>
+            </div>
           )}
           {stageOrRoundText && (
-            <p className="mt-1.5 text-xs sm:text-sm font-black text-emerald-300 drop-shadow">
+            <p className="mt-1.5 text-xs sm:text-sm font-black text-emerald-300 drop-shadow line-clamp-1">
               {stageOrRoundText}
             </p>
           )}
           {formattedDate && (
-            <p className="text-[11px] sm:text-xs font-semibold text-white/60">
+            <p className="text-[10px] sm:text-xs font-semibold text-white/60">
               {formattedDate}
             </p>
           )}
@@ -436,36 +650,34 @@ function MatchCardBody({
         {/* Away Team */}
         <div className="flex flex-col items-center text-center">
           <div
-            className={`relative flex items-center justify-center ${!forExport && onTeamClick && awayTeam ? 'cursor-pointer transition-transform hover:scale-105' : ''}`}
+            className={`relative flex items-center justify-center shrink-0 ${!forExport && onTeamClick && awayTeam ? 'cursor-pointer transition-transform hover:scale-105' : ''}`}
             onClick={!forExport && onTeamClick && awayTeam ? () => onTeamClick(awayTeam) : undefined}
             title={!forExport && awayTeam?.name ? `عرض ملف ${awayTeam.name}` : undefined}
           >
-            {hasAwayLogo ? (
-              <div className={`flex ${forExport ? 'size-28' : 'size-20 sm:size-24 md:size-28 lg:size-32'} items-center justify-center p-1`}>
+            <div className={`relative ${forExport ? 'size-24 sm:size-28' : 'size-18 xs:size-20 sm:size-24 md:size-28'} aspect-square rounded-2xl bg-white/5 border border-white/10 p-2 flex items-center justify-center shadow-lg shrink-0 overflow-hidden`}>
+              {hasAwayLogo ? (
                 <TeamLogo
                   team={awayTeam}
                   src={awayDataUrl || awayLogoUrl}
-                  className="max-h-full max-w-full object-contain filter drop-shadow-[0_6px_18px_rgba(0,0,0,0.6)]"
+                  className="max-h-full max-w-full object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
                   rounded="rounded-none"
                   bg="bg-transparent"
                 />
-              </div>
-            ) : (
-              <div className={`grid ${forExport ? 'size-28' : 'size-20 sm:size-24 md:size-28 lg:size-32'} place-items-center rounded-full bg-gradient-to-b from-emerald-950 to-slate-950 p-1 ring-2 ring-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.5)]`}>
-                <TeamLogo team={awayTeam} className="size-full" rounded="rounded-full" fontSize="text-2xl sm:text-3xl" />
-              </div>
-            )}
+              ) : (
+                <TeamLogo team={awayTeam} className="size-full" rounded="rounded-xl" fontSize="text-xl sm:text-2xl font-black" />
+              )}
+            </div>
             {awayWinner && (
-              <span className="absolute -top-1.5 end-0 grid size-6 sm:size-7 place-items-center rounded-full bg-amber-400 text-amber-950 shadow ring-1 ring-white/50">
+              <span className="absolute -top-1.5 end-0 grid size-6 sm:size-7 place-items-center rounded-full bg-amber-400 text-amber-950 shadow ring-2 ring-emerald-950">
                 <Trophy className="size-3.5 sm:size-4" />
               </span>
             )}
           </div>
-          <p className={`mt-2.5 ${forExport ? 'max-w-[220px] text-base' : 'max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-sm sm:text-base md:text-lg'} font-extrabold text-white drop-shadow leading-tight line-clamp-2`}>
+          <p className={`mt-2.5 w-full ${forExport ? 'max-w-[220px] text-base' : 'max-w-[120px] xs:max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-xs sm:text-base md:text-lg'} font-black text-white drop-shadow leading-tight line-clamp-2 break-words text-center`} dir="auto">
             {awayTeam?.name || '—'}
           </p>
           {awaySubtitle && (
-            <p className="text-[11px] sm:text-xs font-semibold text-emerald-200/60">
+            <p className="text-[10px] sm:text-xs font-semibold text-emerald-200/60 line-clamp-1">
               {awaySubtitle}
             </p>
           )}
@@ -482,314 +694,52 @@ function MatchCardBody({
         </div>
       )}
 
-      {/* Categorized Match Events (Side-by-Side as in Image 2) */}
-      <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-950/40 p-4 backdrop-blur-md">
+      {/* Categorized Match Events: Single vertical layout on mobile, 2 columns on tablet/desktop */}
+      <div className="mt-5 rounded-2xl border border-emerald-500/20 bg-emerald-950/40 p-3 sm:p-4 backdrop-blur-md">
         {hasEvents ? (
-          <div className="grid grid-cols-2 gap-3 divide-x divide-x-reverse divide-emerald-500/20">
-            {/* Home Team Events */}
-            <div className="space-y-3 px-1 text-start">
-              {homeEvents.goals.length > 0 && (
-                <div>
-                  <p className="flex items-center gap-1 text-xs font-black whitespace-nowrap text-amber-300">
-                    <span className="text-xs">⚽</span>
-                    <span>{t('public.matchDetail.goals', isRtl ? 'أهداف' : 'Goals')}</span>
-                  </p>
-                  <ul className="mt-1.5 space-y-1">
-                    {homeEvents.goals.map((g, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-center justify-between gap-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/20 px-2 py-1 text-xs leading-tight font-bold"
-                      >
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <span className="shrink-0 text-xs">⚽</span>
-                          <span className="shrink-0 font-bold text-white text-xs">{g.name}</span>
-                          {g.isOwn && (
-                            <span className="shrink-0 text-[10px] text-rose-400 font-normal">
-                              ({isRtl ? 'عكسي' : 'OG'})
-                            </span>
-                          )}
-                          {g.isPen && (
-                            <span className="shrink-0 text-[10px] text-amber-300 font-normal">
-                              ({isRtl ? 'ضربة جزاء' : 'Pen'})
-                            </span>
-                          )}
-                        </div>
-                        <span className="shrink-0 ms-auto font-mono text-emerald-300 text-xs font-black">
-                          {g.minutes.join(', ')}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {homeEvents.cards.length > 0 && (
-                <div>
-                  <p className="flex items-center gap-1 text-xs font-black whitespace-nowrap text-yellow-300">
-                    <span className="text-xs">🟨</span>
-                    <span>{t('public.matchDetail.cards', isRtl ? 'بطاقات' : 'Cards')}</span>
-                  </p>
-                  <ul className="mt-1.5 space-y-1">
-                    {homeEvents.cards.map((c, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-center justify-between gap-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/20 px-2 py-1 text-xs leading-tight font-semibold"
-                      >
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <span className="shrink-0 text-xs">
-                            {c.cardType === 'red_card' ? '🟥' : c.cardType === 'second_yellow' ? '🟨🟥' : '🟨'}
-                          </span>
-                          <span className="shrink-0 font-bold text-white text-xs">{c.name}</span>
-                          {c.reason && c.reason !== c.name && (
-                            <span className="truncate text-[10px] text-white/60">({c.reason})</span>
-                          )}
-                        </div>
-                        <span className="shrink-0 ms-auto font-mono text-white/70 text-xs font-semibold">
-                          {c.minute}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {homeEvents.subs.length > 0 && (
-                <div>
-                  <p className="flex items-center gap-1 text-xs font-black whitespace-nowrap text-sky-300">
-                    <span className="text-xs">🔄</span>
-                    <span>{t('public.matchDetail.subs', isRtl ? 'تبديلات' : 'Substitutions')}</span>
-                  </p>
-                  <ul className="mt-1.5 space-y-1">
-                    {homeEvents.subs.map((s, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-center justify-between gap-1 rounded-lg bg-emerald-950/60 border border-emerald-500/20 px-2 py-1 text-[11px] leading-tight font-semibold"
-                      >
-                        <div className="flex items-center gap-1 flex-1 min-w-0">
-                          <span className="shrink-0 text-xs">🔄</span>
-                          <span className="shrink-0 font-bold text-emerald-300 text-[11px]">
-                            {s.inName || (isRtl ? 'بديل' : 'Sub')}
-                          </span>
-                          <span className="shrink-0 text-white/40 text-[10px]">➔</span>
-                          <span className="shrink-0 font-semibold text-rose-300/80 text-[11px]">
-                            {s.outName}
-                          </span>
-                        </div>
-                        <span className="shrink-0 ms-auto font-mono text-white/60 text-[10px]">
-                          {s.minute}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {homeEvents.others.length > 0 && (
-                <div>
-                  <p className="flex items-center gap-1 text-xs font-black whitespace-nowrap text-violet-300">
-                    <span className="text-xs">📋</span>
-                    <span>{t('public.matchDetail.otherEvents', isRtl ? 'أحداث أخرى' : 'Other Events')}</span>
-                  </p>
-                  <ul className="mt-1.5 space-y-1">
-                    {homeEvents.others.map((o, idx) => {
-                      const kindLabel = o.eventKind === 'foul' && o.foulKey
-                        ? t(`public.matchDetail.events.${o.foulKey}`, isRtl ? (o.defaultAr || 'خطأ بسيط') : (o.defaultEn || 'Simple Foul'))
-                        : t(`public.matchDetail.events.${o.eventKind}`, 
-                            o.eventKind === 'injury' ? (isRtl ? 'إصابة' : 'Injury') :
-                            o.eventKind === 'missedPenalty' ? (isRtl ? 'ضربة جزاء ضائعة' : 'Missed Penalty') :
-                            o.eventKind === 'assist' ? (isRtl ? 'صناعة' : 'Assist') :
-                            o.eventKind === 'timeout' ? (isRtl ? 'وقت مستقطع' : 'Timeout') :
-                            o.eventKind === 'var' ? (isRtl ? 'مراجعة VAR' : 'VAR Review') :
-                            (isRtl ? 'حدث' : 'Event')
-                          )
-                      return (
-                        <li
-                          key={idx}
-                          className="flex items-center justify-between gap-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/20 px-2 py-1 text-[11px] leading-tight"
-                        >
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                            <span className="shrink-0 text-xs">{o.icon}</span>
-                            <span className="shrink-0 font-bold text-emerald-200/90 text-[11px]">
-                              {kindLabel}:
-                            </span>
-                            {o.name && (
-                              <span className="shrink-0 font-bold text-white text-[11px]">
-                                {o.name}
-                              </span>
-                            )}
-                            {o.detail && o.detail !== o.name && !kindLabel.includes(o.detail) && (
-                              <span className="truncate text-white/60 text-[10px]">({o.detail})</span>
-                            )}
-                          </div>
-                          {o.minute && (
-                            <span className="shrink-0 ms-auto font-mono text-[10px] text-white/60 font-semibold">
-                              {o.minute}
-                            </span>
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )}
-
-              {homeEvents.goals.length === 0 && homeEvents.cards.length === 0 && homeEvents.subs.length === 0 && homeEvents.others.length === 0 && (
-                <p className="py-2 text-center text-xs font-semibold text-white/30">—</p>
-              )}
+          forExport ? (
+            <div className="grid grid-cols-2 gap-4">
+              <TeamEventsList
+                team={homeTeam}
+                events={homeEvents}
+                teamLogo={homeDataUrl || homeLogoUrl}
+                teamScore={homeScore}
+                isRtl={isRtl}
+                t={t}
+              />
+              <TeamEventsList
+                team={awayTeam}
+                events={awayEvents}
+                teamLogo={awayDataUrl || awayLogoUrl}
+                teamScore={awayScore}
+                isRtl={isRtl}
+                t={t}
+              />
             </div>
-
-            {/* Away Team Events */}
-            <div className="space-y-3 px-1 text-start">
-              {awayEvents.goals.length > 0 && (
-                <div>
-                  <p className="flex items-center gap-1 text-xs font-black whitespace-nowrap text-amber-300">
-                    <span className="text-xs">⚽</span>
-                    <span>{t('public.matchDetail.goals', isRtl ? 'أهداف' : 'Goals')}</span>
-                  </p>
-                  <ul className="mt-1.5 space-y-1">
-                    {awayEvents.goals.map((g, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-center justify-between gap-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/20 px-2 py-1 text-xs leading-tight font-bold"
-                      >
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <span className="shrink-0 text-xs">⚽</span>
-                          <span className="shrink-0 font-bold text-white text-xs">{g.name}</span>
-                          {g.isOwn && (
-                            <span className="shrink-0 text-[10px] text-rose-400 font-normal">
-                              ({isRtl ? 'عكسي' : 'OG'})
-                            </span>
-                          )}
-                          {g.isPen && (
-                            <span className="shrink-0 text-[10px] text-amber-300 font-normal">
-                              ({isRtl ? 'ضربة جزاء' : 'Pen'})
-                            </span>
-                          )}
-                        </div>
-                        <span className="shrink-0 ms-auto font-mono text-emerald-300 text-xs font-black">
-                          {g.minutes.join(', ')}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {awayEvents.cards.length > 0 && (
-                <div>
-                  <p className="flex items-center gap-1 text-xs font-black whitespace-nowrap text-yellow-300">
-                    <span className="text-xs">🟨</span>
-                    <span>{t('public.matchDetail.cards', isRtl ? 'بطاقات' : 'Cards')}</span>
-                  </p>
-                  <ul className="mt-1.5 space-y-1">
-                    {awayEvents.cards.map((c, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-center justify-between gap-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/20 px-2 py-1 text-xs leading-tight font-semibold"
-                      >
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <span className="shrink-0 text-xs">
-                            {c.cardType === 'red_card' ? '🟥' : c.cardType === 'second_yellow' ? '🟨🟥' : '🟨'}
-                          </span>
-                          <span className="shrink-0 font-bold text-white text-xs">{c.name}</span>
-                          {c.reason && c.reason !== c.name && (
-                            <span className="truncate text-[10px] text-white/60">({c.reason})</span>
-                          )}
-                        </div>
-                        <span className="shrink-0 ms-auto font-mono text-white/70 text-xs font-semibold">
-                          {c.minute}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {awayEvents.subs.length > 0 && (
-                <div>
-                  <p className="flex items-center gap-1 text-xs font-black whitespace-nowrap text-sky-300">
-                    <span className="text-xs">🔄</span>
-                    <span>{t('public.matchDetail.subs', isRtl ? 'تبديلات' : 'Substitutions')}</span>
-                  </p>
-                  <ul className="mt-1.5 space-y-1">
-                    {awayEvents.subs.map((s, idx) => (
-                      <li
-                        key={idx}
-                        className="flex items-center justify-between gap-1 rounded-lg bg-emerald-950/60 border border-emerald-500/20 px-2 py-1 text-[11px] leading-tight font-semibold"
-                      >
-                        <div className="flex items-center gap-1 flex-1 min-w-0">
-                          <span className="shrink-0 text-xs">🔄</span>
-                          <span className="shrink-0 font-bold text-emerald-300 text-[11px]">
-                            {s.inName || (isRtl ? 'بديل' : 'Sub')}
-                          </span>
-                          <span className="shrink-0 text-white/40 text-[10px]">➔</span>
-                          <span className="shrink-0 font-semibold text-rose-300/80 text-[11px]">
-                            {s.outName}
-                          </span>
-                        </div>
-                        <span className="shrink-0 ms-auto font-mono text-white/60 text-[10px]">
-                          {s.minute}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {awayEvents.others.length > 0 && (
-                <div>
-                  <p className="flex items-center gap-1 text-xs font-black whitespace-nowrap text-violet-300">
-                    <span className="text-xs">📋</span>
-                    <span>{t('public.matchDetail.otherEvents', isRtl ? 'أحداث أخرى' : 'Other Events')}</span>
-                  </p>
-                  <ul className="mt-1.5 space-y-1">
-                    {awayEvents.others.map((o, idx) => {
-                      const kindLabel = o.eventKind === 'foul' && o.foulKey
-                        ? t(`public.matchDetail.events.${o.foulKey}`, isRtl ? (o.defaultAr || 'خطأ بسيط') : (o.defaultEn || 'Simple Foul'))
-                        : t(`public.matchDetail.events.${o.eventKind}`, 
-                            o.eventKind === 'injury' ? (isRtl ? 'إصابة' : 'Injury') :
-                            o.eventKind === 'missedPenalty' ? (isRtl ? 'ضربة جزاء ضائعة' : 'Missed Penalty') :
-                            o.eventKind === 'assist' ? (isRtl ? 'صناعة' : 'Assist') :
-                            o.eventKind === 'timeout' ? (isRtl ? 'وقت مستقطع' : 'Timeout') :
-                            o.eventKind === 'var' ? (isRtl ? 'مراجعة VAR' : 'VAR Review') :
-                            (isRtl ? 'حدث' : 'Event')
-                          )
-                      return (
-                        <li
-                          key={idx}
-                          className="flex items-center justify-between gap-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/20 px-2 py-1 text-[11px] leading-tight"
-                        >
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                            <span className="shrink-0 text-xs">{o.icon}</span>
-                            <span className="shrink-0 font-bold text-emerald-200/90 text-[11px]">
-                              {kindLabel}:
-                            </span>
-                            {o.name && (
-                              <span className="shrink-0 font-bold text-white text-[11px]">
-                                {o.name}
-                              </span>
-                            )}
-                            {o.detail && o.detail !== o.name && !kindLabel.includes(o.detail) && (
-                              <span className="truncate text-white/60 text-[10px]">({o.detail})</span>
-                            )}
-                          </div>
-                          {o.minute && (
-                            <span className="shrink-0 ms-auto font-mono text-[10px] text-white/60 font-semibold">
-                              {o.minute}
-                            </span>
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )}
-
-              {awayEvents.goals.length === 0 && awayEvents.cards.length === 0 && awayEvents.subs.length === 0 && awayEvents.others.length === 0 && (
-                <p className="py-2 text-center text-xs font-semibold text-white/30">—</p>
-              )}
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 md:gap-5">
+              <div className="rounded-xl bg-black/25 p-2.5 sm:p-3 border border-white/5 shadow-inner">
+                <TeamEventsList
+                  team={homeTeam}
+                  events={homeEvents}
+                  teamLogo={homeDataUrl || homeLogoUrl}
+                  teamScore={homeScore}
+                  isRtl={isRtl}
+                  t={t}
+                />
+              </div>
+              <div className="rounded-xl bg-black/25 p-2.5 sm:p-3 border border-white/5 shadow-inner">
+                <TeamEventsList
+                  team={awayTeam}
+                  events={awayEvents}
+                  teamLogo={awayDataUrl || awayLogoUrl}
+                  teamScore={awayScore}
+                  isRtl={isRtl}
+                  t={t}
+                />
+              </div>
             </div>
-          </div>
+          )
         ) : (
           <p className="py-3 text-center text-xs font-semibold text-emerald-200/50">
             {t('public.matchDetail.noEvents', 'لا توجد أحداث مسجلة بعد')}
@@ -887,7 +837,13 @@ export default function MatchGlassModal({
 
   const homeWinner = isFinished && match?.winner_team_id != null && Number(match.winner_team_id) === Number(homeId)
   const awayWinner = isFinished && match?.winner_team_id != null && Number(match.winner_team_id) === Number(awayId)
-  const hasPenalties = isFinished && match?.home_penalties != null && match?.away_penalties != null
+  const hasPenalties =
+    isFinished &&
+    match?.home_penalties != null &&
+    match?.away_penalties != null &&
+    (Boolean(match?.went_to_penalties) ||
+      Number(match?.home_penalties) > 0 ||
+      Number(match?.away_penalties) > 0)
 
   const scheduledAt = match?.scheduled_at || match?.match_datetime
   const dateObj = scheduledAt ? new Date(scheduledAt) : null
@@ -1153,7 +1109,7 @@ export default function MatchGlassModal({
       </div>
 
       {/* Main Interactive Modal */}
-      <div className="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-4">
+      <div className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4">
         <div className="flex min-h-full items-center justify-center">
           {/* Dark blur backdrop */}
           <div
@@ -1166,7 +1122,7 @@ export default function MatchGlassModal({
           <div
             ref={cardRef}
             dir={isRtl ? 'rtl' : 'ltr'}
-            className="relative z-20 m-auto w-full max-w-[440px] sm:max-w-[540px] md:max-w-[640px] lg:max-w-[720px] xl:max-w-[780px] shrink-0 overflow-hidden rounded-[2.2rem] sm:rounded-[2.5rem] border border-emerald-500/35 bg-gradient-to-b from-[#082618]/95 via-[#04170f]/95 to-[#020b07]/95 p-5 sm:p-7 md:p-8 lg:p-9 text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),0_0_50px_rgba(16,185,129,0.22)] backdrop-blur-2xl transition-all"
+            className="relative z-20 m-auto w-full max-w-[440px] sm:max-w-[540px] md:max-w-[640px] lg:max-w-[720px] xl:max-w-[780px] shrink-0 overflow-hidden rounded-[2rem] sm:rounded-[2.5rem] border border-emerald-500/35 bg-gradient-to-b from-[#082618]/95 via-[#04170f]/95 to-[#020b07]/95 p-3.5 sm:p-6 md:p-8 lg:p-9 text-white shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),0_0_50px_rgba(16,185,129,0.22)] backdrop-blur-2xl transition-all"
           >
             {/* Ambient stadium lighting and curved neon arcs */}
             <div className="pointer-events-none absolute -top-24 -left-24 size-64 rounded-full bg-emerald-500/15 blur-3xl" />

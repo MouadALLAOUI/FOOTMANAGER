@@ -5,11 +5,12 @@ import Jersey from '../../../pages/manager/live/components/Jersey'
 
 /**
  * Enhanced Player Card matching the AJI NQSSRO Live Match UI:
- * - Rounded card with white background and subtle border/shadow
- * - Kit jersey graphic with shirt number (home = emerald, away = white)
+ * - Rounded card with white background and crisp border/shadow
+ * - Kit jersey graphic with shirt number (or photo)
+ * - Top badges: Captain (C) on start, Number (#10) on end
  * - Goal count badge (⚽ N) when player scored
  * - Card indicator (🟨 / 🟥)
- * - Selected active state with green ring and glow
+ * - Immediate touch target for one-tap event recording
  */
 function MatchPlayerCard({
   player,
@@ -22,22 +23,40 @@ function MatchPlayerCard({
   onClick,
 }) {
   const photoSrc = player.photo_thumbnail_url || player.photo_url
+  const isCaptain = Boolean(player.is_captain)
 
   return (
     <button
       type="button"
       disabled={blocked || busy}
       onClick={onClick}
-      className={`group relative flex flex-col items-center justify-between rounded-2xl border p-2.5 text-center transition-all select-none ${
+      className={`group relative flex flex-col items-center justify-between rounded-2xl border p-2 text-center transition-all select-none min-h-[110px] sm:min-h-[120px] ${
         blocked
-          ? 'cursor-not-allowed border-slate-200 bg-slate-50/70 opacity-50'
+          ? 'cursor-not-allowed border-slate-200 bg-slate-50/70 opacity-40'
           : busy
             ? 'cursor-wait border-slate-200 bg-slate-50 opacity-70'
             : isSelected
-              ? 'border-emerald-500 bg-emerald-50/50 shadow-md ring-2 ring-emerald-500/20 active:scale-95'
-              : 'border-slate-200/80 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md active:scale-95'
+              ? 'border-[#00C853] bg-emerald-50/50 shadow-md ring-2 ring-[#00C853]/30 active:scale-95'
+              : 'border-slate-200/90 bg-white shadow-xs hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md active:scale-95'
       }`}
     >
+      {/* Top Badges Row: Captain & Shirt Number */}
+      <div className="flex items-center justify-between w-full px-0.5">
+        {isCaptain ? (
+          <span className="size-4.5 rounded-md bg-amber-500 text-white font-black text-[9px] grid place-items-center shadow-xs" title="قائد الفريق">
+            C
+          </span>
+        ) : (
+          <span className="size-4.5" />
+        )}
+
+        {player.number != null && (
+          <span className="text-[10px] font-black text-slate-500 bg-slate-100/90 px-1.5 py-0.5 rounded-md">
+            #{player.number}
+          </span>
+        )}
+      </div>
+
       {/* Player photo or Jersey visual */}
       <div className="relative my-1 flex items-center justify-center">
         {photoSrc ? (
@@ -45,13 +64,8 @@ function MatchPlayerCard({
             <img
               src={photoSrc}
               alt={player.name}
-              className="size-13 rounded-2xl object-cover ring-2 ring-white shadow-sm sm:size-14"
+              className="size-13 sm:size-14 rounded-2xl object-cover ring-2 ring-white shadow-xs"
             />
-            {player.number != null && (
-              <span className="absolute -bottom-1 -end-1 flex size-4 items-center justify-center rounded-full bg-slate-900 text-[9px] font-black text-white shadow">
-                {player.number}
-              </span>
-            )}
           </div>
         ) : (
           <Jersey
@@ -80,16 +94,16 @@ function MatchPlayerCard({
           </span>
         ) : null}
 
-        {/* Substituted out badge (informational only, blocks nothing) */}
+        {/* Substituted out badge (informational only) */}
         {isSubbedOut && (
-          <span className="absolute -top-1 -start-1 flex size-4 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600 border border-slate-200 shadow-xs" title="تم استبداله سابقاً (متاح للعودة)">
+          <span className="absolute -top-1 -start-1 flex size-4 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600 border border-slate-200 shadow-xs" title="تم استبداله سابقاً">
             ↩️
           </span>
         )}
       </div>
 
       {/* Player Name */}
-      <span className="mt-1.5 w-full text-center text-xs font-bold leading-tight text-slate-800 break-words" title={player.name}>
+      <span className="w-full text-center text-xs font-black leading-tight text-slate-800 truncate px-1 mt-0.5" title={player.name}>
         {player.name}
       </span>
     </button>
@@ -97,13 +111,14 @@ function MatchPlayerCard({
 }
 
 /**
- * Team Squad Section:
- * Displays team header with jersey icon, team name, total eligible players badge,
- * Starters section with (N) الأساسيون, and Substitutes section with (N) الاحتياط.
+ * Team Roster Section:
+ * Displays all starters (on pitch) and all bench players together in one card section,
+ * allowing instant access without toggling between tabs.
  */
 function TeamRosterSection({
   teamId,
   name,
+  team,
   teamVariant,
   players,
   confirmedList,
@@ -112,7 +127,6 @@ function TeamRosterSection({
   suspendedIds,
   redCardedIds,
   busyId,
-  selectedPlayerId,
   events,
   onSelectPlayer,
   onAddPlayer,
@@ -121,6 +135,8 @@ function TeamRosterSection({
   const [adding, setAdding] = useState(false)
   const [addName, setAddName] = useState('')
   const addBusy = busyId === '__add__'
+
+  const logoUrl = team?.logo_url || team?.logo
 
   const submitAdd = async () => {
     const value = addName.trim()
@@ -152,12 +168,10 @@ function TeamRosterSection({
   }, [events])
 
   // Partition players into eligible match roster (starters + substitutes)
-  // If confirmed presence exists, prioritize confirmed players; otherwise use active roster
   const eligiblePlayers = useMemo(() => {
     const list = players || []
     if (confirmedList && confirmedList.length > 0) {
       const confMap = new Map(confirmedList.map((c) => [c.player_id, c]))
-      // Map confirmed into player objects with starter flags
       return list
         .filter((p) => confMap.has(p.id))
         .map((p) => {
@@ -171,7 +185,7 @@ function TeamRosterSection({
     return list
   }, [players, confirmedList])
 
-  // Split into starters and substitutes, taking into account rolling substitutions recorded in events
+  // Split into starters and substitutes with dynamic substitution tracking
   const { onPitch, bench, subbedOut } = useMemo(() => {
     const targetStarters = startersCount || 5
     const hasExplicitStarters = eligiblePlayers.some((p) => p.is_starter)
@@ -180,15 +194,11 @@ function TeamRosterSection({
       : eligiblePlayers.slice(0, targetStarters)
     const initialStartersSet = new Set(initialStarters.map((p) => Number(p.id)))
 
-    // Find substitutions for this team in events
     const teamSubs = (events || []).filter(
       (e) => e.type === 'substitution' && Number(e.team_id) === Number(teamId)
     )
 
-    // Build event index mapping for stable chronological tie-breaking
     const eventIndexMap = new Map((events || []).map((e, idx) => [e._key || e.id || idx, idx]))
-
-    // Sort substitutions chronologically (half, minute, added_time, then event insertion order)
     const sortedSubs = [...teamSubs].sort((a, b) => {
       const hA = a.half === 'second' || a.half === '2' ? 2 : 1
       const hB = b.half === 'second' || b.half === '2' ? 2 : 1
@@ -202,8 +212,6 @@ function TeamRosterSection({
       return idxA - idxB
     })
 
-    // Derive each player's state (on pitch / on bench) from their LATEST substitution event
-    // (or from starting lineup if no substitutions involve them)
     const activePitch = []
     const activeBench = []
     const subbedOutList = []
@@ -217,19 +225,12 @@ function TeamRosterSection({
         const sub = sortedSubs[i]
         const outId = sub.player_id ? Number(sub.player_id) : null
         const inId = sub.assist_player_id ? Number(sub.assist_player_id) : null
-
-        if (outId === pid) {
-          hasEverBeenSubbedOut = true
-        }
-        if (!latestSub && (outId === pid || inId === pid)) {
-          latestSub = sub
-        }
+        if (outId === pid) hasEverBeenSubbedOut = true
+        if (!latestSub && (outId === pid || inId === pid)) latestSub = sub
       }
 
       let isOnPitch = false
       if (latestSub) {
-        // If in latest substitution this player entered (assist_player_id), they are on pitch.
-        // If they left (player_id), they are on the bench.
         isOnPitch = Number(latestSub.assist_player_id) === pid
       } else {
         isOnPitch = initialStartersSet.has(pid)
@@ -239,40 +240,38 @@ function TeamRosterSection({
         activePitch.push(player)
       } else {
         activeBench.push(player)
-        if (hasEverBeenSubbedOut) {
-          subbedOutList.push(player)
-        }
+        if (hasEverBeenSubbedOut) subbedOutList.push(player)
       }
     }
 
-    return {
-      onPitch: activePitch,
-      bench: activeBench,
-      subbedOut: subbedOutList,
-    }
+    return { onPitch: activePitch, bench: activeBench, subbedOut: subbedOutList }
   }, [eligiblePlayers, startersCount, events, teamId])
 
   const totalEligible = eligiblePlayers.length
   const limitDisplay = rosterLimit ? `${totalEligible}/${rosterLimit}` : `${totalEligible}`
 
   return (
-    <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white p-3.5 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/90 bg-white p-3.5 sm:p-4 shadow-xs">
       {/* Team Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2.5">
-          <Jersey
-            number=""
-            variant={teamVariant}
-            className="h-8 w-7 shrink-0 drop-shadow-none"
-          />
+        <div className="flex items-center gap-2.5 min-w-0">
+          {logoUrl ? (
+            <img src={logoUrl} alt={name} className="size-8 object-contain shrink-0 rounded-lg" />
+          ) : (
+            <Jersey
+              number=""
+              variant={teamVariant}
+              className="h-8 w-7 shrink-0 drop-shadow-none"
+            />
+          )}
           <h3 className="truncate text-base font-black text-slate-900">{name}</h3>
         </div>
 
         {/* Badges: Total Limit, On pitch count, Bench count */}
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="flex items-center gap-1 rounded-xl bg-slate-100 px-2.5 py-1 font-black text-slate-700">
+          <span className="flex items-center gap-1 rounded-xl bg-slate-100 px-2 py-1 font-black text-slate-700">
             <Users className="size-3.5" />
-            <span>لاعبو المباراة ({limitDisplay})</span>
+            <span>({limitDisplay})</span>
           </span>
           <span className="rounded-xl bg-emerald-50 text-emerald-800 px-2 py-1 font-bold">
             {onPitch.length} بالملعب
@@ -304,7 +303,7 @@ function TeamRosterSection({
             type="button"
             onClick={submitAdd}
             disabled={addBusy || !addName.trim()}
-            className="grid size-8 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+            className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#00C853] text-white hover:bg-[#00B048] disabled:opacity-50"
             aria-label={t('committee.result.addPlayer')}
           >
             <Check className="size-4" />
@@ -324,20 +323,23 @@ function TeamRosterSection({
           type="button"
           onClick={() => setAdding(true)}
           disabled={addBusy}
-          className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-2 text-xs font-bold text-slate-500 transition-colors hover:border-emerald-300 hover:bg-emerald-50/50 hover:text-emerald-700 disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-emerald-300 bg-emerald-50/40 py-2 text-xs font-bold text-emerald-800 transition-colors hover:bg-emerald-100/60 disabled:opacity-50"
         >
           <Plus className="size-3.5" />
-          <span>{t('committee.result.addPlayer')}</span>
+          <span>{t('committee.result.addPlayer', 'إضافة لاعب')}</span>
         </button>
       )}
 
-      {/* Section 1: On Pitch (اللاعبون في أرضية الملعب) */}
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-3">
-        <div className="mb-2 flex items-center gap-1.5 text-xs font-black text-emerald-900">
-          <span className="grid size-5 place-items-center rounded-lg bg-emerald-600 text-[11px] text-white">
-            ⚽
-          </span>
-          <span>({onPitch.length}) في أرضية الملعب</span>
+      {/* SECTION 1: Starters (في أرضية الملعب) */}
+      <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/30 p-2.5 sm:p-3">
+        <div className="mb-2.5 flex items-center justify-between text-xs font-black text-emerald-950">
+          <div className="flex items-center gap-1.5">
+            <span className="grid size-5 place-items-center rounded-lg bg-[#00C853] text-[11px] text-white">
+              ⚽
+            </span>
+            <span>اللاعبون الأساسيون ({onPitch.length})</span>
+          </div>
+          <span className="text-[11px] font-bold text-emerald-700">في أرضية الملعب</span>
         </div>
 
         {onPitch.length === 0 ? (
@@ -345,11 +347,10 @@ function TeamRosterSection({
             لا يوجد لاعبين في الملعب
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5">
             {onPitch.map((player) => {
               const blocked = (suspendedIds || []).includes(player.id) || (redCardedIds || []).includes(player.id)
               const busy = busyId === player.id
-              const isSelected = selectedPlayerId === player.id
               const stats = playerStats[player.id] || { goals: 0, yellowCard: false, redCard: false }
 
               return (
@@ -357,7 +358,7 @@ function TeamRosterSection({
                   key={player.id}
                   player={player}
                   teamVariant={teamVariant}
-                  isSelected={isSelected}
+                  isSelected={false}
                   blocked={blocked}
                   busy={busy}
                   stats={stats}
@@ -369,13 +370,16 @@ function TeamRosterSection({
         )}
       </div>
 
-      {/* Section 2: Substitutes (دكة الاحتياط) */}
-      <div className="rounded-2xl border border-sky-100 bg-sky-50/40 p-3">
-        <div className="mb-2 flex items-center gap-1.5 text-xs font-black text-sky-900">
-          <span className="grid size-5 place-items-center rounded-lg bg-sky-600 text-[11px] text-white">
-            🔄
-          </span>
-          <span>({bench.length}) دكة الاحتياط</span>
+      {/* SECTION 2: Bench (دكة الاحتياط) */}
+      <div className="rounded-2xl border border-sky-200/80 bg-sky-50/30 p-2.5 sm:p-3">
+        <div className="mb-2.5 flex items-center justify-between text-xs font-black text-sky-950">
+          <div className="flex items-center gap-1.5">
+            <span className="grid size-5 place-items-center rounded-lg bg-sky-600 text-[11px] text-white">
+              🔄
+            </span>
+            <span>الاحتياط ({bench.length})</span>
+          </div>
+          <span className="text-[11px] font-bold text-sky-700">دكة البدلاء</span>
         </div>
 
         {bench.length === 0 ? (
@@ -383,11 +387,10 @@ function TeamRosterSection({
             لا يوجد لاعبين في دكة الاحتياط
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-2.5">
             {bench.map((player) => {
               const blocked = (suspendedIds || []).includes(player.id) || (redCardedIds || []).includes(player.id)
               const busy = busyId === player.id
-              const isSelected = selectedPlayerId === player.id
               const stats = playerStats[player.id] || { goals: 0, yellowCard: false, redCard: false }
               const isSubbed = subbedOut.some((sp) => Number(sp.id) === Number(player.id))
 
@@ -396,7 +399,7 @@ function TeamRosterSection({
                   key={player.id}
                   player={player}
                   teamVariant={teamVariant}
-                  isSelected={isSelected}
+                  isSelected={false}
                   blocked={blocked}
                   busy={busy}
                   stats={stats}
@@ -413,99 +416,9 @@ function TeamRosterSection({
 }
 
 /**
- * Docked Quick Action Toolbar for the selected player:
- * Displays selected player badge/jersey, goal, yellow card, red card, substitution buttons.
- */
-function DockedPlayerActionBar({
-  player,
-  teamName,
-  variant,
-  onAction,
-  onClose,
-}) {
-  if (!player) return null
-
-  return (
-    <div className="sticky bottom-0 z-30 mt-4 rounded-2xl border border-slate-200/90 bg-white/95 p-3 shadow-xl backdrop-blur-md">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Selected player info */}
-        <div className="flex items-center gap-3">
-          <div className="shrink-0">
-            <Jersey
-              number={player.number}
-              photoUrl={player.photo_thumbnail_url || player.photo_url}
-              variant={variant}
-              className="h-11 w-10"
-            />
-          </div>
-          <div className="min-w-0">
-            <h4 className="truncate text-sm font-black text-slate-900">{player.name}</h4>
-            <p className="truncate text-[11px] font-semibold text-slate-400">{teamName || '—'}</p>
-          </div>
-        </div>
-
-        {/* Event Quick Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Goal */}
-          <button
-            type="button"
-            onClick={() => onAction('goal')}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-black text-slate-800 shadow-sm transition-all hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 active:scale-95"
-          >
-            <span className="text-base leading-none">⚽</span>
-            <span>هدف</span>
-          </button>
-
-          {/* Yellow Card */}
-          <button
-            type="button"
-            onClick={() => onAction('yellow_card')}
-            className="flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2 text-xs font-black text-amber-900 shadow-sm transition-all hover:bg-amber-100 active:scale-95"
-          >
-            <span className="text-base leading-none">🟨</span>
-            <span>بطاقة صفراء</span>
-          </button>
-
-          {/* Red Card */}
-          <button
-            type="button"
-            onClick={() => onAction('red_card')}
-            className="flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-black text-rose-900 shadow-sm transition-all hover:bg-rose-100 active:scale-95"
-          >
-            <span className="text-base leading-none">🟥</span>
-            <span>بطاقة حمراء</span>
-          </button>
-
-          {/* Substitution */}
-          <button
-            type="button"
-            onClick={() => onAction('substitution')}
-            className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 py-2 text-xs font-black text-sky-900 shadow-sm transition-all hover:bg-sky-100 active:scale-95"
-          >
-            <RefreshCw className="size-3.5" />
-            <span>تبديل</span>
-          </button>
-
-          {/* Close */}
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-            title="إلغاء التحديد"
-            aria-label="إلغاء التحديد"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-/**
  * Main PlayersTab component:
- * Renders the Home and Away team rosters side-by-side using the tournament/match configuration
- * with large player cards, starters, bench, event markers, and docked action toolbar.
+ * Renders BOTH teams (Home and Away) with ALL starters and bench players simultaneously
+ * on the exact same page, enabling rapid one-tap recording for operators without any tab switching.
  */
 export default function PlayersTab({
   homeId,
@@ -529,11 +442,10 @@ export default function PlayersTab({
   confirmedHome: propConfirmedHome,
   confirmedAway: propConfirmedAway,
 }) {
-  const [selectedPlayerState, setSelectedPlayerState] = useState(null) // { player, teamId, variant }
   const [fetchedHome, setFetchedHome] = useState([])
   const [fetchedAway, setFetchedAway] = useState([])
 
-  // Load lineups / presence if fixture has existing records and not provided via props
+  // Load lineups / presence if fixture has existing records
   useEffect(() => {
     let cancelled = false
     if (tournament?.id && fixture?.id && !propConfirmedHome && !propConfirmedAway) {
@@ -562,7 +474,6 @@ export default function PlayersTab({
   const confirmedHome = useMemo(() => normalizeConfirmed(propConfirmedHome, fetchedHome), [propConfirmedHome, fetchedHome])
   const confirmedAway = useMemo(() => normalizeConfirmed(propConfirmedAway, fetchedAway), [propConfirmedAway, fetchedAway])
 
-  // Derive dynamic roster limits and format starters count
   const rosterLimit = tournament?.max_players_per_team || 8
   const startersCount = useMemo(() => {
     const fmt = String(tournament?.tournament_format || '').toLowerCase()
@@ -573,84 +484,48 @@ export default function PlayersTab({
     return 5
   }, [tournament?.tournament_format])
 
-  const handleSelectPlayer = (player, teamId, variant, bench = []) => {
-    // When parent provides onTapPlayer callback, use it to open the OneTapEventSheet
-    if (onTapPlayer) {
-      onTapPlayer(player, teamId, variant, bench)
-      return
-    }
-    // Otherwise fallback to toggling docked bottom action bar
-    if (selectedPlayerState?.player?.id === player.id) {
-      setSelectedPlayerState(null)
-      return
-    }
-    setSelectedPlayerState({ player, teamId, variant, bench })
-  }
-
-  const handleAction = (type) => {
-    if (!selectedPlayerState) return
-    const { player, teamId } = selectedPlayerState
-    if (onActionPick) {
-      onActionPick(player, teamId, type)
-    }
-    setSelectedPlayerState(null)
-  }
-
-  const currentSelectedTeamName = selectedPlayerState?.teamId === homeId ? homeName : awayName
-
   return (
     <div className="space-y-4">
-      {/* 2-Column Responsive Grid for Home and Away Rosters */}
+      {/* 2-Column Responsive Layout: Home Team & Away Team simultaneously */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Right / Home Team Column (Green theme) */}
+        {/* Home Team Column */}
         <TeamRosterSection
           teamId={homeId}
           name={homeName}
+          team={homeTeam}
           teamVariant="home"
           players={homeRoster}
           confirmedList={confirmedHome}
           rosterLimit={rosterLimit}
           startersCount={startersCount}
-          suspendedIds={suspendedByTeam[homeId] || []}
-          redCardedIds={redCardedIds[homeId] || []}
+          suspendedIds={(suspendedByTeam && suspendedByTeam[homeId]) || []}
+          redCardedIds={(redCardedIds && redCardedIds[homeId]) || []}
           busyId={busyId}
-          selectedPlayerId={selectedPlayerState?.player?.id}
           events={events}
-          onSelectPlayer={handleSelectPlayer}
+          onSelectPlayer={onTapPlayer}
           onAddPlayer={onAddPlayer}
           t={t}
         />
 
-        {/* Left / Away Team Column (White theme) */}
+        {/* Away Team Column */}
         <TeamRosterSection
           teamId={awayId}
           name={awayName}
+          team={awayTeam}
           teamVariant="away"
           players={awayRoster}
           confirmedList={confirmedAway}
           rosterLimit={rosterLimit}
           startersCount={startersCount}
-          suspendedIds={suspendedByTeam[awayId] || []}
-          redCardedIds={redCardedIds[awayId] || []}
+          suspendedIds={(suspendedByTeam && suspendedByTeam[awayId]) || []}
+          redCardedIds={(redCardedIds && redCardedIds[awayId]) || []}
           busyId={busyId}
-          selectedPlayerId={selectedPlayerState?.player?.id}
           events={events}
-          onSelectPlayer={handleSelectPlayer}
+          onSelectPlayer={onTapPlayer}
           onAddPlayer={onAddPlayer}
           t={t}
         />
       </div>
-
-      {/* Docked Action Bar when player is tapped */}
-      {selectedPlayerState && (
-        <DockedPlayerActionBar
-          player={selectedPlayerState.player}
-          teamName={currentSelectedTeamName}
-          variant={selectedPlayerState.variant}
-          onAction={handleAction}
-          onClose={() => setSelectedPlayerState(null)}
-        />
-      )}
     </div>
   )
 }

@@ -258,7 +258,8 @@ class TournamentFixtureService
     {
         $date = $date ?: ($tournament->start_date?->toDateString() ?? now()->toDateString());
         $time = $time ?: '20:00';
-        $endTime = $this->endTimeFor($time);
+        $matchDuration = (int) ($tournament->match_duration_minutes ?? 60);
+        $endTime = $this->endTimeFor($time, $matchDuration);
 
         $stadiums = Stadium::query()
             ->where('supports_tournaments', true)
@@ -267,22 +268,33 @@ class TournamentFixtureService
             ->orderBy('name')
             ->get();
 
-        $slot = Carbon::parse($date.' '.$time);
+        $slotStart = Carbon::parse($date.' '.$time);
+        $slotEnd = $slotStart->copy()->addMinutes($matchDuration);
 
         $activeCompetitionIds = $this->activeTournamentCompetitionIds();
 
-        $fixtureConflictIds = $stadiums->isNotEmpty()
-            ? Fixture::query()
+        $fixtureConflictIds = [];
+        if ($stadiums->isNotEmpty()) {
+            $fixtures = Fixture::query()
+                ->with(['match:id,match_duration_minutes', 'competition:id,match_duration_minutes'])
                 ->whereIn('competition_id', $activeCompetitionIds)
                 ->whereIn('stadium_id', $stadiums->pluck('id')->all())
-                ->where('scheduled_at', '>', $slot->copy()->subHours(2))
-                ->where('scheduled_at', '<', $slot->copy()->addHours(2))
+                ->where('scheduled_at', '>', $slotStart->copy()->subHours(3))
+                ->where('scheduled_at', '<', $slotEnd)
                 ->whereNotIn('status', [FixtureStatus::Postponed->value, FixtureStatus::Cancelled->value])
-                ->pluck('stadium_id')
-                ->all()
-            : [];
+                ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Cancelled->value]))
+                ->get();
 
-        $fixtureConflictIds = array_flip(array_unique(array_map('intval', $fixtureConflictIds)));
+            foreach ($fixtures as $f) {
+                $fStart = Carbon::parse($f->scheduled_at);
+                $fDuration = (int) ($f->match?->match_duration_minutes ?? $f->competition?->match_duration_minutes ?? 60);
+                $fEnd = $fStart->copy()->addMinutes($fDuration);
+
+                if ($fStart->lt($slotEnd) && $fEnd->gt($slotStart)) {
+                    $fixtureConflictIds[$f->stadium_id] = true;
+                }
+            }
+        }
 
         $terrains = $stadiums->map(function (Stadium $stadium) use ($date, $time, $endTime, $fixtureConflictIds) {
             $reason = null;
@@ -351,11 +363,13 @@ class TournamentFixtureService
 
             $time = $datetime->format('H:i');
 
+            $matchDuration = (int) ($tournament->match_duration_minutes ?? 60);
+
             $conflictBooking = app(\App\Domains\Booking\Services\SlotAvailabilityService::class)->firstConflict(
                 terrainId: $stadiumId,
                 date: $datetime->toDateString(),
                 startTime: $time,
-                endTime: $this->endTimeFor($time),
+                endTime: $this->endTimeFor($time, $matchDuration),
                 excludeId: $excludeBookingId,
             );
 
@@ -1957,11 +1971,11 @@ class TournamentFixtureService
                 }
             }
 
-            $cursor->addHours(2);
+            $cursor->addMinutes(60);
 
             $hour = (int) $cursor->format('H');
 
-            if ($hour === 0 || $hour >= 22) {
+            if ($hour === 0 || $hour >= 23) {
                 [$h, $m] = array_map('intval', explode(':', $defaultTime));
                 $cursor->setTime($h, $m)->addDay();
             }
@@ -1983,11 +1997,11 @@ class TournamentFixtureService
 
         $time = $datetime->format('H:i');
 
-        if (TerrainBooking::getConflictMessage($stadiumId, $datetime->toDateString(), $time, $this->endTimeFor($time))) {
+        if (TerrainBooking::getConflictMessage($stadiumId, $datetime->toDateString(), $time, $this->endTimeFor($time, 60))) {
             return false;
         }
 
-        return ! $this->stadiumHasFixtureConflict($stadiumId, $datetime);
+        return ! $this->stadiumHasFixtureConflict($stadiumId, $datetime, durationMinutes: 60);
     }
 
     /**
@@ -1999,19 +2013,34 @@ class TournamentFixtureService
         Carbon $datetime,
         ?int $excludeMatchId = null,
         ?int $excludeFixtureId = null,
+        int $durationMinutes = 60,
     ): bool {
-        $window = PlayerMatchGuard::MATCH_WINDOW_HOURS;
+        $slotStart = $datetime->copy();
+        $slotEnd = $datetime->copy()->addMinutes($durationMinutes);
 
-        return Fixture::query()
+        $candidates = Fixture::query()
+            ->with(['match:id,match_duration_minutes', 'competition:id,match_duration_minutes'])
             ->whereIn('competition_id', $this->activeTournamentCompetitionIds())
             ->where('stadium_id', $stadiumId)
-            ->where('scheduled_at', '>', $datetime->copy()->subHours($window))
-            ->where('scheduled_at', '<', $datetime->copy()->addHours($window))
+            ->where('scheduled_at', '>', $datetime->copy()->subHours(3))
+            ->where('scheduled_at', '<', $slotEnd)
             ->whereNotIn('status', [FixtureStatus::Postponed->value, FixtureStatus::Cancelled->value])
             ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Cancelled->value]))
             ->when($excludeMatchId, fn ($q) => $q->where('match_id', '!=', $excludeMatchId))
             ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
-            ->exists();
+            ->get();
+
+        foreach ($candidates as $c) {
+            $fStart = Carbon::parse($c->scheduled_at);
+            $fDuration = (int) ($c->match?->match_duration_minutes ?? $c->competition?->match_duration_minutes ?? 60);
+            $fEnd = $fStart->copy()->addMinutes($fDuration);
+
+            if ($fStart->lt($slotEnd) && $fEnd->gt($slotStart)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -2117,9 +2146,9 @@ class TournamentFixtureService
         return $matches;
     }
 
-    private function endTimeFor(string $startTime): string
+    private function endTimeFor(string $startTime, int $durationMinutes = 60): string
     {
-        return Carbon::parse($startTime)->addHours(2)->format('H:i');
+        return Carbon::parse($startTime)->addMinutes($durationMinutes)->format('H:i');
     }
 
     /**

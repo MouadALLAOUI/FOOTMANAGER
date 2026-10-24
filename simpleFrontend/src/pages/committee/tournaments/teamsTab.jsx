@@ -348,9 +348,16 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     {p.status === 'withdrawn' && <Badge variant="warning">منسحب</Badge>}
                     {p.status === 'disqualified' && <Badge variant="danger">مُقصى</Badge>}
                   </div>
-                  <p className="text-[11px] font-semibold text-slate-400">
-                    {p.group?.name || t('committee.detail.unassigned')}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] font-semibold text-slate-400">
+                      {p.group?.name || t('committee.detail.unassigned')}
+                    </p>
+                    {p.weekly_subscriptions?.length > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                        {p.weekly_subscriptions.length === 1 ? 'اشتراك أسبوعي' : `${p.weekly_subscriptions.length} اشتراكات أسبوعية`}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {!selectMode && (
                   <div className="flex shrink-0 items-center gap-1.5">

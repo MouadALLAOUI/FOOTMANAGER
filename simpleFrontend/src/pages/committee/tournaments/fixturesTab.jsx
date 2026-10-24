@@ -1237,7 +1237,10 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         <MatchControlRoom
           fixture={resultFixture}
           tournament={tournament}
-          onClose={() => setResultFixture(null)}
+          onClose={() => {
+            setResultFixture(null)
+            afterChange()
+          }}
           onSaved={() => {
             setResultFixture(null)
             afterChange()

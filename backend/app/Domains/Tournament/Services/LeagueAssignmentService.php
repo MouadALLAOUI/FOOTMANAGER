@@ -492,6 +492,8 @@ class LeagueAssignmentService
                     ->whereNull('archived_at')
                     ->first();
 
+                $duration = (int) ($fixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
+
                 if ($weeklySub) {
                     $targetOcc = \App\Domains\Booking\Models\TerrainBookingOccurrence::firstOrCreate(
                         [
@@ -501,7 +503,7 @@ class LeagueAssignmentService
                         [
                             'stadium_id' => $fixture->stadium_id,
                             'start_time' => $origTime,
-                            'end_time' => Carbon::parse($originalScheduledAt)->addMinutes(90)->format('H:i'),
+                            'end_time' => Carbon::parse($originalScheduledAt)->addMinutes($duration)->format('H:i'),
                             'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_ACTIVE,
                         ]
                     );
@@ -509,13 +511,14 @@ class LeagueAssignmentService
             }
 
             if (in_array($reason, ['rain', 'pitch_condition'], true) && $originalScheduledAt && $fixture->stadium_id) {
+                $duration = (int) ($fixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
                 // Weather / stadium condition: occurrence stays reserved and blocked for that date (never offered for reuse or release)
                 \App\Domains\Booking\Models\TerrainSlotClosure::firstOrCreate(
                     [
                         'terrain_id' => $fixture->stadium_id,
                         'closure_date' => $origDateStr,
                         'start_time' => $origTime,
-                        'end_time' => Carbon::parse($originalScheduledAt)->addMinutes(90)->format('H:i'),
+                        'end_time' => Carbon::parse($originalScheduledAt)->addMinutes($duration)->format('H:i'),
                     ],
                     [
                         'reason' => 'ظروف جوية / أرضية الملعب (تأجيل مباراة)',
@@ -1410,19 +1413,23 @@ class LeagueAssignmentService
             }
             $activeMatches = $scheduledMatches->reject(fn ($m) => in_array($m->id, $excludedIds));
 
+            $hasRestWarning = false;
+            $restWarnings = [];
+
             // 2. Check Candidate Team C at Fixture 1 date (if scheduled)
             if ($fixtureScheduledAt && $isEligible) {
                 $restOk = $this->satisfiesRestRule($candidateId, $fixtureScheduledAt, $restDaysRequired, $activeMatches);
                 if (! $restOk) {
-                    $isEligible = false;
-                    $ineligibilityReasons[] = 'تعارض مع فترة الراحة الإلزامية للفريق في موعد هذه المباراة';
+                    $hasRestWarning = true;
+                    $restWarnings[] = 'تعارض مع فترة الراحة الإلزامية للفريق في موعد هذه المباراة (يمكن للجنة التجاوز)';
                 }
 
+                $fDuration = (int) ($fixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
                 $conflict = $this->hasConflictOnDateTime(
                     $candidateId,
                     $fixtureScheduledAt,
                     $fixtureScheduledAt->format('H:i'),
-                    $fixtureScheduledAt->copy()->addHours(2)->format('H:i'),
+                    $fixtureScheduledAt->copy()->addMinutes($fDuration)->format('H:i'),
                     $activeMatches
                 );
                 if ($conflict) {
@@ -1437,15 +1444,16 @@ class LeagueAssignmentService
 
                 $bRestOk = $this->satisfiesRestRule($currentOpponentId, $otherScheduledAt, $restDaysRequired, $activeMatches);
                 if (! $bRestOk) {
-                    $isEligible = false;
-                    $ineligibilityReasons[] = 'الخصم الحالي لديه تعارض مع فترة الراحة في موعد المواجهة البديلة';
+                    $hasRestWarning = true;
+                    $restWarnings[] = 'الخصم الحالي لديه تعارض مع فترة الراحة في موعد المواجهة البديلة (يمكن للجنة التجاوز)';
                 }
 
+                $oDuration = (int) ($otherFixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
                 $bConflict = $this->hasConflictOnDateTime(
                     $currentOpponentId,
                     $otherScheduledAt,
                     $otherScheduledAt->format('H:i'),
-                    $otherScheduledAt->copy()->addHours(2)->format('H:i'),
+                    $otherScheduledAt->copy()->addMinutes($oDuration)->format('H:i'),
                     $activeMatches
                 );
                 if ($bConflict) {
@@ -1459,6 +1467,8 @@ class LeagueAssignmentService
                 'team_name' => $candidateTeam->name,
                 'team_logo' => $candidateTeam->logo_url ?? $candidateTeam->logo,
                 'is_eligible' => $isEligible,
+                'has_rest_warning' => $hasRestWarning,
+                'rest_warnings' => $restWarnings,
                 'ineligibility_reasons' => $ineligibilityReasons,
                 'other_fixture' => $otherFixture ? [
                     'id' => $otherFixture->id,
@@ -1565,11 +1575,12 @@ class LeagueAssignmentService
                     );
                 }
 
+                $fDuration = (int) ($fixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
                 $conflict = $this->hasConflictOnDateTime(
                     $newOpponentId,
                     $targetDate,
                     $targetDate->format('H:i'),
-                    $targetDate->copy()->addHours(2)->format('H:i'),
+                    $targetDate->copy()->addMinutes($fDuration)->format('H:i'),
                     $scheduledMatches
                 );
                 if ($conflict && ! $overrideWarnings) {
@@ -1598,11 +1609,12 @@ class LeagueAssignmentService
                     );
                 }
 
+                $oDuration = (int) ($otherFixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
                 $oldConflict = $this->hasConflictOnDateTime(
                     $oldOpponentId,
                     $otherTargetDate,
                     $otherTargetDate->format('H:i'),
-                    $otherTargetDate->copy()->addHours(2)->format('H:i'),
+                    $otherTargetDate->copy()->addMinutes($oDuration)->format('H:i'),
                     $scheduledMatches
                 );
                 if ($oldConflict && ! $overrideWarnings) {
@@ -2326,6 +2338,8 @@ class LeagueAssignmentService
             // Optional fixture eligibility check
             $canAssign = true;
             $ineligibilityReasons = [];
+            $hasRestWarning = false;
+            $restWarnings = [];
 
             if ($teamAId && $teamBId) {
                 if ($this->hasConflictOnDateTime($teamAId, $slotDate, $slotStart, $slotEnd, $scheduledMatches)) {
@@ -2337,12 +2351,12 @@ class LeagueAssignmentService
                     $ineligibilityReasons[] = 'تعارض في موعد مباراة أخرى للفريق الثاني';
                 }
                 if (! $this->satisfiesRestRule($teamAId, $slotDate, $restDaysRequired, $scheduledMatches)) {
-                    $canAssign = false;
-                    $ineligibilityReasons[] = 'عدم استيفاء فترة الراحة الإلزامية للفريق الأول';
+                    $hasRestWarning = true;
+                    $restWarnings[] = 'عدم استيفاء فترة الراحة الإلزامية للفريق الأول (يمكن للجنة التجاوز)';
                 }
                 if (! $this->satisfiesRestRule($teamBId, $slotDate, $restDaysRequired, $scheduledMatches)) {
-                    $canAssign = false;
-                    $ineligibilityReasons[] = 'عدم استيفاء فترة الراحة الإلزامية للفريق الثاني';
+                    $hasRestWarning = true;
+                    $restWarnings[] = 'عدم استيفاء فترة الراحة الإلزامية للفريق الثاني (يمكن للجنة التجاوز)';
                 }
             }
 
@@ -2484,6 +2498,8 @@ class LeagueAssignmentService
                 'stadium_name' => $booking->terrain?->name,
                 'is_weekly' => $slot['is_weekly'],
                 'can_assign' => $canAssign,
+                'has_rest_warning' => $hasRestWarning,
+                'rest_warnings' => $restWarnings,
                 'ineligibility_reasons' => $ineligibilityReasons,
                 'eligible_fixtures' => $eligibleFixtures,
                 'advancement_candidates' => $advancementCandidates,

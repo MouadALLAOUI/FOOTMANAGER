@@ -35,20 +35,20 @@ export default function ScoreActions({
         <div className="pointer-events-none absolute -bottom-12 -right-12 size-36 rounded-full bg-blue-500/15 blur-2xl" />
 
         <div className="relative z-10 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
-          {/* Away Team (Opponent) */}
+          {/* Home Team (Host) */}
           <div className="flex flex-col items-center text-center min-w-0">
             <div className="size-13 sm:size-16 rounded-2xl bg-white/10 border border-white/15 p-1.5 flex items-center justify-center shadow-md shrink-0">
               <TeamLogo
-                team={awayTeam}
-                name={awayName}
+                team={homeTeam}
+                name={homeName}
                 className="size-full object-contain filter drop-shadow-sm"
               />
             </div>
-            <span className="mt-2 text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={awayName}>
-              {awayName}
+            <span className="mt-2 text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={homeName}>
+              {homeName}
             </span>
             <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">
-              {t('match.awayTeam', 'فريق اللاعب')}
+              {t('match.homeTeam', 'الفريق المضيف')}
             </span>
           </div>
 
@@ -94,20 +94,20 @@ export default function ScoreActions({
             )}
           </div>
 
-          {/* Home Team (Host) */}
+          {/* Away Team (Opponent) */}
           <div className="flex flex-col items-center text-center min-w-0">
             <div className="size-13 sm:size-16 rounded-2xl bg-white/10 border border-white/15 p-1.5 flex items-center justify-center shadow-md shrink-0">
               <TeamLogo
-                team={homeTeam}
-                name={homeName}
+                team={awayTeam}
+                name={awayName}
                 className="size-full object-contain filter drop-shadow-sm"
               />
             </div>
-            <span className="mt-2 text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={homeName}>
-              {homeName}
+            <span className="mt-2 text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={awayName}>
+              {awayName}
             </span>
             <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">
-              {t('match.homeTeam', 'الفريق المضيف')}
+              {t('match.awayTeam', 'الفريق الضيف')}
             </span>
           </div>
         </div>

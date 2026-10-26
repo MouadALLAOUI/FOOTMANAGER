@@ -9,6 +9,7 @@ import {
   CheckCheck,
   DoorClosed,
   Eye,
+  FileEdit,
   Globe,
   LayoutGrid,
   Loader2,
@@ -337,6 +338,7 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
                   <Globe className="size-4" />
                   {t('committee.detail.openRegistration')}
                 </Button>
+                <Link to={'/committee/tournaments/wizard?id=' + tournament.id} className="inline-flex h-11 items-center gap-2 rounded-xl bg-sky-50 px-4 text-sm font-bold text-sky-700 border border-sky-200/80 hover:bg-sky-100 transition-colors"><FileEdit className="size-4" />متابعة معالج البطولة</Link>
                 <Button variant="dangerSoft" loading={busy === 'delete'} onClick={remove}>
                   <Trash2 className="size-4" />
                   {t('committee.detail.delete')}

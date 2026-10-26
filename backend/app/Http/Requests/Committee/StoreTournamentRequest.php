@@ -47,6 +47,7 @@ class StoreTournamentRequest extends FormRequest
             'points_for_win' => 'required|integer|min:0|max:10',
             'points_for_draw' => 'required|integer|min:0|max:10',
             'points_for_loss' => 'required|integer|min:0|max:10',
+            'plan' => 'nullable|array',
             'foul_rules_enabled' => 'sometimes|boolean',
             'player_foul_threshold' => 'nullable|integer|min:2|max:99',
             'player_penalty_minutes' => 'nullable|integer|min:1|max:180',

@@ -46,7 +46,7 @@ export default function PublicTournamentDetail() {
   useSeo({
     title: tour?.name ? `${tour.name} — بطولة كرة قدم` : 'تفاصيل البطولة',
     description: tour?.description || 'تابع جدول المباريات وترتيب الفرق ونتائج البطولة على منصة أجي نقصرو.',
-    canonical: `https://ajin9essro.com/tournaments/${slug}`,
+    canonical: `https://ajin9essro.com/tournaments/${slug ? decodeURIComponent(slug) : ''}`,
     image: tour?.cover_image_url,
   })
 

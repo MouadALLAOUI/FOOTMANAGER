@@ -175,8 +175,56 @@ class Tournament extends Model
     {
         static::creating(function (Tournament $tournament) {
             $tournament->uuid ??= (string) Str::uuid();
-            $tournament->slug ??= Str::slug($tournament->name).'-'.Str::lower(Str::random(6));
+            $tournament->slug = !empty($tournament->slug)
+                ? static::generateUniqueSlug($tournament->slug, $tournament->id ?? null)
+                : static::generateUniqueSlug($tournament->name, $tournament->id ?? null);
         });
+
+        static::updating(function (Tournament $tournament) {
+            if ($tournament->isDirty('name') && !$tournament->isDirty('slug') && empty($tournament->slug)) {
+                $tournament->slug = static::generateUniqueSlug($tournament->name, $tournament->id);
+            } elseif ($tournament->isDirty('slug') && !empty($tournament->slug)) {
+                $tournament->slug = static::generateUniqueSlug($tournament->slug, $tournament->id);
+            }
+        });
+    }
+
+    /**
+     * Generate an SEO-friendly, clean Arabic/multilingual slug.
+     */
+    public static function generateUniqueSlug(string $title, ?int $ignoreId = null): string
+    {
+        // 1. Keep Arabic characters, Latin letters, digits, and spaces
+        $clean = preg_replace('/[^\p{Arabic}\p{L}\p{N}\s-]+/u', '', $title);
+        $clean = trim(preg_replace('/\s+/', ' ', (string) $clean));
+
+        // Limit words to max 6 words for SEO brevity (avoids excessively long URLs)
+        $words = explode(' ', $clean);
+        if (count($words) > 6) {
+            $clean = implode(' ', array_slice($words, 0, 6));
+        }
+
+        // Generate slug keeping UTF-8 Arabic characters (null dictionary disables Latin transliteration)
+        $baseSlug = Str::slug($clean, '-', null);
+
+        // Fallback if title contains no letters or digits
+        if (empty($baseSlug)) {
+            $baseSlug = 'tournament-'.Str::lower(Str::random(6));
+        }
+
+        // 2. Ensure uniqueness cleanly: append -2, -3, etc. only if a duplicate exists
+        $slug = $baseSlug;
+        $counter = 2;
+
+        while (static::query()
+            ->where('slug', $slug)
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+            ->exists()) {
+            $slug = "{$baseSlug}-{$counter}";
+            $counter++;
+        }
+
+        return $slug;
     }
 
     public function organizer(): BelongsTo

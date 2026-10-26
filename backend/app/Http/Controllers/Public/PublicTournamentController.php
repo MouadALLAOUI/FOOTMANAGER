@@ -339,9 +339,13 @@ class PublicTournamentController extends Controller
 
     private function resolveTournament(string $key): Tournament
     {
+        $decodedKey = rawurldecode($key);
         $tournament = is_numeric($key)
             ? Tournament::query()->whereKey((int) $key)->first()
-            : Tournament::query()->where('slug', $key)->first();
+            : Tournament::query()
+                ->where('slug', $key)
+                ->orWhere('slug', $decodedKey)
+                ->first();
 
         abort_unless($tournament instanceof Tournament, 404);
         $this->abortIfPrivate($tournament);

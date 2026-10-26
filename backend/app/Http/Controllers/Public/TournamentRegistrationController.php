@@ -166,9 +166,13 @@ class TournamentRegistrationController extends Controller
 
     private function resolveTournament(string $key): Tournament
     {
+        $decodedKey = rawurldecode($key);
         $tournament = ctype_digit($key)
             ? Tournament::query()->find((int) $key)
-            : Tournament::query()->where('slug', $key)->first();
+            : Tournament::query()
+                ->where('slug', $key)
+                ->orWhere('slug', $decodedKey)
+                ->first();
 
         if (! $tournament || ! $tournament->isVisiblePublicly()) {
             abort(404, 'البطولة غير موجودة أو غير منشورة');

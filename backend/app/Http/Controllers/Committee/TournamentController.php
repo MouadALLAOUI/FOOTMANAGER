@@ -122,6 +122,7 @@ class TournamentController extends Controller
                 'points_for_loss' => $data['points_for_loss'],
                 'rest_days_minimum' => $data['rest_days_minimum'] ?? 1,
                 'league_mode' => $data['league_mode'] ?? 'single_round_robin',
+                'plan' => $data['plan'] ?? null,
                 'status' => 'draft',
             ]);
 

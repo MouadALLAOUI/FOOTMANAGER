@@ -62,7 +62,7 @@ export default function Tournaments() {
   useEffect(() => {
     if (params.get('new')) {
       setForm(emptyForm)
-      setDrawerOpen(true)
+      navigate('/committee/tournaments/wizard')
       setParams({}, { replace: true })
     }
   }, [params, setParams])
@@ -71,7 +71,7 @@ export default function Tournaments() {
 
   const openCreate = () => {
     setForm(emptyForm)
-    setDrawerOpen(true)
+    navigate('/committee/tournaments/wizard')
   }
 
   const isGroupFormat = form.tournament_format === 'groups_knockout' || form.tournament_format === 'groups_only'

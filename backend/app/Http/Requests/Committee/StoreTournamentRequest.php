@@ -18,6 +18,7 @@ class StoreTournamentRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
+            'slug' => 'nullable|string|max:190',
             'edition' => 'nullable|string|max:60',
             'category' => 'nullable|string|max:60',
             'description' => 'nullable|string|max:2000',

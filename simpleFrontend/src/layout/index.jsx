@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next'
 import Navbar from './Navbar'
 import Footer from './Footer'
 import AnnouncementBar from '../components/system/AnnouncementBar'
+import BottomNav from '../pages/landing/bottomNav'
 
 export default function Layout() {
   const { t } = useTranslation()
   const location = useLocation()
+  const isLanding = location.pathname === '/'
+
   return (
     <>
       <a
@@ -15,12 +18,17 @@ export default function Layout() {
       >
         {t('common.skipToContent')}
       </a>
-      <AnnouncementBar />
-      <Navbar />
-      <div key={location.pathname} className="page-enter w-full max-w-full">
+      {!isLanding && <AnnouncementBar />}
+      {!isLanding && <Navbar />}
+
+      <div key={location.pathname} className="page-enter w-full max-w-full overflow-x-hidden pb-16 sm:pb-0">
         <Outlet />
       </div>
+
       <Footer />
+
+      {/* Unified Sticky Mobile Bottom Nav Across All Platform Pages */}
+      <BottomNav />
     </>
   )
 }

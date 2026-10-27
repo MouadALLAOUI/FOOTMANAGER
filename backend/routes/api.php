@@ -237,8 +237,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
         Route::get('/notifications/preferences', [NotificationController::class, 'preferences']);
         Route::put('/notifications/preferences', [NotificationController::class, 'updatePreferences']);
-        Route::put('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
-        Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::match(['put', 'post'], '/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::match(['put', 'post'], '/notifications/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+        Route::match(['put', 'patch'], '/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::put('/notifications/{id}/pin', [NotificationController::class, 'togglePin']);
         Route::put('/notifications/{id}/important', [NotificationController::class, 'toggleImportant']);
         Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
@@ -618,8 +619,9 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
         Route::get('/v1', [NotificationController::class, 'indexV1']);
 
         Route::middleware('activity.not_locked')->group(function () {
-            Route::put('/{id}/read', [NotificationController::class, 'markAsRead']);
-            Route::put('/read-all', [NotificationController::class, 'markAllAsRead']);
+            Route::match(['put', 'patch'], '/{id}/read', [NotificationController::class, 'markAsRead']);
+            Route::match(['put', 'post'], '/read-all', [NotificationController::class, 'markAllAsRead']);
+            Route::match(['put', 'post'], '/mark-all-read', [NotificationController::class, 'markAllAsRead']);
             Route::put('/{id}/pin', [NotificationController::class, 'togglePin']);
             Route::put('/{id}/important', [NotificationController::class, 'toggleImportant']);
             Route::delete('/{id}', [NotificationController::class, 'destroy']);

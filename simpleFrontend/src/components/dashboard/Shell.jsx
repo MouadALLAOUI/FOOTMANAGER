@@ -268,15 +268,15 @@ export default function Shell({
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-black text-slate-900">
+            <div className="min-w-0 flex-1 flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-black text-slate-900 whitespace-nowrap">
                 <span className="sm:hidden">
                   {active?.shortLabel ? t(active.shortLabel) : active ? t(active.label) : t(roleLabel)}
                 </span>
                 <span className="hidden sm:inline">
                   {active ? t(active.label) : t(roleLabel)}
                 </span>
-              </p>
+              </h1>
               <p className="hidden text-[11px] font-semibold text-slate-500 sm:block">{today}</p>
             </div>
 

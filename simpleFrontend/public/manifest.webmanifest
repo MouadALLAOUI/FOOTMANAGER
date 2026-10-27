@@ -1,0 +1,58 @@
+{
+  "id": "/?source=pwa",
+  "name": "أجي نقصرو",
+  "short_name": "أجي نقصرو",
+  "description": "المنصة المغربية لتنظيم مباريات كرة القدم وحجز ملاعب القرب",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F3D2E",
+  "theme_color": "#0F3D2E",
+  "categories": ["sports"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "احجز ملعبك",
+      "short_name": "الملاعب",
+      "description": "احجز أقرب ملعب كرة قدم",
+      "url": "/stadiums",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "المباريات المباشرة",
+      "short_name": "مباشر",
+      "description": "تابع نتائج المباريات المباشرة",
+      "url": "/live",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "البطولات",
+      "short_name": "البطولات",
+      "description": "تصفح الدوريات وبطولات الأحياء",
+      "url": "/tournaments",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

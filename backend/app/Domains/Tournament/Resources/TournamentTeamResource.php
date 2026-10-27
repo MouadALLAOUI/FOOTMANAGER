@@ -29,28 +29,7 @@ class TournamentTeamResource extends JsonResource
                 'id' => $this->group->id,
                 'name' => $this->group->name,
             ] : null),
-            'weekly_subscriptions' => $this->whenLoaded('team', function () {
-                if (! $this->team) {
-                    return [];
-                }
-
-                return $this->team->terrainBookings()
-                    ->where('reservation_type', 'weekly_subscription')
-                    ->whereIn('status', ['approved', 'confirmed'])
-                    ->whereNull('archived_at')
-                    ->whereNull('cancelled_at')
-                    ->with('terrain:id,name,city')
-                    ->get()
-                    ->map(fn ($b) => [
-                        'id' => $b->id,
-                        'terrain_id' => $b->terrain_id,
-                        'terrain_name' => $b->terrain?->name,
-                        'day_of_week' => $b->day_of_week,
-                        'start_time' => $b->start_time,
-                        'end_time' => $b->end_time,
-                    ])
-                    ->all();
-            }),
+            'weekly_subscriptions' => [],
             'group_position' => $this->group_position,
             'status' => $this->status,
             'payment_status' => $this->payment_status,

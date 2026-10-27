@@ -67,12 +67,7 @@ class TournamentController extends Controller
 
     public function store(StoreTournamentRequest $request): JsonResponse
     {
-        $this->subscription->authorizeResource(
-            $request->user(),
-            'tournament_limit',
-            $this->subscription->currentUsage($request->user(), 'tournament_limit'),
-        );
-
+        // Tournament creation is unrestricted; plan/upgrade limits are disabled as a later feature.
         $data = $request->validated();
 
         if (in_array($data['tournament_format'], ['groups_knockout', 'groups_only'], true)) {

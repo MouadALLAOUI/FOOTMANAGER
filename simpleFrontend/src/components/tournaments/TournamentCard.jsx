@@ -1,15 +1,14 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCalendarDays, faMapPin, faTrophy, faUsers } from '@fortawesome/free-solid-svg-icons'
+import { Calendar, MapPin, Trophy, Users, Shield, ArrowUpRight } from 'lucide-react'
 import { hideBrokenImage } from '../../lib/imageErrors'
 
 const REGISTRATION_STYLES = {
-  open: 'bg-green-100 text-green-700',
-  upcoming: 'bg-blue-100 text-blue-700',
-  closed: 'bg-slate-100 text-slate-600',
-  in_progress: 'bg-orange-100 text-orange-700',
-  finished: 'bg-violet-100 text-violet-700',
+  open: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30',
+  upcoming: 'bg-sky-500/20 text-sky-300 border border-sky-500/30',
+  closed: 'bg-slate-700/50 text-slate-300 border border-slate-600/30',
+  in_progress: 'bg-amber-500/20 text-amber-300 border border-amber-500/30',
+  finished: 'bg-violet-500/20 text-violet-300 border border-violet-500/30',
 }
 
 function registrationState(tour) {
@@ -25,14 +24,15 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
   const state = registrationState(tour)
   const registered = Math.max(0, (tour.teams_count || 0) - (tour.remaining_teams || 0))
   const bannerStyle = {
-    backgroundImage: `linear-gradient(135deg, ${tour.primary_color || '#059669'} 0%, ${tour.secondary_color || '#022c22'} 100%)`,
+    backgroundImage: `linear-gradient(135deg, ${tour.primary_color || '#059669'} 0%, ${tour.secondary_color || '#0B1120'} 100%)`,
   }
 
   return (
     <article
-      className={`group flex h-full w-[82%] max-w-[320px] shrink-0 snap-start flex-col overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)] ${className}`}
+      className={`group flex h-full w-[85%] sm:w-auto max-w-[340px] shrink-0 snap-start flex-col overflow-hidden rounded-3xl transition-all duration-300 ease-out hover:-translate-y-1.5 shadow-xl border bg-[#0E1726] border-slate-800/90 text-white shadow-black/40 hover:border-emerald-500/40 hover:shadow-emerald-950/40 dark:bg-[#0E1726] dark:border-slate-800 ${className}`}
     >
-      <div className="relative h-[170px] overflow-hidden">
+      {/* Tournament Cover Header */}
+      <div className="relative h-[160px] overflow-hidden">
         {tour.cover_url ? (
           <img
             src={tour.cover_url}
@@ -40,94 +40,107 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
             loading="lazy"
             decoding="async"
             onError={hideBrokenImage}
-            className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.05]"
+            className="absolute inset-0 size-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (
-          <div style={bannerStyle} className="absolute inset-0" />
+          <div style={bannerStyle} className="absolute inset-0 opacity-90" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0E1726] via-[#0E1726]/40 to-transparent" />
 
+        {/* Status Badges */}
         <span
-          className={`absolute top-3 start-3 rounded-full px-3 py-1 text-[11px] font-bold shadow-sm ${REGISTRATION_STYLES[state]}`}
+          className={`absolute top-3 start-3 rounded-full px-3 py-1 text-[11px] font-black shadow-md backdrop-blur-md ${REGISTRATION_STYLES[state]}`}
         >
-          {t(`landing.tournaments.registration.${state}`)}
+          {t(`landing.tournaments.registration.${state}`, 'تسجيل مفتوح')}
         </span>
 
-        <span className="absolute bottom-3 end-3 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
-          <FontAwesomeIcon icon={faTrophy} className="size-3" />
-          {t(`status.${tour.status}`)}
+        <span className="absolute bottom-3 end-3 flex items-center gap-1.5 rounded-full bg-slate-900/80 px-2.5 py-0.5 text-[10px] font-black text-emerald-400 border border-slate-700/60 backdrop-blur-md">
+          <Trophy className="size-3 text-amber-400" />
+          <span>{t(`status.${tour.status}`, 'نشطة')}</span>
         </span>
 
+        {/* Logo Avatar */}
         {tour.logo_url ? (
           <img
             src={tour.logo_url}
             alt={tour.name}
             loading="lazy"
             onError={hideBrokenImage}
-            className="absolute -bottom-5 start-5 size-14 rounded-2xl object-cover shadow-md ring-4 ring-white"
+            className="absolute -bottom-4 start-4 size-13 rounded-2xl object-cover shadow-lg ring-2 ring-emerald-500/50 bg-[#0E1726]"
           />
         ) : (
-          <span className="absolute -bottom-5 start-5 grid size-14 place-items-center rounded-2xl bg-green-600 text-white shadow-md ring-4 ring-white">
-            <FontAwesomeIcon icon={faTrophy} className="size-6" />
+          <span className="absolute -bottom-4 start-4 grid size-13 place-items-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-lg ring-2 ring-emerald-500/40">
+            <Trophy className="size-6 text-white" />
           </span>
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-5 pt-7">
-        <h3 className="bidi-plaintext line-clamp-2 text-base font-extrabold leading-snug text-slate-900">{tour.name}</h3>
+      {/* Card Content */}
+      <div className="flex flex-1 flex-col p-4 pt-6">
+        <h3 className="bidi-plaintext line-clamp-1 text-sm sm:text-base font-black leading-snug text-white group-hover:text-emerald-400 transition-colors">
+          {tour.name}
+        </h3>
+
         {tour.description && (
-          <p className="bidi-plaintext mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">{tour.description}</p>
+          <p className="bidi-plaintext mt-1 line-clamp-2 text-xs leading-relaxed text-slate-400">
+            {tour.description}
+          </p>
         )}
 
-        <div className="mt-3 space-y-1.5 text-xs font-semibold text-slate-600">
-          <p className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faCalendarDays} className="size-3.5 shrink-0 text-slate-400" />
-            {tour.start_date}
-            {tour.end_date ? ` → ${tour.end_date}` : ''}
+        {/* Logistics & Metrics with Real DB Data */}
+        <div className="mt-3 space-y-1.5 text-xs font-bold text-slate-300 border-t border-slate-800/80 pt-2.5">
+          <p className="flex items-center gap-2 text-[11px] text-slate-400 truncate">
+            <Calendar className="size-3.5 shrink-0 text-emerald-400" />
+            <span>{tour.start_date}</span>
+            {tour.end_date && <span>← {tour.end_date}</span>}
           </p>
+
           {tour.location && (
-            <p className="flex items-center gap-2">
-              <FontAwesomeIcon icon={faMapPin} className="size-3.5 shrink-0 text-slate-400" />
+            <p className="flex items-center gap-2 text-[11px] text-slate-400 truncate">
+              <MapPin className="size-3.5 shrink-0 text-emerald-400" />
               <span className="bidi-plaintext min-w-0 truncate">{tour.location}</span>
             </p>
           )}
-          <p className="flex items-center gap-2">
-            <FontAwesomeIcon icon={faUsers} className="size-3.5 shrink-0 text-slate-400" />
-            {tour.teams_count
-              ? t('landing.tournaments.teamsFull', { registered, max: tour.teams_count })
-              : t('landing.tournaments.teams', { count: registered })}
+
+          <p className="flex items-center gap-2 text-[11px] text-slate-300">
+            <Users className="size-3.5 shrink-0 text-emerald-400" />
+            <span>
+              {tour.teams_count
+                ? `${registered} من أصل ${tour.teams_count} فرق مشاركة`
+                : `${registered} فرق مشاركة`}
+            </span>
           </p>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">
-            {t(`committee.tournaments.formats.${tour.tournament_format}`)}
+        {/* Format & Entry Badges */}
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="rounded-xl bg-slate-800/80 px-2 py-0.5 text-[10px] font-black text-slate-300 border border-slate-700/60">
+            {t(`committee.tournaments.formats.${tour.tournament_format}`, tour.tournament_format || 'دوري مجموعات')}
           </span>
-          {tour.requires_registration_fee ? (
-            <span className="rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-bold text-green-700">
-              {tour.registration_fee} {t('fieldsPage.card.currency')}
-            </span>
-          ) : (
-            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500">
-              {t('landing.tournaments.free')}
-            </span>
-          )}
+
+          <span className="rounded-xl bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black text-emerald-300 border border-emerald-500/30">
+            {tour.requires_registration_fee && tour.registration_fee > 0
+              ? `${tour.registration_fee} درهم`
+              : 'مشاركة مجانية'}
+          </span>
         </div>
 
         {tour.organizer && (
-          <p className="mt-3 text-[10px] font-semibold text-slate-400">
-            {t('public.tournaments.organizer')}: <span className="bidi-plaintext">{tour.organizer.name}</span>
+          <p className="mt-2 text-[10px] font-bold text-slate-400 truncate">
+            المنظم: <span className="text-slate-200">{tour.organizer.name}</span>
           </p>
         )}
 
-        <div className="flex-1" />
+        <div className="flex-1 min-h-2" />
 
+        {/* Action Link */}
         <Link
           to={`/tournaments/${tour.slug || tour.id}`}
-          className="mt-4 flex h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-green-500 text-sm font-bold text-white shadow-md shadow-green-500/25 transition-colors duration-300 ease-out hover:bg-green-700 active:scale-[0.98]"
+          className="mt-3 flex h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-xs font-black text-white shadow-md shadow-emerald-600/30 transition-all active:scale-95"
         >
-          <FontAwesomeIcon icon={faTrophy} className="size-4" />
-          {t('landing.tournaments.view')}
+          <Trophy className="size-3.5" />
+          <span>تفاصيل البطولة والنتائج</span>
+          <ArrowUpRight className="size-3.5 opacity-80" />
         </Link>
       </div>
     </article>

@@ -194,13 +194,13 @@ export default function TournamentDetail() {
           </div>
 
           {/* Actions in Hero */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             {/* Pending Delegated Results button */}
             {pendingCount > 0 && (
               <button
                 type="button"
                 onClick={handleReviewClick}
-                className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/20 bg-emerald-500 px-3.5 text-xs font-black text-white shadow-md hover:bg-emerald-600 transition-all active:scale-95 animate-pulse"
+                className="inline-flex min-h-[42px] sm:min-h-[36px] items-center gap-2 rounded-xl border border-white/20 bg-emerald-500 px-3.5 text-xs font-black text-white shadow-md hover:bg-emerald-600 transition-all active:scale-95 animate-pulse cursor-pointer"
                 title="توجد نتائج مباريات مسجلة عبر المندوب بانتظار المراجعة والاعتماد"
               >
                 <ShieldAlert className="size-3.5 shrink-0 text-white" />
@@ -217,7 +217,7 @@ export default function TournamentDetail() {
             <button
               type="button"
               onClick={() => setExportOpen(true)}
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#0F9D58] hover:bg-[#0c874b] px-3.5 text-xs font-bold text-white shadow-sm transition-all active:scale-95"
+              className="inline-flex min-h-[42px] sm:min-h-[36px] items-center gap-2 rounded-xl bg-[#0F9D58] hover:bg-[#0c874b] px-3.5 text-xs font-bold text-white shadow-sm transition-all active:scale-95 cursor-pointer"
             >
               <FileDown className="size-4" />
               <span>{t('committee.export.openButton') || 'تصدير / طباعة'}</span>
@@ -226,7 +226,7 @@ export default function TournamentDetail() {
             {/* Back to tournaments list */}
             <Link
               to="/committee/tournaments"
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 px-3.5 text-xs font-bold text-white transition-all active:scale-95"
+              className="inline-flex min-h-[42px] sm:min-h-[36px] items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 px-3.5 text-xs font-bold text-white transition-all active:scale-95"
             >
               <ArrowRight className="size-4 rtl:rotate-180" />
               <span>{t('committee.detail.back') || 'عودة للقائمة'}</span>
@@ -250,6 +250,23 @@ export default function TournamentDetail() {
             )}
           </p>
         </div>
+
+        {/* Notice for Draft Status on Mobile / Desktop */}
+        {tour.status === 'draft' && (
+          <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-500/20 border border-amber-400/40 p-3 text-xs text-amber-200">
+            <div className="flex items-center gap-2">
+              <span className="grid size-6 place-items-center rounded-lg bg-amber-500 text-slate-900 font-bold shrink-0">!</span>
+              <span>هذه البطولة ما زالت في مرحلة المسودة، انشرها لفتح باب التسجيل للعامة والفرق.</span>
+            </div>
+            <Link
+              to={`/committee/tournaments/wizard?id=${tour.id}`}
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-1 font-black text-xs transition-colors shadow-sm"
+            >
+              <span>متابعة خطوات النشر</span>
+              <ArrowRight className="size-3.5 rtl:rotate-180" />
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Prominent Athletic Navigation Bar with Scrolling Arrows */}

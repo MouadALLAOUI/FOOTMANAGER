@@ -1,13 +1,10 @@
 import { AlertCircle, Calendar, Check, CheckCheck, FileText, Loader2, Rocket, ShieldCheck, Sliders, UserPlus } from 'lucide-react'
 
 export const WIZARD_STEPS = [
-  { id: 1, key: 'basic', label: 'المعلومات الأساسية', icon: FileText, desc: 'الاسم، التواريخ، والملعب' },
-  { id: 2, key: 'format', label: 'نظام وقواعد البطولة', icon: Sliders, desc: 'الصيغة، الفرق، والتوقيت' },
-  { id: 3, key: 'registration', label: 'تسجيل الفرق', icon: UserPlus, desc: 'إشراك الفرق ورسوم التسجيل' },
-  { id: 4, key: 'teams_review', label: 'مراجعة وتأكيد الفرق', icon: CheckCheck, desc: 'الموافقة واكتمال العدد' },
-  { id: 5, key: 'scheduling', label: 'القرعة والملاعب', icon: Calendar, desc: 'المجموعات وجدولة المباريات' },
-  { id: 6, key: 'operations', label: 'الجاهزية التشغيلية', icon: ShieldCheck, desc: 'الحكام وروابط النتائج' },
-  { id: 7, key: 'publish', label: 'المراجعة والنشر', icon: Rocket, desc: 'الفحص النهائي والإطلاق' },
+  { id: 1, key: 'basic', label: 'المعلومات الأساسية والقواعد', icon: FileText, desc: 'الاسم، التواريخ، الملعب، والصيغة مع النصائح والإرشادات' },
+  { id: 2, key: 'publish', label: 'نشر البطولة', icon: Rocket, desc: 'فتح باب التسجيل العام للفرق والجمهور' },
+  { id: 3, key: 'teams', label: 'إدارة وتسجيل الفرق', icon: UserPlus, desc: 'الإضافة المباشرة، الفريق الحر، ورابط الواتساب' },
+  { id: 4, key: 'finalize', label: 'إغلاق التسجيل', icon: CheckCheck, desc: 'تثبيت الفرق والانتقال لمركز الإدارة والقرعة' },
 ]
 
 export default function ProgressHeader({
@@ -35,7 +32,7 @@ export default function ProgressHeader({
               {tournamentName || 'إنشاء بطولة جديدة'}
             </h2>
             <p className="text-[11px] font-semibold text-slate-500">
-              الخطوة {currentStep} من {totalSteps}: {WIZARD_STEPS[currentStep - 1]?.label}
+              المرحلة {currentStep} من {totalSteps}: {WIZARD_STEPS[currentStep - 1]?.label}
             </p>
           </div>
         </div>
@@ -76,7 +73,7 @@ export default function ProgressHeader({
 
       {/* Stepper Navigation (Horizontal Scrolling for Mobile) */}
       <div className="border-t border-slate-100 bg-slate-50/50">
-        <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-4 py-2 sm:px-6 scrollbar-none">
+        <div className="mx-auto flex max-w-7xl items-center gap-1.5 overflow-x-auto px-4 py-2 sm:px-6 scrollbar-none">
           {WIZARD_STEPS.map((step) => {
             const state = stepStates[step.id] || {}
             const isCurrent = currentStep === step.id
@@ -105,7 +102,7 @@ export default function ProgressHeader({
                 type="button"
                 disabled={!isAccessible}
                 onClick={() => isAccessible && onStepClick(step.id)}
-                className={`group flex shrink-0 items-center gap-2 rounded-2xl border px-3 py-2 text-start transition-all disabled:opacity-50 disabled:cursor-not-allowed ${badgeClass}`}
+                className={`group flex shrink-0 items-center gap-2 rounded-2xl border px-3.5 py-2 text-start transition-all disabled:opacity-50 disabled:cursor-not-allowed ${badgeClass}`}
                 title={step.desc}
               >
                 <span className={`grid size-6 shrink-0 place-items-center rounded-xl text-xs font-black transition-colors ${iconClass}`}>

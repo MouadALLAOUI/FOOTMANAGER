@@ -1,97 +1,95 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faArrowLeft,
-  faCalendarCheck,
-  faClock,
-  faHeart,
-  faMapPin,
-  faStar,
-} from '@fortawesome/free-solid-svg-icons'
-import { faHeart as faHeartRegular } from '@fortawesome/free-regular-svg-icons'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowUpRight, Clock, Heart, MapPin, Star, Users } from 'lucide-react'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import { toStadiumCard, formatCount } from '../../lib/adapters'
 import { hideBrokenImage } from '../../lib/imageErrors'
-import Carousel from '../../components/Carousel'
 import BookingModal from '../../components/public/BookingModal'
 import { usePublicActions } from '../../components/public/usePublicActions'
 
-function FieldCard({ card, liked, onToggleLike, onBook }) {
+function FieldCard({ card, liked, onToggleLike, onBook, isDark }) {
   const { t, i18n } = useTranslation()
 
   return (
-    <article className="group w-[82%] max-w-[320px] shrink-0 snap-start overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)]">
-      <div className="relative h-[220px] overflow-hidden bg-gradient-to-br from-emerald-600 via-emerald-800 to-slate-950">
-        <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.25),transparent_60%)]" />
+    <article
+      className={`group w-[260px] sm:w-[290px] shrink-0 snap-start flex flex-col justify-between overflow-hidden rounded-2xl border transition-all hover:scale-[1.01] ${
+        isDark
+          ? 'bg-[#121E33]/90 border-slate-700/60 shadow-md'
+          : 'bg-white border-slate-200/90 shadow-sm'
+      }`}
+    >
+      {/* Thumbnail Banner */}
+      <div className="relative h-[140px] overflow-hidden bg-slate-800">
         <img
           src={card.image}
           alt={card.name}
           loading="lazy"
           decoding="async"
           onError={hideBrokenImage}
-          className="relative size-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.05]"
+          className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
-        <span className="absolute top-3 end-3 rounded-full bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-md">
-          {t('landing.fields.available')}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+
+        {/* Available Pill */}
+        <span className="absolute top-2.5 end-2.5 rounded-full bg-emerald-500/90 backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-black text-white shadow-sm">
+          {card.isOpen ? 'متاح الآن' : 'متاح للحجز'}
         </span>
+
+        {/* Favorite Button */}
         <button
           type="button"
           onClick={() => onToggleLike(card)}
-          aria-label="favorite"
-          className="absolute top-3 start-3 grid size-9 place-items-center rounded-full bg-white/20 text-white shadow-sm ring-1 ring-white/30 backdrop-blur-md transition hover:scale-110 active:scale-95"
+          aria-label="إضافة للمفضلة"
+          className="absolute top-2.5 start-2.5 grid size-7 place-items-center rounded-full bg-black/40 text-white backdrop-blur-xs transition hover:scale-110 active:scale-95"
         >
-          <FontAwesomeIcon
-            icon={liked ? faHeart : faHeartRegular}
-            className="size-4 transition group-hover:scale-110"
-          />
+          <Heart className={`size-3.5 ${liked ? 'fill-rose-500 text-rose-500' : 'text-white'}`} />
         </button>
-        <span className="absolute bottom-3 start-3 flex items-center gap-1 rounded-full bg-black/30 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
-          <FontAwesomeIcon icon={faMapPin} className="size-3" />
-          {card.format}
+
+        {/* Stadium format badge */}
+        <span className="absolute bottom-2 start-2.5 flex items-center gap-1 rounded-md bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
+          <Users className="size-3 text-emerald-400" />
+          <span>{card.format || 'عشب اصطناعي'}</span>
         </span>
       </div>
 
-      <div className="p-6">
-        {card.rating != null && (
-          <div className="flex items-center gap-1.5">
-            <FontAwesomeIcon icon={faStar} className="size-4 text-amber-400" />
-            <span className="text-sm font-bold text-slate-800">{card.rating}</span>
+      {/* Card Body */}
+      <div className="p-3.5 flex flex-col flex-1 justify-between">
+        <div>
+          <div className="flex items-center justify-between gap-1 mb-1">
+            <h3 className={`text-xs sm:text-sm font-black truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+              {card.name}
+            </h3>
+            {card.rating != null && (
+              <span className="flex items-center gap-0.5 text-[11px] font-black text-amber-400 shrink-0">
+                <Star className="size-3 fill-amber-400" />
+                <span>{card.rating}</span>
+              </span>
+            )}
           </div>
-        )}
-        <h3
-          className={`bidi-plaintext truncate text-lg font-extrabold text-slate-900 ${
-            card.rating != null ? 'mt-2' : ''
-          }`}
-        >
-          {card.name}
-        </h3>
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-          <FontAwesomeIcon icon={faMapPin} className="size-4 shrink-0 text-slate-400" />
-          <span className="bidi-plaintext min-w-0 truncate">{card.location}</span>
-        </p>
-        <p className="mt-3 flex items-center gap-1.5 text-sm font-semibold text-slate-600">
-          <FontAwesomeIcon icon={faClock} className="size-4 text-slate-400" />
-          {card.isOpen ? t('landing.fields.openNow') : t('landing.fields.closed')}
-        </p>
-        <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+
+          <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-400 truncate mb-3">
+            <MapPin className="size-3 text-emerald-500 shrink-0" />
+            <span className="truncate">{card.location}</span>
+          </p>
+        </div>
+
+        {/* Price & Book Action */}
+        <div className="pt-2 border-t border-slate-700/20 flex items-center justify-between gap-2">
           <div>
-            <p className="text-xl font-extrabold text-green-600">
-              {formatCount(card.price, i18n.language)} {t('fieldsPage.card.currency')}
+            <p className="text-xs sm:text-sm font-black text-emerald-400">
+              {formatCount(card.price, i18n.language)} درهم
             </p>
-            <p className="mt-0.5 text-xs text-slate-400">
-              {t('landing.fields.perHour')}
-            </p>
+            <p className="text-[9px] text-slate-400">لكل ساعة</p>
           </div>
+
           <button
             type="button"
             onClick={() => onBook(card)}
-            className="flex h-12 items-center gap-2 rounded-[14px] bg-green-500 px-5 text-sm font-bold text-white shadow-md shadow-green-500/25 transition-colors duration-300 hover:bg-green-700 active:scale-[0.98]"
+            className="inline-flex items-center gap-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white shadow-sm transition-all active:scale-95 cursor-pointer"
           >
-            <FontAwesomeIcon icon={faCalendarCheck} className="size-4" />
-            {t('landing.fields.book')}
+            <span>احجز الآن</span>
           </button>
         </div>
       </div>
@@ -99,21 +97,7 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
   )
 }
 
-function SkeletonCard() {
-  return (
-    <div className="w-[82%] max-w-[320px] shrink-0 snap-start animate-pulse overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)]">
-      <div className="h-[220px] bg-slate-200" />
-      <div className="space-y-3 p-6">
-        <div className="h-4 w-16 rounded-full bg-slate-200" />
-        <div className="h-5 w-3/4 rounded-full bg-slate-200" />
-        <div className="h-3 w-1/2 rounded-full bg-slate-200" />
-        <div className="h-4 w-2/3 rounded-full bg-slate-200" />
-      </div>
-    </div>
-  )
-}
-
-export default function AvailableFields() {
+export default function AvailableFields({ theme = 'dark' }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [liked, setLiked] = useState({})
@@ -128,59 +112,71 @@ export default function AvailableFields() {
     setLiked((prev) => ({ ...prev, [card.name]: !prev[card.name] }))
   }
 
+  const isDark = theme === 'dark' || document.documentElement.classList.contains('dark')
+
+  if (!loading && cards.length === 0) {
+    return null
+  }
+
   return (
-    <section id="fields" className="bg-white py-14 sm:py-20 lg:py-[120px]">
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6">
-        <header className="flex flex-wrap items-end justify-between gap-6">
-          <div className="text-start">
-            <span className="mb-3 block h-1 w-10 rounded-full bg-green-500" aria-hidden="true" />
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 lg:text-4xl">
-              {t('landing.fields.title')}
+    <section id="fields" aria-labelledby="fields-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-6 sm:my-8">
+      <div
+        className={`relative overflow-hidden rounded-3xl border p-5 sm:p-7 transition-all ${
+          isDark
+            ? 'bg-[#14221C] border-emerald-900/50 shadow-2xl'
+            : 'bg-white border-slate-200 shadow-xl'
+        }`}
+      >
+        {/* Section Header */}
+        <header className="flex flex-wrap items-end justify-between gap-3 border-b pb-4 mb-5 border-emerald-900/40">
+          <div>
+            <h2
+              id="fields-heading"
+              className={`text-xl sm:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}
+            >
+              ملاعب القرب المتاحة للحجز
             </h2>
-            <p className="mt-2 sm:mt-3 max-w-xl text-xs sm:text-sm leading-relaxed text-slate-500 lg:text-base">
-              {t('landing.fields.subtitle')}
+            <p className="mt-1 text-xs sm:text-sm font-semibold text-slate-400">
+              اختر الملعب الأنسب لفريقك واحجز توقيتك المفضل بسهولة وسرعة
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/fields')}
-            className="group flex items-center gap-2 text-sm font-bold text-green-600 transition-colors hover:text-green-700"
+
+          <Link
+            to="/stadiums"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-black text-emerald-400 hover:text-emerald-300 transition-colors"
           >
-            <span>{t('landing.fields.viewAll')}</span>
-            <FontAwesomeIcon icon={faArrowLeft} className="size-4 transition-transform duration-300 group-hover:-translate-x-1 ltr:rotate-180 ltr:group-hover:translate-x-1" />
-          </button>
+            <span>عرض كافة الملاعب</span>
+            <ArrowUpRight className="size-4" />
+          </Link>
         </header>
 
-        <div className="mt-12">
+        {/* Fields Carousel Row */}
+        <div className="flex items-stretch gap-4 overflow-x-auto no-scrollbar snap-x scroll-smooth pb-2">
           {loading ? (
-            <Carousel showDots>
-              {[1, 2, 3].map((i) => (
-                <SkeletonCard key={i} />
-              ))}
-            </Carousel>
-          ) : cards.length === 0 ? (
-            <div className="flex flex-col items-center rounded-3xl border border-dashed border-slate-200 bg-white px-6 py-16 text-center">
-              <FontAwesomeIcon icon={faCalendarCheck} className="size-9 text-slate-300" />
-              <p className="mt-4 text-sm font-bold text-slate-600">{t('landing.fields.empty')}</p>
-              <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-400">{t('landing.fields.emptyDesc')}</p>
-            </div>
+            Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="w-[260px] sm:w-[290px] shrink-0 h-[240px] rounded-2xl bg-slate-800/40 animate-pulse border border-slate-700/30"
+              />
+            ))
           ) : (
-            <Carousel showDots>
-              {cards.map((card) => (
-                <FieldCard
-                  key={card.id}
-                  card={card}
-                  liked={!!liked[card.name]}
-                  onToggleLike={toggleLike}
-                  onBook={openBooking}
-                />
-              ))}
-            </Carousel>
+            cards.map((card) => (
+              <FieldCard
+                key={card.name}
+                card={card}
+                liked={Boolean(liked[card.name])}
+                onToggleLike={toggleLike}
+                onBook={openBooking}
+                isDark={isDark}
+              />
+            ))
           )}
         </div>
       </div>
 
-      <BookingModal open={Boolean(booking)} onClose={() => setBooking(null)} field={booking} />
+      {booking && (
+        <BookingModal stadium={booking} onClose={() => setBooking(null)} />
+      )}
     </section>
   )
 }

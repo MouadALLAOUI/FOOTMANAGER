@@ -42,6 +42,7 @@ class MatchRequestQuery
             ->where('target_team_id', $teamId)
             ->where('type', 'direct_challenge')
             ->where('status', 'open')
+            ->where('match_datetime', '>=', now())
             ->whereHas('hostTeam.manager', fn ($q) => $q->where('status', 'approved'))
             ->latest('match_datetime');
     }

@@ -89,7 +89,15 @@ class AuthController extends Controller
         $deviceId = (string) Str::uuid();
         $expiration = config('sanctum.expiration');
         $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
-        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+        $newToken = $user->createToken($deviceId, ['*'], $expiresAt);
+        $token = $newToken->plainTextToken;
+
+        try {
+            \Illuminate\Support\Facades\Cache::put("user-online:{$user->id}", now()->timestamp, now()->addMinutes(15));
+            $newToken->accessToken->forceFill(['last_used_at' => now()])->save();
+        } catch (\Throwable) {
+            // ignore
+        }
 
         return response()->json([
             'message' => 'تم تسجيل طلب الانضمام بنجاح، مرحباً بك في أجي نقصرو',
@@ -154,7 +162,15 @@ class AuthController extends Controller
 
         $expiration = config('sanctum.expiration');
         $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
-        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+        $newToken = $user->createToken($deviceId, ['*'], $expiresAt);
+        $token = $newToken->plainTextToken;
+
+        try {
+            \Illuminate\Support\Facades\Cache::put("user-online:{$user->id}", now()->timestamp, now()->addMinutes(15));
+            $newToken->accessToken->forceFill(['last_used_at' => now()])->save();
+        } catch (\Throwable) {
+            // ignore
+        }
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -451,7 +467,15 @@ class AuthController extends Controller
         $deviceId = (string) Str::uuid();
         $expiration = config('sanctum.expiration');
         $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
-        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+        $newToken = $user->createToken($deviceId, ['*'], $expiresAt);
+        $token = $newToken->plainTextToken;
+
+        try {
+            \Illuminate\Support\Facades\Cache::put("user-online:{$user->id}", now()->timestamp, now()->addMinutes(15));
+            $newToken->accessToken->forceFill(['last_used_at' => now()])->save();
+        } catch (\Throwable) {
+            // ignore
+        }
 
         return response()->json([
             'message' => 'تم تسجيل طلب حساب اللاعب بنجاح، مرحباً بك في أجي نقصرو',
@@ -495,7 +519,15 @@ class AuthController extends Controller
         $deviceId = (string) Str::uuid();
         $expiration = config('sanctum.expiration');
         $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
-        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+        $newToken = $user->createToken($deviceId, ['*'], $expiresAt);
+        $token = $newToken->plainTextToken;
+
+        try {
+            \Illuminate\Support\Facades\Cache::put("user-online:{$user->id}", now()->timestamp, now()->addMinutes(15));
+            $newToken->accessToken->forceFill(['last_used_at' => now()])->save();
+        } catch (\Throwable) {
+            // ignore
+        }
 
         return response()->json([
             'message' => 'تم تسجيل طلب حساب صاحب الملعب بنجاح، مرحباً بك في أجي نقصرو',
@@ -698,7 +730,15 @@ class AuthController extends Controller
         $deviceId = (string) Str::uuid();
         $expiration = config('sanctum.expiration');
         $expiresAt = $expiration ? now()->addMinutes((int) $expiration) : null;
-        $token = $user->createToken($deviceId, ['*'], $expiresAt)->plainTextToken;
+        $newToken = $user->createToken($deviceId, ['*'], $expiresAt);
+        $token = $newToken->plainTextToken;
+
+        try {
+            \Illuminate\Support\Facades\Cache::put("user-online:{$user->id}", now()->timestamp, now()->addMinutes(15));
+            $newToken->accessToken->forceFill(['last_used_at' => now()])->save();
+        } catch (\Throwable) {
+            // ignore
+        }
 
         return response()->json([
             'message' => 'تم تسجيل طلب حساب اللجنة المنظمة بنجاح، مرحباً بك في أجي نقصرو',

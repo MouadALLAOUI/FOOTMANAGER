@@ -164,6 +164,8 @@ Route::get('/search/suggest', [SearchController::class, 'suggest']);
 Route::get('/search/popular', [SearchController::class, 'popular']);
 
 Route::prefix('v1')->group(function () {
+    Route::get('/registered-teams', [\App\Http\Controllers\Public\PublicRegisteredTeamsController::class, 'index']);
+    Route::post('/friendly-matches/validate-challenge', [\App\Http\Controllers\Public\PublicRegisteredTeamsController::class, 'validateChallenge']);
     Route::get('/home', [HomeController::class, 'index']);
     Route::get('/plans', [PlansController::class, 'index']);
     Route::get('/stadiums', [PublicStadiumController::class, 'index']);
@@ -556,6 +558,7 @@ Route::get('/terrains/public', [StadiumController::class, 'publicTerrains']);
 
 Route::get('/leaderboard', [LeaderboardController::class, 'index']);
 Route::get('/leaderboard/players', [PlayerLeaderboardController::class, 'index']);
+Route::get('/registered-teams', [\App\Http\Controllers\Public\PublicRegisteredTeamsController::class, 'index']);
 
 Route::get('/terrains/{terrainId}/slots', [BookingController::class, 'getTerrainSlots']);
 

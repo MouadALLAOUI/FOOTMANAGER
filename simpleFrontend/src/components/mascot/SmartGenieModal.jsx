@@ -133,7 +133,7 @@ export default function SmartGenieModal() {
   return (
     <aside
       aria-label="الجني الذكي"
-      className="fixed bottom-20 end-4 sm:bottom-6 sm:end-6 z-50 flex flex-col items-end select-none"
+      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] end-4 sm:bottom-6 sm:end-6 z-50 flex flex-col items-end select-none"
       dir="rtl"
     >
       {/* Interactive Contextual Modal Popup */}
@@ -142,7 +142,7 @@ export default function SmartGenieModal() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="genie-modal-title"
-          className="fade-in mb-3 w-[360px] sm:w-[400px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[20px] border border-[#10B981] bg-[#0F172A] text-white shadow-2xl shadow-emerald-950/80 ring-1 ring-[#10B981]/30 flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200"
+          className="fade-in mb-3 w-[360px] sm:w-[400px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[20px] border border-[#10B981] bg-[#0F172A] text-white shadow-2xl shadow-emerald-950/80 ring-1 ring-[#10B981]/30 flex flex-col max-h-[75vh] animate-in fade-in zoom-in-95 duration-200"
         >
           {/* Header: Title, Mascot with Online Dot, and >=44px Close Button */}
           <div className="flex items-center justify-between gap-3 border-b border-emerald-500/20 bg-[#0a101d] px-4 py-3">

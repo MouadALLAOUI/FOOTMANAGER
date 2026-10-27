@@ -135,6 +135,28 @@ class User extends Authenticatable
         return Storage::disk('public')->url($path);
     }
 
+    public function isOnline(int $minutes = 15): bool
+    {
+        try {
+            $cached = \Illuminate\Support\Facades\Cache::get("user-online:{$this->id}");
+            if ($cached) {
+                return true;
+            }
+
+            $lastUsed = \Laravel\Sanctum\PersonalAccessToken::where('tokenable_id', $this->id)
+                ->where('tokenable_type', static::class)
+                ->max('last_used_at');
+
+            if ($lastUsed && \Illuminate\Support\Carbon::parse($lastUsed)->gt(now()->subMinutes($minutes))) {
+                return true;
+            }
+        } catch (\Throwable) {
+            // ignore
+        }
+
+        return false;
+    }
+
     public function team(): HasOne
     {
         return $this->hasOne(Team::class, 'manager_id');

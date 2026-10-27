@@ -12,9 +12,13 @@ import { useToast } from '../ui/Toast'
 export default function EnablePushNotifications({ className = '' }) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { supported, subscribed, busy, needsIOSHomeScreen, enable, disable, sendTest } = useWebPush()
+  const { supported, permission, subscribed, busy, needsIOSHomeScreen, enable, disable, sendTest } = useWebPush()
 
   const toggle = async () => {
+    if (permission === false) {
+      toast.error('تم حظر الإشعارات من إعدادات المتصفح. يرجى إلغاء الحظر من إعدادات المتصفح.')
+      return
+    }
     if (subscribed) {
       await disable()
       toast.info(t('notifications.push.disabled'))
@@ -30,10 +34,13 @@ export default function EnablePushNotifications({ className = '' }) {
     } else if (result?.reason === 'error') {
       toast.error(`${t('notifications.push.error')} ${result?.error || ''}`)
     }
-    // reason 'ios-home-screen' is surfaced inline by needsIOSHomeScreen
   }
 
   const sendTestNow = async () => {
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+      toast.error('لم يتم منح إذن الإشعارات في هذا المتصفح')
+      return
+    }
     const result = await sendTest()
     if (result?.ok) toast.success(t('notifications.push.testSent'))
     else if (result?.reason === 'not-subscribed') toast.info(t('notifications.push.testNotSubscribed'))
@@ -54,14 +61,20 @@ export default function EnablePushNotifications({ className = '' }) {
             <p className="text-[11px] font-semibold text-slate-400">{t('notifications.push.desc')}</p>
           </div>
         </div>
-        <Toggle checked={subscribed} onChange={toggle} disabled={busy} label={t('notifications.push.toggle')} />
+        <Toggle checked={subscribed} onChange={toggle} disabled={busy || permission === false} label={t('notifications.push.toggle')} />
       </div>
+
+      {permission === false && (
+        <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-800">
+          تم حظر الإشعارات في هذا المتصفح. يمكنك تفعيلها يدويًا من إعدادات موقع المتصفح.
+        </div>
+      )}
 
       <div className="mt-3">
         <button
           type="button"
           onClick={sendTestNow}
-          disabled={busy || !subscribed}
+          disabled={busy || !subscribed || permission === false}
           className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Send className="size-3.5" />
@@ -91,12 +104,16 @@ export function IosNudge() {
 
 export function PushEnableBanner() {
   const { t } = useTranslation()
-  const { supported, subscribed, busy, needsIOSHomeScreen, enable, sendTest } = useWebPush()
+  const { supported, permission, subscribed, busy, needsIOSHomeScreen, enable, sendTest } = useWebPush()
   const { toast } = useToast()
 
   if (!supported) return null
 
   const confirm = async () => {
+    if (permission === false) {
+      toast.error('تم حظر الإشعارات من إعدادات المتصفح.')
+      return
+    }
     const result = await enable()
     if (result?.ok) toast.success(t('notifications.push.enabled'))
     else if (result?.reason === 'denied') toast.error(t('notifications.push.denied'))
@@ -105,13 +122,24 @@ export function PushEnableBanner() {
   }
 
   const sendTestNow = async () => {
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+      toast.error('لم يتم منح إذن الإشعارات في هذا المتصفح')
+      return
+    }
     const result = await sendTest()
     if (result?.ok) toast.success(t('notifications.push.testSent'))
     else if (result?.reason === 'not-subscribed') toast.info(t('notifications.push.testNotSubscribed'))
     else toast.error(result?.message || t('notifications.push.testFailed'))
   }
 
-  const primary = subscribed
+  const primary = permission === false
+    ? {
+        label: 'الإشعارات محظورة',
+        onClick: () => toast.error('يرجى تفعيل الإشعارات من إعدادات المتصفح'),
+        cls: 'bg-rose-600 hover:bg-rose-700',
+        icon: BellOff,
+      }
+    : subscribed
     ? {
         label: t('notifications.push.test'),
         onClick: sendTestNow,
@@ -126,17 +154,33 @@ export function PushEnableBanner() {
       }
 
   return (
-    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className={`mb-4 flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-start sm:justify-between ${
+      permission === false
+        ? 'border-rose-200 bg-rose-50 text-rose-900'
+        : 'border-emerald-200 bg-emerald-50 text-emerald-900'
+    }`}>
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-600">
+        <span className={`grid size-9 shrink-0 place-items-center rounded-xl ${
+          permission === false ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'
+        }`}>
           {subscribed ? <BellRing className="size-4" /> : <BellOff className="size-4" />}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-extrabold text-emerald-900">
-            {subscribed ? t('notifications.push.title') : t('notifications.push.nudgeTitle')}
+          <p className="text-sm font-extrabold">
+            {permission === false
+              ? 'إشعارات المتصفح محظورة'
+              : subscribed
+              ? t('notifications.push.title')
+              : t('notifications.push.nudgeTitle')}
           </p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-emerald-700">
-            {subscribed ? t('notifications.push.testHint') : t('notifications.push.nudgeBody')}
+          <p className={`mt-0.5 text-[11px] leading-relaxed ${
+            permission === false ? 'text-rose-700' : 'text-emerald-700'
+          }`}>
+            {permission === false
+              ? 'قمت بحظر الإشعارات مسبقًا في هذا المتصفح. يمكنك فك الحظر يدويًا من إعدادات الموقع في شريط العنوان.'
+              : subscribed
+              ? t('notifications.push.testHint')
+              : t('notifications.push.nudgeBody')}
           </p>
           {needsIOSHomeScreen && <IosNudge />}
         </div>
@@ -145,7 +189,7 @@ export function PushEnableBanner() {
         <button
           type="button"
           onClick={primary.onClick}
-          disabled={busy}
+          disabled={busy || permission === false}
           className={`inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors disabled:opacity-50 ${primary.cls}`}
         >
           <primary.icon className="size-3.5" />

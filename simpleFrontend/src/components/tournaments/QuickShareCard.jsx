@@ -93,7 +93,7 @@ export default function QuickShareCard({
             <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
               <span>روابط المشاركة السريعة</span>
               <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.2 text-[10px] font-bold text-emerald-400">
-                روابط مختصرة ⚡
+                روابط مختصرة
               </span>
             </h4>
             <p className="text-[11px] text-slate-400">
@@ -108,7 +108,7 @@ export default function QuickShareCard({
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#10B981] hover:bg-emerald-600 text-white font-bold text-xs px-4 py-2.5 shadow-md shadow-emerald-950/50 transition-all shrink-0 cursor-pointer active:scale-95"
         >
           <MessageCircle className="size-4" />
-          <span>مشاركة سريعة عبر واتساب 📲</span>
+          <span>مشاركة سريعة عبر واتساب</span>
         </button>
       </div>
 
@@ -138,7 +138,7 @@ export default function QuickShareCard({
               }`}
             >
               {copiedJoin ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-              <span>{copiedJoin ? 'تم النسخ! ✓' : 'نسخ الرابط'}</span>
+              <span>{copiedJoin ? 'تم النسخ!' : 'نسخ الرابط'}</span>
             </button>
           </div>
         </div>
@@ -169,7 +169,7 @@ export default function QuickShareCard({
                 }`}
               >
                 {copiedTour ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                <span>{copiedTour ? 'تم النسخ! ✓' : 'نسخ الرابط'}</span>
+                <span>{copiedTour ? 'تم النسخ!' : 'نسخ الرابط'}</span>
               </button>
             </div>
           </div>

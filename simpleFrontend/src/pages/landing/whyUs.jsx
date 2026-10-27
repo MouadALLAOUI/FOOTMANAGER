@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faBolt,
@@ -20,7 +21,7 @@ function FieldIllustration() {
     <svg
       viewBox="0 0 640 500"
       fill="none"
-      className="w-full drop-shadow-[0_30px_60px_rgba(0,0,0,0.55)]"
+      className="w-full drop-shadow-[0_20px_40px_rgba(0,0,0,0.45)]"
       aria-hidden="true"
     >
       <defs>
@@ -109,82 +110,67 @@ export default function WhyUs() {
   const { t } = useTranslation()
 
   return (
-    <section className="bg-white pt-[100px] pb-[160px] lg:pt-[120px] lg:pb-[140px]">
-      <div className="mx-auto max-w-[1400px] px-6">
-        <header className="mx-auto max-w-2xl text-center">
-          <span className="mb-3 block h-1 w-10 rounded-full bg-green-500" aria-hidden="true" />
-          <h2 className="text-3xl font-black text-slate-900 lg:text-4xl">
+    <section aria-labelledby="why-us-heading" className="py-8 sm:py-14">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        {/* القسم الأول: لماذا أجي نقصرو */}
+        <header className="mx-auto max-w-2xl text-center mb-8 sm:mb-12">
+          <span className="mx-auto mb-2.5 block h-1 w-10 rounded-full bg-[#1F7A4D]" aria-hidden="true" />
+          <h2 id="why-us-heading" className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#14221C] tracking-tight">
             {t('landing.why.title')}
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-slate-500 lg:text-base">
+          <p className="mt-2 text-xs sm:text-sm lg:text-base leading-relaxed text-slate-600 font-medium">
             {t('landing.why.subtitle')}
           </p>
         </header>
 
-        <div className="mt-14 flex flex-wrap justify-center gap-4 sm:gap-8">
+        {/* شبكة المزايا الأربع */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {features.map(({ key, icon: Icon }) => (
             <article
               key={key}
-              className="group w-[calc(50%-0.5rem)] rounded-2xl bg-white p-4 text-center shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.15)] hover:ring-1 hover:ring-green-500 sm:w-[calc(50%-1rem)] sm:rounded-[24px] sm:p-9 lg:w-[calc(25%-1.5rem)]"
+              className="group rounded-2xl sm:rounded-3xl bg-white p-4 sm:p-7 text-center shadow-sm border border-slate-200/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-[#1F7A4D]"
             >
-              <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-green-50 transition-colors duration-300 group-hover:bg-green-100 sm:size-[76px] sm:rounded-[22px]">
-                <FontAwesomeIcon
-                  icon={Icon}
-                  className="size-5 text-green-600 transition-transform duration-300 ease-out group-hover:scale-110 sm:size-9"
-                />
+              <div className="mx-auto grid size-12 sm:size-16 place-items-center rounded-2xl bg-emerald-50 text-[#1F7A4D] transition-colors duration-300 group-hover:bg-[#1F7A4D] group-hover:text-white">
+                <FontAwesomeIcon icon={Icon} className="size-5 sm:size-7" />
               </div>
 
-              <h3 className="mt-3 text-sm font-extrabold text-slate-900 sm:mt-6 sm:text-lg">
+              <h3 className="mt-3 sm:mt-5 text-xs sm:text-base font-black text-[#14221C]">
                 {t(`landing.why.features.${key}.title`)}
               </h3>
-              <p className="mx-auto mt-1 line-clamp-2 max-w-[220px] text-xs leading-relaxed text-slate-500 sm:mt-2 sm:text-sm">
+              <p className="mx-auto mt-1 line-clamp-2 text-[11px] sm:text-xs leading-relaxed text-slate-600 font-medium">
                 {t(`landing.why.features.${key}.description`)}
               </p>
             </article>
           ))}
         </div>
 
-        <div className="relative mt-14 overflow-hidden rounded-[28px] bg-[#111827] px-6 py-14 sm:p-[60px]">
+        {/* القسم الثاني: هل تملك ملعباً؟ (قسم داكن مخصص) */}
+        <div className="relative mt-10 sm:mt-14 overflow-hidden rounded-[24px] sm:rounded-[32px] bg-[#0F172A] border border-slate-700/60 p-6 sm:p-12 shadow-2xl">
           <div
-            className="animate-gradient-move pointer-events-none absolute -inset-24 bg-[radial-gradient(60%_80%_at_18%_15%,rgba(16,185,129,0.18),transparent_60%),radial-gradient(50%_70%_at_92%_100%,rgba(16,185,129,0.12),transparent_60%)]"
+            className="pointer-events-none absolute -inset-24 bg-[radial-gradient(60%_80%_at_18%_15%,rgba(31,122,77,0.22),transparent_60%),radial-gradient(50%_70%_at_92%_100%,rgba(16,185,129,0.15),transparent_60%)]"
             aria-hidden="true"
           />
-          <svg
-            className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.06]"
-            viewBox="0 0 1440 400"
-            preserveAspectRatio="xMidYMid slice"
-            fill="none"
-            aria-hidden="true"
-          >
-            <g stroke="#ffffff" strokeWidth="2">
-              <line x1="0" y1="200" x2="1440" y2="200" />
-              <line x1="720" y1="0" x2="720" y2="400" />
-              <circle cx="720" cy="200" r="120" />
-              <rect x="140" y="70" width="220" height="260" />
-              <rect x="1080" y="70" width="220" height="260" />
-            </g>
-          </svg>
 
-          <div className="relative flex flex-wrap items-center gap-12 lg:flex-nowrap">
+          <div className="relative z-10 flex flex-col-reverse items-center gap-8 lg:flex-row lg:justify-between">
             <div className="w-full text-center lg:w-1/2 lg:text-start">
-              <h3 className="text-3xl font-black leading-[1.25] text-white lg:text-[40px]">
+              <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-[1.25] text-white">
                 {t('landing.why.cta.title1')}{' '}
-                <span className="text-green-400">{t('landing.why.cta.title2')}</span>
+                <span className="text-emerald-400">{t('landing.why.cta.title2')}</span>
               </h3>
-              <p className="mt-5 text-sm leading-relaxed text-slate-300 lg:text-base">
+              <p className="mt-3 text-xs sm:text-sm lg:text-base leading-relaxed text-slate-300 font-medium">
                 {t('landing.why.cta.description')}
               </p>
-              <button
-                type="button"
-                className="mt-9 inline-flex h-[58px] items-center gap-2 rounded-[18px] bg-green-500 px-9 text-base font-bold text-white shadow-[0_14px_35px_rgba(22,163,74,0.45)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-[0_20px_50px_rgba(22,163,74,0.6)] active:translate-y-0"
+              <Link
+                to="/stadiums"
+                className="mt-6 sm:mt-8 inline-flex items-center gap-2 rounded-2xl bg-[#1F7A4D] hover:bg-[#1A6841] px-7 py-3 sm:py-3.5 text-xs sm:text-sm font-black text-white shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-98"
               >
-                <FontAwesomeIcon icon={faPlus} className="size-5" />
-                {t('landing.why.cta.button')}
-              </button>
+                <FontAwesomeIcon icon={faPlus} className="size-4" />
+                <span>{t('landing.why.cta.button')}</span>
+              </Link>
             </div>
 
             <div className="flex w-full justify-center lg:w-1/2 lg:justify-end">
-              <div className="animate-float w-full max-w-[520px]">
+              <div className="w-full max-w-[380px] sm:max-w-[460px]">
                 <FieldIllustration />
               </div>
             </div>

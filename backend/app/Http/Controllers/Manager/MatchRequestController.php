@@ -316,6 +316,12 @@ class MatchRequestController extends Controller
             ], 403);
         }
 
+        if (! $targetTeam->manager || ! $targetTeam->manager->isOnline()) {
+            return response()->json([
+                'message' => 'مسير الفريق غير متصل حالياً. لا يمكن إرسال التحدي إلا عندما يكون مسير الفريق متصلاً.',
+            ], 422);
+        }
+
         $matchRequest = DB::transaction(function () use ($validated, $teamId, $needsPlayers, $positionsNeeded) {
             $playerFormat = null;
             if (! empty($validated['stadium_id'])) {

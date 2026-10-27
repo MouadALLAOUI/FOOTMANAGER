@@ -136,8 +136,8 @@ export default function Navbar() {
       <div
         className={`mx-auto flex h-[80px] items-center justify-between px-4 sm:px-6 transition-all duration-[350ms] ease-out ${
           scrolled
-            ? 'w-[calc(100%-20px)] sm:w-[calc(100%-60px)] max-w-[1400px] rounded-[20px] bg-[rgba(10,16,26,0.78)] shadow-[0_24px_60px_rgba(2,6,23,0.55)] ring-1 ring-white/10 backdrop-blur-[18px]'
-            : 'w-full max-w-[1400px] bg-transparent'
+            ? 'w-[calc(100%-20px)] sm:w-[calc(100%-60px)] max-w-[1400px] rounded-[20px] bg-[#0F172A]/95 shadow-[0_20px_50px_rgba(2,6,23,0.6)] ring-1 ring-white/15'
+            : 'w-full max-w-[1400px] bg-[#0F172A]/90 sm:bg-transparent border-b border-white/5 sm:border-transparent'
         }`}
       >
         <div className="flex items-center gap-4 lg:gap-8">

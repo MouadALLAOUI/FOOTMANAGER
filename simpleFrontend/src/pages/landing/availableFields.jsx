@@ -76,12 +76,20 @@ function FieldCard({ card, liked, onToggleLike, onBook, isDark }) {
         </div>
 
         {/* Price & Book Action */}
-        <div className="pt-2 border-t border-slate-700/20 flex items-center justify-between gap-2">
+        <div className="pt-2 border-t border-slate-700/40 flex items-center justify-between gap-2">
           <div>
-            <p className="text-xs sm:text-sm font-black text-emerald-400">
-              {formatCount(card.price, i18n.language)} درهم
-            </p>
-            <p className="text-[9px] text-slate-400">لكل ساعة</p>
+            {!card.price || Number(card.price) === 0 ? (
+              <p className="text-xs sm:text-sm font-bold text-slate-300">
+                السعر عند التواصل
+              </p>
+            ) : (
+              <>
+                <p className="text-xs sm:text-sm font-black text-emerald-400">
+                  {Math.round(Number(card.price))} درهم
+                </p>
+                <p className="text-[9px] text-slate-400">لكل ساعة</p>
+              </>
+            )}
           </div>
 
           <button
@@ -120,23 +128,14 @@ export default function AvailableFields({ theme = 'dark' }) {
 
   return (
     <section id="fields" aria-labelledby="fields-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-6 sm:my-8">
-      <div
-        className={`relative overflow-hidden rounded-3xl border p-5 sm:p-7 transition-all ${
-          isDark
-            ? 'bg-[#14221C] border-emerald-900/50 shadow-2xl'
-            : 'bg-white border-slate-200 shadow-xl'
-        }`}
-      >
+      <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-[#0F172A] p-5 sm:p-7 text-white shadow-2xl">
         {/* Section Header */}
-        <header className="flex flex-wrap items-end justify-between gap-3 border-b pb-4 mb-5 border-emerald-900/40">
+        <header className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-800 pb-4 mb-5">
           <div>
-            <h2
-              id="fields-heading"
-              className={`text-xl sm:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}
-            >
+            <h2 id="fields-heading" className="text-xl sm:text-2xl font-black text-white">
               ملاعب القرب المتاحة للحجز
             </h2>
-            <p className="mt-1 text-xs sm:text-sm font-semibold text-slate-400">
+            <p className="mt-1 text-xs sm:text-sm font-semibold text-slate-300">
               اختر الملعب الأنسب لفريقك واحجز توقيتك المفضل بسهولة وسرعة
             </p>
           </div>

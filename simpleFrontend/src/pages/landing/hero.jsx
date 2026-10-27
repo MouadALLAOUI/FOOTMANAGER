@@ -8,6 +8,7 @@ import {
   Search,
   Shield,
   Sparkles,
+  Target,
   Trophy,
   User,
   X,
@@ -201,7 +202,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
           className="leading-tight sm:leading-snug max-w-3xl tracking-tight text-white"
         >
           <span className="block text-[23px] xs:text-3xl sm:text-5xl md:text-6xl font-black">
-            الكورة كتجمعنا...
+            الكرة تجمعنا...
           </span>
           <span className="block mt-1 sm:mt-3 text-lg xs:text-2xl sm:text-4xl md:text-5xl font-black">
             مباريات محلية بنكهة احترافية.
@@ -216,7 +217,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
           }}
           className="mt-2 sm:mt-4 max-w-xl text-[13px] xs:text-[14px] sm:text-[15px] leading-relaxed font-bold text-white/90"
         >
-          كل ما يحتاجه المنظم واللاعب في مكان واحد، وبأداء صاروخي.
+          كل ما يحتاجه المنظّم واللاعب في مكان واحد، وبأداء احترافي.
         </p>
 
         {/* CTA Buttons */}
@@ -309,7 +310,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-800 text-[10px] font-black">
-                              🏆
+                              <Trophy className="size-3.5" />
                             </span>
                             <span className="truncate">{tour.name}</span>
                           </div>
@@ -339,7 +340,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-black">
-                              ⚽
+                              <Target className="size-3.5" />
                             </span>
                             <span className="truncate">{pl.name}</span>
                           </div>
@@ -369,7 +370,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-sky-100 text-sky-800 text-[10px] font-black">
-                              🛡️
+                              <Shield className="size-3.5" />
                             </span>
                             <span className="truncate">{tm.name}</span>
                           </div>
@@ -399,7 +400,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-800 text-[10px] font-black">
-                              🏟️
+                              <Landmark className="size-3.5" />
                             </span>
                             <span className="truncate">{std.name}</span>
                           </div>

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faFutbol } from '@fortawesome/free-solid-svg-icons'
 import {
   faFacebook,
   faInstagram,
@@ -59,76 +58,34 @@ export default function Footer() {
         <div className="absolute -bottom-48 end-0 size-[440px] rounded-full bg-[radial-gradient(circle,rgba(22,163,74,0.14),transparent_65%)] blur-[70px]" />
       </div>
 
-      <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 pt-16 lg:pt-20">
-        <div className="relative">
-          <div className="overflow-hidden rounded-[24px] sm:rounded-[30px] bg-gradient-to-l from-green-600/50 via-[#134e2e] to-slate-900 px-5 py-8 sm:px-8 sm:py-12 shadow-[0_45px_100px_rgba(2,6,23,0.65),0_25px_70px_rgba(22,163,74,0.25)] ring-1 ring-white/15 lg:p-[50px]">
-          <FontAwesomeIcon
-            icon={faFutbol}
-            aria-hidden="true"
-            className="animate-float pointer-events-none absolute -top-6 end-8 size-24 text-white/10"
-          />
-          <FontAwesomeIcon
-            icon={faFutbol}
-            aria-hidden="true"
-            className="animate-float pointer-events-none absolute -bottom-8 start-10 size-16 text-white/10"
-            style={{ animationDelay: '1.6s' }}
-          />
-
-          <div className="relative flex flex-col items-center justify-between gap-8 text-center lg:flex-row lg:text-start">
-            <div className="max-w-xl">
-              <h2 className="text-xl sm:text-2xl font-black leading-[1.3] text-white lg:text-[34px]">
-                {t('landing.footer.banner.title')}
-              </h2>
-              <p className="mt-3 text-xs sm:text-sm leading-relaxed text-slate-300 lg:text-base">
-                {t('landing.footer.banner.subtitle')}
-              </p>
-            </div>
-
-            <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
-              <button
-                type="button"
-                className="flex h-[50px] sm:h-[54px] w-full sm:w-auto justify-center items-center gap-2.5 rounded-2xl bg-green-500 px-7 text-sm font-bold text-white shadow-[0_16px_40px_rgba(22,163,74,0.45)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-400 hover:shadow-[0_22px_55px_rgba(22,163,74,0.6)] active:translate-y-0"
-              >
-                <SocialIcon name="facebook" />
-                {t('landing.footer.banner.facebook')}
-              </button>
-              <button
-                type="button"
-                className="flex h-[50px] sm:h-[54px] w-full sm:w-auto justify-center items-center gap-2.5 rounded-2xl border border-white/25 px-7 text-sm font-bold text-white backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-green-400 hover:text-green-300 hover:shadow-[0_16px_40px_rgba(22,163,74,0.25)] active:translate-y-0"
-              >
-                <SocialIcon name="instagram" />
-                {t('landing.footer.banner.instagram')}
-              </button>
-            </div>
-          </div>
-          </div>
-        </div>
-
-        <div className="pt-14 pb-[70px]">
-          <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 pt-12 lg:pt-16">
+        <div className="pb-10 sm:pb-14">
+          <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Branding Column */}
             <div className="text-center sm:text-start">
               <div className="flex items-center justify-center gap-3 sm:justify-start">
                 <img
                   src="/logo.jpeg"
-                  alt=""
+                  alt="أجي نقصرو"
                   className="size-12 shrink-0 rounded-2xl object-cover shadow-[0_10px_30px_rgba(22,163,74,0.4)] ring-1 ring-white/20"
                 />
                 <span className="text-xl font-black text-white">أجي نقصرو</span>
               </div>
-              <p className="mt-5 max-w-[280px] text-sm leading-relaxed text-slate-400">
+              <p className="mt-4 max-w-[280px] text-xs sm:text-sm leading-relaxed text-slate-300 font-medium">
                 {t('landing.footer.description')}
               </p>
             </div>
 
+            {/* Quick Links Column */}
             <nav className="text-center sm:text-start">
-              <h3 className="text-sm font-bold text-white">{t('landing.footer.quick.title')}</h3>
-              <ul className="mt-5 space-y-3">
+              <h3 className="text-sm font-extrabold text-white">{t('landing.footer.quick.title')}</h3>
+              <ul className="mt-4 space-y-2.5">
                 {quickLinks.map((key) => (
                   <li key={key}>
                     <button
                       type="button"
                       onClick={() => goTo(key)}
-                      className="text-sm text-slate-400 transition-colors duration-300 hover:text-green-400"
+                      className="text-xs sm:text-sm text-slate-300 transition-colors duration-300 hover:text-emerald-400 font-medium cursor-pointer"
                     >
                       {t(`landing.footer.quick.links.${key}`)}
                     </button>
@@ -137,15 +94,16 @@ export default function Footer() {
               </ul>
             </nav>
 
+            {/* Support Links Column */}
             <nav className="text-center sm:text-start">
-              <h3 className="text-sm font-bold text-white">{t('landing.footer.support.title')}</h3>
-              <ul className="mt-5 space-y-3">
+              <h3 className="text-sm font-extrabold text-white">{t('landing.footer.support.title')}</h3>
+              <ul className="mt-4 space-y-2.5">
                 {supportLinks.map((key) => (
                   <li key={key}>
                     <button
                       type="button"
                       onClick={() => goTo(key)}
-                      className="text-sm text-slate-400 transition-colors duration-300 hover:text-green-400"
+                      className="text-xs sm:text-sm text-slate-300 transition-colors duration-300 hover:text-emerald-400 font-medium cursor-pointer"
                     >
                       {t(`landing.footer.support.links.${key}`)}
                     </button>
@@ -154,15 +112,16 @@ export default function Footer() {
               </ul>
             </nav>
 
+            {/* Social Media Column */}
             <div className="text-center sm:text-start">
-              <h3 className="text-sm font-bold text-white">{t('landing.footer.social.title')}</h3>
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+              <h3 className="text-sm font-extrabold text-white">{t('landing.footer.social.title')}</h3>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5 sm:justify-start">
                 {socials.map((key) => (
                   <button
                     key={key}
                     type="button"
                     aria-label={t(`landing.footer.social.labels.${key}`)}
-                    className="grid size-12 place-items-center rounded-full bg-white/5 text-slate-300 ring-1 ring-white/10 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-green-500 hover:text-white hover:shadow-[0_12px_32px_rgba(22,163,74,0.45)] hover:ring-green-500 active:translate-y-0"
+                    className="grid size-11 place-items-center rounded-2xl bg-white/10 text-slate-200 ring-1 ring-white/15 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-[#1F7A4D] hover:text-white hover:ring-[#1F7A4D] active:translate-y-0 cursor-pointer"
                   >
                     <SocialIcon name={key} />
                   </button>
@@ -171,30 +130,31 @@ export default function Footer() {
             </div>
           </div>
 
+          {/* Newsletter Form with Clear Visible Border and High Contrast */}
           <form
             onSubmit={subscribe}
-            className="mt-12 sm:mt-16 flex flex-col items-center justify-between gap-6 rounded-[24px] bg-white/5 px-5 py-6 sm:px-7 sm:py-8 ring-1 ring-white/10 lg:flex-row"
+            className="mt-10 sm:mt-14 flex flex-col items-center justify-between gap-5 rounded-[24px] bg-slate-900/90 border border-slate-700/80 p-5 sm:p-7 shadow-xl lg:flex-row"
           >
             <div className="text-center lg:text-start">
-              <h3 className="text-base sm:text-lg font-extrabold text-white">
+              <h3 className="text-base sm:text-lg font-black text-white">
                 {t('landing.footer.newsletter.title')}
               </h3>
-              <p className="mt-1 text-xs sm:text-sm text-slate-400">
+              <p className="mt-1 text-xs sm:text-sm text-slate-300 font-medium">
                 {t('landing.footer.newsletter.description')}
               </p>
             </div>
-            <div className="flex w-full max-w-xl flex-col gap-3 sm:flex-row">
+            <div className="flex w-full max-w-xl flex-col gap-2.5 sm:flex-row">
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('landing.footer.newsletter.placeholder')}
                 dir="rtl"
-                className="h-12 sm:h-14 w-full rounded-2xl bg-white/5 px-4 sm:px-5 text-sm text-white outline-none ring-1 ring-white/15 transition-all duration-300 placeholder:text-slate-500 focus:bg-white/10 focus:ring-2 focus:ring-green-500"
+                className="h-12 w-full rounded-2xl border-2 border-slate-500/80 bg-slate-950 px-4 text-xs sm:text-sm text-white placeholder:text-slate-400 outline-none transition-all duration-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/40"
               />
               <button
                 type="submit"
-                className="h-12 sm:h-14 shrink-0 rounded-2xl bg-green-500 px-6 sm:px-8 text-sm font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 hover:shadow-[0_18px_45px_rgba(22,163,74,0.55)] active:translate-y-0"
+                className="h-12 shrink-0 rounded-2xl bg-[#1F7A4D] hover:bg-[#1A6841] px-6 sm:px-8 text-xs sm:text-sm font-black text-white shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-98 cursor-pointer"
               >
                 {t('landing.footer.newsletter.button')}
               </button>
@@ -202,13 +162,14 @@ export default function Footer() {
           </form>
         </div>
 
-          <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 py-8 text-xs text-slate-500 sm:flex-row">
-            <p>
-              {t('landing.footer.bottom.copyright')} · {t('landing.footer.bottom.rights')}
-            </p>
-            <p>{t('landing.footer.bottom.madeIn')}</p>
-          </div>
+        {/* Footer Bottom Rights */}
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-800 py-6 text-xs text-slate-400 font-medium sm:flex-row">
+          <p>
+            {t('landing.footer.bottom.copyright')} · {t('landing.footer.bottom.rights')}
+          </p>
+          <p>{t('landing.footer.bottom.madeIn')}</p>
         </div>
+      </div>
     </footer>
   )
 }

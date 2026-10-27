@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -109,45 +109,7 @@ const COLOR_THEMES = [
   },
 ]
 
-// بيانات افتراضية أنيقة لضمان ظهور شريط النتائج بشكل مستمر في حال عدم وجود مباريات مكتملة حديثاً
-const FALLBACK_RECENT_MATCHES = [
-  {
-    id: 'fb-1',
-    home_team: { name: 'أمل الرباط', logo_url: '/logo.jpeg' },
-    away_team: { name: 'نهضة طنجة', logo_url: null },
-    home_score: 3,
-    away_score: 1,
-  },
-  {
-    id: 'fb-2',
-    home_team: { name: 'اتحاد البيضاء', logo_url: null },
-    away_team: { name: 'نجوم مراكش', logo_url: '/logo.jpeg' },
-    home_score: 2,
-    away_score: 2,
-  },
-  {
-    id: 'fb-3',
-    home_team: { name: 'صقور الأطلس', logo_url: '/logo.jpeg' },
-    away_team: { name: 'فرسان فاس', logo_url: null },
-    home_score: 4,
-    away_score: 0,
-  },
-  {
-    id: 'fb-4',
-    home_team: { name: 'وداد تمارة', logo_url: null },
-    away_team: { name: 'شباب سلا', logo_url: '/logo.jpeg' },
-    home_score: 1,
-    away_score: 2,
-  },
-  {
-    id: 'fb-5',
-    home_team: { name: 'أولمبيك أكادير', logo_url: '/logo.jpeg' },
-    away_team: { name: 'أشبال القنيطرة', logo_url: null },
-    home_score: 3,
-    away_score: 2,
-  },
-]
-
+// Ticker Item for genuine match results
 function TickerItem({ item, isDark }) {
   const hName = item.home_team?.name || item.homeTeam?.name || item.host_team?.name || 'فريق أ'
   const aName = item.away_team?.name || item.awayTeam?.name || 'فريق ب'
@@ -175,8 +137,8 @@ function TickerItem({ item, isDark }) {
             className="size-5 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0 bg-slate-800"
           />
         ) : (
-          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-emerald-500/25 border border-emerald-400/40 text-[9px] font-black text-emerald-300">
-            {hName.charAt(0)}
+          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#1F7A4D] text-[9px] font-black text-white">
+            {hName.slice(0, 2)}
           </span>
         )}
         <span className={`text-xs font-extrabold truncate max-w-[100px] ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
@@ -202,8 +164,8 @@ function TickerItem({ item, isDark }) {
             className="size-5 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0 bg-slate-800"
           />
         ) : (
-          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-slate-700/80 border border-slate-600/50 text-[9px] font-black text-slate-300">
-            {aName.charAt(0)}
+          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#1F7A4D] text-[9px] font-black text-white">
+            {aName.slice(0, 2)}
           </span>
         )}
       </div>
@@ -264,65 +226,77 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   // Live match if currently running
   const liveMatch = liveData?.live?.[0] || null
 
-  const displayRecent = recentMatches && recentMatches.length > 0 ? recentMatches : FALLBACK_RECENT_MATCHES
+  // Display confirmed results only, exclude 0-0, deduplicate
+  const displayRecent = useMemo(() => {
+    const list = recentMatches && Array.isArray(recentMatches) ? recentMatches : []
+    const seen = new Set()
+    return list.filter((item) => {
+      if (!item) return false
+      // Only confirmed/finished/completed results
+      const status = item.status || item.match?.status
+      if (status && !['completed', 'finished'].includes(status)) return false
 
-  // Upcoming matches list
-  const rawUpcoming =
-    liveData?.upcoming && liveData.upcoming.length > 0
-      ? liveData.upcoming
-      : liveData?.next
-      ? [liveData.next]
-      : []
+      // Score check: omit 0 - 0 scores
+      const hScore = item.match ? item.match.home_score : item.home_score
+      const aScore = item.match ? item.match.away_score : item.away_score
+      if (hScore === undefined || aScore === undefined) return false
+      if (Number(hScore) === 0 && Number(aScore) === 0) return false
 
-  // Demo fallback matches to ensure instant high-fidelity rendering
-  const demoMatches = [
-    {
-      id: 'demo-1',
-      tournament: { name: 'دوري أبطال الأحياء 2026' },
-      round: 'الجولة 5',
-      home_team: { name: 'فريق النهضة الرياضي', logo_url: null },
-      away_team: { name: 'اتحاد النجوم البيضاوي', logo_url: null },
-      stadium: { name: 'ملعب القرب الرياضي - الوازيس' },
-      scheduled_at: '2026-10-28 20:30:00',
-      match_datetime: '2026-10-28 20:30:00',
-    },
-    {
-      id: 'demo-2',
-      tournament: { name: 'كأس التحدي الرمضاني' },
-      round: 'نصف النهائي',
-      home_team: { name: 'شباب المستقبل', logo_url: null },
-      away_team: { name: 'صقور الأطلس الملكي', logo_url: null },
-      stadium: { name: 'ملعب النخيل الدولي - حي الرياض' },
-      scheduled_at: '2026-10-29 21:00:00',
-      match_datetime: '2026-10-29 21:00:00',
-    },
-    {
-      id: 'demo-3',
-      tournament: { name: 'دوري المحترفين الصيفي' },
-      round: 'الجولة الأخيرة',
-      home_team: { name: 'نجم الشباب الرياضي', logo_url: null },
-      away_team: { name: 'أمل المستقبل الرباطي', logo_url: null },
-      stadium: { name: 'ملعب المنزه البلدي - الدار البيضاء' },
-      scheduled_at: '2026-10-30 19:00:00',
-      match_datetime: '2026-10-30 19:00:00',
-    },
-  ]
+      // Deduplicate
+      const key = item.id ? String(item.id) : `${item.home_team_id || item.host_team_id}-${item.away_team_id}-${item.match_datetime || item.date}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [recentMatches])
 
-  const upcomingList =
-    rawUpcoming.length > 0
-      ? rawUpcoming
-      : tournaments.length > 0
-      ? tournaments.map((t, idx) => ({
-          id: `tour-${t.id || idx}`,
-          tournament: t,
-          round: 'الجولة 5',
-          home_team: { name: 'فريق النهضة الرياضي' },
-          away_team: { name: 'اتحاد النجوم' },
-          stadium: t.stadium || { name: 'ملعب القرب الرئيسي' },
-          scheduled_at: '2026-10-28 20:30:00',
-          match_datetime: '2026-10-28 20:30:00',
-        }))
-      : demoMatches
+  // Upcoming matches strictly from real database API data, excluding past fixtures
+  const rawUpcoming = useMemo(() => {
+    const now = Date.now() - 30 * 60 * 1000
+    const list =
+      liveData?.upcoming && liveData.upcoming.length > 0
+        ? liveData.upcoming
+        : liveData?.next
+        ? [liveData.next]
+        : []
+    return list.filter((m) => {
+      if (!m) return false
+      const dt = m.match_datetime || m.date || m.scheduled_at
+      if (dt) {
+        const time = new Date(dt).getTime()
+        if (!isNaN(time) && time < now) return false
+      }
+      return true
+    })
+  }, [liveData])
+
+  // Check if active tournaments include scheduled matches
+  const realTournamentUpcoming = useMemo(() => {
+    const now = Date.now() - 30 * 60 * 1000
+    const res = []
+    if (tournaments && Array.isArray(tournaments)) {
+      for (const t of tournaments) {
+        if (Array.isArray(t.fixtures)) {
+          for (const f of t.fixtures) {
+            if (f.status === 'scheduled' || f.status === 'pending') {
+              const dt = f.match_datetime || f.date || f.scheduled_at
+              if (dt) {
+                const time = new Date(dt).getTime()
+                if (!isNaN(time) && time < now) continue
+              }
+              res.push({
+                ...f,
+                tournament: t,
+              })
+            }
+          }
+        }
+      }
+    }
+    return res
+  }, [tournaments])
+
+  const upcomingList = rawUpcoming.length > 0 ? rawUpcoming : realTournamentUpcoming
 
   const currentMatch = upcomingList[upcomingIndex] || upcomingList[0] || null
   const totalUpcoming = upcomingList.length
@@ -490,7 +464,33 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   }
 
   if (!liveMatch && upcomingList.length === 0 && !loading) {
-    return null
+    return (
+      <section aria-labelledby="live-featured-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-4 sm:my-6">
+        <div className="relative overflow-hidden rounded-[28px] sm:rounded-[34px] border border-emerald-500/30 bg-[#0A161E] p-6 sm:p-8 text-center text-white shadow-xl">
+          <div className="mx-auto size-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 grid place-items-center mb-3">
+            <CalendarDays className="size-6 text-emerald-400" />
+          </div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 text-xs font-black text-emerald-300 mb-2">
+            جدول المباريات
+          </span>
+          <h2 id="live-featured-heading" className="text-base sm:text-lg font-black text-white">
+            لا توجد مباريات جارية أو قادمة مجدولة حالياً
+          </h2>
+          <p className="mt-1 text-xs text-slate-300 max-w-md mx-auto">
+            سيتم إدراج مواعيد المباريات الرسمية تلقائياً فور اعتمادها من قبل لجان تنظيم البطولات ومسيري الفرق.
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-3 flex-wrap">
+            <Link
+              to="/tournaments"
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-600 transition-colors"
+            >
+              <span>تصفح البطولات المتاحة</span>
+              <ArrowLeft className="size-3.5 rtl:rotate-0" />
+            </Link>
+          </div>
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -745,16 +745,15 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
 
                 {/* 4. Bottom Action Bar: Share Match Card & Remind Me Buttons */}
                 <div className="mt-3.5 sm:mt-5 flex items-center gap-2 sm:gap-3 no-share-capture">
-                  {/* Primary Share Button */}
+                  {/* Secondary Approved Style Share Button */}
                   <button
                     type="button"
                     onClick={handleShare}
                     disabled={sharing}
-                    className={`flex-1 flex items-center justify-center gap-1.5 sm:gap-2 rounded-full bg-gradient-to-r ${colorTheme.button} py-2.5 sm:py-3.5 px-3 sm:px-6 text-xs sm:text-sm font-black text-white shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-98 disabled:opacity-75 cursor-pointer`}
+                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border-2 border-[#1F7A4D] bg-[#14221C]/80 hover:bg-[#1F7A4D]/25 py-2.5 sm:py-3.5 px-3 sm:px-6 text-xs sm:text-sm font-black text-white shadow-md transition-all duration-300 hover:scale-[1.02] active:scale-98 disabled:opacity-75 cursor-pointer"
                   >
-                    <Zap className="size-3.5 sm:size-4 fill-amber-300 text-amber-300 shrink-0" />
                     <span className="truncate">{sharing ? 'جاري التجهيز...' : 'مشاركة بطاقة المباراة'}</span>
-                    <Share2 className="size-3.5 sm:size-4 shrink-0" />
+                    <Share2 className="size-3.5 sm:size-4 shrink-0 text-[#1F7A4D]" />
                   </button>
 
                   {/* Secondary Remind Me Button (Phase 1 visual styling) */}

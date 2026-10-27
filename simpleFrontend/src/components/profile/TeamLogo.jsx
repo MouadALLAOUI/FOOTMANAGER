@@ -28,6 +28,12 @@ export default function TeamLogo({
     setFailed(false)
   }, [imageSrc])
 
+  const trimmed = displayName.trim()
+  const words = trimmed.split(/\s+/).filter(Boolean)
+  const twoChars = words.length >= 2
+    ? (words[0].slice(0, 1) + words[1].slice(0, 1))
+    : trimmed.slice(0, 2) || 'ف'
+
   const inner = imageSrc && !failed ? (
     <img
       src={imageSrc}
@@ -39,10 +45,10 @@ export default function TeamLogo({
     />
   ) : (
     <span
-      style={{ backgroundColor: brand }}
+      style={{ backgroundColor: brand || '#1F7A4D' }}
       className={`grid shrink-0 place-items-center font-black text-white ${rounded} ${className} ${ring}`}
     >
-      <span className={fontSize}>{displayName.trim().charAt(0) || '؟'}</span>
+      <span className={fontSize}>{twoChars}</span>
     </span>
   )
 

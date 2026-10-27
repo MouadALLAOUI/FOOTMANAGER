@@ -16,6 +16,12 @@ class EnsureAccountNotBlocked
             return $next($request);
         }
 
+        try {
+            \Illuminate\Support\Facades\Cache::put("user-online:{$user->id}", now()->timestamp, now()->addMinutes(15));
+        } catch (\Throwable) {
+            // cache failures should never block requests
+        }
+
         if (in_array($user->status, ['blocked', 'rejected'], true)) {
             return response()->json([
                 'message' => $user->status === 'blocked'

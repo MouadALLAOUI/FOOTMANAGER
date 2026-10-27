@@ -70,14 +70,14 @@ export function formatMoroccoNotificationTime(dateStr) {
       'فبراير',
       'مارس',
       'أبريل',
-      'ماي',
+      'مايو',
       'يونيو',
-      'يوليوز',
-      'غشت',
-      'شتنبر',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
       'أكتوبر',
-      'نونبر',
-      'دجنبر',
+      'نوفمبر',
+      'ديسمبر',
     ]
     const day = new Intl.DateTimeFormat('en-US', { timeZone: tz, day: 'numeric' }).format(date)
     const monthIdx =

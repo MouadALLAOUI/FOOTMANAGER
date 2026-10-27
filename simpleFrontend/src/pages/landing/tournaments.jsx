@@ -47,24 +47,22 @@ export default function Tournaments({ theme = 'dark' }) {
       {hasTournaments && (
         <section id="tournaments" aria-labelledby="featured-tournaments-heading" className="py-8 sm:py-12">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
-            <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4 mb-6 border-emerald-900/40">
+            <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-4 mb-6 border-slate-300 dark:border-emerald-900/40">
               <div>
                 <h2
                   id="featured-tournaments-heading"
-                  className={`text-2xl sm:text-3xl font-black tracking-tight ${
-                    isDark ? 'text-white' : 'text-slate-900'
-                  }`}
+                  className="text-2xl sm:text-3xl font-black tracking-tight text-[#14221C] dark:text-white"
                 >
                   بطولات مميزة
                 </h2>
-                <p className="mt-1 text-xs sm:text-sm font-semibold text-slate-400">
+                <p className="mt-1 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
                   استكشف أحدث دوريات كرة القدم المحلية وسجّل فريقك للمنافسة على الألقاب الرسمية
                 </p>
               </div>
 
               <Link
                 to="/tournaments"
-                className="group inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-black text-emerald-400 hover:text-emerald-300 transition-colors"
+                className="group inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs sm:text-sm font-black text-[#1F7A4D] hover:text-[#14221C] dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
               >
                 <span>عرض كافة البطولات</span>
                 <ArrowUpRight className="size-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 rtl:group-hover:-translate-x-0.5" />

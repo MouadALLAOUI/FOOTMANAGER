@@ -18,6 +18,7 @@ class MatchFeedQuery
         ])
             ->withCount(['playerApplications as players_joined_count' => fn ($q) => $q->where('status', 'accepted')])
             ->where('status', 'open')
+            ->where('match_datetime', '>=', now())
             ->where(function ($q) {
                 $q->where('type', 'public_request')
                     ->orWhereNull('type');

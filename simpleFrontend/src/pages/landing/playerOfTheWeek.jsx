@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  Activity,
   CheckCircle2,
   ChevronLeft,
   Crown,
@@ -38,31 +39,32 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
     }
   }, [])
 
-  // Realistic fallback matching user's reference screenshot perfectly
-  const fallbackPlayer = {
-    name: 'MOHAMED Allaoui',
-    position: 'midfielder',
-    team: { name: 'فريق معتمد' },
-    stadium: 'ملعب مكونة',
-    city: 'قلعة مكونة',
-    photo_url: '/player-star.png',
-    goals: 9,
-    assists: 7,
-    matches_played: 12,
-    rating: 8.6,
+  // Hide entirely if no player selected by committee or still loading
+  if (!topPlayer || loading) {
+    return null
   }
 
-  const profile = topPlayer?.profile || topPlayer || fallbackPlayer
-  const playerName = profile.user?.name || profile.name || fallbackPlayer.name
-  const teamName = profile.team?.name || fallbackPlayer.team.name
-  const venueOrCity = profile.stadium || profile.city || fallbackPlayer.stadium
-  const position = formatPlayerPosition(profile.position) || 'midfielder'
+  const profile = topPlayer?.profile || topPlayer || {}
+  const playerName = profile.user?.name || profile.name || 'لاعب معتمد'
+  const teamName = profile.team?.name || 'فريق رياضي'
+  const venueOrCity = profile.stadium || profile.city || 'المغرب'
+  const position = formatPlayerPosition(profile.position) || 'لاعب وسط'
   const photoUrl = profile.photo_url || profile.avatar_url || '/player-star.png'
 
-  const goals = profile.goals ?? fallbackPlayer.goals
-  const assists = profile.assists ?? fallbackPlayer.assists
-  const matches = profile.matches_played ?? fallbackPlayer.matches_played
-  const rating = profile.rating ? Number(profile.rating).toFixed(1) : fallbackPlayer.rating
+  const goals = profile.goals ?? 0
+  const assists = profile.assists ?? 0
+  const matches = profile.matches_played ?? 0
+
+  // Strict data integrity: do not display contradictory stats (goals without matches) or unconfirmed players
+  if ((goals > 0 && matches === 0) || matches === 0) {
+    return null
+  }
+
+  const rating = profile.rating
+    ? Number(profile.rating).toFixed(1)
+    : profile.avg_rating
+    ? Number(profile.avg_rating).toFixed(1)
+    : '—'
 
   return (
     <section aria-labelledby="player-of-the-week-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-3 sm:my-4">
@@ -77,7 +79,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
         {/* 1. Header Row: Amber Crown, Title, Subtitle & Mint Badge */}
         <div className="flex items-start justify-between gap-3 mb-4 sm:mb-5">
           <div>
-            <div className="flex items-center gap-1.5 text-amber-600 mb-0.5">
+            <div className="flex items-center gap-1.5 text-amber-700 mb-0.5">
               <Crown className="size-4 fill-amber-500 text-amber-500" />
               <span className="text-xs font-black uppercase tracking-wider">
                 صدارة الترتيب
@@ -85,11 +87,11 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             </div>
             <h2
               id="player-of-the-week-heading"
-              className="text-sm sm:text-lg font-black text-slate-900 tracking-tight"
+              className="text-sm sm:text-lg font-black text-[#14221C] tracking-tight"
             >
               نجم الأسبوع وهداف البطولة
             </h2>
-            <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-[11px] sm:text-xs text-slate-600 font-medium mt-0.5">
               أفضل أداء بين جميع اللاعبين
             </p>
           </div>
@@ -119,13 +121,13 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             {/* Name, Position, Team & Venue */}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h3 className="text-xs sm:text-base font-black text-slate-900 whitespace-nowrap">
+                <h3 className="text-xs sm:text-base font-black text-[#14221C] whitespace-nowrap">
                   {playerName}
                 </h3>
                 <CheckCircle2 className="size-4 text-emerald-600 fill-emerald-500/20 shrink-0" />
               </div>
               <p className="text-[11px] sm:text-xs font-bold text-emerald-700 mt-0.5 whitespace-nowrap">
-                <span>{profile.position === 'midfielder' || !profile.position ? 'midfielder' : position}</span> • <span className="text-slate-600">{teamName}</span>
+                <span>{position}</span> • <span className="text-slate-600">{teamName}</span>
               </p>
               <p className="text-[11px] sm:text-xs font-medium text-slate-600 mt-0.5 flex items-center gap-1 truncate">
                 <MapPin className="size-3.5 text-rose-500 shrink-0" />
@@ -161,8 +163,8 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             <span className="text-base sm:text-xl font-black text-emerald-800 tabular-nums">
               {goals}
             </span>
-            <div className="flex items-center gap-1 mt-0.5 text-slate-500">
-              <span className="text-xs">🥅</span>
+            <div className="flex items-center gap-1 mt-0.5 text-slate-600">
+              <Flame className="size-3 text-emerald-600" />
               <span className="text-[10px] sm:text-[11px] font-bold">الأهداف</span>
             </div>
           </div>
@@ -172,7 +174,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             <span className="text-base sm:text-xl font-black text-emerald-800 tabular-nums">
               {assists}
             </span>
-            <div className="flex items-center gap-1 mt-0.5 text-slate-500">
+            <div className="flex items-center gap-1 mt-0.5 text-slate-600">
               <Target className="size-3 text-emerald-600" />
               <span className="text-[10px] sm:text-[11px] font-bold truncate">التمريرات الحاسمة</span>
             </div>
@@ -183,8 +185,8 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             <span className="text-base sm:text-xl font-black text-emerald-800 tabular-nums">
               {matches}
             </span>
-            <div className="flex items-center gap-1 mt-0.5 text-slate-500">
-              <span className="text-xs">⚽</span>
+            <div className="flex items-center gap-1 mt-0.5 text-slate-600">
+              <Activity className="size-3 text-emerald-600" />
               <span className="text-[10px] sm:text-[11px] font-bold">المباريات</span>
             </div>
           </div>
@@ -194,7 +196,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             <span className="text-base sm:text-xl font-black text-emerald-800 tabular-nums">
               {rating}
             </span>
-            <div className="flex items-center gap-1 mt-0.5 text-slate-500">
+            <div className="flex items-center gap-1 mt-0.5 text-slate-600">
               <Star className="size-3 text-amber-500 fill-amber-500" />
               <span className="text-[10px] sm:text-[11px] font-bold">التقييم</span>
             </div>

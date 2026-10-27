@@ -172,7 +172,7 @@ export default function TournamentDetail() {
   }
 
   return (
-    <div>
+    <div className="pb-24 sm:pb-8">
       {/* Tournament Hero Card */}
       <div className="relative overflow-visible rounded-3xl bg-gradient-to-br from-[#0B1F3A] via-[#0e2746] to-[#071426] p-5 sm:p-6 text-white shadow-lg border border-slate-800/60 mb-4">
         {/* Decorative lighting & glow */}

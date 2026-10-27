@@ -10,6 +10,8 @@ import Tournaments from './tournaments'
 import AvailableFields from './availableFields'
 import ChallengesWall from './challengesWall'
 import PlayerOfTheWeek from './playerOfTheWeek'
+import WhyUs from './whyUs'
+import CommunityBanner from './communityBanner'
 import MascotFaq from './mascotFaq'
 import SearchResultsSheet from './searchResults'
 
@@ -18,13 +20,13 @@ export default function Landing() {
   const [resultsOpen, setResultsOpen] = useState(false)
   const [pwaBannerActive, setPwaBannerActive] = useState(false)
 
-  // Dark / Light Mode state (Default: 'dark' as in official brand, with localStorage memory)
+  // Default theme is 'light' (Option 1: Base light background with designated dark sections)
   const [theme, setTheme] = useState(() => {
     try {
       const saved = localStorage.getItem('aji_theme')
       if (saved === 'light' || saved === 'dark') return saved
     } catch {}
-    return 'dark'
+    return 'light'
   })
 
   // Enforce strict RTL and Arabic language attributes
@@ -62,8 +64,8 @@ export default function Landing() {
     >
       {/* 1. SEO Meta Tags in Pure Standard Arabic */}
       <SEO
-        title="أجي نقصرو | الكورة كتجمعنا... مباريات محلية بنكهة احترافية"
-        description="أجي نقصرو — كل ما يحتاجه المنظم واللاعب في مكان واحد، وبأداء صاروخي. احجز ملاعب القرب، ونظّم البطولات المحلية، وتابع نتائج المباريات الرياضية في الدار البيضاء، الرباط، مراكش، طنجة وكافة المدن المغربية."
+        title="أجي نقصرو | الكرة تجمعنا... مباريات محلية بنكهة احترافية"
+        description="أجي نقصرو — كل ما يحتاجه المنظّم واللاعب في مكان واحد، وبأداء احترافي. احجز ملاعب القرب، ونظّم البطولات المحلية، وتابع نتائج المباريات الرياضية في الدار البيضاء، الرباط، مراكش، طنجة وكافة المدن المغربية."
         canonical="https://ajin9essro.com/"
         keywords="أجي نقصرو, aji nqssro, حجز ملاعب القرب بالمغرب, تنظيم دوريات كرة القدم, بطولات محلية, مباريات ودية, ملاعب الدار البيضاء, ملاعب الرباط, ملاعب مراكش, ملاعب طنجة, دوري رمضان, كرة قدم الهواة"
       />
@@ -74,10 +76,10 @@ export default function Landing() {
         <PwaTopBanner theme={theme} onVisibilityChange={setPwaBannerActive} />
         {!pwaBannerActive && <TopBanner theme={theme} />}
 
-        {/* 2. Main Platform Header with Crisp Solid Style (distorted backdrop blur removed) */}
+        {/* 2. Main Platform Header (Crisp Light / Dark depending on active theme) */}
         <MainHeader theme={theme} onToggleTheme={toggleTheme} />
 
-        {/* 3. Innovative Hero Section with Slogan & Smart Search Bar (z-[9999]) */}
+        {/* 3. Innovative Hero Section (Designated Dark Section) with Slogan & Smart Search Bar (z-[9999]) */}
         <HeroSection
           theme={theme}
           onSearchSubmit={(term) => {
@@ -89,26 +91,29 @@ export default function Landing() {
         {/* 4. Balanced KPI Stats Bar (z-10) */}
         <StatsBar theme={theme} />
 
-        {/* 5. Luxury Match Card & Real Results Ticker (Preserved completely) */}
+        {/* 5. Luxury Match Card & Real Results Ticker (Designated Dark Section) */}
         <LiveTournamentCard theme={theme} />
 
-        {/* 6. Featured Tournaments & Player of the Week */}
+        {/* 6. Featured Tournaments (Light Section with high contrast #14221C headers) */}
         <Tournaments theme={theme} />
 
-        {/* 7. Available Fields Carousel (ملاعب القرب المتاحة للحجز) */}
+        {/* 7. Available Fields Carousel (Designated Dark Section with integer prices & clear contact rules) */}
         <AvailableFields theme={theme} />
 
-        {/* 8. Challenges Wall & Weekly Star Feature Cards */}
-        <div className="space-y-3 sm:space-y-4">
-          <ChallengesWall theme={theme} />
-          <PlayerOfTheWeek theme={theme} />
-        </div>
+        {/* 8. Registered Teams Challenge Wall (Only displayed if >= 1 team exists) */}
+        <ChallengesWall theme={theme} />
 
-        {/* 9. Mascot FAQ Accordion with Crisp High-Res Mascot */}
+        {/* 9. Star Player of the Week (Only displayed if committee selected a player with verified stats) */}
+        <PlayerOfTheWeek theme={theme} />
+
+        {/* 10. Why Us & Pitch Owner CTA (Permanent Sections: لماذا أجي نقصرو + هل تملك ملعباً؟) */}
+        <WhyUs theme={theme} />
+
+        {/* 11. Join Our Community Banner (Permanent Section: Directly before Mascot FAQ) */}
+        <CommunityBanner theme={theme} />
+
+        {/* 12. Mascot FAQ Accordion (Permanent Section: Last section before footer) */}
         <MascotFaq theme={theme} />
-
-        {/* 10. Floating AI/Help Speech Bubble Widget with Crisp Mascot */}
-        {/* Note: SmartGenieModal is mounted globally in App.jsx to accompany users across all pages */}
       </main>
 
       {/* Search Results Sheet */}

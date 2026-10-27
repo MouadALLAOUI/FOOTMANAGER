@@ -67,15 +67,11 @@ body {
 }
 
 #root {
-  transition: transform 350ms ease-out;
+  min-height: 100vh;
 }
 
 body.sheet-open {
   overflow: hidden;
-}
-
-body.sheet-open #root {
-  transform: scale(0.98);
 }
 
 @keyframes eq {

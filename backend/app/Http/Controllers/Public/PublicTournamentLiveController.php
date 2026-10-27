@@ -10,6 +10,7 @@ use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Resources\TournamentLandingMatchResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /**
  * Landing page feed of tournament matches: currently live matches (with score +
@@ -74,17 +75,25 @@ class PublicTournamentLiveController extends Controller
             ->limit(20)
             ->get();
 
+        $timezone = config('app.timezone', 'Africa/Casablanca');
+        $now = Carbon::now($timezone);
+        $sevenDaysLater = (clone $now)->addDays(7);
+
         $upcoming = Fixture::query()
             ->where($scope)
-            ->where('scheduled_at', '>', now())
             ->whereNotNull('home_team_id')
             ->whereNotNull('away_team_id')
+            ->where('scheduled_at', '>=', $now)
+            ->where('scheduled_at', '<=', $sevenDaysLater)
             ->where('status', FixtureStatus::Scheduled)
-            ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', array_merge(MatchStatus::live(), [MatchStatus::Finished])))
+            ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', array_merge(
+                MatchStatus::live(),
+                [MatchStatus::Finished, MatchStatus::Cancelled, MatchStatus::Postponed]
+            )))
             ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])
-            ->orderBy('scheduled_at')
-            ->orderBy('id')
-            ->limit(20)
+            ->orderBy('scheduled_at', 'asc')
+            ->orderBy('id', 'asc')
+            ->limit(50)
             ->get();
 
         $finished = Fixture::query()
@@ -92,7 +101,7 @@ class PublicTournamentLiveController extends Controller
             ->whereNotNull('home_team_id')
             ->whereNotNull('away_team_id')
             ->where(function ($q) {
-                $q->where('status', FixtureStatus::Completed)
+                $q->where('status', FixtureStatus::Played)
                     ->orWhereHas('match', fn ($mq) => $mq->where('status', MatchStatus::Finished));
             })
             ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])

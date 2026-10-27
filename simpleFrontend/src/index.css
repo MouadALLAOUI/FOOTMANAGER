@@ -478,6 +478,39 @@ body.sheet-open {
   animation: stage-in 0.4s ease-out both;
 }
 
+/* Top News & Announcement Marquee Ticker */
+@keyframes ticker-marquee-rtl {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(50%, 0, 0);
+  }
+}
+
+@keyframes ticker-marquee-ltr {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-top-ticker {
+  animation: ticker-marquee-rtl 42s linear infinite;
+  will-change: transform;
+}
+
+[dir="ltr"] .animate-top-ticker {
+  animation-name: ticker-marquee-ltr;
+}
+
+.pause-on-hover:hover,
+.pause-on-hover:active {
+  animation-play-state: paused !important;
+}
+
 .no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;

@@ -55,6 +55,11 @@ class Fixture extends Model
         return $this->belongsTo(Competition::class);
     }
 
+    public function tournament(): BelongsTo
+    {
+        return $this->competition();
+    }
+
     public function season(): BelongsTo
     {
         return $this->belongsTo(Season::class);

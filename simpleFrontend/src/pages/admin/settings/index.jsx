@@ -7,6 +7,7 @@ import { useApi } from '../../../hooks/useApi'
 import { PageHeader, Button, Card, Input, Toggle, Skeleton, Badge } from '../../../components/admin/ui'
 import ModuleMaintenance from '../../../components/admin/ModuleMaintenance'
 import PageMaintenance from '../../../components/admin/PageMaintenance'
+import MascotBannerManager from '../../../components/admin/MascotBannerManager'
 
 const groups = () => [
   { key: 'platform', label: i18n.t('dash.platformInformation'), icon: Settings2, description: i18n.t('dash.nameContactDetailsSocialAccounts') },
@@ -114,6 +115,9 @@ export default function Settings() {
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <div className="lg:col-span-2">
+          <MascotBannerManager />
+        </div>
         <div className="lg:col-span-2">
           <PageMaintenance />
         </div>

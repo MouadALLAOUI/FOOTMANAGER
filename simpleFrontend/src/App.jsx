@@ -11,6 +11,7 @@ import ActivityLockBanner from './components/system/ActivityLockBanner'
 import PageSkeleton from './components/system/PageSkeleton'
 import { ProfileModalProvider } from './components/profile/ProfileModalContext'
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications'
+import PwaUpdatePrompt from './components/pwa/PwaUpdatePrompt'
 
 const Landing = lazy(() => import('./pages/landing'))
 const About = lazy(() => import('./pages/about'))
@@ -29,6 +30,7 @@ const PublicTournaments = lazy(() => import('./pages/tournaments'))
 const PublicTournamentDetail = lazy(() => import('./pages/tournaments/detail'))
 const Login = lazy(() => import('./pages/auth/login'))
 const Register = lazy(() => import('./pages/auth/register'))
+const RegisterPlayer = lazy(() => import('./pages/player/register'))
 const Pending = lazy(() => import('./pages/auth/pending'))
 const Onboarding = lazy(() => import('./pages/onboarding'))
 const ForgotPassword = lazy(() => import('./pages/auth/forgot-password'))
@@ -78,6 +80,7 @@ function App() {
                 <Route path="/terrains" element={<Navigate to="/fields" replace />} />
                 <Route path="/stadiums" element={<Navigate to="/fields" replace />} />
                 <Route path="/matches" element={<PageMaintenanceGate><Matches /></PageMaintenanceGate>} />
+                <Route path="/live" element={<Navigate to="/matches" replace />} />
                 <Route path="/matches/invite/:token" element={<PageMaintenanceGate><MatchInvitePage /></PageMaintenanceGate>} />
                 <Route path="/tournaments" element={<PageMaintenanceGate><PublicTournaments /></PageMaintenanceGate>} />
                 <Route path="/tournaments/:slug" element={<PageMaintenanceGate><PublicTournamentDetail /></PageMaintenanceGate>} />
@@ -92,6 +95,7 @@ function App() {
 
               <Route path="/login" element={<GuestRoute><PageMaintenanceGate><Login /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/register" element={<GuestRoute><PageMaintenanceGate><Register /></PageMaintenanceGate></GuestRoute>} />
+              <Route path="/register-player" element={<GuestRoute><PageMaintenanceGate><RegisterPlayer /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/forgot-password" element={<GuestRoute><PageMaintenanceGate><ForgotPassword /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/reset-password" element={<GuestRoute><PageMaintenanceGate><ResetPassword /></PageMaintenanceGate></GuestRoute>} />
               <Route path="/pending" element={<PageMaintenanceGate><Pending /></PageMaintenanceGate>} />
@@ -99,17 +103,60 @@ function App() {
               <Route path="/recovery" element={<PageMaintenanceGate><RecoveryApply /></PageMaintenanceGate>} />
               <Route path="/auth/callback" element={<OAuthCallback />} />
 
-              <Route path="/dashboard/*" element={<ProtectedRoute role="manager"><PageMaintenanceGate><ManagerDashboard /></PageMaintenanceGate></ProtectedRoute>} />
-              <Route path="/terrain/*" element={<ProtectedRoute role="terrain_owner"><PageMaintenanceGate><TerrainDashboard /></PageMaintenanceGate></ProtectedRoute>} />
-              <Route path="/admin/*" element={<ProtectedRoute role="admin"><PageMaintenanceGate><AdminDashboard /></PageMaintenanceGate></ProtectedRoute>} />
-              <Route path="/player/onboarding" element={<ProtectedRoute role="player"><PageMaintenanceGate><PlayerOnboarding /></PageMaintenanceGate></ProtectedRoute>} />
-              <Route path="/player/*" element={<ProtectedRoute role="player"><PageMaintenanceGate><PlayerDashboard /></PageMaintenanceGate></ProtectedRoute>} />
-              <Route path="/committee/*" element={<ProtectedRoute role="committee"><PageMaintenanceGate><CommitteeDashboard /></PageMaintenanceGate></ProtectedRoute>} />
-            </Routes>
+              <Route
+                path="/dashboard/*"
+                element={
+                  <ProtectedRoute allowedRoles={['manager']}>
+                    <ManagerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/terrain/*"
+                element={
+                  <ProtectedRoute allowedRoles={['terrain_owner']}>
+                    <TerrainDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/*"
+                element={
+                  <ProtectedRoute allowedRoles={['admin']}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/player/onboarding"
+                element={
+                  <ProtectedRoute allowedRoles={['player']}>
+                    <PlayerOnboarding />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/player/*"
+                element={
+                  <ProtectedRoute allowedRoles={['player']}>
+                    <PlayerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/committee/*"
+                element={
+                  <ProtectedRoute allowedRoles={['committee', 'manager', 'admin']}>
+                    <CommitteeDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              </Routes>
             </ProfileModalProvider>
           </MaintenanceGate>
         </ErrorBoundary>
       </Suspense>
+      <PwaUpdatePrompt />
       <ToastContainer />
     </BrowserRouter>
   )

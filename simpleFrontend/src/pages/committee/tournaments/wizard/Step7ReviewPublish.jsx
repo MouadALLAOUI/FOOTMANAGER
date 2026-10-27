@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { AlertCircle, AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, Globe, Landmark, Play, Rocket, ShieldCheck, Sparkles, Swords, Trophy, Users, X } from 'lucide-react'
+import { AlertCircle, AlertTriangle, ArrowLeft, ArrowRight, ChevronRight, Check, CheckCircle2, Eye, Globe, Landmark, Play, Rocket, ShieldCheck, Sparkles, Swords, Trophy, Users, X } from 'lucide-react'
 import { Button, Card, Empty } from '../../../../components/dashboard/ui'
 import api from '../../../../api/client'
 import { useToast } from '../../../../components/ui/Toast'

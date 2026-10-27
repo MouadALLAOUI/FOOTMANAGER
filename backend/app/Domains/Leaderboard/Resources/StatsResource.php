@@ -11,6 +11,7 @@ class StatsResource extends JsonResource
     {
         return [
             'teams' => $this->resource['total_teams'] ?? 0,
+            'tournaments' => $this->resource['total_tournaments'] ?? 0,
             'players' => $this->resource['total_players'] ?? 0,
             'stadiums' => $this->resource['total_stadiums'] ?? 0,
             'matches' => $this->resource['total_matches'] ?? 0,

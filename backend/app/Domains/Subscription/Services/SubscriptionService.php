@@ -177,6 +177,18 @@ class SubscriptionService
      */
     public function canCreateResource(User $user, string $featureKey, int $currentUsage): SubscriptionLimitResult
     {
+        // Tournaments are free and unrestricted (upgrade limits postponed to a future phase)
+        if ($featureKey === 'tournament_limit') {
+            return new SubscriptionLimitResult(
+                allowed: true,
+                feature: $featureKey,
+                currentUsage: max($currentUsage, 0),
+                limit: null,
+                unlimited: true,
+                requiredPlan: null,
+            );
+        }
+
         $plan = $this->getCurrentPlan($user);
 
         if (! $plan) {
@@ -246,6 +258,10 @@ class SubscriptionService
      */
     public function authorizeResource(User $user, string $featureKey, int $currentUsage): void
     {
+        if ($featureKey === 'tournament_limit') {
+            return;
+        }
+
         $result = $this->canCreateResource($user, $featureKey, $currentUsage);
 
         if ($result->allowed) {

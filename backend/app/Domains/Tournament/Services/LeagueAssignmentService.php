@@ -122,113 +122,10 @@ class LeagueAssignmentService
             ]);
         }
 
-        // 2. Weekly Recurring Subscriptions
-        $weeklyBookings = TerrainBooking::query()
-            ->whereIn('team_id', $teamIds)
-            ->whereIn('status', ['approved', 'confirmed'])
-            ->whereNull('archived_at')
-            ->where('reservation_type', 'weekly_subscription')
-            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('terrain_id', $allowedStadiumIds))
-            ->with(['terrain', 'team'])
-            ->get();
+        // 2. Weekly Recurring Subscriptions (Disabled: future feature per project requirements)
+        // Weekly pitch subscriptions are postponed to a later phase and disabled from tournament fixture scheduling.
 
-        foreach ($weeklyBookings as $booking) {
-            $subStart = $booking->start_date ? Carbon::parse($booking->start_date->toDateString()) : $effectiveMin->copy();
-            $subEnd = $booking->end_date ? Carbon::parse($booking->end_date->toDateString()) : $endDate->copy();
-
-            $windowStart = $subStart->gt($effectiveMin) ? $subStart : $effectiveMin->copy();
-            $windowEnd = $subEnd->lt($endDate) ? $subEnd : $endDate->copy();
-
-            $targetDow = $booking->day_of_week ?? $subStart->dayOfWeek;
-
-            $cursor = $windowStart->copy();
-            $daysToAdd = ($targetDow - $cursor->dayOfWeek + 7) % 7;
-            $cursor->addDays($daysToAdd);
-
-            $iterations = 0;
-            while ($cursor->lte($windowEnd) && $iterations < 52) {
-                $iterations++;
-                $datetime = Carbon::parse($cursor->toDateString().' '.$booking->start_time);
-
-                if (! $datetime->isPast()) {
-                    $dateStr = $cursor->toDateString();
-                    $key = $booking->terrain_id.'_'.$datetime->format('Y-m-d H:i');
-
-                    // Check if occurrence is weather blocked or used by another match
-                    $occ = $occurrences->first(function ($o) use ($booking, $dateStr) {
-                        return (int) $o->terrain_booking_id === (int) $booking->id && $o->occurrence_date?->toDateString() === $dateStr;
-                    });
-
-                    if ($occ && in_array($occ->status, [\App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_WEATHER_BLOCKED, \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH], true)) {
-                        $cursor->addWeek();
-                        continue;
-                    }
-
-                    // Check closure
-                    $isClosed = $closures->contains(function ($c) use ($booking, $dateStr) {
-                        return (int) $c->terrain_id === (int) $booking->terrain_id
-                            && $c->closure_date?->toDateString() === $dateStr
-                            && $c->start_time < $booking->end_time
-                            && $c->end_time > $booking->start_time;
-                    });
-
-                    if (! $isClosed && ! isset($occupiedSlots[$key])) {
-                        $slots->push([
-                            'booking' => $booking,
-                            'date' => $cursor->copy(),
-                            'date_str' => $cursor->toDateString(),
-                            'start_time' => $booking->start_time,
-                            'end_time' => $booking->end_time,
-                            'datetime' => $datetime,
-                            'terrain_id' => (int) $booking->terrain_id,
-                            'owner_team_id' => (int) $booking->team_id,
-                            'is_weekly' => true,
-                            'occurrence_status' => $occ?->status,
-                        ]);
-                    }
-                }
-
-                $cursor->addWeek();
-            }
-        }
-
-        // 3. Freed or Released Occurrences from Postponements / Tournament Releases
-        $freedOccurrences = \App\Domains\Booking\Models\TerrainBookingOccurrence::query()
-            ->whereIn('status', [
-                \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED,
-                \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED,
-            ])
-            ->whereBetween('occurrence_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
-            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('stadium_id', $allowedStadiumIds))
-            ->with(['booking.terrain', 'booking.team'])
-            ->get();
-
-        foreach ($freedOccurrences as $fOcc) {
-            $fDate = Carbon::parse($fOcc->occurrence_date);
-            $fDatetime = Carbon::parse($fDate->toDateString().' '.$fOcc->start_time);
-            if ($fDatetime->isPast()) {
-                continue;
-            }
-            $key = $fOcc->stadium_id.'_'.$fDatetime->format('Y-m-d H:i');
-            if (isset($occupiedSlots[$key])) {
-                continue;
-            }
-            $alreadyAdded = $slots->contains(fn ($s) => $s['terrain_id'] === (int) $fOcc->stadium_id && $s['date_str'] === $fDate->toDateString() && $s['start_time'] === $fOcc->start_time);
-            if (! $alreadyAdded && $fOcc->booking) {
-                $slots->push([
-                    'booking' => $fOcc->booking,
-                    'date' => $fDate,
-                    'date_str' => $fDate->toDateString(),
-                    'start_time' => $fOcc->start_time,
-                    'end_time' => $fOcc->end_time,
-                    'datetime' => $fDatetime,
-                    'terrain_id' => (int) $fOcc->stadium_id,
-                    'owner_team_id' => (int) ($fOcc->booking->team_id ?? 0),
-                    'is_weekly' => true,
-                    'occurrence_status' => $fOcc->status,
-                ]);
-            }
-        }
+        // 3. Freed or Released Occurrences from Postponements / Tournament Releases (Disabled with subscriptions)
 
         return $slots->sortBy('datetime')->values();
     }
@@ -2915,21 +2812,13 @@ class LeagueAssignmentService
                 ->count();
 
             if ($unfCount === 0) {
-                // Team has finished all league matches! Count remaining weekly occurrences
-                $futureWeeklyCount = TerrainBooking::query()
-                    ->where('team_id', $tid)
-                    ->where('reservation_type', 'weekly_subscription')
-                    ->whereIn('status', ['approved', 'confirmed'])
-                    ->whereNull('archived_at')
-                    ->whereNull('cancelled_at')
-                    ->count();
-
+                // Team has finished all league matches
                 if ($tournament->organizer_id) {
                     NotificationService::push(
                         (int) $tournament->organizer_id,
                         'announcement',
                         'اكتمال مباريات فريق في الدوري',
-                        "فريق {$tt->team?->name} أنهى مبارياته: {$futureWeeklyCount} مواعيد أسبوعية قادمة أصبحت متاحة",
+                        "فريق {$tt->team?->name} أنهى جميع مبارياته في البطولة بنجاح",
                         ['tournament_id' => $tournament->id, 'team_id' => $tid],
                         "/tournaments/{$tournament->id}"
                     );

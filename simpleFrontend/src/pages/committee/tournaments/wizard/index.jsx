@@ -5,12 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronLeft,
-  ChevronRight,
   DoorOpen,
-  FileCheck2,
-  FileText,
-  Loader2,
-  Plus,
   Save,
   Trophy,
 } from 'lucide-react'
@@ -23,12 +18,9 @@ import { toastApiError } from '../../../../lib/errors'
 import ProgressHeader, { WIZARD_STEPS } from './ProgressHeader'
 import DraftResumeBanner from './DraftResumeBanner'
 import Step1BasicInfo from './Step1BasicInfo'
-import Step2FormatRules from './Step2FormatRules'
-import Step3Registration from './Step3Registration'
-import Step4TeamReview from './Step4TeamReview'
-import Step5Scheduling from './Step5Scheduling'
-import Step6Operations from './Step6Operations'
-import Step7ReviewPublish from './Step7ReviewPublish'
+import Step2PublishTournament from './Step2PublishTournament'
+import Step3ManageTeams from './Step3ManageTeams'
+import Step4CloseRegistration from './Step4CloseRegistration'
 
 const emptyForm = {
   name: '',
@@ -138,12 +130,15 @@ export default function TournamentWizard() {
         logo_url: tour.logo_url || '',
       }))
 
-      if (tour.plan?.wizard?.current_step) {
-        setCurrentStep(Number(tour.plan.wizard.current_step))
+      if (tour.plan?.wizard?.current_step && !paramId) {
+        const savedStep = Number(tour.plan.wizard.current_step)
+        if (savedStep >= 1 && savedStep <= 4) {
+          setCurrentStep(savedStep)
+        }
       }
       setLastSavedAt(tour.updated_at || new Date().toISOString())
     }
-  }, [tour])
+  }, [tour, paramId])
 
   // Handle Form Change
   const handleFieldChange = (key, value) => {
@@ -153,23 +148,18 @@ export default function TournamentWizard() {
   // Calculate Real Step Validation States
   const stepStates = useMemo(() => {
     const s1Complete = Boolean(tour?.name && tour?.start_date) || Boolean(form.name && form.start_date)
-    const s2Complete = Boolean(tour?.tournament_format && tour?.teams_count >= 2) || Boolean(form.tournament_format && form.teams_count >= 2)
+    const isPublished = tour?.status && tour.status !== 'draft'
+    const s2Complete = isPublished
     const regTeamsCount = Number(tour?.stats?.registered_teams ?? 0)
     const targetTeams = Number(tour?.teams_count ?? form.teams_count ?? 8)
     const s3Complete = regTeamsCount >= 2
-    const s4Complete = regTeamsCount >= targetTeams && targetTeams > 0
-    const s5Complete = (tour?.stats?.fixtures ?? 0) > 0
-    const s6Complete = s5Complete
-    const s7Complete = tour?.status && tour.status !== 'draft'
+    const s4Complete = tour?.status === 'registration_closed' || regTeamsCount >= targetTeams
 
     return {
       1: { completed: s1Complete, accessible: true, attention: !s1Complete && currentStep > 1 },
-      2: { completed: s2Complete, accessible: s1Complete, attention: false },
-      3: { completed: s3Complete, accessible: s2Complete && Boolean(tour?.id), attention: !s3Complete && currentStep > 3 },
-      4: { completed: s4Complete, accessible: s3Complete, attention: regTeamsCount < targetTeams && currentStep > 4 },
-      5: { completed: s5Complete, accessible: s4Complete, attention: false },
-      6: { completed: s6Complete, accessible: s5Complete, attention: false },
-      7: { completed: s7Complete, accessible: s1Complete && s2Complete, attention: false },
+      2: { completed: s2Complete, accessible: s1Complete && Boolean(tour?.id), attention: !s2Complete && currentStep > 2 },
+      3: { completed: s3Complete, accessible: Boolean(tour?.id), attention: !s3Complete && currentStep > 3 },
+      4: { completed: s4Complete, accessible: s3Complete, attention: false },
     }
   }, [tour, form, currentStep])
 
@@ -221,15 +211,15 @@ export default function TournamentWizard() {
 
     try {
       if (tour?.id) {
-        const res = await api.put(`/committee/tournaments/${tour.id}`, payload)
+        await api.put(`/committee/tournaments/${tour.id}`, payload)
         setLastSavedAt(new Date().toISOString())
-        toast.success('تم حفظ التغييرات في المسودة')
+        toast.success('تم حفظ التغييرات في مسودة البطولة')
         refetchTour()
         return true
       } else {
         const res = await api.post('/committee/tournaments', payload)
         const createdTour = res.data.data
-        toast.success('تم إنشاء مسودة البطولة وحفظها بنجاح')
+        toast.success('تم إنشاء وحفظ مسودة البطولة بنجاح')
         setSearchParams({ id: createdTour.id }, { replace: true })
         setLastSavedAt(new Date().toISOString())
         setRefreshKey((k) => k + 1)
@@ -245,13 +235,10 @@ export default function TournamentWizard() {
 
   // Next / Previous Navigation Handlers
   const handleNext = async () => {
-    if (currentStep === 1 || currentStep === 2) {
-      const ok = await saveTournamentDraft(currentStep + 1)
-      if (ok) setCurrentStep((s) => Math.min(WIZARD_STEPS.length, s + 1))
+    if (currentStep === 1) {
+      const ok = await saveTournamentDraft(2)
+      if (ok) setCurrentStep(2)
     } else {
-      if (tour?.id) {
-        saveTournamentDraft(currentStep + 1)
-      }
       setCurrentStep((s) => Math.min(WIZARD_STEPS.length, s + 1))
     }
   }
@@ -261,7 +248,7 @@ export default function TournamentWizard() {
   }
 
   const handleStepClick = async (stepId) => {
-    if (currentStep === 1 || currentStep === 2) {
+    if (currentStep === 1) {
       await saveTournamentDraft(stepId)
     }
     setCurrentStep(stepId)
@@ -288,7 +275,7 @@ export default function TournamentWizard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F7FB] pb-24">
+    <div className="min-h-screen bg-[#F4F7FB] pb-32">
       {/* Persistent Progress Header */}
       <ProgressHeader
         currentStep={currentStep}
@@ -300,7 +287,7 @@ export default function TournamentWizard() {
       />
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {/* Draft Resume Options Banner (When user has previous drafts and hasn't selected one) */}
+        {/* Draft Resume Options Banner */}
         {!tournamentId && existingDrafts.length > 0 && (
           <DraftResumeBanner
             drafts={existingDrafts}
@@ -311,6 +298,7 @@ export default function TournamentWizard() {
 
         {/* Dynamic Wizard Stage Render */}
         <div className="mt-2">
+          {/* المرحلة 1: المعلومات الأساسية والقواعد الرياضية */}
           {currentStep === 1 && (
             <Step1BasicInfo
               data={form}
@@ -324,109 +312,89 @@ export default function TournamentWizard() {
             />
           )}
 
-          {currentStep === 2 && (
-            <Step2FormatRules
-              data={form}
-              onChange={handleFieldChange}
+          {/* المرحلة 2: نشر البطولة وفتح باب التسجيل للعامة */}
+          {currentStep === 2 && tour && (
+            <Step2PublishTournament
+              tournament={tour}
+              refresh={refetchTour}
+              onProceedToTeams={() => setCurrentStep(3)}
             />
           )}
 
+          {/* المرحلة 3: إدارة وتسجيل الفرق (المباشرة، الفريق الحر، ورابط الواتساب) */}
           {currentStep === 3 && tour && (
-            <Step3Registration
+            <Step3ManageTeams
               tournament={tour}
               refresh={refetchTour}
             />
           )}
 
+          {/* المرحلة 4 (الختامية): إغلاق التسجيل والانطلاق لمركز البطولة */}
           {currentStep === 4 && tour && (
-            <Step4TeamReview
+            <Step4CloseRegistration
               tournament={tour}
               refresh={refetchTour}
-            />
-          )}
-
-          {currentStep === 5 && tour && (
-            <Step5Scheduling
-              tournament={tour}
-              refresh={refetchTour}
-              onGoToFullFixtures={() => navigate(`/committee/tournaments/${tour.id}?tab=fixtures`)}
-            />
-          )}
-
-          {currentStep === 6 && tour && (
-            <Step6Operations
-              tournament={tour}
-              refresh={refetchTour}
-            />
-          )}
-
-          {currentStep === 7 && tour && (
-            <Step7ReviewPublish
-              tournament={tour}
-              refresh={refetchTour}
-              onJumpToStep={handleStepClick}
             />
           )}
         </div>
       </main>
 
-      {/* Persistent Bottom Action Bar */}
-      <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-200/90 bg-white/95 px-4 py-3 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+      {/* Persistent Ergonomic Thumb-Friendly Bottom Action Bar */}
+      <div className="fixed bottom-0 inset-x-0 z-30 border-t border-slate-200/90 bg-white/95 px-4 py-3 sm:py-3.5 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.06)] pb-safe">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 sm:px-6">
+          {/* Previous Button (Left Thumb Zone) */}
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="md"
+            <button
+              type="button"
               onClick={handlePrev}
               disabled={currentStep === 1}
-              className="text-xs sm:text-sm"
+              className="flex h-12 sm:h-13 min-w-[90px] sm:min-w-[120px] items-center justify-center gap-2 rounded-2xl border-2 border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-black text-xs sm:text-sm transition-all active:scale-95 disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
             >
-              <ArrowRight className="size-4 rtl:rotate-0" />
-              السابق
-            </Button>
+              <ArrowRight className="size-4.5 rtl:rotate-0" />
+              <span>السابق</span>
+            </button>
 
             <Link
               to="/committee/tournaments"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors"
             >
               <DoorOpen className="size-4" />
-              مغادرة ومتابعة لاحقاً
+              <span>مغادرة والعودة لاحقاً</span>
             </Link>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="md"
-              loading={saving}
+          {/* Right Thumb Actions (Save & Next / Finalize) */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button
+              type="button"
+              disabled={saving}
               onClick={() => saveTournamentDraft()}
-              className="text-xs sm:text-sm"
+              className="hidden sm:flex h-12 sm:h-13 items-center justify-center gap-1.5 rounded-2xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm px-4 transition-all active:scale-95 cursor-pointer"
             >
               <Save className="size-4 text-slate-500" />
-              حفظ كمسودة
-            </Button>
+              <span>حفظ كمسودة</span>
+            </button>
 
             {currentStep < WIZARD_STEPS.length ? (
-              <Button
-                variant="primary"
-                size="md"
-                loading={saving}
+              <button
+                type="button"
+                disabled={saving}
                 onClick={handleNext}
-                className="text-xs sm:text-sm font-bold shadow-md"
+                className="flex h-12 sm:h-13 min-w-[140px] sm:min-w-[200px] items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#10B981] to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-black text-xs sm:text-base shadow-lg shadow-[#10B981]/25 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
               >
-                المتابعة للخطوة التالية
-                <ArrowLeft className="size-4 rtl:rotate-0" />
-              </Button>
+                <span>المتابعة للخطوة التالية</span>
+                <ArrowLeft className="size-4.5 rtl:rotate-0" />
+              </button>
             ) : (
-              <Button
-                variant="primary"
-                size="md"
+              <button
+                type="button"
                 onClick={() => navigate(`/committee/tournaments/${tour?.id || ''}`)}
-                className="text-xs sm:text-sm font-black shadow-md bg-emerald-600 hover:bg-emerald-700"
+                className="flex h-12 sm:h-13 min-w-[150px] sm:min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs sm:text-sm shadow-xl transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
               >
-                الانتقال لمركز إدارة البطولة
+                <Trophy className="size-4 text-amber-400" />
+                <span>مركز إدارة البطولة</span>
                 <ChevronLeft className="size-4 rtl:rotate-180" />
-              </Button>
+              </button>
             )}
           </div>
         </div>

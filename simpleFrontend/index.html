@@ -2,7 +2,8 @@
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="google" content="notranslate" />
     
     <!-- Primary SEO Meta Tags -->
     <title>أجي نقصرو | أول منصة لتنظيم مباريات كرة القدم وحجز ملاعب القرب بالمغرب</title>
@@ -43,14 +44,28 @@
     />
     <meta name="twitter:image" content="https://ajin9essro.com/logo.jpeg" />
 
-    <!-- Favicon & Mobile Icons -->
-    <link rel="icon" type="image/jpeg" href="/logo.jpeg" />
-    <link rel="apple-touch-icon" href="/logo.jpeg" />
-    <meta name="theme-color" content="#16a34a" />
+    <!-- PWA Web App Manifest & Mobile App Configuration -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0F3D2E" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="أجي نقصرو" />
 
+    <!-- Favicon & Mobile Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="shortcut icon" href="/icon-192.png" />
+
+    <!-- Preload Hero Background Image -->
+    <link
+      rel="preload"
+      as="image"
+      href="/hero-morocco-800w.webp"
+      imagesrcset="/hero-morocco-800w.webp 800w, /hero-morocco-1600w.webp 1600w"
+      imagesizes="100vw"
+      type="image/webp"
+    />
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -35,7 +35,22 @@ api.interceptors.response.use(
       try {
         queryClient.clear();
       } catch {}
-      if (!window.location.pathname.startsWith('/login')) {
+      const pathname = window.location.pathname;
+      const isPublicPath =
+        pathname === '/' ||
+        pathname === '/fields' ||
+        pathname === '/matches' ||
+        pathname === '/live' ||
+        pathname.startsWith('/tournaments') ||
+        pathname.startsWith('/about') ||
+        pathname.startsWith('/contact') ||
+        pathname.startsWith('/terms') ||
+        pathname.startsWith('/privacy') ||
+        pathname.startsWith('/help') ||
+        pathname.startsWith('/faq') ||
+        pathname.startsWith('/pricing');
+
+      if (!pathname.startsWith('/login') && !isPublicPath) {
         sessionStorage.setItem(AUTH_REDIRECT_KEY, window.location.pathname + window.location.search);
         window.location.href = '/login';
       }

@@ -4,6 +4,7 @@ namespace App\Domains\Leaderboard\Services;
 
 use App\Domains\Leaderboard\Queries\StatsQuery;
 use App\Domains\Match\Queries\LiveMatchQuery;
+use App\Domains\Tournament\Models\Tournament;
 use Illuminate\Support\Facades\Cache;
 
 class CommunityStatsService
@@ -15,6 +16,7 @@ class CommunityStatsService
 
             return [
                 'total_teams' => StatsQuery::teams()->count(),
+                'total_tournaments' => Tournament::query()->whereNull('hidden_at')->count(),
                 'total_players' => StatsQuery::players()->count(),
                 'total_stadiums' => StatsQuery::stadiums()->count(),
                 'total_matches' => StatsQuery::matches()->where('status', 'completed')->count(),

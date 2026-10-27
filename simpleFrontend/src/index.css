@@ -5,13 +5,28 @@
   --moz-user-select: none;
 } */
 
+:root {
+  --bg-main: #F4F6F1;
+  --bg-card: #FFFFFF;
+  --text-main: #0F172A;
+  --border-card: #E2E8F0;
+}
+
+.dark {
+  --bg-main: #0F3D2E;
+  --bg-card: #14221C;
+  --text-main: #F8FAFC;
+  --border-card: rgba(255, 255, 255, 0.1);
+}
+
 @theme {
   --font-sans: "Cairo", "Segoe UI", system-ui, sans-serif;
-  /* Brand color roles — pitch green, match-night navy, desert sand */
+  /* Brand color roles — pitch green, night green #0F3D2E, desert sand #F4F6F1 */
   --color-pitch: #16a34a;
   --color-pitch-bright: #22c55e;
-  --color-night: #0b1220;
-  --color-sand: #f6f7fb;
+  --color-night: #0F3D2E;
+  --color-sand: #F4F6F1;
+  --color-card-dark: #14221C;
 }
 
 /* Pitch-marking ornament for night-navy panels: halfway line + center circle */
@@ -33,6 +48,8 @@ html {
 }
 
 body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
   max-width: 100%;
   overflow-x: clip;
 }

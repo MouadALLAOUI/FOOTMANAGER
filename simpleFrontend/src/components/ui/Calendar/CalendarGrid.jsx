@@ -84,7 +84,7 @@ export default function CalendarGrid({ days, slots = [], events = [], onDaySelec
             {marks.map((m) => (
               <div key={m} className="absolute inset-x-0" style={{ top: toPx(m), height: hourHeight }}>
                 {m < timeline.endMinutes && (
-                  <span className="absolute end-1 top-0 -translate-y-1/2 bg-white px-1 text-[9px] font-bold text-slate-400">
+                  <span className="absolute end-1.5 top-0 -translate-y-1/2 bg-white px-1 font-mono text-[10px] font-black text-slate-400 tracking-tight select-none">
                     {formatHour(m)}
                   </span>
                 )}

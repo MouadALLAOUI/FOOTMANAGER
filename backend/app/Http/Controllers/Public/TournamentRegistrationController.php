@@ -128,6 +128,179 @@ class TournamentRegistrationController extends Controller
         return response()->json(['data' => new TournamentRegistrationResource($registration->load('team'))]);
     }
 
+    /**
+     * Submit a tournament team join request via link (Public/Manager).
+     */
+    public function joinRequest(Request $request, string $tournament): JsonResponse
+    {
+        $tournament = $this->resolveTournament($tournament);
+
+        $validated = $request->validate([
+            'team_name' => ['required', 'string', 'max:191'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'manager_name' => ['required', 'string', 'max:191'],
+            'manager_phone' => ['required', 'string', 'max:30'],
+            'rules_accepted' => ['required', 'accepted'],
+            'players' => ['nullable', 'array'],
+            'players.*.name' => ['required_with:players', 'string', 'max:191'],
+            'players.*.age' => ['nullable', 'integer', 'min:8', 'max:65'],
+            'players.*.position' => ['nullable', 'string', 'max:50'],
+            'logo' => ['nullable', 'file', 'image', 'max:5120'],
+            'stadium_id' => ['nullable', 'integer', 'exists:stadiums,id'],
+            'custom_pitch_name' => ['nullable', 'string', 'max:191'],
+            'booking_day_of_week' => ['nullable', 'integer', 'between:0,6'],
+            'booking_time' => ['nullable', 'string', 'max:10'],
+            'pitch_notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $tournament, $validated) {
+            $tournament = Tournament::query()->lockForUpdate()->findOrFail($tournament->id);
+
+            // Clean Moroccan phone number
+            $phone = preg_replace('/[^\d+]/', '', $validated['manager_phone']);
+            if (str_starts_with($phone, '0')) {
+                $phone = '+212' . substr($phone, 1);
+            } elseif (! str_starts_with($phone, '+')) {
+                $phone = '+212' . $phone;
+            }
+
+            // Find or create manager user
+            $email = 'manager_' . preg_replace('/\D/', '', $phone) . '@ajin9essro.com';
+            $user = User::query()->where('phone', $phone)->first();
+            if (! $user) {
+                $user = User::query()->create([
+                    'name' => trim($validated['manager_name']),
+                    'email' => $email,
+                    'phone' => $phone,
+                    'role' => 'manager',
+                    'status' => 'pending',
+                    'is_whatsapp' => true,
+                    'password' => bcrypt(str()->random(20)),
+                ]);
+            } elseif (! $user->email) {
+                $user->update(['email' => $email]);
+            }
+
+            // Check if team name already exists in this tournament
+            $teamName = trim($validated['team_name']);
+            $existingTeam = Team::query()->where('name', $teamName)->first();
+            if ($existingTeam) {
+                $existingReg = TournamentTeam::query()
+                    ->where('tournament_id', $tournament->id)
+                    ->where('team_id', $existingTeam->id)
+                    ->whereIn('status', [TournamentTeam::STATUS_REGISTERED, TournamentTeam::STATUS_PENDING])
+                    ->first();
+
+                if ($existingReg) {
+                    throw new DomainException('فريق بهذا الاسم مسجل بالفعل أو طلبه قيد المراجعة في هذه البطولة', 409);
+                }
+            }
+
+            $team = Team::query()->create([
+                'name' => $teamName,
+                'city' => trim($validated['city'] ?? $tournament->location ?? 'الدار البيضاء'),
+                'manager_id' => $user->id,
+                'is_free' => false,
+                'category' => $tournament->category ?? 'adult',
+            ]);
+
+            // Handle logo file upload
+            if ($request->hasFile('logo')) {
+                $logoFile = $request->file('logo');
+                $result = app(\App\Domains\Shared\Services\ImageThumbnailService::class)
+                    ->storeWithThumbnail($logoFile, 'teams/logos');
+                $team->update([
+                    'logo_path' => $result['path'],
+                    'logo_thumbnail_path' => $result['thumbnail_path'],
+                ]);
+            }
+
+            // Register tournament team with pending status
+            $registration = TournamentTeam::query()->create([
+                'tournament_id' => $tournament->id,
+                'team_id' => $team->id,
+                'status' => TournamentTeam::STATUS_PENDING,
+                'payment_status' => TournamentTeam::PAYMENT_PENDING,
+                'rules_accepted_at' => now(),
+                'rules_accepted_by' => $user->id,
+            ]);
+
+            // Register player list
+            $players = $request->input('players', []);
+            if (is_array($players)) {
+                foreach ($players as $idx => $p) {
+                    if (empty($p['name'])) continue;
+                    $player = \App\Domains\Player\Models\Player::query()->create([
+                        'team_id' => $team->id,
+                        'name' => trim($p['name']),
+                        'position' => $p['position'] ?? 'midfielder',
+                        'number' => $idx + 1,
+                        'status' => 'active',
+                    ]);
+
+                    \App\Domains\Tournament\Models\TournamentSquadMember::query()->create([
+                        'tournament_id' => $tournament->id,
+                        'team_id' => $team->id,
+                        'player_id' => $player->id,
+                    ]);
+                }
+            }
+
+            // If league tournament, handle pitch reservation requiring pitch manager confirmation
+            $pitchReservation = null;
+            if ($tournament->tournament_format === 'league' && ($request->filled('stadium_id') || $request->filled('custom_pitch_name'))) {
+                $stadiumId = $request->input('stadium_id');
+                $dayOfWeek = $request->filled('booking_day_of_week') ? (int) $request->input('booking_day_of_week') : 5;
+                $startTime = $request->input('booking_time', '20:00');
+                $endTime = \Carbon\Carbon::parse($startTime)->addHour()->format('H:i');
+
+                $pitchReservation = \App\Domains\Booking\Models\TerrainBooking::query()->create([
+                    'terrain_id' => $stadiumId ?: null,
+                    'custom_pitch_name' => $stadiumId ? null : trim((string) $request->input('custom_pitch_name')),
+                    'manager_id' => $user->id,
+                    'team_id' => $team->id,
+                    'booking_type' => 'match',
+                    'flow_type' => 'tournament_league_slot',
+                    'reservation_type' => 'weekly_subscription',
+                    'day_of_week' => $dayOfWeek,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'start_date' => now()->toDateString(),
+                    'end_date' => now()->addMonths(6)->toDateString(),
+                    'status' => 'pending', // Requires pitch manager approval
+                    'notes' => 'طلب حجز أسبوعي لدوري: ' . $tournament->name . ($request->filled('pitch_notes') ? ' | ' . $request->input('pitch_notes') : ''),
+                    'booking_reference' => \App\Domains\Booking\Models\TerrainBooking::generateReference(),
+                    'uuid' => (string) \Illuminate\Support\Str::uuid(),
+                    'payment_required' => false,
+                    'payment_status' => 'unpaid',
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إرسال طلب انضمام فريقكم بنجاح وهو قيد مراجعة المنظم',
+                'data' => [
+                    'team_id' => $team->id,
+                    'team_name' => $team->name,
+                    'manager_name' => $user->name,
+                    'manager_phone' => $user->phone,
+                    'status' => TournamentTeam::STATUS_PENDING,
+                    'tournament_id' => $tournament->id,
+                    'tournament_name' => $tournament->name,
+                    'tournament_format' => $tournament->tournament_format,
+                    'pitch_reservation' => $pitchReservation ? [
+                        'id' => $pitchReservation->id,
+                        'stadium_id' => $pitchReservation->terrain_id,
+                        'custom_pitch_name' => $pitchReservation->custom_pitch_name,
+                        'day_of_week' => $pitchReservation->day_of_week,
+                        'start_time' => $pitchReservation->start_time,
+                        'status' => $pitchReservation->status,
+                    ] : null,
+                ],
+            ], 201);
+        });
+    }
+
     private function assertManagerApproved(User $user): void
     {
         if ($user->role !== 'manager') {

@@ -159,3 +159,42 @@ export function toLeaderboardRow(r) {
     points: r.points ?? 0,
   }
 }
+
+
+/**
+ * Maps English / technical player positions into pure Standard Arabic (الفصحى).
+ * e.g., 'midfielder' -> 'خط وسط', 'forward' -> 'مهاجم', 'defender' -> 'مدافع', 'goalkeeper' -> 'حارس مرمى'
+ */
+export function formatPlayerPosition(pos) {
+  if (!pos) return ''
+  const key = String(pos).toLowerCase().trim()
+  const map = {
+    midfielder: 'خط وسط',
+    midfield: 'خط وسط',
+    milieu: 'خط وسط',
+    mf: 'خط وسط',
+    'وسط ميدان': 'خط وسط',
+    'وسط': 'خط وسط',
+    forward: 'مهاجم',
+    attacker: 'مهاجم',
+    striker: 'مهاجم',
+    attaquant: 'مهاجم',
+    fw: 'مهاجم',
+    'هجوم': 'مهاجم',
+    defender: 'مدافع',
+    defence: 'مدافع',
+    defense: 'مدافع',
+    defenseur: 'مدافع',
+    df: 'مدافع',
+    'دفاع': 'مدافع',
+    goalkeeper: 'حارس مرمى',
+    keeper: 'حارس مرمى',
+    gardien: 'حارس مرمى',
+    gk: 'حارس مرمى',
+    'حراسة': 'حارس مرمى',
+    'حارس': 'حارس مرمى',
+    winger: 'جناح',
+    ailier: 'جناح',
+  }
+  return map[key] || pos
+}

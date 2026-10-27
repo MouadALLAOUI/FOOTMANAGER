@@ -14,6 +14,7 @@ class SearchResource extends JsonResource
         };
 
         return [
+            'tournaments' => $map($this->resource['tournaments'] ?? collect(), 'tournament'),
             'teams' => $map($this->resource['teams'] ?? collect(), 'team'),
             'players' => $map($this->resource['players'] ?? collect(), 'player'),
             'stadiums' => $map($this->resource['stadiums'] ?? collect(), 'stadium'),
@@ -26,6 +27,16 @@ class SearchResource extends JsonResource
     protected function summarize($item, string $type): array
     {
         return match ($type) {
+            'tournament' => [
+                'type' => 'tournament',
+                'id' => $item->id,
+                'name' => $item->name,
+                'slug' => $item->slug ?? (string) $item->id,
+                'city' => $item->city,
+                'status' => $item->status,
+                'teams_count' => $item->teams_count,
+                'image_url' => $item->logo_url ?? null,
+            ],
             'team' => [
                 'type' => 'team',
                 'id' => $item->id,

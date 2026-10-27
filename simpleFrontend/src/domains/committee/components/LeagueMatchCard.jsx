@@ -20,6 +20,7 @@ import {
   Hourglass,
 } from 'lucide-react'
 import TeamLogo from '../../../components/profile/TeamLogo'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import { useToast } from '../../../components/ui/Toast'
 import api from '../../../api/client'
 
@@ -51,6 +52,7 @@ export default function LeagueMatchCard({
   onRefresh,
 }) {
   const { toast } = useToast()
+  const { openTeam } = useProfileModal()
   const [menuOpen, setMenuOpen] = useState(false)
   const [sharing, setSharing] = useState(false)
 
@@ -149,14 +151,18 @@ export default function LeagueMatchCard({
         {/* SECTIONS 2, 3, 4: TEAMS & CENTER MATCH INFORMATION */}
         <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-2">
           {/* SECTION 2: AWAY TEAM (Right side in RTL, beside time panel) */}
-          <div className="flex items-center justify-end gap-2.5 min-w-0">
+          <div
+            onClick={() => fixture.away_team?.id != null && openTeam(fixture.away_team)}
+            className="flex items-center justify-end gap-2.5 min-w-0 cursor-pointer group/team"
+            title={`عرض الملف والحجوزات الأسبوعية لـ ${fixture.away_team?.name || ''}`}
+          >
             <span
-              className="flex-1 text-end text-xs sm:text-sm font-extrabold text-[#102A43] leading-snug line-clamp-2 break-words"
+              className="flex-1 text-end text-xs sm:text-sm font-extrabold text-[#102A43] group-hover/team:text-emerald-700 leading-snug line-clamp-2 break-words transition-colors"
               title={fixture.away_team?.name}
             >
               {fixture.away_team?.name || 'فريق غير محدد'}
             </span>
-            <div className="shrink-0">
+            <div className="shrink-0 transition-transform group-hover/team:scale-105">
               <TeamLogo
                 team={fixture.away_team}
                 size="md"
@@ -180,8 +186,12 @@ export default function LeagueMatchCard({
           </div>
 
           {/* SECTION 4: HOME TEAM (Left side in RTL, with Home Icon) */}
-          <div className="flex items-center justify-start gap-2.5 min-w-0">
-            <div className="relative shrink-0">
+          <div
+            onClick={() => fixture.home_team?.id != null && openTeam(fixture.home_team)}
+            className="flex items-center justify-start gap-2.5 min-w-0 cursor-pointer group/team"
+            title={`عرض الملف والحجوزات الأسبوعية لـ ${fixture.home_team?.name || ''}`}
+          >
+            <div className="relative shrink-0 transition-transform group-hover/team:scale-105">
               <TeamLogo
                 team={fixture.home_team}
                 size="md"
@@ -195,7 +205,7 @@ export default function LeagueMatchCard({
               </span>
             </div>
             <span
-              className="flex-1 text-start text-xs sm:text-sm font-extrabold text-[#102A43] leading-snug line-clamp-2 break-words"
+              className="flex-1 text-start text-xs sm:text-sm font-extrabold text-[#102A43] group-hover/team:text-emerald-700 leading-snug line-clamp-2 break-words transition-colors"
               title={fixture.home_team?.name}
             >
               {fixture.home_team?.name || 'فريق غير محدد'}
@@ -341,14 +351,18 @@ export default function LeagueMatchCard({
         {/* MIDDLE SECTION: TEAMS SHOWCASE (Full width, 2-line names, clear logos) */}
         <div className="p-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 bg-white">
           {/* Away Team (Right side in RTL) */}
-          <div className="flex flex-col items-center justify-center text-center min-w-0">
+          <div
+            onClick={() => fixture.away_team?.id != null && openTeam(fixture.away_team)}
+            className="flex flex-col items-center justify-center text-center min-w-0 cursor-pointer active:scale-95 transition-transform"
+            title={`عرض الملف والحجوزات الأسبوعية لـ ${fixture.away_team?.name || ''}`}
+          >
             <TeamLogo
               team={fixture.away_team}
               size="md"
               className="size-11 rounded-xl border border-slate-200/80 shadow-2xs shrink-0"
             />
             <span
-              className="mt-1.5 text-xs font-black text-[#102A43] leading-snug line-clamp-2 break-words w-full px-1"
+              className="mt-1.5 text-xs font-black text-[#102A43] leading-snug line-clamp-2 break-words w-full px-1 hover:text-emerald-700"
               title={fixture.away_team?.name}
             >
               {fixture.away_team?.name || 'فريق غير محدد'}
@@ -363,7 +377,11 @@ export default function LeagueMatchCard({
           </div>
 
           {/* Home Team (Left side in RTL) */}
-          <div className="flex flex-col items-center justify-center text-center min-w-0">
+          <div
+            onClick={() => fixture.home_team?.id != null && openTeam(fixture.home_team)}
+            className="flex flex-col items-center justify-center text-center min-w-0 cursor-pointer active:scale-95 transition-transform"
+            title={`عرض الملف والحجوزات الأسبوعية لـ ${fixture.home_team?.name || ''}`}
+          >
             <div className="relative shrink-0">
               <TeamLogo
                 team={fixture.home_team}
@@ -378,7 +396,7 @@ export default function LeagueMatchCard({
               </span>
             </div>
             <span
-              className="mt-1.5 text-xs font-black text-[#102A43] leading-snug line-clamp-2 break-words w-full px-1"
+              className="mt-1.5 text-xs font-black text-[#102A43] leading-snug line-clamp-2 break-words w-full px-1 hover:text-emerald-700"
               title={fixture.home_team?.name}
             >
               {fixture.home_team?.name || 'فريق غير محدد'}

@@ -38,6 +38,7 @@ use App\Domains\Stadium\Controllers\StadiumController as PublicStadiumController
 use App\Domains\Subscription\Controllers\MySubscriptionController;
 use App\Domains\Subscription\Controllers\PlansController;
 use App\Domains\Team\Controllers\AttendanceController as V1AttendanceController;
+use App\Http\Controllers\GenieController;
 use App\Domains\Team\Controllers\CaptainController;
 use App\Domains\Team\Controllers\PlayerController as V1PlayerController;
 use App\Domains\Team\Controllers\TeamAnnouncementController;
@@ -158,6 +159,10 @@ Route::get('/push/public-key', [PushSubscriptionController::class, 'publicKey'])
 // Public live match data endpoint
 Route::get('/live/{token}/data', [PublicLiveMatchDataController::class, 'data'])->middleware('throttle:120,1');
 
+Route::get('/search', [SearchController::class, 'search']);
+Route::get('/search/suggest', [SearchController::class, 'suggest']);
+Route::get('/search/popular', [SearchController::class, 'popular']);
+
 Route::prefix('v1')->group(function () {
     Route::get('/home', [HomeController::class, 'index']);
     Route::get('/plans', [PlansController::class, 'index']);
@@ -167,6 +172,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/live-matches', [MatchController::class, 'live']);
     Route::get('/live-tournament-matches', PublicTournamentLiveController::class);
     Route::get('/leaderboard', [PublicLeaderboardController::class, 'index']);
+    Route::get('/search', [SearchController::class, 'search']);
+    Route::get('/search/suggest', [SearchController::class, 'suggest']);
+    Route::get('/search/popular', [SearchController::class, 'popular']);
+
     Route::get('/stats', [StatsController::class, 'index']);
 
     Route::get('/live', [LiveMatchController::class, 'index']);
@@ -201,6 +210,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/tournaments/{tournament}/sponsors', [PublicTournamentController::class, 'sponsors']);
     Route::get('/tournaments/{tournament}/partners', [PublicTournamentController::class, 'partners']);
     Route::get('/tournaments/{tournament}/registration', [TournamentRegistrationController::class, 'availability']);
+Route::post('/tournaments/{tournament}/join', [TournamentRegistrationController::class, 'joinRequest']);
     Route::get('/tournaments/{tournament}/matches/{match}', [PublicTournamentController::class, 'matchDetail']);
     Route::get('/tournaments/{tournament}/contact', [PublicTournamentContactController::class, 'contact']);
     Route::post('/tournaments/{tournament}/contact/messages', [PublicTournamentContactController::class, 'storeMessage'])->middleware('throttle:contact');
@@ -1248,4 +1258,22 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::delete('/terrains/{terrainId}/slot-closures/{closureId}', [SlotClosureController::class, 'destroy']);
         });
     });
+});
+
+// Smart Genie (الجني الذكي) - Contextual Assistant Routes
+Route::prefix('genie')->middleware('throttle:60,1')->group(function () {
+    Route::get('/context', [GenieController::class, 'context']);
+    Route::get('/open-tournaments', [GenieController::class, 'openTournaments']);
+    Route::get('/faq/{slug}', [GenieController::class, 'faq']);
+
+    // Protected personal endpoints
+    Route::get('/my-next-match', [GenieController::class, 'myNextMatch']);
+    Route::get('/my-team-rank', [GenieController::class, 'myTeamRank']);
+    Route::get('/my-last-result', [GenieController::class, 'myLastResult']);
+    Route::get('/today-matches', [GenieController::class, 'todayMatches']);
+    Route::get('/pending-results', [GenieController::class, 'pendingResults']);
+    Route::get('/team-registrations', [GenieController::class, 'teamRegistrations']);
+    Route::get('/today-bookings', [GenieController::class, 'todayBookings']);
+    Route::get('/free-slots', [GenieController::class, 'freeSlots']);
+    Route::get('/pending-bookings', [GenieController::class, 'pendingBookings']);
 });

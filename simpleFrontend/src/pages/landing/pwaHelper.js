@@ -88,6 +88,7 @@ export function registerServiceWorker() {
     navigator.serviceWorker
       .register('/sw.js')
       .then((registration) => {
+        if (!registration) return
         // Check if an update is already waiting
         if (registration.waiting) {
           waitingWorkerInstance = registration.waiting

@@ -61,7 +61,7 @@ export default function StatsBar({ theme = 'dark' }) {
       : 'grid-cols-1 max-w-xs'
 
   return (
-    <section aria-label="إحصائيات المنصة" className="relative z-20 mx-auto w-full max-w-4xl px-4 sm:px-6 -mt-6 mb-4 sm:mb-6">
+    <section aria-label="إحصائيات المنصة" className="relative z-10 mx-auto w-full max-w-4xl px-4 sm:px-6 -mt-6 mb-4 sm:mb-6">
       <div
         className={`grid ${gridColsClass} divide-x divide-x-reverse rounded-2xl border p-3 sm:p-5 transition-all shadow-xl ${
           isDark

@@ -129,7 +129,7 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed inset-x-0 z-50 transition-all duration-[350ms] ease-out ${
+      className={`fixed inset-x-0 z-[9990] transition-all duration-[350ms] ease-out ${
         scrolled ? 'top-[calc(var(--announce-height,0px)+18px)]' : 'top-[var(--announce-height,0px)]'
       }`}
     >
@@ -257,7 +257,7 @@ export default function Navbar() {
 
       {mounted &&
         createPortal(
-          <div className="fixed inset-0 z-[100] md:hidden">
+          <div className="fixed inset-0 z-[99999] md:hidden">
             <div
               onClick={() => setOpen(false)}
               aria-hidden="true"

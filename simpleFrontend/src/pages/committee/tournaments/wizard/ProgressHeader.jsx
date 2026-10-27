@@ -1,10 +1,11 @@
-import { AlertCircle, Calendar, Check, CheckCheck, FileText, Loader2, Rocket, ShieldCheck, Sliders, UserPlus } from 'lucide-react'
+import { AlertCircle, Calendar, Check, CheckCheck, FileText, Loader2, Rocket, Shield, ShieldCheck, Sliders, UserPlus, Users } from 'lucide-react'
 
 export const WIZARD_STEPS = [
-  { id: 1, key: 'basic', label: 'المعلومات الأساسية والقواعد', icon: FileText, desc: 'الاسم، التواريخ، الملعب، والصيغة مع النصائح والإرشادات' },
-  { id: 2, key: 'publish', label: 'نشر البطولة', icon: Rocket, desc: 'فتح باب التسجيل العام للفرق والجمهور' },
-  { id: 3, key: 'teams', label: 'إدارة وتسجيل الفرق', icon: UserPlus, desc: 'الإضافة المباشرة، الفريق الحر، ورابط الواتساب' },
-  { id: 4, key: 'finalize', label: 'إغلاق التسجيل', icon: CheckCheck, desc: 'تثبيت الفرق والانتقال لمركز الإدارة والقرعة' },
+  { id: 1, key: 'basic', label: 'معلومات البطولة', icon: FileText, desc: 'الاسم، الغلاف، الشعار، التواريخ، والملعب المعتمد' },
+  { id: 2, key: 'rules', label: 'قوانين البطولة', icon: Shield, desc: 'الصيغة الرياضية، التوقيت، ونظام النقاط واللوائح' },
+  { id: 3, key: 'publish', label: 'نشر البطولة', icon: Rocket, desc: 'الإطلاق الرسمي للبطولة وإتاحتها للعامة' },
+  { id: 4, key: 'teams', label: 'فرق البطولة', icon: Users, desc: 'إضافة الفرق، الفريق الحر، ورابط الواتساب الذكي' },
+  { id: 5, key: 'finalize', label: 'إغلاق التسجيل وبداية البطولة', icon: CheckCheck, desc: 'تثبيت الفرق والتوجيه لمركز القرعة والمباريات' },
 ]
 
 export default function ProgressHeader({

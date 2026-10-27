@@ -281,6 +281,28 @@ body.sheet-open #root {
   animation: announce-fade 0.5s ease-out both;
 }
 
+/* News Results Ticker Marquee (Smooth Continuous Scroll with Pause on Hover) */
+@keyframes ticker-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker-marquee {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: ticker-marquee 36s linear infinite;
+}
+
+.animate-ticker-marquee:hover,
+.ticker-container:hover .animate-ticker-marquee {
+  animation-play-state: paused !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .announce-enter,
   .announce-fade {

@@ -109,6 +109,16 @@ class LeagueAssignmentService
                 continue;
             }
 
+            $isClosed = $closures->contains(function ($c) use ($booking, $date) {
+                return (int) $c->terrain_id === (int) $booking->terrain_id
+                    && $c->closure_date === $date->toDateString()
+                    && $c->start_time < $booking->end_time
+                    && $c->end_time > $booking->start_time;
+            });
+            if ($isClosed) {
+                continue;
+            }
+
             $slots->push([
                 'booking' => $booking,
                 'date' => $date,
@@ -119,13 +129,153 @@ class LeagueAssignmentService
                 'terrain_id' => (int) $booking->terrain_id,
                 'owner_team_id' => (int) $booking->team_id,
                 'is_weekly' => false,
+                'occurrence_status' => null,
+                'occurrence_id' => null,
             ]);
         }
 
-        // 2. Weekly Recurring Subscriptions (Disabled: future feature per project requirements)
-        // Weekly pitch subscriptions are postponed to a later phase and disabled from tournament fixture scheduling.
+        // 2. Weekly Recurring Subscriptions
+        $weeklySubscriptions = TerrainBooking::query()
+            ->whereIn('team_id', $teamIds)
+            ->where('reservation_type', 'weekly_subscription')
+            ->whereIn('status', ['approved', 'confirmed'])
+            ->whereNull('archived_at')
+            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('terrain_id', $allowedStadiumIds))
+            ->with(['terrain', 'team'])
+            ->get();
 
-        // 3. Freed or Released Occurrences from Postponements / Tournament Releases (Disabled with subscriptions)
+        foreach ($weeklySubscriptions as $booking) {
+            $dow = (int) $booking->day_of_week;
+            $subStart = $booking->start_date ? Carbon::parse($booking->start_date->toDateString()) : null;
+            $subEnd = $booking->end_date ? Carbon::parse($booking->end_date->toDateString()) : null;
+
+            $cursor = $effectiveMin->copy();
+            while ($cursor->dayOfWeek !== $dow) {
+                $cursor->addDay();
+            }
+
+            while ($cursor->lte($endDate)) {
+                $dateStr = $cursor->toDateString();
+
+                if (($subStart && $cursor->lt($subStart)) || ($subEnd && $cursor->gt($subEnd))) {
+                    $cursor->addWeek();
+                    continue;
+                }
+
+                $datetime = Carbon::parse($dateStr.' '.$booking->start_time);
+                if ($datetime->isPast()) {
+                    $cursor->addWeek();
+                    continue;
+                }
+
+                $key = $booking->terrain_id.'_'.$datetime->format('Y-m-d H:i');
+                if (isset($occupiedSlots[$key])) {
+                    $cursor->addWeek();
+                    continue;
+                }
+
+                $isClosed = $closures->contains(function ($c) use ($booking, $dateStr) {
+                    return (int) $c->terrain_id === (int) $booking->terrain_id
+                        && $c->closure_date === $dateStr
+                        && $c->start_time < $booking->end_time
+                        && $c->end_time > $booking->start_time;
+                });
+                if ($isClosed) {
+                    $cursor->addWeek();
+                    continue;
+                }
+
+                $occ = $occurrences->first(function ($o) use ($booking, $dateStr) {
+                    return (int) $o->terrain_booking_id === (int) $booking->id
+                        && $o->occurrence_date === $dateStr;
+                });
+
+                if ($occ) {
+                    if ($occ->status === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH || $occ->fixture_id) {
+                        $cursor->addWeek();
+                        continue;
+                    }
+                    if (in_array($occ->status, [
+                        \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_CANCELLED,
+                        \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_WEATHER_BLOCKED,
+                    ], true)) {
+                        $cursor->addWeek();
+                        continue;
+                    }
+                }
+
+                $slots->push([
+                    'booking' => $booking,
+                    'date' => $cursor->copy(),
+                    'date_str' => $dateStr,
+                    'start_time' => $booking->start_time,
+                    'end_time' => $booking->end_time,
+                    'datetime' => $datetime,
+                    'terrain_id' => (int) $booking->terrain_id,
+                    'owner_team_id' => (int) $booking->team_id,
+                    'is_weekly' => true,
+                    'occurrence_status' => $occ?->status,
+                    'occurrence_id' => $occ?->id,
+                ]);
+
+                $cursor->addWeek();
+            }
+        }
+
+        // 3. Freed or Released Occurrences from Postponements / Tournament Releases
+        $freedOrReleased = \App\Domains\Booking\Models\TerrainBookingOccurrence::query()
+            ->whereIn('status', [
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED,
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED,
+            ])
+            ->where(function ($q) use ($tournament, $teamIds) {
+                $q->where('metadata->tournament_id', $tournament->id)
+                    ->orWhereHas('booking', fn ($bq) => $bq->whereIn('team_id', $teamIds));
+            })
+            ->whereBetween('occurrence_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
+            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('stadium_id', $allowedStadiumIds))
+            ->with(['booking.terrain', 'booking.team'])
+            ->get();
+
+        foreach ($freedOrReleased as $occ) {
+            if (! $occ->booking) {
+                continue;
+            }
+
+            $date = Carbon::parse($occ->occurrence_date);
+            $datetime = Carbon::parse($date->toDateString().' '.$occ->start_time);
+
+            if ($datetime->isPast()) {
+                continue;
+            }
+
+            $key = $occ->stadium_id.'_'.$datetime->format('Y-m-d H:i');
+            if (isset($occupiedSlots[$key])) {
+                continue;
+            }
+
+            $alreadyAdded = $slots->contains(function ($s) use ($occ, $date) {
+                return (int) $s['booking']->id === (int) $occ->terrain_booking_id
+                    && $s['date_str'] === $date->toDateString();
+            });
+            if ($alreadyAdded) {
+                continue;
+            }
+
+            $slots->push([
+                'booking' => $occ->booking,
+                'date' => $date,
+                'date_str' => $date->toDateString(),
+                'start_time' => $occ->start_time,
+                'end_time' => $occ->end_time,
+                'datetime' => $datetime,
+                'terrain_id' => (int) $occ->stadium_id,
+                'owner_team_id' => (int) $occ->booking->team_id,
+                'is_weekly' => true,
+                'occurrence_status' => $occ->status,
+                'occurrence_id' => $occ->id,
+            ]);
+        }
 
         return $slots->sortBy('datetime')->values();
     }
@@ -1730,6 +1880,15 @@ class LeagueAssignmentService
             if ($booking && ! $booking->isWeeklySubscription()) {
                 $booking->update(['fixture_id' => null]);
             }
+
+            // Free any occurrence occupied by this fixture
+            \App\Domains\Booking\Models\TerrainBookingOccurrence::query()
+                ->where('fixture_id', $fixture->id)
+                ->where('status', \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH)
+                ->update([
+                    'fixture_id' => null,
+                    'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED,
+                ]);
 
             // If match exists and not played, remove or set cancelled
             if ($fixture->match_id) {

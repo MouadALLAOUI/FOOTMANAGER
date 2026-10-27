@@ -19,10 +19,12 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Empty, Modal, Skeleton } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
+import { matchesArabicSearch } from '../../../lib/searchUtils'
 import { toastApiError } from '../../../lib/errors'
 import { TeamAvatar } from '../../tournaments/shared'
 import Jersey from '../../manager/live/components/Jersey'
-import { Ban, DoorOpen, RotateCcw } from 'lucide-react'
+import { Ban, DoorOpen, RotateCcw, CalendarDays } from 'lucide-react'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import TeamDisciplinePreviewModal from '../../../domains/committee/components/TeamDisciplinePreviewModal'
 import DisciplineMatchesReviewModal from '../../../domains/committee/components/DisciplineMatchesReviewModal'
 
@@ -39,6 +41,7 @@ const POSITIONS = [
 export default function TeamSquadModal({ team, tournamentId, open, onClose, tournamentTeam, onRefresh }) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { openTeam } = useProfileModal()
 
   // Search filter
   const [search, setSearch] = useState('')
@@ -333,14 +336,29 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                   <h4 className="truncate text-base font-black text-slate-900">{team?.name || '—'}</h4>
                   {isFree && <Badge variant="info">{t('committee.detail.freeBadge')}</Badge>}
                 </div>
+
                 <p className="text-xs font-semibold text-slate-500">
                   {team?.city ? `${team.city} • ` : ''}
                   إجمالي المسجلين: <span className="font-bold text-slate-700">{players.length}</span>
                 </p>
               </div>
+
             </div>
 
+
             <div className="flex flex-wrap items-center gap-2">
+              {team && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openTeam(team)}
+                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  title="عرض الحجوزات الأسبوعية وملف الفريق"
+                >
+                  <CalendarDays className="size-3.5 text-emerald-600" />
+                  <span>الحجوزات الأسبوعية</span>
+                </Button>
+              )}
               <Badge variant={squadCount > 0 ? (atMax ? 'danger' : 'success') : 'neutral'}>
                 {max != null
                   ? `المعتمدون: ${squadCount} / ${max}`
@@ -359,7 +377,40 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 {showBulkAdd ? 'إلغاء الإضافة السريعة' : 'إضافة سريعة'}
               </Button>
             </div>
+
           </div>
+
+
+          {/* Weekly Subscriptions Card */}
+          {payload?.weekly_subscriptions && payload.weekly_subscriptions.length > 0 && (
+            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-50/40 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs font-black text-emerald-900">
+                  <span className="grid size-6 place-items-center rounded-lg bg-emerald-600 text-white">
+                    <CalendarDays className="size-3.5" />
+                  </span>
+                  <span>الحجوزات والمواعيد الأسبوعية المعتمدة للفريق ({payload.weekly_subscriptions.length})</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openTeam(team)}
+                  className="text-[11px] font-bold text-emerald-700 hover:underline"
+                >
+                  عرض في الملف
+                </button>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {payload.weekly_subscriptions.map((ws) => (
+                  <div key={ws.id} className="flex items-center justify-between rounded-xl bg-white p-2.5 text-xs shadow-2xs border border-emerald-100">
+                    <div className="font-bold text-slate-800">
+                      <span className="text-emerald-700 font-black">{ws.day_name}</span> • {ws.start_time} - {ws.end_time}
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-semibold">{ws.terrain?.name || 'الملعب'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Warnings & Max banners */}
           {atMax && (
@@ -386,6 +437,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                     أدخل أسماء وأرقام اللاعبين لإضافتهم واعتمادهم فوراً في قائمة البطولة
                   </p>
                 </div>
+
                 <button
                   type="button"
                   onClick={() => setShowBulkAdd(false)}
@@ -394,6 +446,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                   <X className="size-4" />
                 </button>
               </div>
+
 
               <div className="max-h-56 space-y-2 overflow-y-auto pe-1">
                 {bulkRows.map((row, i) => {
@@ -432,13 +485,16 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                           </button>
                         )}
                       </div>
+
                       {(nameError || numberError) && (
                         <p className="mt-1.5 px-1 text-[10px] font-bold text-red-600">{nameError || numberError}</p>
                       )}
                     </div>
+
                   )
                 })}
               </div>
+
 
               {bulkTopError && (
                 <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">{bulkTopError}</p>
@@ -460,7 +516,9 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                   حفظ واعتماد اللاعبين
                 </Button>
               </div>
+
             </div>
+
           )}
 
           {/* Search bar */}
@@ -475,6 +533,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
             />
           </div>
 
+
           {/* Players Roster Grid */}
           {loading ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -482,6 +541,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 <Skeleton key={i} className="h-24 rounded-2xl" />
               ))}
             </div>
+
           ) : filteredPlayers.length === 0 ? (
             <Empty
               icon={Users}
@@ -527,6 +587,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                           <div className="grid size-14 place-items-center rounded-2xl bg-slate-100">
                             <Jersey number={player.number} variant={isInSquad ? 'home' : 'away'} className="size-11" />
                           </div>
+
                         )}
 
                         {player.number != null && (
@@ -536,6 +597,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                         )}
                       </div>
 
+
                       {/* Info */}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
@@ -544,6 +606,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                             <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-500" title="لاعب أساسي" />
                           )}
                         </div>
+
 
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-500">
                           <Badge variant="neutral" className="!px-1.5 !py-0 text-[10px]">
@@ -573,7 +636,9 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                             </span>
                           )}
                         </div>
+
                       </div>
+
 
                       {/* Actions */}
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -624,6 +689,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                           </button>
                         </div>
 
+
                         {/* Toggle squad inclusion button */}
                         <button
                           type="button"
@@ -651,11 +717,15 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                           )}
                         </button>
                       </div>
+
                     </div>
+
                   )
                 })}
               </div>
+
             </div>
+
           )}
 
           {/* Team Discipline & Status Actions */}
@@ -668,8 +738,21 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 </p>
               </div>
 
+
               {tournamentTeam?.status === 'withdrawn' ? (
                 <div className="flex flex-wrap items-center gap-2">
+              {team && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openTeam(team)}
+                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  title="عرض الحجوزات الأسبوعية وملف الفريق"
+                >
+                  <CalendarDays className="size-3.5 text-emerald-600" />
+                  <span>الحجوزات الأسبوعية</span>
+                </Button>
+              )}
                   <Badge variant="warning">حالة الفريق: منسحب</Badge>
                   <Button
                     size="sm"
@@ -679,8 +762,21 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                     مراجعة المباريات والنتائج الاعتبارية
                   </Button>
                 </div>
+
               ) : tournamentTeam?.status === 'disqualified' ? (
                 <div className="flex flex-wrap items-center gap-2">
+              {team && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openTeam(team)}
+                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  title="عرض الحجوزات الأسبوعية وملف الفريق"
+                >
+                  <CalendarDays className="size-3.5 text-emerald-600" />
+                  <span>الحجوزات الأسبوعية</span>
+                </Button>
+              )}
                   <Badge variant="danger">حالة الفريق: مُقصى</Badge>
                   <Button
                     size="sm"
@@ -690,8 +786,21 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                     مراجعة المباريات والنتائج الاعتبارية
                   </Button>
                 </div>
+
               ) : (
                 <div className="flex flex-wrap items-center gap-2">
+              {team && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openTeam(team)}
+                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  title="عرض الحجوزات الأسبوعية وملف الفريق"
+                >
+                  <CalendarDays className="size-3.5 text-emerald-600" />
+                  <span>الحجوزات الأسبوعية</span>
+                </Button>
+              )}
                   <button
                     type="button"
                     onClick={() => setDisciplineAction('withdraw')}
@@ -709,9 +818,12 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                     <span>طرد — Disqualify Team</span>
                   </button>
                 </div>
+
               )}
             </div>
+
           </div>
+
         </div>
       </Modal>
 
@@ -761,12 +873,26 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 <div className="grid size-16 place-items-center rounded-2xl bg-white text-slate-400 ring-1 ring-slate-200">
                   <Camera className="size-7" />
                 </div>
+
               )}
             </div>
+
 
             <div className="min-w-0 flex-1 space-y-1.5">
               <p className="text-xs font-bold text-slate-800">صورة اللاعب (اختياري)</p>
               <div className="flex flex-wrap items-center gap-2">
+              {team && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openTeam(team)}
+                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  title="عرض الحجوزات الأسبوعية وملف الفريق"
+                >
+                  <CalendarDays className="size-3.5 text-emerald-600" />
+                  <span>الحجوزات الأسبوعية</span>
+                </Button>
+              )}
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -794,8 +920,11 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                   </button>
                 )}
               </div>
+
             </div>
+
           </div>
+
           {playerFormErrors.photo && (
             <p className="text-xs font-bold text-rose-600">{playerFormErrors.photo[0]}</p>
           )}
@@ -818,6 +947,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
             )}
           </div>
 
+
           {/* Number & Position row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -836,6 +966,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
               )}
             </div>
 
+
             <div>
               <label className="mb-1 block text-xs font-bold text-slate-700">المركز</label>
               <select
@@ -851,7 +982,9 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 ))}
               </select>
             </div>
+
           </div>
+
 
           {/* Status Field */}
           <div>
@@ -878,7 +1011,9 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 </button>
               ))}
             </div>
+
           </div>
+
 
           {/* Essential Toggle */}
           <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
@@ -907,6 +1042,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
               {editingPlayer ? 'حفظ التعديلات' : 'إضافة واعتماد'}
             </Button>
           </div>
+
         </form>
       </Modal>
     </>

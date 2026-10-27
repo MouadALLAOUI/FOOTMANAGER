@@ -87,6 +87,20 @@ class PublicTournamentLiveController extends Controller
             ->limit(20)
             ->get();
 
+        $finished = Fixture::query()
+            ->where($scope)
+            ->whereNotNull('home_team_id')
+            ->whereNotNull('away_team_id')
+            ->where(function ($q) {
+                $q->where('status', FixtureStatus::Completed)
+                    ->orWhereHas('match', fn ($mq) => $mq->where('status', MatchStatus::Finished));
+            })
+            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])
+            ->orderByDesc('scheduled_at')
+            ->orderByDesc('id')
+            ->limit(15)
+            ->get();
+
         $liveData = $live
             ->map(fn (Fixture $f) => (new TournamentLandingMatchResource($f))
                 ->withTournament($lookup["{$f->competition_id}:{$f->season_id}"] ?? null)
@@ -99,11 +113,18 @@ class PublicTournamentLiveController extends Controller
                 ->toArray($request))
             ->values();
 
+        $finishedData = $finished
+            ->map(fn (Fixture $f) => (new TournamentLandingMatchResource($f))
+                ->withTournament($lookup["{$f->competition_id}:{$f->season_id}"] ?? null)
+                ->toArray($request))
+            ->values();
+
         return response()->json([
             'data' => [
                 'live' => $liveData,
                 'next' => $upcomingData->first() ?? null,
                 'upcoming' => $upcomingData,
+                'finished' => $finishedData,
             ],
         ]);
     }

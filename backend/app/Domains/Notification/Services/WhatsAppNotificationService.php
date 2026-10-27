@@ -51,6 +51,30 @@ class WhatsAppNotificationService
         return $this->buildWaLink($this->formatPhone($phone), $message);
     }
 
+    /**
+     * Build WhatsApp approval notification message with secure password/PIN activation link.
+     */
+    public function buildTournamentApprovalMessage(\App\Domains\Tournament\Models\Tournament $tournament, \App\Domains\Team\Models\Team $team, \App\Models\User $manager, string $activationUrl): string
+    {
+        $phone = $manager->phone;
+        if (! $phone) {
+            return '';
+        }
+
+        $managerName = $manager->name ?: 'كابتن';
+        $teamName = $team->name ?: 'فريقكم';
+        $tournamentName = $tournament->name ?: 'البطولة';
+
+        $message = "مرحباً بك كابتن {$managerName} ⚽\n\n"
+            ."يسعدنا إعلامك بأنه تمت الموافقة الرسمية على انضمام فريقكم ({$teamName}) إلى بطولة «{$tournamentName}» بنجاح! 🏆\n\n"
+            ."لإكمال إعداد حسابك كمسير رسمي والوصول إلى لوحة التحكم الخاصة بفريقك، يرجى النقر على الرابط الآمن التالي لتعيين رقمك السري الشخصي (PIN / كلمة المرور):\n"
+            ."{$activationUrl}\n\n"
+            ."نتمنى لكم كل التوفيق في البطولة! 🇲🇦\n"
+            ."مع تحيات اللجنة المنظمة — أجي نقصرو";
+
+        return $this->buildWaLink($this->formatPhone($phone), $message);
+    }
+
     public function buildOwnerDecisionMessage(TerrainBooking $booking, string $status): string
     {
         $isGuest = $booking->isGuest();

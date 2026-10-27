@@ -6,7 +6,6 @@ import { useApi } from '../../hooks/useApi'
 import TournamentCard from '../../components/tournaments/TournamentCard'
 import { useSnapCarousel } from '../../hooks/useSnapCarousel'
 import { CarouselDots } from '../../components/Carousel'
-import PlayerOfTheWeek from './playerOfTheWeek'
 
 function SkeletonCard() {
   return (
@@ -42,10 +41,7 @@ export default function Tournaments({ theme = 'dark' }) {
 
   return (
     <div id="tournaments-wrapper">
-      {/* Player of the week (renders only if real database player exists, otherwise null) */}
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <PlayerOfTheWeek theme={theme} />
-      </div>
+
 
       {/* Featured Tournaments Section: Disappears completely if 0 active tournaments */}
       {hasTournaments && (

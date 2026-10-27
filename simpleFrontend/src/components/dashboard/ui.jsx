@@ -242,7 +242,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
   const titleId = titleIdRef.current
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-end justify-center p-4 sm:items-center">
+    <div className="fixed inset-0 z-[99999] flex items-end justify-center p-4 sm:items-center">
       <div className={`${closing ? 'overlay-out' : 'overlay-in'} absolute inset-0 bg-slate-900/50 backdrop-blur-sm`} onClick={requestClose} aria-hidden="true" />
       <div
         ref={panelRef}

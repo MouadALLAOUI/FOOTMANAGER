@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, MapPin, Shield, Target, Users, Trophy } from 'lucide-react'
+import { CalendarDays, Clock, MapPin, Shield, Target, Users, Trophy, Sparkles } from 'lucide-react'
 import { usePublicTeamProfile } from '../../api/queries'
 import { Modal, Skeleton, Badge } from '../dashboard/ui'
 import TeamLogo from './TeamLogo'
@@ -32,6 +32,10 @@ export default function TeamProfileModal({ team, onClose }) {
   const display = info || team || {}
   // 404 = the team's manager account is unavailable; treat it like private.
   const isHidden = (info && info.visibility === 'private') || error?.response?.status === 404
+
+  const weeklyBookings = info?.weekly_bookings || display?.weekly_bookings || []
+  const recurringBookings = weeklyBookings.filter((b) => b.is_weekly)
+  const otherBookings = weeklyBookings.filter((b) => !b.is_weekly)
 
   return (
     <Modal open={Boolean(team)} onClose={onClose} title={display.name || t('profile.public.teamTitle')} subtitle={display.city}>
@@ -67,6 +71,116 @@ export default function TeamProfileModal({ team, onClose }) {
                 {display.level && <Badge variant="info">{t(`matchesPage.teams.levels.${display.level}`)}</Badge>}
               </div>
             </div>
+          </div>
+
+          {/* Section: الحجوزات والمواعيد الأسبوعية للفريق */}
+          <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-emerald-50/50 to-teal-50/20 p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 border-b border-emerald-100 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-700">
+                  <CalendarDays className="size-4" />
+                </span>
+                <div>
+                  <h5 className="text-xs sm:text-sm font-black text-slate-900">
+                    الحجوزات والمواعيد الأسبوعية
+                  </h5>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    مواعيد تدريب ومباريات الفريق الدائمة في الملاعب
+                  </p>
+                </div>
+              </div>
+              {weeklyBookings.length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-200">
+                  <Sparkles className="size-2.5 text-emerald-600" />
+                  <span>{weeklyBookings.length} موعد</span>
+                </span>
+              )}
+            </div>
+
+            {weeklyBookings.length === 0 ? (
+              <div className="py-4 text-center">
+                <p className="text-xs font-semibold text-slate-500">
+                  لا توجد حجوزات أسبوعية دائمة مسجلة لهذا الفريق حالياً.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {/* 1. Recurring weekly bookings */}
+                {recurringBookings.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-emerald-200/80 bg-white p-3 shadow-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white font-black text-xs">
+                        {b.day_name ? b.day_name.slice(0, 3) : 'يوم'}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-extrabold text-slate-900">
+                            كل يوم {b.day_name || 'أسبوعي'}
+                          </p>
+                          <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 border border-emerald-200">
+                            حجز أسبوعي دائم
+                          </span>
+                        </div>
+                        {b.terrain && (
+                          <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                            <MapPin className="size-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{b.terrain.name}</span>
+                            {b.terrain.city && <span className="text-slate-400">({b.terrain.city})</span>}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {b.start_time && (
+                      <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-800 border border-slate-200/70 self-start sm:self-auto shrink-0">
+                        <Clock className="size-3 text-emerald-600" />
+                        <span className="tabular-nums dir-ltr">{b.start_time} - {b.end_time}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* 2. Single or scheduled bookings */}
+                {otherBookings.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-xs"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-700 font-black text-xs">
+                        {b.day_name ? b.day_name.slice(0, 3) : 'موعد'}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-extrabold text-slate-900">
+                            {b.day_name || ''} {b.booking_date || ''}
+                          </p>
+                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">
+                            حجز ملعب
+                          </span>
+                        </div>
+                        {b.terrain && (
+                          <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                            <MapPin className="size-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{b.terrain.name}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {b.start_time && (
+                      <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-800 border border-slate-200/70 self-start sm:self-auto shrink-0">
+                        <Clock className="size-3 text-slate-500" />
+                        <span className="tabular-nums dir-ltr">{b.start_time} - {b.end_time}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {isHidden ? (

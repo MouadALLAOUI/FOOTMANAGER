@@ -108,7 +108,7 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
   }
 
   return (
-    <div className="fixed inset-0 z-[90]">
+    <div className="fixed inset-0 z-[99999]">
       <div className={`${closing ? 'overlay-out' : 'overlay-in'} absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
       <div
         ref={panelRef}

@@ -24,7 +24,8 @@ class TournamentTerrainBookingService
     public function bookingFor(Fixture $fixture): ?TerrainBooking
     {
         return TerrainBooking::query()->where('fixture_id', $fixture->id)->first()
-            ?? ($fixture->match?->active_reservation_id ? TerrainBooking::find($fixture->match->active_reservation_id) : null);
+            ?? ($fixture->match?->active_reservation_id ? TerrainBooking::find($fixture->match->active_reservation_id) : null)
+            ?? \App\Domains\Booking\Models\TerrainBookingOccurrence::where('fixture_id', $fixture->id)->first()?->booking;
     }
 
     /**
@@ -67,7 +68,24 @@ class TournamentTerrainBookingService
                         'notes' => 'مباراة بطولة: '.$tournament->name,
                     ]
                 );
+
+                return $candidate;
             }
+        }
+
+        // Check if fixture is already tied to a weekly occurrence
+        $linkedOccurrence = \App\Domains\Booking\Models\TerrainBookingOccurrence::where('fixture_id', $fixture->id)->first();
+        if ($linkedOccurrence && $linkedOccurrence->booking && $linkedOccurrence->booking->isWeeklySubscription()) {
+            $linkedOccurrence->update([
+                'occurrence_date' => $scheduledAt->toDateString(),
+                'stadium_id' => $fixture->stadium_id,
+                'start_time' => $scheduledAt->format('H:i'),
+                'end_time' => $scheduledAt->copy()->addMinutes($duration)->format('H:i'),
+                'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_USED_BY_MATCH,
+                'notes' => 'مباراة بطولة: '.$tournament->name,
+            ]);
+
+            return $linkedOccurrence->booking;
         }
 
         $booking = TerrainBooking::query()->where('fixture_id', $fixture->id)->where('reservation_type', 'single')->first()

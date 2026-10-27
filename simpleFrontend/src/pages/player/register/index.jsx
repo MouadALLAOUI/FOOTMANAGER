@@ -19,7 +19,7 @@ import SEO from '../../../components/system/SEO'
 const POSITIONS = [
   { id: 'goalkeeper', label: 'حارس مرمى', icon: '🧤', desc: 'حماية المرمى ورد الكرات' },
   { id: 'defender', label: 'مدافع', icon: '🛡️', desc: 'إيقاف الهجمات والتغطية' },
-  { id: 'midfielder', label: 'وسط ميدان', icon: '⚙️', desc: 'صناعة اللعب والربط' },
+  { id: 'midfielder', label: 'خط وسط', icon: '⚙️', desc: 'صناعة اللعب والربط' },
   { id: 'forward', label: 'مهاجم', icon: '⚽', desc: 'تسجيل الأهداف والإنهاء' },
 ]
 

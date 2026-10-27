@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, Flag, MapPin, Swords, Ticket, Trophy, Users } from 'lucide-react'
+import { CalendarDays, Flag, MapPin, Swords, Ticket, Trophy, Users, Copy, Check, MessageCircle, Share2 } from 'lucide-react'
 import { formatTournamentDateRange } from '../list/shared'
+import { useToast } from '../../../components/ui/Toast'
 
 const STATUS_PILL = {
   open_for_registration: 'bg-emerald-400/15 text-emerald-300 ring-emerald-400/30',
@@ -38,6 +40,28 @@ function StatCell({ icon: Icon, value, label }) {
 
 export default function Hero({ tour }) {
   const { t, i18n } = useTranslation()
+  const { toast } = useToast()
+  const [copiedLink, setCopiedLink] = useState(false)
+
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const shortTourUrl = `${origin}/t/${tour.slug || tour.id}`
+
+  const handleCopyLink = () => {
+    try {
+      navigator.clipboard.writeText(shortTourUrl)
+      setCopiedLink(true)
+      setTimeout(() => setCopiedLink(false), 2200)
+      toast.success('تم نسخ الرابط بنجاح! 📋')
+    } catch {
+      toast.error('تعذر نسخ الرابط تلقائياً')
+    }
+  }
+
+  const handleWhatsAppShare = () => {
+    const msg = `🏆 *تابع تفاصيل وجدول مباريات بطولة ${tour.name}* ⚽\n\nشاهد نتائج المباريات وترتيب الفرق والإحصائيات مباشرة على منصة أجي نقصرو:\n\n🔗 رابط البطولة المباشر:\n${shortTourUrl}\n\n🇲🇦 منصة أجي نقصرو`
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
   const primary = tour.primary_color || '#16a34a'
   const secondary = tour.secondary_color || primary
   const hasCover = Boolean(tour.cover_url)
@@ -55,9 +79,9 @@ export default function Hero({ tour }) {
   return (
     <section
       aria-label={tour.name}
-      className="relative overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-[0_32px_80px_-32px_rgba(15,23,42,0.7)] ring-1 ring-white/10"
+      className="relative overflow-visible rounded-[2rem] bg-slate-950 text-white shadow-[0_32px_80px_-32px_rgba(15,23,42,0.7)] ring-1 ring-white/10"
     >
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
         {hasCover && <img src={tour.cover_url} alt="" className="h-full w-full object-cover" loading="eager" />}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/85 to-slate-950/45" />
         <div
@@ -81,19 +105,48 @@ export default function Hero({ tour }) {
       <div className="absolute inset-x-0 top-0 z-10 h-1" style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }} />
 
       <div className="relative z-10 px-4 pb-6 pt-16 sm:px-8 sm:pb-10 sm:pt-24 lg:px-10">
-        <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${
-              STATUS_PILL[tour.status] || 'bg-white/10 text-white/80 ring-white/20'
-            }`}
-          >
-            {t(`status.${tour.status}`)}
-          </span>
-          {registrationPill && (
-            <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ${registrationPill.cls}`}>
-              {registrationPill.label}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${
+                STATUS_PILL[tour.status] || 'bg-white/10 text-white/80 ring-white/20'
+              }`}
+            >
+              {t(`status.${tour.status}`)}
             </span>
-          )}
+            {registrationPill && (
+              <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ${registrationPill.cls}`}>
+                {registrationPill.label}
+              </span>
+            )}
+          </div>
+
+          {/* Quick Copy & WhatsApp Share */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all backdrop-blur-md cursor-pointer ${
+                copiedLink
+                  ? 'bg-emerald-500 text-white ring-1 ring-emerald-400'
+                  : 'bg-white/10 hover:bg-white/20 text-white ring-1 ring-white/20'
+              }`}
+              title="نسخ الرابط السريع للبطولة"
+            >
+              {copiedLink ? <Check className="size-3.5 text-white" /> : <Copy className="size-3.5 text-white/80" />}
+              <span>{copiedLink ? 'تم النسخ! ✓' : 'نسخ الرابط'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleWhatsAppShare}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#10B981] hover:bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md transition-all active:scale-95 cursor-pointer"
+              title="مشاركة رابط البطولة عبر واتساب"
+            >
+              <MessageCircle className="size-3.5" />
+              <span>مشاركة عبر واتساب</span>
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 sm:mt-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">

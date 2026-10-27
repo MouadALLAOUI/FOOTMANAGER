@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ListChecks, Pencil, Plus, RotateCcw, Trash2, UserPlus, Wallet, X } from 'lucide-react'
+import { Check, ListChecks, Pencil, Plus, RotateCcw, Trash2, UserPlus, Wallet, X, CalendarDays, Share2, Copy, CheckCircle2, Phone, Users } from 'lucide-react'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Empty, Field, Modal, Skeleton } from '../../../components/dashboard/ui'
@@ -10,10 +11,13 @@ import { toastApiError } from '../../../lib/errors'
 import { TeamAvatar } from '../../tournaments/shared'
 import TeamSquadModal from './teamSquadModal'
 import EditFreeTeamModal from './editFreeTeamModal'
+import QuickShareCard from '../../../components/tournaments/QuickShareCard'
+import { matchesArabicSearch } from '../../../lib/searchUtils'
 
 export default function TeamsTab({ tournament, refresh, refreshKey }) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { openTeam } = useProfileModal()
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState([])
   const [busy, setBusy] = useState(null)
@@ -29,6 +33,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
   const [freeBusy, setFreeBusy] = useState(false)
 
   const [editFreeTeam, setEditFreeTeam] = useState(null)
+  const [archiveSearch, setArchiveSearch] = useState('')
 
   const { data: teams, loading } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/teams`).then((r) => r.data.data),
@@ -40,13 +45,34 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
     [tournament.id, refreshKey],
   )
 
+  const [approvedActivation, setApprovedActivation] = useState(null)
+  const [copiedPinLink, setCopiedPinLink] = useState(false)
   const pending = (registrations || []).filter((r) => r.status === 'pending')
 
-  const respond = async (teamId, action) => {
+  const respond = async (teamId, action, teamInfo = null) => {
     setBusy(`respond-${teamId}`)
     try {
-      await api.post(`/committee/tournaments/${tournament.id}/teams/${teamId}/${action}`)
-      toast.success(t(action === 'approve' ? 'committee.detail.approveRequestToast' : 'committee.detail.rejectRequestToast'))
+      const res = await api.post(`/committee/tournaments/${tournament.id}/teams/${teamId}/${action}`)
+      if (action === 'approve') {
+        toast.success('تم قبول الفريق وتفعيل حسابه بنجاح')
+        const data = res?.data
+        const waUrl = data?.whatsapp_url
+        const actUrl = data?.activation_url
+        if (waUrl) {
+          window.open(waUrl, '_blank')
+        }
+        if (actUrl || waUrl) {
+          setApprovedActivation({
+            teamName: data?.team_name || teamInfo?.name || 'الفريق',
+            managerName: data?.manager_name || teamInfo?.manager_name || 'المسير',
+            managerPhone: data?.manager_phone || teamInfo?.manager_phone || '',
+            activationUrl: actUrl,
+            whatsappUrl: waUrl,
+          })
+        }
+      } else {
+        toast.success(t('committee.detail.rejectRequestToast'))
+      }
       refresh()
     } catch (e) {
       toastApiError(e, t)
@@ -201,6 +227,9 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
 
   return (
     <div className="space-y-5">
+      {/* روابط المشاركة السريعة ودعوة الفرق */}
+      <QuickShareCard tournament={tournament} type="both" />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Badge variant={over ? 'danger' : capped && remaining > 0 ? 'warning' : 'success'}>
           {t('committee.detail.teamsCount', { count })}
@@ -245,34 +274,74 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
           ) : (
             <div className="space-y-2.5">
               {pending.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 rounded-2xl border border-amber-200/60 bg-white px-3.5 py-3">
-                  <TeamAvatar team={r.team} className="size-10" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-slate-800">{r.team?.name || '—'}</p>
-                    {r.team?.city && <p className="text-[11px] text-slate-400">{r.team.city}</p>}
+                <div key={r.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-2xl border border-amber-200/70 bg-white p-3.5 shadow-xs">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <TeamAvatar team={r.team} className="size-12 shrink-0 shadow-xs" />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="truncate text-sm font-black text-slate-900">{r.team?.name || '—'}</p>
+                        <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
+                          طلب جديد
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-1">
+                        {r.team?.manager_name && (
+                          <span className="font-semibold text-slate-700">
+                            المسير: <span className="font-bold">{r.team.manager_name}</span>
+                          </span>
+                        )}
+                        {r.team?.manager_phone && (
+                          <div className="inline-flex items-center gap-1.5 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/70">
+                            <span className="font-bold text-emerald-700 dir-ltr text-xs">
+                              🇲🇦 {r.team.manager_phone}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigator.clipboard.writeText(r.team.manager_phone)
+                                toast.success('تم نسخ الرابط بنجاح! 📋')
+                              }}
+                              className="text-emerald-600 hover:text-emerald-800 p-0.5 rounded hover:bg-emerald-100 transition-colors cursor-pointer"
+                              title="نسخ رقم الهاتف"
+                            >
+                              <Copy className="size-3" />
+                            </button>
+                          </div>
+                        )}
+                        {r.team?.players_count > 0 && (
+                          <span className="rounded-md bg-slate-100 text-slate-600 px-1.5 py-0.5 text-[10px] font-bold">
+                            {r.team.players_count} لاعبين
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <Button
-                    size="sm"
-                    className="shrink-0"
-                    loading={busy === `respond-${r.team_id || r.team?.id}`}
-                    onClick={() => respond(r.team_id || r.team?.id, 'approve')}
-                  >
-                    <Check className="size-3.5" />
-                    {t('committee.detail.approveRequest')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="dangerSoft"
-                    className="shrink-0"
-                    loading={busy === `respond-${r.team_id || r.team?.id}`}
-                    onClick={() => {
-                      if (!window.confirm(t('committee.detail.rejectRequestConfirm'))) return
-                      respond(r.team_id || r.team?.id, 'reject')
-                    }}
-                  >
-                    <X className="size-3.5" />
-                    {t('committee.detail.rejectRequest')}
-                  </Button>
+
+                  <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                    <Button
+                      size="sm"
+                      className="bg-[#10B981] hover:bg-emerald-600 text-white font-bold flex-1 sm:flex-initial"
+                      loading={busy === `respond-${r.team_id || r.team?.id}`}
+                      onClick={() => respond(r.team_id || r.team?.id, 'approve', r.team)}
+                    >
+                      <Check className="size-3.5" />
+                      <span>قبول الفريق</span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="dangerSoft"
+                      className="font-bold"
+                      loading={busy === `respond-${r.team_id || r.team?.id}`}
+                      onClick={() => {
+                        if (!window.confirm(t('committee.detail.rejectRequestConfirm'))) return
+                        respond(r.team_id || r.team?.id, 'reject', r.team)
+                      }}
+                    >
+                      <X className="size-3.5" />
+                      <span>رفض</span>
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -348,14 +417,62 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     {p.status === 'withdrawn' && <Badge variant="warning">منسحب</Badge>}
                     {p.status === 'disqualified' && <Badge variant="danger">مُقصى</Badge>}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[11px] font-semibold text-slate-400">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
+                    <span className="text-[11px] font-semibold text-slate-400">
                       {p.group?.name || t('committee.detail.unassigned')}
-                    </p>
+                    </span>
+                    {p.team?.manager_name && (
+                      <span className="font-semibold text-slate-700">
+                        المسير: <span className="font-bold">{p.team.manager_name}</span>
+                      </span>
+                    )}
+                    {p.team?.manager_phone && (
+                      <div className="inline-flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
+                        <a
+                          href={`https://wa.me/${p.team.manager_phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="font-bold text-emerald-700 hover:text-emerald-800 dir-ltr inline-flex items-center gap-1"
+                          title="مراسلة المسير عبر واتساب"
+                        >
+                          <Phone className="size-3" />
+                          <span>🇲🇦 {p.team.manager_phone}</span>
+                        </a>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigator.clipboard.writeText(p.team.manager_phone)
+                            toast.success('تم نسخ الرابط بنجاح! 📋')
+                          }}
+                          className="text-emerald-600 hover:text-emerald-800 p-0.5 rounded hover:bg-emerald-100 transition-colors cursor-pointer"
+                          title="نسخ رقم الهاتف"
+                        >
+                          <Copy className="size-3" />
+                        </button>
+                      </div>
+                    )}
+                    {p.team?.players_count > 0 && (
+                      <span className="rounded-md bg-slate-100 text-slate-600 px-1.5 py-0.5 text-[10px] font-bold">
+                        {p.team.players_count} لاعبين
+                      </span>
+                    )}
                   </div>
                 </div>
                 {!selectMode && (
                   <div className="flex shrink-0 items-center gap-1.5">
+                    {!isDeleted && p.team && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openTeam(p.team) }}
+                        className="grid size-9 place-items-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80 transition-colors hover:bg-emerald-100"
+                        title="عرض الملف والحجوزات الأسبوعية للفريق"
+                        aria-label="عرض الملف والحجوزات الأسبوعية للفريق"
+                      >
+                        <CalendarDays className="size-4" />
+                      </button>
+                    )}
                     {!isDeleted && p.payment_status === 'pending' && (
                       <button
                         type="button"
@@ -430,13 +547,37 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
             </p>
           )}
           <Field label={t('committee.detail.availableTeams')}>
-            {available.length === 0 ? (
+            <input
+              type="text"
+              value={archiveSearch}
+              onChange={(e) => setArchiveSearch(e.target.value)}
+              placeholder="ابحث باسم الفريق، المدينة، المسير أو الهاتف..."
+              className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white mb-2"
+            />
+            {available.filter((t) => {
+              if (!archiveSearch.trim()) return true
+              return (
+                matchesArabicSearch(t.name, archiveSearch) ||
+                matchesArabicSearch(t.city, archiveSearch) ||
+                matchesArabicSearch(t.manager_name, archiveSearch) ||
+                (t.manager_phone && t.manager_phone.includes(archiveSearch.trim()))
+              )
+            }).length === 0 ? (
               <p className="rounded-xl bg-slate-50 px-4 py-6 text-center text-xs font-semibold text-slate-400">
                 {t('committee.detail.noAvailableTeams')}
               </p>
             ) : (
               <div className="max-h-[46vh] space-y-1.5 overflow-y-auto pe-1">
-                {available.map((team) => {
+                {available.filter((t) => {
+                  if (!archiveSearch.trim()) return true
+                  const q = archiveSearch.toLowerCase()
+                  return (
+                    t.name?.toLowerCase().includes(q) ||
+                    t.city?.toLowerCase().includes(q) ||
+                    t.manager_name?.toLowerCase().includes(q) ||
+                    t.manager_phone?.includes(q)
+                  )
+                }).map((team) => {
                   const checked = selected.includes(team.id)
                   return (
                     <button
@@ -457,7 +598,15 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                       <TeamAvatar team={team} className="size-8" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-bold text-slate-800">{team.name}</p>
-                        {team.city && <p className="text-[10px] text-slate-400">{team.city}</p>}
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-400 mt-0.5">
+                          {team.city && <span>{team.city}</span>}
+                          {team.manager_name && <span>• المسير: {team.manager_name}</span>}
+                          {team.manager_phone && (
+                            <span className="dir-ltr text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/50">
+                              🇲🇦 {team.manager_phone}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </button>
                   )
@@ -552,6 +701,71 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
         locked={tournament?.has_settled_result}
         onSaved={refresh}
       />
+      {/* Modal: Manager Activation Link after approval */}
+      {approvedActivation && (
+        <Modal
+          open={Boolean(approvedActivation)}
+          onClose={() => setApprovedActivation(null)}
+          title="تم قبول الفريق وتفعيل الرابط بنجاح"
+          size="md"
+        >
+          <div className="space-y-4 text-start">
+            <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 border border-emerald-200 text-emerald-900">
+              <CheckCircle2 className="size-8 text-emerald-600 shrink-0" />
+              <div>
+                <p className="text-sm font-black">
+                  تم قبول انضمام فريق "{approvedActivation.teamName}" رسمياً للبطولة!
+                </p>
+                <p className="text-xs text-emerald-700 mt-0.5">
+                  تم اعتماد حساب المسير {approvedActivation.managerName} وتوليد رابط تعيين الرقم السري الشخصي له.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                رابط تعيين الرقم السري الشخصي (PIN / Password) للمسير:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={approvedActivation.activationUrl}
+                  className="h-10 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-xs font-mono text-slate-600 select-all outline-none"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    navigator.clipboard.writeText(approvedActivation.activationUrl)
+                    setCopiedPinLink(true)
+                    toast.success('تم نسخ الرابط بنجاح! 📋')
+                    setTimeout(() => setCopiedPinLink(false), 2000)
+                  }}
+                >
+                  <Copy className="size-3.5" />
+                  <span>{copiedPinLink ? 'تم النسخ! ✓' : 'نسخ الرابط'}</span>
+                </Button>
+              </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const phoneClean = approvedActivation.managerPhone.replace(/[^\d]/g, '')
+                  const msg = `🏆 *تهانينا! تمت الموافقة على انضمام فريقكم (${approvedActivation.teamName}) إلى بطولة ${tournament.name}*\n\nيرجى الضغط على الرابط التالي لتعيين رقمكم السري الشخصي (PIN) والبدء في تعديل تشكيلة اللاعبين ومتابعة المباريات:\n${approvedActivation.activationUrl}`
+                  window.open(`https://wa.me/${phoneClean}?text=${encodeURIComponent(msg)}`, '_blank')
+                }}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#1F7A4D] hover:bg-[#1A6841] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <Share2 className="size-4" />
+                <span>مشاركة رابط تعيين الرقم السري مع المسير عبر واتساب 📲</span>
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

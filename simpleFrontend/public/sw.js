@@ -36,7 +36,8 @@ const NEVER_CACHE_PATTERNS = [
   /\/committee/i,
   /\/booking/i,
   /\/payment/i,
-  /\/notifications\/unread-count/i
+  /\/notifications\/unread-count/i,
+  /\/api\/genie/i
 ]
 
 function shouldNeverCache(url, method) {

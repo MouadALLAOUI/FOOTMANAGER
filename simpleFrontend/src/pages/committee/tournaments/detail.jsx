@@ -15,6 +15,7 @@ import {
   MessageSquareText,
   Network,
   Settings2,
+  Share2,
   ShieldAlert,
   SlidersHorizontal,
   Swords,
@@ -25,6 +26,7 @@ import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Card, Empty, Modal, SectionTitle, Skeleton, StatusBadge } from '../../../components/dashboard/ui'
 import DelegatedSubmissionReviewModal from '../../../domains/committee/components/DelegatedSubmissionReviewModal'
+import QuickShareCard from '../../../components/tournaments/QuickShareCard'
 import OverviewTab from './overviewTab'
 import TeamsTab from './teamsTab'
 import DrawBoard from './draw'
@@ -69,6 +71,7 @@ export default function TournamentDetail() {
   const [exportOpen, setExportOpen] = useState(false)
   const [reviewSubmissionFixture, setReviewSubmissionFixture] = useState(null)
   const [pendingPickerOpen, setPendingPickerOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const tabsRef = useRef(null)
 
   const scrollTabs = (direction) => {
@@ -171,16 +174,18 @@ export default function TournamentDetail() {
   return (
     <div>
       {/* Tournament Hero Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B1F3A] via-[#0e2746] to-[#071426] p-5 sm:p-6 text-white shadow-lg border border-slate-800/60 mb-4">
+      <div className="relative overflow-visible rounded-3xl bg-gradient-to-br from-[#0B1F3A] via-[#0e2746] to-[#071426] p-5 sm:p-6 text-white shadow-lg border border-slate-800/60 mb-4">
         {/* Decorative lighting & glow */}
-        <div className="pointer-events-none absolute -start-10 -top-10 h-44 w-44 rounded-full bg-emerald-500/20 blur-3xl" />
-        <div className="pointer-events-none absolute end-0 bottom-0 h-40 w-40 rounded-full bg-[#0F9D58]/15 blur-2xl" />
-        <div className="pointer-events-none absolute end-4 bottom-2 opacity-15">
-          <img src="/icon_trophy.png" alt="" className="size-24 sm:size-28 object-contain" />
+        <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
+          <div className="pointer-events-none absolute -start-10 -top-10 h-44 w-44 rounded-full bg-emerald-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute end-0 bottom-0 h-40 w-40 rounded-full bg-[#0F9D58]/15 blur-2xl" />
+          <div className="pointer-events-none absolute end-4 bottom-2 opacity-15">
+            <img src="/icon_trophy.png" alt="" className="size-24 sm:size-28 object-contain" />
+          </div>
         </div>
 
         {/* Top Badges & Actions */}
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="relative z-[9999] flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-black text-emerald-300">
               <Trophy className="size-3.5 text-emerald-400" />
@@ -194,7 +199,7 @@ export default function TournamentDetail() {
           </div>
 
           {/* Actions in Hero */}
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto relative z-[9999]">
             {/* Pending Delegated Results button */}
             {pendingCount > 0 && (
               <button
@@ -212,6 +217,17 @@ export default function TournamentDetail() {
                 )}
               </button>
             )}
+
+            {/* Quick Share Links */}
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="inline-flex min-h-[42px] sm:min-h-[36px] items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 text-xs font-bold text-white transition-all active:scale-95 cursor-pointer"
+              title="مشاركة الروابط السريعة للبطولة والتسجيل"
+            >
+              <Share2 className="size-4 text-emerald-400" />
+              <span>روابط المشاركة السريعة</span>
+            </button>
 
             {/* Export / Print */}
             <button
@@ -458,6 +474,19 @@ export default function TournamentDetail() {
             bump()
           }}
         />
+      )}
+      {/* Quick Share Modal */}
+      {shareOpen && (
+        <Modal
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          title="روابط المشاركة السريعة للبطولة"
+          size="md"
+        >
+          <div className="p-1">
+            <QuickShareCard tournament={tour} type="both" />
+          </div>
+        </Modal>
       )}
     </div>
   )

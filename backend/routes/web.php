@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\Public\PublicLiveMatchPageController;
+use App\Http\Controllers\Public\PublicLiveMatchDataController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HealthController::class, '__invoke']);

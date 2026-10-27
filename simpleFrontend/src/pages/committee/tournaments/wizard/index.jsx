@@ -18,9 +18,10 @@ import { toastApiError } from '../../../../lib/errors'
 import ProgressHeader, { WIZARD_STEPS } from './ProgressHeader'
 import DraftResumeBanner from './DraftResumeBanner'
 import Step1BasicInfo from './Step1BasicInfo'
-import Step2PublishTournament from './Step2PublishTournament'
-import Step3ManageTeams from './Step3ManageTeams'
-import Step4CloseRegistration from './Step4CloseRegistration'
+import Step2TournamentRules from './Step2TournamentRules'
+import Step3PublishTournament from './Step3PublishTournament'
+import Step4TournamentTeams from './Step4TournamentTeams'
+import Step5FinalizeAndLaunch from './Step5FinalizeAndLaunch'
 
 const emptyForm = {
   name: '',
@@ -48,6 +49,8 @@ const emptyForm = {
   registration_fee: 0,
   registration_start_at: '',
   registration_end_at: '',
+  logo_url: '',
+  cover_url: '',
 }
 
 export default function TournamentWizard() {
@@ -128,11 +131,12 @@ export default function TournamentWizard() {
         registration_start_at: tour.registration_start_at || '',
         registration_end_at: tour.registration_end_at || '',
         logo_url: tour.logo_url || '',
+        cover_url: tour.cover_url || '',
       }))
 
       if (tour.plan?.wizard?.current_step && !paramId) {
         const savedStep = Number(tour.plan.wizard.current_step)
-        if (savedStep >= 1 && savedStep <= 4) {
+        if (savedStep >= 1 && savedStep <= 5) {
           setCurrentStep(savedStep)
         }
       }
@@ -145,21 +149,28 @@ export default function TournamentWizard() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  // Calculate Real Step Validation States
+  // Calculate Step Validation States across the 5 steps
   const stepStates = useMemo(() => {
+    // 1. معلومات البطولة
     const s1Complete = Boolean(tour?.name && tour?.start_date) || Boolean(form.name && form.start_date)
+    // 2. قوانين البطولة
+    const s2Complete = Boolean(form.tournament_format && form.match_duration_minutes)
+    // 3. نشر البطولة
     const isPublished = tour?.status && tour.status !== 'draft'
-    const s2Complete = isPublished
+    const s3Complete = isPublished
+    // 4. فرق البطولة
     const regTeamsCount = Number(tour?.stats?.registered_teams ?? 0)
     const targetTeams = Number(tour?.teams_count ?? form.teams_count ?? 8)
-    const s3Complete = regTeamsCount >= 2
-    const s4Complete = tour?.status === 'registration_closed' || regTeamsCount >= targetTeams
+    const s4Complete = regTeamsCount >= 2
+    // 5. إغلاق التسجيل وبداية البطولة
+    const s5Complete = tour?.status === 'registration_closed' || regTeamsCount >= targetTeams
 
     return {
       1: { completed: s1Complete, accessible: true, attention: !s1Complete && currentStep > 1 },
-      2: { completed: s2Complete, accessible: s1Complete && Boolean(tour?.id), attention: !s2Complete && currentStep > 2 },
-      3: { completed: s3Complete, accessible: Boolean(tour?.id), attention: !s3Complete && currentStep > 3 },
-      4: { completed: s4Complete, accessible: s3Complete, attention: false },
+      2: { completed: s2Complete, accessible: s1Complete, attention: !s2Complete && currentStep > 2 },
+      3: { completed: s3Complete, accessible: s1Complete && Boolean(tour?.id), attention: !s3Complete && currentStep > 3 },
+      4: { completed: s4Complete, accessible: Boolean(tour?.id), attention: !s4Complete && currentStep > 4 },
+      5: { completed: s5Complete, accessible: Boolean(tour?.id) && s4Complete, attention: false },
     }
   }, [tour, form, currentStep])
 
@@ -235,9 +246,9 @@ export default function TournamentWizard() {
 
   // Next / Previous Navigation Handlers
   const handleNext = async () => {
-    if (currentStep === 1) {
-      const ok = await saveTournamentDraft(2)
-      if (ok) setCurrentStep(2)
+    if (currentStep === 1 || currentStep === 2) {
+      const ok = await saveTournamentDraft(currentStep + 1)
+      if (ok) setCurrentStep((s) => s + 1)
     } else {
       setCurrentStep((s) => Math.min(WIZARD_STEPS.length, s + 1))
     }
@@ -248,7 +259,7 @@ export default function TournamentWizard() {
   }
 
   const handleStepClick = async (stepId) => {
-    if (currentStep === 1) {
+    if (currentStep === 1 || currentStep === 2) {
       await saveTournamentDraft(stepId)
     }
     setCurrentStep(stepId)
@@ -276,7 +287,7 @@ export default function TournamentWizard() {
 
   return (
     <div className="min-h-screen bg-[#F4F7FB] pb-32">
-      {/* Persistent Progress Header */}
+      {/* Persistent Progress Header with 5 Steps */}
       <ProgressHeader
         currentStep={currentStep}
         onStepClick={handleStepClick}
@@ -298,40 +309,52 @@ export default function TournamentWizard() {
 
         {/* Dynamic Wizard Stage Render */}
         <div className="mt-2">
-          {/* المرحلة 1: المعلومات الأساسية والقواعد الرياضية */}
+          {/* المرحلة 1: معلومات البطولة مع رفع البانر والشعار */}
           {currentStep === 1 && (
             <Step1BasicInfo
               data={form}
               onChange={handleFieldChange}
               stadiums={stadiums}
               tournamentId={tour?.id}
-              onLogoUploaded={(updatedTour) => {
-                setForm((prev) => ({ ...prev, logo_url: updatedTour.logo_url }))
+              onBrandingUploaded={(updatedTour) => {
+                setForm((prev) => ({
+                  ...prev,
+                  logo_url: updatedTour.logo_url || prev.logo_url,
+                  cover_url: updatedTour.cover_url || prev.cover_url,
+                }))
                 refetchTour()
               }}
             />
           )}
 
-          {/* المرحلة 2: نشر البطولة وفتح باب التسجيل للعامة */}
-          {currentStep === 2 && tour && (
-            <Step2PublishTournament
-              tournament={tour}
-              refresh={refetchTour}
-              onProceedToTeams={() => setCurrentStep(3)}
+          {/* المرحلة 2: قوانين البطولة واللوائح والشروط الداخلية */}
+          {currentStep === 2 && (
+            <Step2TournamentRules
+              data={form}
+              onChange={handleFieldChange}
             />
           )}
 
-          {/* المرحلة 3: إدارة وتسجيل الفرق (المباشرة، الفريق الحر، ورابط الواتساب) */}
+          {/* المرحلة 3: نشر البطولة وفتح باب التسجيل للعامة */}
           {currentStep === 3 && tour && (
-            <Step3ManageTeams
+            <Step3PublishTournament
+              tournament={tour}
+              refresh={refetchTour}
+              onProceedToTeams={() => setCurrentStep(4)}
+            />
+          )}
+
+          {/* المرحلة 4: فرق البطولة (الإضافة المباشرة، الفريق الحر، ورابط الواتساب الذكي) */}
+          {currentStep === 4 && tour && (
+            <Step4TournamentTeams
               tournament={tour}
               refresh={refetchTour}
             />
           )}
 
-          {/* المرحلة 4 (الختامية): إغلاق التسجيل والانطلاق لمركز البطولة */}
-          {currentStep === 4 && tour && (
-            <Step4CloseRegistration
+          {/* المرحلة 5: إغلاق التسجيل وبداية البطولة مع التوجيه الذكي للمباريات والقرعة */}
+          {currentStep === 5 && tour && (
+            <Step5FinalizeAndLaunch
               tournament={tour}
               refresh={refetchTour}
             />
@@ -389,7 +412,7 @@ export default function TournamentWizard() {
               <button
                 type="button"
                 onClick={() => navigate(`/committee/tournaments/${tour?.id || ''}`)}
-                className="flex h-12 sm:h-13 min-w-[150px] sm:min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs sm:text-sm shadow-xl transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
+                className="flex h-12 sm:h-13 min-w-[150px] sm:min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#0F172A] hover:bg-slate-800 text-white font-black text-xs sm:text-sm shadow-xl transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
               >
                 <Trophy className="size-4 text-amber-400" />
                 <span>مركز إدارة البطولة</span>

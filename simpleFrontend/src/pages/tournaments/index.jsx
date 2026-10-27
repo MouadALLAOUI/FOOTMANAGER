@@ -5,6 +5,7 @@ import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import useSeo from '../../hooks/useSeo'
 import { Button, Empty, Pagination } from '../../components/dashboard/ui'
+import { matchesArabicSearch } from '../../lib/searchUtils'
 import TournamentsHero from './list/hero'
 import FeaturedTournaments from './list/upcoming'
 import FilterBar from './list/filterBar'
@@ -106,9 +107,8 @@ export default function TournamentsIndex() {
 
   const filtered = useMemo(() => {
     let list = [...tournaments]
-    const q = search.trim().toLowerCase()
-    if (q) {
-      list = list.filter((x) => `${x.name} ${x.location || ''} ${x.description || ''}`.toLowerCase().includes(q))
+    if (search.trim()) {
+      list = list.filter((x) => matchesArabicSearch(`${x.name} ${x.location || ''} ${x.description || ''}`, search))
     }
     if (filters.status !== 'all') list = list.filter((x) => x.status === filters.status)
     if (filters.format !== 'all') list = list.filter((x) => x.tournament_format === filters.format)

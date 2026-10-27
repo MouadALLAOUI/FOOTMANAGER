@@ -25,6 +25,7 @@ import { getApiErrorMessage } from '../../../lib/errors'
 import { SectionError } from '../../../components/errors'
 import { Skeleton } from '../../../components/dashboard/ui'
 import RegisterModal from '../components/RegisterModal'
+import QuickShareCard from '../../../components/tournaments/QuickShareCard'
 
 const REG_META = {
   open: { icon: Rocket, tone: 'emerald', titleKey: 'openTitle', descKey: 'openDesc' },
@@ -206,6 +207,8 @@ export default function RegistrationSection({ tour }) {
               </div>
             </div>
 
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+              <QuickShareCard tournament={tour} type="join" compact={true} />
             {showCTA && (
               <div className="shrink-0">
                 {me?.eligible === false ? (
@@ -226,6 +229,7 @@ export default function RegistrationSection({ tour }) {
                 )}
               </div>
             )}
+            </div>
           </div>
 
           {user && myReg && (

@@ -37,7 +37,7 @@ class TournamentTeamController extends Controller
         $this->authorize('view', $tournament);
 
         $teams = $tournament->tournamentTeams()
-            ->with(['team', 'group'])
+            ->with(['team.manager', 'group'])
             ->get();
 
         return TournamentTeamResource::collection($teams);
@@ -48,7 +48,7 @@ class TournamentTeamController extends Controller
         $this->authorize('view', $tournament);
 
         $registrations = $tournament->allRegistrations()
-            ->with(['team', 'group'])
+            ->with(['team.manager', 'group'])
             ->latest()
             ->get();
 
@@ -277,8 +277,13 @@ class TournamentTeamController extends Controller
         $this->authorize('manage', $tournament);
 
         $teamId = (int) $teamId;
+        $activationUrl = null;
+        $whatsappUrl = null;
+        $managerName = null;
+        $managerPhone = null;
+        $teamName = null;
 
-        DB::transaction(function () use ($tournament, $teamId) {
+        DB::transaction(function () use ($tournament, $teamId, &$activationUrl, &$whatsappUrl, &$managerName, &$managerPhone, &$teamName) {
             $tournament = Tournament::query()->lockForUpdate()->findOrFail($tournament->id);
 
             $registration = $this->findRegistration($tournament, $teamId, TournamentTeam::STATUS_PENDING);
@@ -287,10 +292,44 @@ class TournamentTeamController extends Controller
 
             $registration->forceFill(['status' => TournamentTeam::STATUS_REGISTERED])->save();
 
+            // Approve manager user & generate password / PIN reset token
+            $team = Team::query()->find($teamId);
+            if ($team) {
+                $teamName = $team->name;
+                if ($team->manager) {
+                    $manager = $team->manager;
+                    $managerName = $manager->name;
+                    $managerPhone = $manager->phone;
+
+                    if ($manager->status === 'pending') {
+                        $manager->update(['status' => 'approved']);
+                    }
+
+                    if (! $manager->email) {
+                        $manager->update([
+                            'email' => 'manager_' . preg_replace('/\D/', '', $manager->phone ?: (string)$manager->id) . '@ajin9essro.com'
+                        ]);
+                    }
+                    $token = \Illuminate\Support\Facades\Password::broker()->createToken($manager);
+                    $frontendUrl = rtrim(config('app.frontend_url', 'http://localhost:5173'), '/');
+                    $activationUrl = "{$frontendUrl}/reset-password?token={$token}&email=" . urlencode($manager->email) . "&phone=" . urlencode($manager->phone ?? '');
+
+                    $waService = app(\App\Domains\Notification\Services\WhatsAppNotificationService::class);
+                    $whatsappUrl = $waService->buildTournamentApprovalMessage($tournament, $team, $manager, $activationUrl);
+                }
+            }
+
             $this->checkAndCloseIfFull($tournament);
         });
 
-        return $this->teamCollection($tournament);
+        return $this->teamCollection($tournament)->additional([
+            'activation_url' => $activationUrl,
+            'whatsapp_url' => $whatsappUrl,
+            'manager_name' => $managerName,
+            'manager_phone' => $managerPhone,
+            'team_name' => $teamName,
+            'message' => 'تم قبول الفريق بنجاح وتفعيل رابط تعيين الرقم السري للمسير',
+        ]);
     }
 
     public function reject(Tournament $tournament, $teamId): AnonymousResourceCollection
@@ -364,7 +403,7 @@ class TournamentTeamController extends Controller
     private function teamCollection(Tournament $tournament): AnonymousResourceCollection
     {
         return TournamentTeamResource::collection(
-            $tournament->tournamentTeams()->with(['team', 'group'])->get(),
+            $tournament->tournamentTeams()->with(['team.manager', 'group'])->get(),
         );
     }
 
@@ -417,7 +456,7 @@ class TournamentTeamController extends Controller
         });
 
         $teams = $tournament->tournamentTeams()
-            ->with(['team', 'group'])
+            ->with(['team.manager', 'group'])
             ->get();
 
         return TournamentTeamResource::collection($teams);

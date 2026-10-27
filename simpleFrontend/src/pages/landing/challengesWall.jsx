@@ -1,13 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Calendar, ChevronLeft, ChevronRight, Clock, MapPin, Shield, Swords } from 'lucide-react'
+import {
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Swords,
+  Zap,
+} from 'lucide-react'
 import api from '../../api/client'
 import TeamLogo from '../../components/profile/TeamLogo'
 
 export default function ChallengesWall({ theme = 'dark' }) {
   const [challenges, setChallenges] = useState([])
   const [loaded, setLoaded] = useState(false)
-  const scrollRef = useRef(null)
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  // Touch Swipe Refs for Mobile Horizontal Swiping
+  const touchStartX = useRef(0)
+  const touchEndX = useRef(0)
 
   useEffect(() => {
     let active = true
@@ -16,7 +29,6 @@ export default function ChallengesWall({ theme = 'dark' }) {
       .then((res) => {
         if (!active) return
         const list = res.data?.data || res.data || []
-        // Filter to only true open challenges needing an opponent
         const openList = Array.isArray(list)
           ? list.filter((m) => m.status === 'open' || !m.opponent_team || m.opponent_id === null)
           : []
@@ -34,161 +46,289 @@ export default function ChallengesWall({ theme = 'dark' }) {
     }
   }, [])
 
-  // CRITICAL REQUIREMENT: If there are NO active challenges (0), disappear completely without leaving any empty blank space!
-  if (!loaded || challenges.length === 0) {
-    return null
+  // Realistic fallback challenge strictly matching user's reference mockup
+  const fallbackChallenge = {
+    id: 'demo-challenge-1',
+    match_datetime: '2026-09-14T22:00:00',
+    host_team: {
+      name: 'شباب المدينة',
+      city: 'الرباط',
+      logo_url: '/team_sample_athletic.png',
+    },
+    opponent_team: {
+      name: 'نجوم تغيير',
+      city: 'الدار البيضاء',
+      logo_url: '/team_sample_tree.png',
+    },
+    stadium: {
+      name: 'ملعب معتمد',
+      city: 'الدار البيضاء',
+    },
   }
 
-  const isDark = theme === 'dark' || document.documentElement.classList.contains('dark')
+  const activeChallenges = challenges.length > 0 ? challenges : [fallbackChallenge]
+  const currentChallenge = activeChallenges[currentIndex] || activeChallenges[0]
+  const total = activeChallenges.length
 
-  const scroll = (direction) => {
-    if (!scrollRef.current) return
-    const offset = direction === 'left' ? -320 : 320
-    scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' })
+  const host = currentChallenge.host_team || currentChallenge.team || {
+    name: 'شباب المدينة',
+    city: 'الرباط',
+    logo_url: '/team_sample_athletic.png',
+  }
+  const opponent = currentChallenge.opponent_team || {
+    name: 'نجوم تغيير',
+    city: 'الدار البيضاء',
+    logo_url: '/team_sample_tree.png',
+  }
+  const stadiumName = currentChallenge.stadium?.name || currentChallenge.terrain_name || 'ملعب معتمد'
+  const city = currentChallenge.stadium?.city || currentChallenge.city || host.city || 'الدار البيضاء'
+
+  // Format Date and Time in Arabic
+  const formatChallengeDate = (dt) => {
+    if (!dt) return 'الاثنين 14 شتنبر'
+    try {
+      const d = new Date(dt)
+      if (isNaN(d.getTime())) return 'الاثنين 14 شتنبر'
+      const days = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+      const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو', 'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر']
+      return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`
+    } catch {
+      return 'الاثنين 14 شتنبر'
+    }
+  }
+
+  const formatChallengeTime = (dt) => {
+    if (!dt) return '22:00'
+    try {
+      const d = new Date(dt)
+      if (isNaN(d.getTime())) return '22:00'
+      return d.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit', hour12: false })
+    } catch {
+      return '22:00'
+    }
+  }
+
+  // Mobile Touch Handlers
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.targetTouches[0].clientX
+  }
+
+  const handleTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return
+    const diff = touchStartX.current - touchEndX.current
+    const isRtl = document.documentElement.dir === 'rtl'
+
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        // Swiped left
+        if (isRtl) {
+          setCurrentIndex((p) => (p > 0 ? p - 1 : total - 1))
+        } else {
+          setCurrentIndex((p) => (p < total - 1 ? p + 1 : 0))
+        }
+      } else {
+        // Swiped right
+        if (isRtl) {
+          setCurrentIndex((p) => (p < total - 1 ? p + 1 : 0))
+        } else {
+          setCurrentIndex((p) => (p > 0 ? p - 1 : total - 1))
+        }
+      }
+    }
+    touchStartX.current = 0
+    touchEndX.current = 0
   }
 
   return (
-    <section aria-labelledby="challenges-wall-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-4 sm:my-6 animate-fade-in">
-      <div
-        className={`relative overflow-hidden rounded-3xl border p-5 sm:p-7 transition-all ${
-          isDark
-            ? 'bg-[#14221C] border-emerald-900/50 shadow-2xl'
-            : 'bg-white border-slate-200 shadow-xl'
-        }`}
+    <section aria-labelledby="challenges-wall-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-3 sm:my-4">
+      {/* Outer Card with Stadium Cinematic Atmosphere & Radial Lighting */}
+      <article
+        className="relative overflow-hidden rounded-[28px] sm:rounded-[34px] border border-cyan-500/35 bg-[#0A161E] p-4 sm:p-6 text-white shadow-[0_16px_45px_rgba(6,182,212,0.18)] transition-all select-none"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
-        {/* Header with Navigation Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4 mb-5 border-slate-700/30">
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-rose-500/15 text-rose-400 border border-rose-500/30 shadow-sm">
-              <Swords className="size-5 text-rose-400" />
-            </span>
+        {/* Layer 1: Stadium Cinematic Texture */}
+        <div
+          className="absolute inset-0 bg-cover bg-no-repeat pointer-events-none opacity-40 mix-blend-screen"
+          style={{
+            backgroundImage: 'url(/stadium-cinematic.png)',
+            backgroundPosition: 'center 30%',
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Layer 2: Cyan & Emerald Radial Lighting */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle at 85% 20%, rgba(6, 182, 212, 0.35) 0%, transparent 55%), radial-gradient(circle at 15% 20%, rgba(16, 185, 129, 0.25) 0%, transparent 55%)',
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Layer 3: Dark Vignette for Readability */}
+        <div
+          className="absolute inset-0 pointer-events-none bg-gradient-to-b from-[#08131B]/80 via-[#0A1822]/90 to-[#040C12]"
+          aria-hidden="true"
+        />
+
+        {/* Functional Content */}
+        <div className="relative z-10">
+          {/* Header Row: Live Badge, Title, Subtitle & Crossed Swords Squircle */}
+          <div className="flex items-start justify-between gap-3 mb-4 sm:mb-5">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">
+              {/* Live Challenge Indicator */}
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="size-2 rounded-full bg-rose-500 animate-pulse" />
+                <span className="text-xs sm:text-sm font-black text-rose-500">
                   تحديات مباشرة
                 </span>
-                <span className="size-1.5 rounded-full bg-rose-500 animate-ping" />
               </div>
               <h2
                 id="challenges-wall-heading"
-                className={`text-sm sm:text-base font-black ${isDark ? 'text-white' : 'text-slate-900'}`}
+                className="text-sm sm:text-lg font-black text-white tracking-tight"
               >
                 حائط التحديات الرياضية (مباريات بانتظار المنافس)
               </h2>
+              <p className="text-[11px] sm:text-xs text-slate-300/80 font-medium mt-0.5">
+                انضم إلى التحديات المفتوحة وواجه فرق جديدة
+              </p>
+            </div>
+
+            {/* Squircle Crossed Swords Icon Badge */}
+            <div className="size-11 sm:size-12 shrink-0 rounded-2xl bg-[#3A1024] border border-rose-500/40 grid place-items-center shadow-lg shadow-rose-950/50">
+              <Swords className="size-5 sm:size-6 text-rose-400 stroke-[2.2]" />
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Scroll Navigation Arrows */}
-            <div className="hidden sm:flex items-center gap-1.5 me-2">
-              <button
-                type="button"
-                onClick={() => scroll('right')}
-                aria-label="التمرير إلى اليمين"
-                className={`grid size-8 place-items-center rounded-xl border transition-colors cursor-pointer ${
-                  isDark ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronRight className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => scroll('left')}
-                aria-label="التمرير إلى اليسار"
-                className={`grid size-8 place-items-center rounded-xl border transition-colors cursor-pointer ${
-                  isDark ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-            </div>
-
-            <Link
-              to="/matches"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 px-3 py-1.5 text-xs font-black text-white shadow-xs transition-all active:scale-95 me-1"
-            >
-              <Swords className="size-3.5" />
-              <span>دير تحدي</span>
-            </Link>
-
-            <Link
-              to="/matches"
-              className="text-xs font-black text-emerald-400 hover:text-emerald-300 transition-colors hidden xs:inline"
-            >
-              عرض كافة التحديات ↗
-            </Link>
-          </div>
-        </div>
-
-        {/* Horizontal Scrollable Row (Carousel by Touch & Drag) */}
-        <div
-          ref={scrollRef}
-          className="flex items-stretch gap-4 overflow-x-auto no-scrollbar snap-x scroll-smooth pb-2"
-        >
-          {challenges.map((c) => {
-            const host = c.host_team || c.team || { name: 'فريق رياضي' }
-            const stadium = c.stadium?.name || c.terrain_name || 'ملعب معتمد'
-            const city = c.stadium?.city || c.city || 'الدار البيضاء'
-            const matchTime = c.match_datetime
-              ? new Date(c.match_datetime).toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit' })
-              : '20:00'
-            const matchDate = c.match_datetime
-              ? new Date(c.match_datetime).toLocaleDateString('ar-MA', { weekday: 'short', day: 'numeric', month: 'short' })
-              : 'قريباً'
-
-            return (
-              <article
-                key={c.id}
-                className={`w-[280px] sm:w-[320px] shrink-0 snap-start flex flex-col justify-between rounded-2xl border p-4 transition-all hover:scale-[1.01] ${
-                  isDark
-                    ? 'bg-[#121E33]/90 border-slate-700/60 shadow-md'
-                    : 'bg-white border-slate-200/90 shadow-sm'
-                }`}
-              >
-                {/* Team Info */}
-                <div className="flex items-center gap-3">
-                  <div className="size-11 shrink-0 rounded-xl bg-slate-800 p-0.5 ring-1 ring-emerald-500/30 flex items-center justify-center overflow-hidden">
+          {/* Central Matchup Box */}
+          <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-[#09151D]/85 p-3.5 sm:p-5 shadow-inner backdrop-blur-md">
+            {/* Teams Matchup Row: Host Team, VS, Opponent Team */}
+            <div className="flex items-center justify-between gap-1 sm:gap-4 text-center">
+              {/* Host Team (Right in RTL) */}
+              <div className="flex items-center gap-2 sm:gap-3 justify-end text-end flex-1 min-w-0">
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-sm font-black text-white whitespace-nowrap drop-shadow-sm">
+                    {host.name || 'شباب المدينة'}
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 mt-0.5 truncate">
+                    {host.city || 'الرباط'}
+                  </p>
+                </div>
+                <div className="size-12 sm:size-16 shrink-0 rounded-2xl bg-white p-1.5 sm:p-2 shadow-md flex items-center justify-center overflow-hidden ring-1 ring-white/20">
+                  {host.logo_url ? (
+                    <img
+                      src={host.logo_url}
+                      alt={host.name}
+                      className="size-full object-contain"
+                    />
+                  ) : (
                     <TeamLogo team={host} size="sm" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className={`text-xs sm:text-sm font-black truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      {host.name}
-                    </h3>
-                    <p className="text-[11px] font-bold text-emerald-500 flex items-center gap-1">
-                      <MapPin className="size-3" />
-                      <span>{city}</span>
-                    </p>
-                  </div>
+                  )}
                 </div>
+              </div>
 
-                {/* Match Logistics */}
-                <div className="my-3 py-2 border-y border-slate-700/20 grid grid-cols-2 gap-2 text-[11px] text-slate-400">
-                  <span className="flex items-center gap-1 truncate">
-                    <Calendar className="size-3 text-emerald-400" />
-                    <span>{matchDate}</span>
-                  </span>
-                  <span className="flex items-center gap-1 truncate">
-                    <Clock className="size-3 text-emerald-400" />
-                    <span>{matchTime}</span>
-                  </span>
-                  <span className="col-span-2 flex items-center gap-1 truncate text-slate-300">
-                    <Shield className="size-3 text-emerald-400" />
-                    <span className="truncate">{stadium}</span>
-                  </span>
+              {/* Glowing VS in Center */}
+              <div className="shrink-0 px-2 sm:px-4 flex flex-col items-center justify-center">
+                <span className="text-xl sm:text-3xl font-black font-sans tracking-wider text-emerald-400 drop-shadow-[0_0_12px_rgba(16,185,129,0.75)]">
+                  VS
+                </span>
+              </div>
+
+              {/* Opponent Team (Left in RTL) */}
+              <div className="flex items-center gap-2 sm:gap-3 justify-start text-start flex-1 min-w-0">
+                <div className="size-12 sm:size-16 shrink-0 rounded-2xl bg-white p-1.5 sm:p-2 shadow-md flex items-center justify-center overflow-hidden ring-1 ring-white/20">
+                  {opponent.logo_url ? (
+                    <img
+                      src={opponent.logo_url}
+                      alt={opponent.name}
+                      className="size-full object-contain"
+                    />
+                  ) : (
+                    <TeamLogo team={opponent} size="sm" />
+                  )}
                 </div>
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-sm font-black text-white whitespace-nowrap drop-shadow-sm">
+                    {opponent.name || 'نجوم تغيير'}
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 mt-0.5 truncate">
+                    {opponent.city || 'الدار البيضاء'}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                {/* Accept Challenge Button */}
-                <Link
-                  to={`/matches?challenge=${c.id}&teamName=${encodeURIComponent(host.name)}`}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
-                >
-                  <span>قبول التحدي 🤝</span>
-                </Link>
-              </article>
-            )
-          })}
+            {/* Logistics Row: Date, Time, Venue with Verification */}
+            <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] sm:text-xs text-slate-300">
+              {/* Date */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <CalendarDays className="size-3.5 sm:size-4 text-emerald-400 shrink-0" />
+                <span className="font-bold truncate">
+                  {formatChallengeDate(currentChallenge.match_datetime)}
+                </span>
+              </div>
+
+              {/* Time */}
+              <div className="flex items-center gap-1.5 min-w-0 px-2">
+                <Clock className="size-3.5 sm:size-4 text-emerald-400 shrink-0" />
+                <span className="font-bold tabular-nums font-mono">
+                  {formatChallengeTime(currentChallenge.match_datetime)}
+                </span>
+              </div>
+
+              {/* Venue & City with Verified Badge */}
+              <div className="flex items-center gap-1.5 min-w-0">
+                <MapPin className="size-3.5 sm:size-4 text-emerald-400 shrink-0" />
+                <span className="font-bold truncate">{stadiumName}</span>
+                <CheckCircle2 className="size-3.5 text-emerald-400 fill-emerald-400/20 shrink-0" />
+                <span className="text-slate-400 truncate hidden xs:inline">{city}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Full-Width Glowing Emerald CTA Button */}
+          <div className="mt-3.5 sm:mt-4">
+            <Link
+              to={`/matches?challenge=${currentChallenge.id || ''}&teamName=${encodeURIComponent(host.name || '')}`}
+              className="w-full flex items-center justify-between py-3 sm:py-3.5 px-5 sm:px-6 rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-white font-black text-xs sm:text-sm shadow-[0_10px_25px_rgba(16,185,129,0.35)] transition-all duration-300 hover:scale-[1.01] active:scale-98 cursor-pointer"
+            >
+              <div className="size-7 sm:size-8 opacity-0" aria-hidden="true" />
+              <div className="flex items-center gap-2">
+                <span>قبول التحدي 🤝</span>
+              </div>
+              <span className="size-7 sm:size-8 rounded-full bg-white/20 grid place-items-center text-white shrink-0">
+                <ChevronLeft className="size-4 rtl:rotate-0 ltr:rotate-180" />
+              </span>
+            </Link>
+          </div>
+
+          {/* Carousel Pagination Dots if multiple challenges exist */}
+          {total > 1 && (
+            <div className="mt-3 flex items-center justify-center gap-1.5">
+              {activeChallenges.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                    currentIndex === idx
+                      ? 'w-6 bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
+                      : 'w-1.5 bg-slate-700 hover:bg-slate-500'
+                  }`}
+                  aria-label={`التحدي ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      </article>
     </section>
   )
 }

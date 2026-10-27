@@ -12,6 +12,7 @@ import PageSkeleton from './components/system/PageSkeleton'
 import { ProfileModalProvider } from './components/profile/ProfileModalContext'
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications'
 import PwaUpdatePrompt from './components/pwa/PwaUpdatePrompt'
+import SmartGenieModal from './components/mascot/SmartGenieModal'
 
 const Landing = lazy(() => import('./pages/landing'))
 const About = lazy(() => import('./pages/about'))
@@ -28,6 +29,7 @@ const DelegatedMatchEntryPage = lazy(() => import('./pages/matches/delegatedEntr
 const PublicLiveMatchPage = lazy(() => import('./pages/matches/live'))
 const PublicTournaments = lazy(() => import('./pages/tournaments'))
 const PublicTournamentDetail = lazy(() => import('./pages/tournaments/detail'))
+const TournamentJoinPage = lazy(() => import('./pages/tournaments/join'))
 const Login = lazy(() => import('./pages/auth/login'))
 const Register = lazy(() => import('./pages/auth/register'))
 const RegisterPlayer = lazy(() => import('./pages/player/register'))
@@ -84,6 +86,11 @@ function App() {
                 <Route path="/matches/invite/:token" element={<PageMaintenanceGate><MatchInvitePage /></PageMaintenanceGate>} />
                 <Route path="/tournaments" element={<PageMaintenanceGate><PublicTournaments /></PageMaintenanceGate>} />
                 <Route path="/tournaments/:slug" element={<PageMaintenanceGate><PublicTournamentDetail /></PageMaintenanceGate>} />
+                <Route path="/tournaments/:slug/join" element={<PageMaintenanceGate><TournamentJoinPage /></PageMaintenanceGate>} />
+                {/* Short readable link aliases for quick sharing */}
+                <Route path="/t/:slug" element={<PageMaintenanceGate><PublicTournamentDetail /></PageMaintenanceGate>} />
+                <Route path="/j/:slug" element={<PageMaintenanceGate><TournamentJoinPage /></PageMaintenanceGate>} />
+                <Route path="/join/:slug" element={<PageMaintenanceGate><TournamentJoinPage /></PageMaintenanceGate>} />
                 <Route path="*" element={<NotFound />} />
               </Route>
 
@@ -156,6 +163,7 @@ function App() {
           </MaintenanceGate>
         </ErrorBoundary>
       </Suspense>
+      <SmartGenieModal />
       <PwaUpdatePrompt />
       <ToastContainer />
     </BrowserRouter>

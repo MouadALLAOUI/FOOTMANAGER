@@ -50,10 +50,10 @@ export default function MainHeader({ theme = 'dark', onToggleTheme }) {
 
   return (
     <header
-      className={`relative z-40 w-full max-w-full overflow-visible transition-colors ${
+      className={`relative z-[9990] w-full max-w-full overflow-visible transition-colors ${
         isDark
-          ? 'bg-[#14221C]/95 border-b border-emerald-900/50 backdrop-blur-md'
-          : 'bg-white/95 border-b border-slate-200/80 backdrop-blur-md'
+          ? 'bg-[#14221C] border-b border-emerald-900/50 shadow-sm'
+          : 'bg-white border-b border-slate-200/80 shadow-sm'
       }`}
     >
       <div className="mx-auto flex h-16 sm:h-18 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -157,10 +157,10 @@ export default function MainHeader({ theme = 'dark', onToggleTheme }) {
             {/* القائمة الشاملة التي تفتح عند الضغط على صورة الحساب */}
             {accountMenuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setAccountMenuOpen(false)} />
+                <div className="fixed inset-0 z-[99998]" onClick={() => setAccountMenuOpen(false)} />
                 <div
                   role="menu"
-                  className={`fade-in absolute end-0 top-12 z-50 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border p-3 shadow-2xl ${
+                  className={`fade-in absolute end-0 top-12 z-[99999] w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border p-3 shadow-2xl ${
                     isDark
                       ? 'border-emerald-900/50 bg-[#14221C] text-white shadow-black/90'
                       : 'border-slate-200 bg-white text-slate-900 shadow-xl'

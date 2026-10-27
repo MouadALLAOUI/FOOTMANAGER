@@ -190,6 +190,15 @@ export default function MascotBannerManager() {
           <div className="flex items-center gap-1.5">
             <button
               type="button"
+              onClick={() => setPreviewTab('ticker')}
+              className={`rounded-xl px-3 py-1 text-xs font-bold transition-colors ${
+                previewTab === 'ticker' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+              }`}
+            >
+              شريط الأخبار المتحرك
+            </button>
+            <button
+              type="button"
               onClick={() => setPreviewTab('banner')}
               className={`rounded-xl px-3 py-1 text-xs font-bold transition-colors ${
                 previewTab === 'banner' ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
@@ -209,7 +218,18 @@ export default function MascotBannerManager() {
           </div>
         </div>
 
-        {previewTab === 'banner' ? (
+        {previewTab === 'ticker' ? (
+          <div className="overflow-hidden rounded-2xl border border-emerald-500/30 bg-[#0A161E] p-2 text-center">
+            <div className="flex items-center gap-3">
+              <span className="rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-black text-emerald-300">
+                عاجل ⚽
+              </span>
+              <p className="text-xs font-bold text-slate-100 truncate">
+                {form.ticker_text || '🏆 انطلاق التسجيل في دوري أبطال الأحياء 2026 | 🏟️ حجز ملاعب القرب متاح وفوري | ⚽ مباريات وتحديات ودية جديدة'}
+              </p>
+            </div>
+          </div>
+        ) : previewTab === 'banner' ? (
           <div className="overflow-hidden rounded-2xl border border-emerald-900/60 bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-950 p-3.5 text-center">
             <p className="text-xs sm:text-sm font-black text-slate-100 mb-2">
               {form.banner_text || DEFAULT_MASCOT_SETTINGS.banner_text}

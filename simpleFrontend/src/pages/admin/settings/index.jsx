@@ -189,6 +189,19 @@ export default function Settings() {
                               </button>
                             ))}
                           </div>
+                        ) : s.key === 'announcement_text' ? (
+                          <div className="space-y-2">
+                            <textarea
+                              rows={3}
+                              className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-hidden ring-1 ring-slate-100"
+                              placeholder="أدخل أخبار وإعلانات الشريط المتحرك مفصولة بـ | أو في أسطر جديدة (مثال: خبر عاجل 1 | خبر عاجل 2)..."
+                              value={current ?? ''}
+                              onChange={(e) => setValue(s.key, s.type, e.target.value)}
+                            />
+                            <p className="text-[10px] text-slate-400">
+                              💡 نصيحة: يمكنك كتابة عدة أخبار تفصل بينها بالرمز "|" لتظهر متحركة بالتناوب في الشريط العلوي لكافة صفحات المنصة وتطبيق الهاتف.
+                            </p>
+                          </div>
                         ) : (
                           <Input
                             type={s.key === 'contact_email' ? 'email' : (s.key === 'facebook_url' || s.key === 'instagram_url') ? 'url' : 'text'}

@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
   Bell,
   CalendarDays,
+  Check,
   Clock,
   Flame,
+  Loader2,
   MapPin,
   Radio,
   Share2,
@@ -17,6 +19,7 @@ import {
 } from 'lucide-react'
 import { toBlob } from 'html-to-image'
 import api from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 import TeamLogo from '../../components/profile/TeamLogo'
 import { useToast } from '../../components/ui/Toast'
 
@@ -177,6 +180,8 @@ function TickerItem({ item, isDark }) {
 }
 
 export default function LiveTournamentCard({ theme = 'dark' }) {
+  const { user } = useAuth()
+  const navigate = useNavigate()
   const { toast } = useToast()
   const cardRef = useRef(null)
 
@@ -186,10 +191,80 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   const [loading, setLoading] = useState(true)
   const [upcomingIndex, setUpcomingIndex] = useState(0)
   const [sharing, setSharing] = useState(false)
+  const [activeReminders, setActiveReminders] = useState(new Set())
+  const [remindLoadingId, setRemindLoadingId] = useState(null)
 
   // Touch Swipe State for Mobile Horizontal Swiping
   const touchStartX = useRef(0)
   const touchEndX = useRef(0)
+
+  // Fetch active reminders for authenticated user
+  useEffect(() => {
+    if (!user) {
+      setActiveReminders(new Set())
+      return
+    }
+
+    let isSubscribed = true
+    api.get('/v1/matches/reminders/active')
+      .then((res) => {
+        if (!isSubscribed) return
+        const ids = res.data?.active_fixture_ids || []
+        setActiveReminders(new Set(ids))
+      })
+      .catch(() => {
+        // Non-blocking for guests or transient errors
+      })
+
+    return () => {
+      isSubscribed = false
+    }
+  }, [user])
+
+  // Toggle or cancel 12-hour reminder
+  const handleToggleReminder = async (fixtureId) => {
+    if (!fixtureId) return
+
+    if (!user) {
+      toast.info('يرجى تسجيل الدخول أولاً لتفعيل التذكير بموعد المباراة')
+      navigate('/auth')
+      return
+    }
+
+    const isAlreadyReminded = activeReminders.has(fixtureId)
+    setRemindLoadingId(fixtureId)
+
+    if (isAlreadyReminded) {
+      try {
+        const res = await api.post('/v1/matches/reminders/cancel', { fixture_id: fixtureId })
+        setActiveReminders((prev) => {
+          const next = new Set(prev)
+          next.delete(fixtureId)
+          return next
+        })
+        toast.success(res.data?.message || 'تم إلغاء التذكير بنجاح')
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'تعذر إلغاء التذكير، يرجى المحاولة لاحقاً')
+      } finally {
+        setRemindLoadingId(null)
+      }
+    } else {
+      try {
+        const res = await api.post('/v1/matches/reminders', { fixture_id: fixtureId })
+        setActiveReminders((prev) => {
+          const next = new Set(prev)
+          next.add(fixtureId)
+          return next
+        })
+        toast.success(res.data?.message || 'تم تفعيل التذكير بنجاح! سنقوم بإشعارك قبل 12 ساعة من انطلاق المباراة.')
+      } catch (err) {
+        const msg = err.response?.data?.message || 'تعذر تفعيل التذكير، يرجى المحاولة لاحقاً'
+        toast.error(msg)
+      } finally {
+        setRemindLoadingId(null)
+      }
+    }
+  }
 
   useEffect(() => {
     let isSubscribed = true
@@ -250,39 +325,49 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     })
   }, [recentMatches])
 
-  // Upcoming matches strictly from real database API data, excluding past fixtures
+  // Upcoming matches strictly from real database API data, scheduled within next 7 days
   const rawUpcoming = useMemo(() => {
     const now = Date.now() - 30 * 60 * 1000
+    const maxWindow = Date.now() + 7 * 24 * 60 * 60 * 1000
     const list =
       liveData?.upcoming && liveData.upcoming.length > 0
         ? liveData.upcoming
         : liveData?.next
         ? [liveData.next]
         : []
-    return list.filter((m) => {
-      if (!m) return false
-      const dt = m.match_datetime || m.date || m.scheduled_at
-      if (dt) {
-        const time = new Date(dt).getTime()
-        if (!isNaN(time) && time < now) return false
-      }
-      return true
-    })
+    return list
+      .filter((m) => {
+        if (!m) return false
+        const dt = m.scheduled_at || m.match_datetime || m.date
+        if (dt) {
+          const normalized = typeof dt === 'string' ? dt.replace(' ', 'T') : dt
+          const time = new Date(normalized).getTime()
+          if (!isNaN(time) && (time < now || time > maxWindow)) return false
+        }
+        return true
+      })
+      .sort((a, b) => {
+        const da = new Date(typeof (a.scheduled_at || a.match_datetime || a.date) === 'string' ? (a.scheduled_at || a.match_datetime || a.date).replace(' ', 'T') : (a.scheduled_at || a.match_datetime || a.date)).getTime() || 0
+        const db = new Date(typeof (b.scheduled_at || b.match_datetime || b.date) === 'string' ? (b.scheduled_at || b.match_datetime || b.date).replace(' ', 'T') : (b.scheduled_at || b.match_datetime || b.date)).getTime() || 0
+        return da - db
+      })
   }, [liveData])
 
-  // Check if active tournaments include scheduled matches
+  // Check if active tournaments include scheduled matches within next 7 days
   const realTournamentUpcoming = useMemo(() => {
     const now = Date.now() - 30 * 60 * 1000
+    const maxWindow = Date.now() + 7 * 24 * 60 * 60 * 1000
     const res = []
     if (tournaments && Array.isArray(tournaments)) {
       for (const t of tournaments) {
         if (Array.isArray(t.fixtures)) {
           for (const f of t.fixtures) {
             if (f.status === 'scheduled' || f.status === 'pending') {
-              const dt = f.match_datetime || f.date || f.scheduled_at
+              const dt = f.scheduled_at || f.match_datetime || f.date
               if (dt) {
-                const time = new Date(dt).getTime()
-                if (!isNaN(time) && time < now) continue
+                const normalized = typeof dt === 'string' ? dt.replace(' ', 'T') : dt
+                const time = new Date(normalized).getTime()
+                if (!isNaN(time) && (time < now || time > maxWindow)) continue
               }
               res.push({
                 ...f,
@@ -293,7 +378,11 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
         }
       }
     }
-    return res
+    return res.sort((a, b) => {
+      const da = new Date(typeof (a.scheduled_at || a.match_datetime || a.date) === 'string' ? (a.scheduled_at || a.match_datetime || a.date).replace(' ', 'T') : (a.scheduled_at || a.match_datetime || a.date)).getTime() || 0
+      const db = new Date(typeof (b.scheduled_at || b.match_datetime || b.date) === 'string' ? (b.scheduled_at || b.match_datetime || b.date).replace(' ', 'T') : (b.scheduled_at || b.match_datetime || b.date)).getTime() || 0
+      return da - db
+    })
   }, [tournaments])
 
   const upcomingList = rawUpcoming.length > 0 ? rawUpcoming : realTournamentUpcoming
@@ -407,7 +496,8 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   const formatMatchDate = (dateStr) => {
     if (!dateStr) return 'الموعد يحدد لاحقاً'
     try {
-      const d = new Date(dateStr)
+      const normalized = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr
+      const d = new Date(normalized)
       if (isNaN(d.getTime())) return dateStr
       const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
       const monthNames = [
@@ -423,7 +513,8 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   const formatMatchTime = (dateStr) => {
     if (!dateStr) return '19:00'
     try {
-      const d = new Date(dateStr)
+      const normalized = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr
+      const d = new Date(normalized)
       if (isNaN(d.getTime())) return '19:00'
       return d.toLocaleTimeString('ar-MA', { hour: '2-digit', minute: '2-digit', hour12: false })
     } catch {
@@ -756,15 +847,39 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                     <Share2 className="size-3.5 sm:size-4 shrink-0 text-[#1F7A4D]" />
                   </button>
 
-                  {/* Secondary Remind Me Button (Phase 1 visual styling) */}
+                  {/* Real 12-Hour Kickoff Remind Me Button */}
                   <button
                     type="button"
-                    onClick={() => toast.info('ميزة التذكير بالمباراة ستفعل في المرحلة الثالثة')}
-                    className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 rounded-full bg-slate-950/75 hover:bg-slate-900/90 border py-2.5 sm:py-3.5 px-3.5 sm:px-5 text-xs sm:text-sm font-bold backdrop-blur-md shadow-md transition-all duration-300 hover:scale-[1.02] active:scale-98 cursor-pointer ${colorTheme.remindBtn}`}
-                    title="تذكيرني بموعد المباراة"
+                    onClick={() => handleToggleReminder(currentMatch.id)}
+                    disabled={remindLoadingId === currentMatch.id}
+                    className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border py-2.5 sm:py-3.5 px-3.5 sm:px-5 text-xs sm:text-sm font-bold backdrop-blur-md shadow-md transition-all duration-300 hover:scale-[1.02] active:scale-98 cursor-pointer disabled:opacity-75 ${
+                      activeReminders.has(currentMatch.id)
+                        ? 'border-emerald-500/80 bg-emerald-950/80 text-emerald-300 hover:bg-rose-950/70 hover:border-rose-500/80 hover:text-rose-300 group'
+                        : `bg-slate-950/75 hover:bg-slate-900/90 ${colorTheme.remindBtn}`
+                    }`}
+                    title={
+                      activeReminders.has(currentMatch.id)
+                        ? 'انقر لإلغاء التذكير بالمباراة'
+                        : 'تفعيل تذكير قبل 12 ساعة من انطلاق المباراة'
+                    }
                   >
-                    <Bell className="size-3.5 sm:size-4 text-emerald-400 shrink-0" />
-                    <span>تذكيرني</span>
+                    {remindLoadingId === currentMatch.id ? (
+                      <>
+                        <Loader2 className="size-3.5 sm:size-4 animate-spin text-emerald-400 shrink-0" />
+                        <span>جاري التفعيل...</span>
+                      </>
+                    ) : activeReminders.has(currentMatch.id) ? (
+                      <>
+                        <Check className="size-3.5 sm:size-4 text-emerald-400 shrink-0 group-hover:hidden" />
+                        <span className="group-hover:hidden">تم تفعيل التذكير</span>
+                        <span className="hidden group-hover:inline text-rose-300">ألغِ التذكير</span>
+                      </>
+                    ) : (
+                      <>
+                        <Bell className="size-3.5 sm:size-4 text-emerald-400 shrink-0" />
+                        <span>ذكرني</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

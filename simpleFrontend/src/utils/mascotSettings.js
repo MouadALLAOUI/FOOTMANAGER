@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 
 export const DEFAULT_MASCOT_SETTINGS = {
+  ticker_enabled: true,
+  ticker_text: '',
+  ticker_type: 'info',
   banner_enabled: true,
   banner_text: 'سجّل ملفك الدائم كلاعب أو فريق مجاناً - مشوارك الكروي كله في مكان واحد ⚽',
   banner_player_btn: 'سجّل كلاعب (برقم الهاتف)',

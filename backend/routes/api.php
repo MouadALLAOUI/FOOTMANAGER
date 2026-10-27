@@ -28,6 +28,7 @@ use App\Domains\Review\Controllers\StadiumReviewController;
 use App\Domains\Shared\Controllers\CityController;
 use App\Domains\Shared\Controllers\HomeController;
 use App\Domains\Social\Controllers\CommentController;
+use App\Http\Controllers\Public\MatchReminderController;
 use App\Domains\Social\Controllers\FavoriteController;
 use App\Domains\Social\Controllers\FeedController;
 use App\Domains\Social\Controllers\FollowController;
@@ -255,6 +256,11 @@ Route::post('/tournaments/{tournament}/join', [TournamentRegistrationController:
         Route::put('/notifications/{id}/pin', [NotificationController::class, 'togglePin']);
         Route::put('/notifications/{id}/important', [NotificationController::class, 'toggleImportant']);
         Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
+
+        // Match 12-Hour Reminders
+        Route::post('/matches/reminders', [MatchReminderController::class, 'store']);
+        Route::post('/matches/reminders/cancel', [MatchReminderController::class, 'cancel']);
+        Route::get('/matches/reminders/active', [MatchReminderController::class, 'active']);
     });
 
     Route::middleware(['auth:sanctum', 'module.maintenance:tournaments'])->group(function () {

@@ -117,6 +117,7 @@ export default function TopNewsTicker() {
         root.style.setProperty('--announce-height', `${Math.round(h)}px`)
       } else {
         root.style.setProperty('--announce-height', '0px')
+        root.style.setProperty('--safe-top-offset', 'env(safe-area-inset-top, 0px)')
       }
     }
 
@@ -125,6 +126,7 @@ export default function TopNewsTicker() {
     return () => {
       window.removeEventListener('resize', updateHeight)
       root.style.setProperty('--announce-height', '0px')
+        root.style.setProperty('--safe-top-offset', 'env(safe-area-inset-top, 0px)')
     }
   }, [isEnabled, dismissed, headlines])
 
@@ -136,7 +138,7 @@ export default function TopNewsTicker() {
       dir="rtl"
       role="region"
       aria-label="شريط الأخبار والإعلانات"
-      className={`relative z-[99995] w-full max-w-full overflow-hidden select-none border-b transition-colors shadow-xs ${tone.bg} ${tone.border}`}
+      className={`sticky top-0 z-[99995] w-full max-w-full overflow-hidden select-none border-b transition-colors shadow-xs ${tone.bg} ${tone.border}`}
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
       }}
@@ -215,3 +217,8 @@ export default function TopNewsTicker() {
     </aside>
   )
 }
+
+
+
+
+

@@ -49,8 +49,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme }) {
   const userInitial = user?.name ? user.name.trim().charAt(0).toUpperCase() : null
 
   return (
-    <header
-      className={`relative z-[9990] w-full max-w-full overflow-visible transition-colors ${
+    <header style={{ paddingTop: "var(--safe-top-offset, 0px)" }} className={`relative z-[9990] w-full max-w-full overflow-visible transition-colors ${
         isDark
           ? 'bg-[#14221C] border-b border-emerald-900/50 shadow-sm'
           : 'bg-white border-b border-slate-200/80 shadow-sm'
@@ -319,3 +318,4 @@ export default function MainHeader({ theme = 'dark', onToggleTheme }) {
     </header>
   )
 }
+

@@ -2,7 +2,6 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Navbar from './Navbar'
 import Footer from './Footer'
-import TopNewsTicker from '../components/system/TopNewsTicker'
 import BottomNav from '../pages/landing/bottomNav'
 
 export default function Layout() {
@@ -19,9 +18,6 @@ export default function Layout() {
         {t('common.skipToContent')}
       </a>
 
-      {/* Top News & Announcement Marquee Ticker (Safe-area protected on ALL pages) */}
-      <TopNewsTicker />
-
       {!isLanding && <Navbar />}
 
       <div key={location.pathname} className="page-enter w-full max-w-full overflow-x-hidden pb-16 sm:pb-0">
@@ -35,3 +31,4 @@ export default function Layout() {
     </>
   )
 }
+

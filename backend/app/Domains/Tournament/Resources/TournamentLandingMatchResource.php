@@ -4,6 +4,7 @@ namespace App\Domains\Tournament\Resources;
 
 use App\Domains\Competition\Models\Fixture;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * Landing page match snapshot (live or next upcoming). Extends the live fixture
@@ -27,7 +28,16 @@ class TournamentLandingMatchResource extends TournamentLiveFixtureResource
     {
         $data = parent::toArray($request);
 
-        $data['tournament'] = $this->tournamentContext;
+        $tourn = $this->tournamentContext;
+        if (!$tourn && $this->relationLoaded('competition') && $this->competition) {
+            $tourn = [
+                'id' => $this->competition->id,
+                'name' => $this->competition->name,
+                'slug' => Str::slug($this->competition->name),
+            ];
+        }
+
+        $data['tournament'] = $tourn;
 
         return $data;
     }

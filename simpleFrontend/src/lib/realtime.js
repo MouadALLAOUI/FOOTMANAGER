@@ -95,6 +95,10 @@ export function connectRealtime({ onNotification, onReconnected }) {
     if (onReconnected) onReconnected()
   })
 
+  echo.connector.pusher.connection.bind('error', () => {
+    // Gracefully handle transport drops
+  })
+
   return () => {
     disconnectRealtime()
   }

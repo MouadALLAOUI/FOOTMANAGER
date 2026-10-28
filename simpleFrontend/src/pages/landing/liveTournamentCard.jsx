@@ -17,7 +17,7 @@ import {
   Trophy,
   Zap,
 } from 'lucide-react'
-import { toBlob } from 'html-to-image'
+import { shareOrDownloadMatchCard } from '../../lib/cardExportUtils'
 import api from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import TeamLogo from '../../components/profile/TeamLogo'
@@ -434,63 +434,31 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
 
   // Share Card Handler (html-to-image + Web Share / Clipboard)
   const handleShare = async () => {
-    if (sharing) return
+    if (sharing || !cardRef.current) return
     setSharing(true)
     const shareUrl = window.location.href
+    const homeName = getTeamName(currentMatch?.home_team, 'فريق المستضيف')
+    const awayName = getTeamName(currentMatch?.away_team, 'فريق الضيف')
+    const matchTitle = `${homeName} ضد ${awayName}`
+    const tournamentName = getTournamentName(currentMatch)
+    const shareText = `⚽ مباراة مرتقبة في بطولة ${tournamentName}:\n${matchTitle}`
+    const filename = `match-${upcomingIndex + 1}.png`
 
     try {
-      let imageFile = null
-      if (cardRef.current) {
-        try {
-          const blob = await toBlob(cardRef.current, {
-            pixelRatio: 2,
-            cacheBust: true,
-            filter: (node) => !node?.classList?.contains?.('no-share-capture'),
-          })
-          if (blob) {
-            imageFile = new File([blob], `match-card-${upcomingIndex + 1}.png`, { type: 'image/png' })
-          }
-        } catch (e) {
-          console.warn('Image capture note:', e)
-        }
-      }
-
-      const matchTitle = `${currentMatch?.home_team?.name || 'فريق'} ضد ${currentMatch?.away_team?.name || 'فريق'}`
-      const shareText = `⚽ مباراة مرتقبة في بطولة ${currentMatch?.tournament?.name || 'أجي نقصرو'}:\n${matchTitle}\n${shareUrl}`
-
-      if (imageFile && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
-        await navigator.share({
-          files: [imageFile],
-          title: matchTitle,
-          text: shareText,
-        })
-        toast.success('تمت مشاركة بطاقة المباراة بنجاح')
-        return
-      }
-
-      if (navigator.share) {
-        await navigator.share({
-          title: matchTitle,
-          text: shareText,
-          url: shareUrl,
-        })
-        toast.success('تمت مشاركة رابط المباراة بنجاح')
-        return
-      }
-
-      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`)
-      toast.success('تم نسخ تفاصيل ورابط المباراة إلى الحافظة')
-    } catch (err) {
-      if (err?.name !== 'AbortError') {
-        try {
-          await navigator.clipboard.writeText(shareUrl)
-          toast.success('تم نسخ رابط المباراة بنجاح')
-        } catch {}
-      }
+      await shareOrDownloadMatchCard({
+        cardElement: cardRef.current,
+        title: `${tournamentName}: ${matchTitle}`,
+        text: shareText,
+        url: shareUrl,
+        filename,
+        targetWidth: 800,
+      })
     } finally {
       setSharing(false)
     }
   }
+
+
 
   // Format Date in Pure Arabic
   const formatMatchDate = (dateStr) => {

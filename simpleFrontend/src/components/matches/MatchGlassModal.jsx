@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons'
-import { toBlob } from 'html-to-image'
+import { exportMatchCardToBlob, downloadBlob } from '../../lib/cardExportUtils'
 import TeamLogo from '../profile/TeamLogo'
 import { logoThumb } from '../../lib/thumb'
 
@@ -915,47 +915,21 @@ export default function MatchGlassModal({
       let imageFile = null
       const targetElement = storyRef.current || cardRef.current
       if (targetElement) {
-        let blob = null
-        const width = targetElement.offsetWidth || targetElement.scrollWidth || 640
-        const height = targetElement.scrollHeight || targetElement.offsetHeight
         try {
-          blob = await toBlob(targetElement, {
-            width,
-            height,
-            canvasWidth: width,
-            canvasHeight: height,
-            cacheBust: false,
-            skipFonts: true,
-            imagePlaceholder: TRANSPARENT_PIXEL,
+          const blob = await exportMatchCardToBlob(targetElement, {
+            targetWidth: 640,
             pixelRatio: 2,
-            filter: (node) => !node?.classList?.contains?.('no-share-capture'),
-            onImageErrorHandler: () => TRANSPARENT_PIXEL,
+            replaceButtonsWithFooter: false,
           })
-        } catch (captureErr1) {
-          console.warn('toBlob primary attempt failed, trying fallback:', captureErr1)
-          try {
-            blob = await toBlob(targetElement, {
-              width,
-              height,
-              canvasWidth: width,
-              canvasHeight: height,
-              cacheBust: true,
-              skipFonts: true,
-              imagePlaceholder: TRANSPARENT_PIXEL,
-              pixelRatio: 1.5,
-              filter: (node) => !node?.classList?.contains?.('no-share-capture'),
-              onImageErrorHandler: () => TRANSPARENT_PIXEL,
-            })
-          } catch (captureErr2) {
-            console.warn('toBlob fallback attempt failed:', captureErr2)
+          if (blob) {
+            const cleanName = `match-${homeTeam?.name || 'team1'}-vs-${awayTeam?.name || 'team2'}`
+              .toLowerCase()
+              .replace(/[^a-z0-9\u0600-\u06FF]/gi, '-')
+              .replace(/-+/g, '-')
+            imageFile = new File([blob], `${cleanName}.png`, { type: 'image/png' })
           }
-        }
-        if (blob) {
-          const cleanName = `match-${homeTeam?.name || 'team1'}-vs-${awayTeam?.name || 'team2'}`
-            .toLowerCase()
-            .replace(/[^a-z0-9]/gi, '-')
-            .replace(/-+/g, '-')
-          imageFile = new File([blob], `${cleanName}.png`, { type: 'image/png' })
+        } catch (captureErr) {
+          console.warn('Match story capture failed:', captureErr)
         }
       }
 

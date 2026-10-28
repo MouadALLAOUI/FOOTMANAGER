@@ -13,7 +13,7 @@ import {
   faSpinner,
   faTrophy,
 } from '@fortawesome/free-solid-svg-icons'
-import { toBlob } from 'html-to-image'
+import { shareOrDownloadMatchCard } from '../../lib/cardExportUtils'
 import api from '../../api/client'
 import { matchDay, formatTime } from '../../lib/adapters'
 import TeamLogo from '../../components/profile/TeamLogo'
@@ -32,137 +32,27 @@ const EVENT_META = {
   other: '📝',
 }
 
-const TRANSPARENT_PIXEL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAEASTN7V4='
-
 function ShareButton({ cardRef, title, text, t }) {
   const [sharing, setSharing] = useState(false)
-  const { toast } = useToast()
 
   const handleShare = async () => {
-    if (sharing) return
+    if (sharing || !cardRef?.current) return
     setSharing(true)
     const shareUrl = window.location.href
+    const cleanName = (title || 'live-match')
+      .toLowerCase()
+      .replace(/[^a-z0-9\u0600-\u06FF]/gi, '-')
+      .replace(/-+/g, '-')
 
     try {
-      let imageFile = null
-
-      if (cardRef?.current) {
-        let blob = null
-        try {
-          blob = await toBlob(cardRef.current, {
-            cacheBust: false,
-            skipFonts: true,
-            imagePlaceholder: TRANSPARENT_PIXEL,
-            pixelRatio: 2,
-            filter: (node) => !node?.classList?.contains?.('no-share-capture'),
-            onImageErrorHandler: () => TRANSPARENT_PIXEL,
-          })
-        } catch (e1) {
-          console.warn('toBlob primary attempt failed, trying fallback:', e1)
-          try {
-            blob = await toBlob(cardRef.current, {
-              cacheBust: true,
-              skipFonts: true,
-              imagePlaceholder: TRANSPARENT_PIXEL,
-              pixelRatio: 1.5,
-              filter: (node) => !node?.classList?.contains?.('no-share-capture'),
-              onImageErrorHandler: () => TRANSPARENT_PIXEL,
-            })
-          } catch (e2) {
-            console.error('toBlob fallback attempt failed:', e2)
-          }
-        }
-
-        if (blob) {
-          const cleanName = (title || 'match-card')
-            .toLowerCase()
-            .replace(/[^a-z0-9]/gi, '-')
-            .replace(/-+/g, '-')
-          imageFile = new File([blob], `${cleanName}.png`, { type: 'image/png' })
-        }
-      }
-
-      // Step 1: If we have an image file and browser supports Web Share API with files
-      if (imageFile && typeof navigator !== 'undefined' && navigator.canShare) {
-        // Many mobile browsers (Android Chrome, iOS Safari) only allow sharing files when NOT passing a separate `url` field
-        // The standard best practice is to include the link directly in `text` alongside `files`.
-        const shareDataWithFiles = {
-          files: [imageFile],
-          title: title || 'FootManager',
-          text: text ? `${text}\n${shareUrl}` : shareUrl,
-        }
-
-        if (navigator.canShare(shareDataWithFiles)) {
-          try {
-            await navigator.share(shareDataWithFiles)
-            toast?.success?.(t('landing.liveNext.shareSuccess'))
-            return
-          } catch (err) {
-            if (err?.name === 'AbortError') return
-            console.warn('Sharing file+text failed:', err)
-          }
-        }
-
-        // Try file only
-        const shareDataFileOnly = {
-          files: [imageFile],
-          title: title || 'FootManager',
-        }
-        if (navigator.canShare(shareDataFileOnly)) {
-          try {
-            await navigator.share(shareDataFileOnly)
-            try {
-              await navigator.clipboard.writeText(shareUrl)
-            } catch {}
-            toast?.success?.(t('landing.liveNext.shareSuccess'))
-            return
-          } catch (err) {
-            if (err?.name === 'AbortError') return
-            console.warn('Sharing file only failed:', err)
-          }
-        }
-      }
-
-      // Step 2: If we have the image file, but Web Share with files is not supported (e.g. desktop browsers),
-      // download the card image directly and copy the link to clipboard
-      if (imageFile) {
-        const link = document.createElement('a')
-        link.download = imageFile.name
-        link.href = URL.createObjectURL(imageFile)
-        link.click()
-        setTimeout(() => URL.revokeObjectURL(link.href), 1000)
-
-        try {
-          await navigator.clipboard.writeText(shareUrl)
-        } catch {}
-
-        toast?.success?.(t('landing.liveNext.shareImageDownloaded'))
-        return
-      }
-
-      // Step 3: Absolute fallback only if image file creation completely failed
-      if (navigator.share && navigator.canShare && navigator.canShare({ url: shareUrl })) {
-        try {
-          await navigator.share({
-            title: title || 'FootManager',
-            text: `${text ? text + '\n' : ''}${shareUrl}`,
-            url: shareUrl,
-          })
-          toast?.success?.(t('landing.liveNext.shareSuccess'))
-          return
-        } catch (err) {
-          if (err?.name === 'AbortError') return
-        }
-      }
-
-      await navigator.clipboard.writeText(shareUrl)
-      toast?.success?.(t('landing.liveNext.shareSuccess'))
-    } catch {
-      try {
-        await navigator.clipboard.writeText(shareUrl)
-        toast?.success?.(t('landing.liveNext.shareSuccess'))
-      } catch {}
+      await shareOrDownloadMatchCard({
+        cardElement: cardRef.current,
+        title: title || 'FootManager',
+        text: text ? `${text}\n${shareUrl}` : shareUrl,
+        url: shareUrl,
+        filename: `${cleanName}.png`,
+        targetWidth: 800,
+      })
     } finally {
       setSharing(false)
     }

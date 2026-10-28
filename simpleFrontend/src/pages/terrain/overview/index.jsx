@@ -138,11 +138,11 @@ export default function Overview() {
   }
 
   const forceDeleteBooking = async (id) => {
+    if (selected?.id === id) setSelected(null)
+    toast.success(t('dash.forceDeleteSuccess') || 'تم حذف الحجز إجبارياً وتحرير الموعد')
     setBusyKey(`delete-${id}`)
     try {
       await api.delete(`/owner/bookings/${id}/force`)
-      toast.success(t('dash.forceDeleteSuccess') || 'تم حذف الحجز إجبارياً وتحرير الموعد')
-      if (selected?.id === id) setSelected(null)
       invalidateKeys(['owner'])
       window.dispatchEvent(new CustomEvent('booking:updated'))
       return true

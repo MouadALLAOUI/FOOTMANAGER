@@ -61,21 +61,19 @@ export default function BookingDrawer({
 
   const handleForceDelete = async () => {
     if (!booking) return
-    setDeleteBusy(true)
+    const bookingId = booking.id
+    setConfirmDeleteOpen(false)
+    onClose()
     try {
       if (onForceDelete) {
-        await onForceDelete(booking.id)
+        await onForceDelete(bookingId)
       } else {
-        const res = await api.delete(`/owner/bookings/${booking.id}/force`)
+        const res = await api.delete(`/owner/bookings/${bookingId}/force`)
         toast.success(res.data?.message || 'تم حذف الحجز إجبارياً وتحرير الموعد')
-        onClose()
         window.dispatchEvent(new CustomEvent('booking:updated'))
       }
-      setConfirmDeleteOpen(false)
     } catch (err) {
       toastApiError(err)
-    } finally {
-      setDeleteBusy(false)
     }
   }
 

@@ -323,16 +323,13 @@ function CancelModal({ booking, onClose, onSaved }) {
   const [busy, setBusy] = useState(false)
 
   const submit = async () => {
-    setBusy(true)
+    onClose()
+    toast.success(t('dash.cancellationRequestSentToTheFieldOwner'))
     try {
       await api.post(`/manager/bookings/${booking.id}/request-cancel`, { reason: reason || undefined })
-      toast.success(t('dash.cancellationRequestSentToTheFieldOwner'))
       onSaved()
-      onClose()
     } catch (e) {
       toastApiError(e, t)
-    } finally {
-      setBusy(false)
     }
   }
 

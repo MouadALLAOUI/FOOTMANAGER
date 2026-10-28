@@ -51,6 +51,8 @@ export default function Bookings() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [removedIds, setRemovedIds] = useState(() => new Set())
+  const [statusOverrides, setStatusOverrides] = useState({})
 
   const todayStr = useMemo(() => {
     const d = new Date()
@@ -63,7 +65,9 @@ export default function Bookings() {
     for (const b of bookingsData?.upcoming || []) map.set(key(b), b)
     for (const b of bookingsData?.pending || []) map.set(key(b), b)
     return [...map.values()]
-  }, [bookingsData])
+      .filter((b) => !removedIds.has(b.id))
+      .map((b) => (statusOverrides[b.id] ? { ...b, status: statusOverrides[b.id] } : b))
+  }, [bookingsData, removedIds, statusOverrides])
 
   const counts = useMemo(() => {
     const c = { all: all.length, pending: 0, approved: 0 }
@@ -121,9 +125,72 @@ export default function Bookings() {
     }
   }
 
-  const approve = (b) => act(() => api.put(`/owner/bookings/${b.id}/approve`), t('terrain.bookings.approvedToast'))
-  const reject = (b) => act(() => api.put(`/owner/bookings/${b.id}/reject`), t('terrain.bookings.rejectedToast'))
-  const forceDeleteBooking = (id) => act(() => api.delete(`/owner/bookings/${id}/force`), 'تم حذف الحجز إجبارياً وتحرير الموعد')
+  const approve = async (b) => {
+    setStatusOverrides((prev) => ({ ...prev, [b.id]: 'approved' }))
+    setSelected(null)
+    toast.success(t('terrain.bookings.approvedToast'))
+    try {
+      const r = await api.put(`/owner/bookings/${b.id}/approve`)
+      const wa = r?.data?.whatsapp_notification_url || r?.whatsapp_notification_url
+      refetchBookings()
+      refetchTerrains()
+      window.dispatchEvent(new CustomEvent('booking:updated'))
+      if (wa) window.open(wa, '_blank')
+      return true
+    } catch (e) {
+      setStatusOverrides((prev) => {
+        const next = { ...prev }
+        delete next[b.id]
+        return next
+      })
+      toastApiError(e, t)
+      return false
+    }
+  }
+
+  const reject = async (b) => {
+    setRemovedIds((prev) => new Set(prev).add(b.id))
+    setSelected(null)
+    toast.success(t('terrain.bookings.rejectedToast'))
+    try {
+      const r = await api.put(`/owner/bookings/${b.id}/reject`)
+      const wa = r?.data?.whatsapp_notification_url || r?.whatsapp_notification_url
+      refetchBookings()
+      refetchTerrains()
+      window.dispatchEvent(new CustomEvent('booking:updated'))
+      if (wa) window.open(wa, '_blank')
+      return true
+    } catch (e) {
+      setRemovedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(b.id)
+        return next
+      })
+      toastApiError(e, t)
+      return false
+    }
+  }
+
+  const forceDeleteBooking = async (id) => {
+    setRemovedIds((prev) => new Set(prev).add(id))
+    setSelected(null)
+    toast.success('تم حذف الحجز إجبارياً وتحرير الموعد')
+    try {
+      await api.delete(`/owner/bookings/${id}/force`)
+      refetchBookings()
+      refetchTerrains()
+      window.dispatchEvent(new CustomEvent('booking:updated'))
+      return true
+    } catch (e) {
+      setRemovedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+      toastApiError(e, t)
+      return false
+    }
+  }
 
   const confirm = useConfirm()
   const confirmReject = (b) => {

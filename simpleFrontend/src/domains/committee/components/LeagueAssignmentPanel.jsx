@@ -167,6 +167,21 @@ export default function LeagueAssignmentPanel({
     { staleTime: 0 }
   )
 
+  const [optimisticFixtureUpdates, setOptimisticFixtureUpdates] = useState({})
+
+  useEffect(() => {
+    setOptimisticFixtureUpdates({})
+  }, [allFixtures])
+
+  const effectiveFixtures = useMemo(() => {
+    if (!allFixtures) return []
+    if (!Object.keys(optimisticFixtureUpdates).length) return allFixtures
+    return allFixtures.map((f) => {
+      const update = optimisticFixtureUpdates[f.id]
+      return update ? { ...f, ...update } : f
+    })
+  }, [allFixtures, optimisticFixtureUpdates])
+
   // Fetch unused slot pool
   const {
     data: slotPoolData,
@@ -184,16 +199,16 @@ export default function LeagueAssignmentPanel({
 
   // Pre-calculate nearest available slot for pending/postponed fixtures
   const nearestSlotMap = useMemo(() => {
-    if (!allAvailableSlots.length || !allFixtures?.length) return {}
+    if (!allAvailableSlots.length || !effectiveFixtures?.length) return {}
     const map = {}
-    allFixtures.forEach((f) => {
+    effectiveFixtures.forEach((f) => {
       const isUnscheduled = !f.scheduled_at || f.status === 'waiting_for_booking' || f.status === 'rescheduling_required' || f.status === 'postponed'
       if (isUnscheduled) {
         map[f.id] = allAvailableSlots[0]
       }
     })
     return map
-  }, [allAvailableSlots, allFixtures])
+  }, [allAvailableSlots, effectiveFixtures])
 
   const {
     data: capacityData,
@@ -332,48 +347,80 @@ export default function LeagueAssignmentPanel({
   }
 
   const handleUnassign = async (fixtureId) => {
-    setUnassignBusyId(fixtureId)
+    setOptimisticFixtureUpdates((prev) => ({
+      ...prev,
+      [fixtureId]: {
+        scheduled_at: null,
+        stadium_id: null,
+        stadium: null,
+        status: 'waiting_for_booking',
+      },
+    }))
+    toast.success('تم إلغاء ربط الحجز بالمباراة')
+
     try {
-      const res = await api.post(`/committee/tournaments/${tournament.id}/league/unassign`, {
+      await api.post(`/committee/tournaments/${tournament.id}/league/unassign`, {
         fixture_id: fixtureId,
       })
-      toast.success(res.data?.message || 'تم إلغاء ربط الحجز بالمباراة')
       refetchSuggestions()
       refetchAllFixtures()
       refetchCapacity()
       refetchSlotPool()
       if (onRefresh) onRefresh()
     } catch (e) {
+      setOptimisticFixtureUpdates((prev) => {
+        const next = { ...prev }
+        delete next[fixtureId]
+        return next
+      })
       toastApiError(e)
-    } finally {
-      setUnassignBusyId(null)
     }
   }
 
   const handlePostponeSubmit = async () => {
     if (!postponeFixture) return
-    setPostponeBusy(true)
-    try {
-      const res = await api.post(`/committee/tournaments/${tournament.id}/league/fixtures/${postponeFixture.id}/postpone`, {
-        reason: postponeReason,
-        note: postponeNote || undefined,
-        freed_action: freedAction,
-      })
-      toast.success(res.data?.message || 'تم تأجيل المباراة بنجاح')
-      setPostponeFixture(null)
-      setPostponeNote('')
-      setPostponeReason('team_circumstances')
-      setFreedAction('freed')
+    const targetFixture = postponeFixture
+    const targetReason = postponeReason
+    const targetNote = postponeNote
+    const targetFreedAction = freedAction
 
+    setPostponeFixture(null)
+    setPostponeNote('')
+    setPostponeReason('team_circumstances')
+    setFreedAction('freed')
+
+    setOptimisticFixtureUpdates((prev) => ({
+      ...prev,
+      [targetFixture.id]: {
+        status: 'postponed',
+        scheduled_at: null,
+        stadium_id: null,
+        stadium: null,
+        postponement_reason: targetReason,
+        postponement_note: targetNote || null,
+      },
+    }))
+
+    toast.success('تم تأجيل المباراة بنجاح')
+
+    try {
+      await api.post(`/committee/tournaments/${tournament.id}/league/fixtures/${targetFixture.id}/postpone`, {
+        reason: targetReason,
+        note: targetNote || undefined,
+        freed_action: targetFreedAction,
+      })
       refetchAllFixtures()
       refetchSuggestions()
       refetchCapacity()
       refetchSlotPool()
       if (onRefresh) onRefresh()
     } catch (e) {
+      setOptimisticFixtureUpdates((prev) => {
+        const next = { ...prev }
+        delete next[targetFixture.id]
+        return next
+      })
       toastApiError(e)
-    } finally {
-      setPostponeBusy(false)
     }
   }
 
@@ -617,8 +664,8 @@ export default function LeagueAssignmentPanel({
   const [activeWeekId, setActiveWeekId] = useState('all')
 
   const { weeks: leagueWeeks, unscheduled: leagueUnscheduled, chronologicalNumberMap } = useMemo(() => {
-    return computeLeagueWeeks(allFixtures || [], 'ar')
-  }, [allFixtures])
+    return computeLeagueWeeks(effectiveFixtures || [], 'ar')
+  }, [effectiveFixtures])
 
   const defaultWeekId = useMemo(() => {
     return getDefaultWeekId(leagueWeeks, leagueUnscheduled)
@@ -638,12 +685,12 @@ export default function LeagueAssignmentPanel({
     }
   }, [leagueWeeks, activeWeekId])
 
-  const totalFixtures = allFixtures?.length || 0
-  const scheduledFixtures = allFixtures?.filter((f) => f.scheduled_at && f.status !== 'waiting_for_booking') || []
-  const waitingFixtures = allFixtures?.filter((f) => !f.scheduled_at || f.status === 'waiting_for_booking') || []
+  const totalFixtures = effectiveFixtures?.length || 0
+  const scheduledFixtures = effectiveFixtures?.filter((f) => f.scheduled_at && f.status !== 'waiting_for_booking') || []
+  const waitingFixtures = effectiveFixtures?.filter((f) => !f.scheduled_at || f.status === 'waiting_for_booking') || []
 
   const actionRequiredFixtures = useMemo(() => {
-    return (allFixtures || []).filter(
+    return (effectiveFixtures || []).filter(
       (f) =>
         !f.scheduled_at ||
         f.status === 'postponed' ||
@@ -652,12 +699,12 @@ export default function LeagueAssignmentPanel({
         Boolean(f.unscheduled_reason) ||
         f.delegated_submission?.status === 'pending'
     )
-  }, [allFixtures])
+  }, [effectiveFixtures])
   const actionRequiredCount = actionRequiredFixtures.length
 
   const teamsList = useMemo(() => {
     const map = new Map()
-    ;(allFixtures || []).forEach((f) => {
+    ;(effectiveFixtures || []).forEach((f) => {
       const h = f.home_team || f.homeTeam
       const a = f.away_team || f.awayTeam
       const hName = h?.name || h?.team_name
@@ -666,7 +713,7 @@ export default function LeagueAssignmentPanel({
       if (a?.id && aName) map.set(String(a.id), { id: a.id, name: aName })
     })
     return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ar'))
-  }, [allFixtures])
+  }, [effectiveFixtures])
 
   // Active filter count indicator for the "تصفية" button
   const activeFiltersCount = useMemo(() => {
@@ -681,7 +728,7 @@ export default function LeagueAssignmentPanel({
 
   // Filtered fixtures logic
   const filteredFixtures = useMemo(() => {
-    let list = allFixtures || []
+    let list = effectiveFixtures || []
 
     if (viewMode === 'action_required') {
       list = actionRequiredFixtures
@@ -698,7 +745,7 @@ export default function LeagueAssignmentPanel({
         list = found ? found.fixtures : []
       } else {
         // activeWeekId === 'all': all fixtures
-        list = allFixtures || []
+        list = effectiveFixtures || []
       }
     }
 
@@ -743,13 +790,13 @@ export default function LeagueAssignmentPanel({
     }
 
     return list
-  }, [allFixtures, viewMode, activeWeekId, leagueWeeks, leagueUnscheduled, matchdayFilter, statusFilter, teamFilter, dayFilter, actionRequiredFixtures])
+  }, [effectiveFixtures, viewMode, activeWeekId, leagueWeeks, leagueUnscheduled, matchdayFilter, statusFilter, teamFilter, dayFilter, actionRequiredFixtures])
 
   const dayGroups = useMemo(() => {
     return groupFixturesByDay(filteredFixtures, 'ar')
   }, [filteredFixtures])
 
-  const matchdays = Array.from(new Set((allFixtures || []).map((f) => f.matchday).filter(Boolean))).sort((a, b) => a - b)
+  const matchdays = Array.from(new Set((effectiveFixtures || []).map((f) => f.matchday).filter(Boolean))).sort((a, b) => a - b)
 
   const currentWeekIndex = leagueWeeks.findIndex((w) => w.id === activeWeekId)
   const hasUpcomingWeek = currentWeekIndex !== -1 && currentWeekIndex < leagueWeeks.length - 1
@@ -2418,7 +2465,7 @@ export default function LeagueAssignmentPanel({
             </div>
 
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {(allFixtures || [])
+              {(effectiveFixtures || [])
                 .filter(f => !f.scheduled_at || f.status === 'waiting_for_booking' || f.status === 'rescheduling_required' || f.status === 'postponed')
                 .map(f => (
                   <button

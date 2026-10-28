@@ -37,20 +37,55 @@ export default function TerrainCalendarPage() {
   const [busy, setBusy] = useState(false)
   const [showGuestModal, setShowGuestModal] = useState(false)
   const [closureSlot, setClosureSlot] = useState(null)
+  const [optimisticFreedIds, setOptimisticFreedIds] = useState(() => new Set())
+  const [optimisticApprovedIds, setOptimisticApprovedIds] = useState(() => new Set())
+
+  const effectiveCalendar = useMemo(() => {
+    if (!calendar) return null
+    if (!optimisticFreedIds.size && !optimisticApprovedIds.size) return calendar
+
+    return {
+      ...calendar,
+      slots: (calendar.slots || []).map((slot) => {
+        const bId = slot.booking_id || slot.booking?.id || slot.metadata?.rawBooking?.id
+        if (bId && optimisticFreedIds.has(bId)) {
+          return {
+            ...slot,
+            status: 'empty',
+            booking_id: null,
+            booking: null,
+            team: null,
+            title: null,
+          }
+        }
+        if (bId && optimisticApprovedIds.has(bId)) {
+          return {
+            ...slot,
+            status: 'booked',
+          }
+        }
+        return slot
+      }),
+      pendingBookings: (calendar.pendingBookings || []).filter((b) => {
+        const id = b.id || b.metadata?.rawBooking?.id
+        return !optimisticFreedIds.has(id) && !optimisticApprovedIds.has(id)
+      }),
+    }
+  }, [calendar, optimisticFreedIds, optimisticApprovedIds])
 
   const bookedThisWeek = useMemo(
-    () => (calendar ? calendar.slots.filter((s) => s.status === 'booked' || s.status === 'pending').length : 0),
-    [calendar],
+    () => (effectiveCalendar ? effectiveCalendar.slots.filter((s) => s.status === 'booked' || s.status === 'pending').length : 0),
+    [effectiveCalendar],
   )
 
   const occupancy = useMemo(() => {
-    const total = bookedThisWeek + (calendar?.stats.empty_slots || 0)
+    const total = bookedThisWeek + (effectiveCalendar?.stats.empty_slots || 0)
     return total ? Math.round((bookedThisWeek / total) * 100) : 0
-  }, [bookedThisWeek, calendar])
+  }, [bookedThisWeek, effectiveCalendar])
 
   const statCards = [
     { label: 'حجوزات الأسبوع', value: bookedThisWeek, icon: CalendarDays, color: 'from-sky-500 to-sky-600' },
-    { label: 'اشتراكات نشطة', value: calendar?.stats.active_subscriptions || 0, icon: Check, color: 'from-emerald-500 to-emerald-600' },
+    { label: 'اشتراكات نشطة', value: effectiveCalendar?.stats.active_subscriptions || 0, icon: Check, color: 'from-emerald-500 to-emerald-600' },
     { label: 'نسبة الإشغال', value: `${occupancy}%`, icon: Percent, color: 'from-violet-500 to-purple-600' },
   ]
 
@@ -75,9 +110,78 @@ export default function TerrainCalendarPage() {
     [toast, refresh, t],
   )
 
-  const approveBooking = useCallback((id) => act(() => api.put(`/owner/bookings/${id}/approve`), 'تم قبول الحجز'), [act])
-  const rejectBooking = useCallback((id) => act(() => api.put(`/owner/bookings/${id}/reject`), 'تم رفض الحجز'), [act])
-  const forceDeleteBooking = useCallback((id) => act(() => api.delete(`/owner/bookings/${id}/force`), 'تم حذف الحجز إجبارياً وتحرير الموعد'), [act])
+  const approveBooking = useCallback(
+    async (id) => {
+      setOptimisticApprovedIds((prev) => new Set(prev).add(id))
+      setSelected(null)
+      toast.success('تم قبول الحجز بنجاح')
+      try {
+        const r = await api.put(`/owner/bookings/${id}/approve`)
+        const wa = r?.data?.whatsapp_notification_url || r?.whatsapp_notification_url
+        refresh()
+        window.dispatchEvent(new CustomEvent('booking:updated'))
+        if (wa) window.open(wa, '_blank')
+        return true
+      } catch (e) {
+        setOptimisticApprovedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+        toastApiError(e, t)
+        return false
+      }
+    },
+    [toast, refresh, t],
+  )
+
+  const rejectBooking = useCallback(
+    async (id) => {
+      setOptimisticFreedIds((prev) => new Set(prev).add(id))
+      setSelected(null)
+      toast.success('تم رفض الحجز وتحرير الموعد')
+      try {
+        const r = await api.put(`/owner/bookings/${id}/reject`)
+        const wa = r?.data?.whatsapp_notification_url || r?.whatsapp_notification_url
+        refresh()
+        window.dispatchEvent(new CustomEvent('booking:updated'))
+        if (wa) window.open(wa, '_blank')
+        return true
+      } catch (e) {
+        setOptimisticFreedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+        toastApiError(e, t)
+        return false
+      }
+    },
+    [toast, refresh, t],
+  )
+
+  const forceDeleteBooking = useCallback(
+    async (id) => {
+      setOptimisticFreedIds((prev) => new Set(prev).add(id))
+      setSelected(null)
+      toast.success('تم حذف الحجز إجبارياً وتحرير الموعد')
+      try {
+        await api.delete(`/owner/bookings/${id}/force`)
+        refresh()
+        window.dispatchEvent(new CustomEvent('booking:updated'))
+        return true
+      } catch (e) {
+        setOptimisticFreedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+        toastApiError(e, t)
+        return false
+      }
+    },
+    [toast, refresh, t],
+  )
 
   const confirm = useConfirm()
   const confirmReject = useCallback(
@@ -188,7 +292,7 @@ export default function TerrainCalendarPage() {
 
       {/* Smart Pending Bookings Section (Prominent alert if > 0, slim bar if 0) */}
       <PendingBookingsCard
-        bookings={calendar?.pendingBookings || []}
+        bookings={effectiveCalendar?.pendingBookings || []}
         busy={busy}
         onView={(b) => setSelected(b.metadata?.rawBooking || b)}
         onApprove={approveBooking}
@@ -201,12 +305,12 @@ export default function TerrainCalendarPage() {
       ) : (
         <div className="w-full min-w-0">
           <Calendar
-            loading={loading || (!calendar && !error)}
-            days={calendar?.days || []}
-            slots={calendar?.slots || []}
-            events={calendar?.events || []}
-            title={calendar?.terrain?.name || selectedTerrain?.name}
-            periodLabel={calendar?.periodLabel || ''}
+            loading={loading || (!effectiveCalendar && !error)}
+            days={effectiveCalendar?.days || []}
+            slots={effectiveCalendar?.slots || []}
+            events={effectiveCalendar?.events || []}
+            title={effectiveCalendar?.terrain?.name || selectedTerrain?.name}
+            periodLabel={effectiveCalendar?.periodLabel || ''}
             selectedDate={selectedDate}
             onPrevious={previousWeek}
             onNext={nextWeek}

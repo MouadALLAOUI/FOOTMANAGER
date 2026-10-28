@@ -167,7 +167,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     ? {}
     : (active ? (isGroup ? { matchday: active.matchday } : { round_id: active.round_id }) : {})
 
-  const { data: fixtures, loading: fixturesLoading, refetch: refetchFixtures } = useApi(
+  const { data: rawFixtures, loading: fixturesLoading, refetch: refetchFixtures } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/fixtures`, { params: roundParams }).then((r) => r.data.data),
     [tournament.id, isLeague ? 'all' : activeKey],
     {
@@ -177,6 +177,21 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       keepPrevious: true,
     },
   )
+
+  const [optimisticOverrides, setOptimisticOverrides] = useState({})
+
+  useEffect(() => {
+    setOptimisticOverrides({})
+  }, [rawFixtures])
+
+  const fixtures = useMemo(() => {
+    if (!rawFixtures) return rawFixtures
+    if (!Object.keys(optimisticOverrides).length) return rawFixtures
+    return rawFixtures.map((f) => {
+      const override = optimisticOverrides[f.id]
+      return override ? { ...f, ...override } : f
+    })
+  }, [rawFixtures, optimisticOverrides])
 
   const { weeks: leagueWeeks, unscheduled: leagueUnscheduled, chronologicalNumberMap } = useMemo(() => {
     if (!isLeague) return { weeks: [], unscheduled: [], chronologicalNumberMap: new Map() }
@@ -773,42 +788,63 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   const postponeMatch = async (f) => {
     if (!window.confirm(t('committee.detail.postponeConfirm'))) return
-    setBusy(f.id)
+    setOptimisticOverrides((prev) => ({
+      ...prev,
+      [f.id]: { status: 'postponed', scheduled_at: null, stadium_id: null, stadium: null },
+    }))
+    toast.success(t('committee.detail.matchPostponed'))
+
     try {
       await api.post(`/committee/tournaments/${tournament.id}/fixtures/${f.id}/postpone`)
-      toast.success(t('committee.detail.matchPostponed'))
       afterChange()
     } catch (e) {
+      setOptimisticOverrides((prev) => {
+        const next = { ...prev }
+        delete next[f.id]
+        return next
+      })
       toastApiError(e, t)
-    } finally {
-      setBusy(null)
     }
   }
 
   const cancelMatch = async (f) => {
     if (!window.confirm(t('committee.detail.cancelMatchConfirm'))) return
-    setBusy(f.id)
+    setOptimisticOverrides((prev) => ({
+      ...prev,
+      [f.id]: { status: 'cancelled' },
+    }))
+    toast.success(t('committee.detail.matchCancelled'))
+
     try {
       await api.post(`/committee/tournaments/${tournament.id}/fixtures/${f.id}/cancel`)
-      toast.success(t('committee.detail.matchCancelled'))
       afterChange()
     } catch (e) {
+      setOptimisticOverrides((prev) => {
+        const next = { ...prev }
+        delete next[f.id]
+        return next
+      })
       toastApiError(e, t)
-    } finally {
-      setBusy(null)
     }
   }
 
   const restoreMatch = async (f) => {
-    setBusy(f.id)
+    setOptimisticOverrides((prev) => ({
+      ...prev,
+      [f.id]: { status: 'pending' },
+    }))
+    toast.success(t('committee.detail.matchRestored'))
+
     try {
       await api.post(`/committee/tournaments/${tournament.id}/fixtures/${f.id}/restore`)
-      toast.success(t('committee.detail.matchRestored'))
       afterChange()
     } catch (e) {
+      setOptimisticOverrides((prev) => {
+        const next = { ...prev }
+        delete next[f.id]
+        return next
+      })
       toastApiError(e, t)
-    } finally {
-      setBusy(null)
     }
   }
 

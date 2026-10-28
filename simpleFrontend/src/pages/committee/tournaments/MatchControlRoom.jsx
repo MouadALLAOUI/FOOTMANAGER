@@ -4,7 +4,8 @@ import {
   Check,
   Plus,
   RefreshCw,
-
+  Sparkles,
+  AlertTriangle,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
@@ -145,6 +146,8 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   const [pendingPenaltyModalBusy, setPendingPenaltyModalBusy] = useState(false)
   const [dismissedPenaltyKeys, setDismissedPenaltyKeys] = useState(new Set())
   const [delegatedLinkOpen, setDelegatedLinkOpen] = useState(false)
+  const [resultData, setResultData] = useState(null)
+  const [applyingDefaultPoints, setApplyingDefaultPoints] = useState(false)
 
   // One-Tap Event Recording & Timer Pause states
   const [isPaused, setIsPaused] = useState(false)
@@ -181,6 +184,47 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
   }, [events])
 
   const displayScore = (timelineDirty || events.length > 0) ? computeScore(events, homeId, awayId) : storedScore
+
+  const homeStatus = fixture.home_team?.status || resultData?.home_team?.status
+  const awayStatus = fixture.away_team?.status || resultData?.away_team?.status
+  const homeWithdrawnOrDisqualified = homeStatus === 'withdrawn' || homeStatus === 'disqualified'
+  const awayWithdrawnOrDisqualified = awayStatus === 'withdrawn' || awayStatus === 'disqualified'
+  const hasDisciplinedTeam = homeWithdrawnOrDisqualified || awayWithdrawnOrDisqualified
+  const disciplinedTeamId = homeWithdrawnOrDisqualified
+    ? (fixture.home_team_id || fixture.home_team?.id || homeId)
+    : (fixture.away_team_id || fixture.away_team?.id || awayId)
+  const disciplinedTeamName = homeWithdrawnOrDisqualified ? homeName : awayName
+  const opponentTeamName = homeWithdrawnOrDisqualified ? awayName : homeName
+  const disciplineLabel = (homeStatus === 'withdrawn' || awayStatus === 'withdrawn') ? 'انسحاب' : 'طرد'
+  const isDefaultResult = Boolean(
+    fixture.is_default_result ||
+    fixture.match?.notes?.includes('[default_result:points_only]') ||
+    resultData?.match?.notes?.includes('[default_result:points_only]')
+  )
+
+  const handleAwardDefaultPoints = async () => {
+    if (!disciplinedTeamId || applyingDefaultPoints) return
+    const defaultWinScore = tournament?.qualification_rules?.default_win_score || '3-0'
+    const confirmed = window.confirm(
+      `هل أنت متأكد من اعتماد الفوز الاعتباري (${defaultWinScore} و 3 نقاط) لصالح ${opponentTeamName} بسبب ${disciplineLabel} فريق ${disciplinedTeamName}؟\nسيتم احتساب النتيجة الاعتبارية وتحديث الترتيب فوراً.`
+    )
+    if (!confirmed) return
+
+    setApplyingDefaultPoints(true)
+    try {
+      const res = await api.post(
+        `/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/apply-default-result`,
+        { withdrawn_team_id: disciplinedTeamId }
+      )
+      toast.success(res.data?.message || `تم احتساب الفوز الاعتباري (3 نقاط) لصالح ${opponentTeamName} بنجاح وتحديث الترتيب`)
+      if (onSaved) onSaved()
+      onClose()
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'تعذر احتساب الفوز الاعتباري')
+    } finally {
+      setApplyingDefaultPoints(false)
+    }
+  }
 
   useScrollLock(true)
 
@@ -272,6 +316,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         const r = await api.get(`/committee/tournaments/${tournament.id}/fixtures/${fixture.id}/result`)
         if (cancelled) return
         const data = r.data?.data
+        setResultData(data)
         const m = data?.match
         const suspended = data?.suspended_players || []
         const byTeam = {}
@@ -1331,6 +1376,39 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         onDelegatedLink={() => setDelegatedLinkOpen(true)}
       />
 
+      {/* Disciplined Team Banner & Award 3 Points Button */}
+      {hasDisciplinedTeam && !isDefaultResult && !alreadyFinished && (
+        <div className="mx-3 sm:mx-6 my-2.5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50 p-3 sm:p-4 shadow-sm" dir="rtl">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="grid size-9 sm:size-10 place-items-center rounded-xl bg-amber-500 text-white font-black text-base shrink-0">
+              ⚠️
+            </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-black text-amber-950 text-xs sm:text-sm">
+                  مباراة طرفها فريق {disciplineLabel}: {disciplinedTeamName}
+                </span>
+                <span className="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] sm:text-xs font-black text-rose-800">
+                  {disciplineLabel} معتمد
+                </span>
+              </div>
+              <p className="mt-0.5 text-[11px] sm:text-xs font-semibold text-amber-900 leading-snug">
+                يمنع تسجيل أهداف عادية لهذه المباراة. يمكنك منح الفوز الاعتباري (3 نقاط و {tournament.qualification_rules?.default_win_score || '3-0'}) لصالح {opponentTeamName} مباشرة.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="md"
+            className="bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-black text-xs px-3.5 py-2.5 rounded-xl shadow-md flex items-center gap-2 shrink-0 cursor-pointer ms-auto"
+            onClick={handleAwardDefaultPoints}
+            loading={applyingDefaultPoints}
+          >
+            <Sparkles className="size-4 text-amber-200" />
+            <span>إعطاء 3 نقاط اعتبارية لـ {opponentTeamName}</span>
+          </Button>
+        </div>
+      )}
+
       <ScoreActions
         displayScore={displayScore}
         homeTeam={homeTeam}
@@ -1338,6 +1416,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         homeName={homeName}
         awayName={awayName}
         alreadyFinished={alreadyFinished}
+        isDefaultResult={isDefaultResult}
         halftime={curStatus === 'halftime'}
         liveMinute={currentLiveMinute}
         timerText={timerText}
@@ -1595,6 +1674,11 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         onTogglePause={togglePauseTimer}
         timerText={timerText}
         canFinishMatch={alreadyFinished || curStatus === 'second_half' || curStatus === 'finished'}
+        hasDisciplinedTeam={hasDisciplinedTeam}
+        isDefaultResult={isDefaultResult}
+        onAwardDefaultPoints={handleAwardDefaultPoints}
+        applyingDefaultPoints={applyingDefaultPoints}
+        opponentTeamName={opponentTeamName}
         t={t}
       />
 

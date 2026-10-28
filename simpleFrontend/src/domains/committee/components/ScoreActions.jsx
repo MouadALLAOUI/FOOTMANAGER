@@ -13,6 +13,7 @@ export default function ScoreActions({
   homeName,
   awayName,
   alreadyFinished,
+  isDefaultResult = false,
   halftime,
   liveMinute,
   timerText,
@@ -44,9 +45,21 @@ export default function ScoreActions({
                 className="size-full object-contain filter drop-shadow-sm"
               />
             </div>
-            <span className="mt-2 text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={homeName}>
-              {homeName}
-            </span>
+            <div className="mt-2 flex items-center justify-center gap-1.5 flex-wrap">
+              <span className="text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={homeName}>
+                {homeName}
+              </span>
+              {homeTeam?.status === 'withdrawn' && (
+                <span className="rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 text-[9px] font-black">
+                  منسحب
+                </span>
+              )}
+              {homeTeam?.status === 'disqualified' && (
+                <span className="rounded-md bg-rose-500/20 text-rose-300 border border-rose-400/40 px-1.5 py-0.5 text-[9px] font-black">
+                  مُقصى
+                </span>
+              )}
+            </div>
             <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">
               {t('match.homeTeam', 'الفريق المضيف')}
             </span>
@@ -61,7 +74,12 @@ export default function ScoreActions({
             </div>
 
             {/* Status Pill */}
-            {alreadyFinished ? (
+            {isDefaultResult ? (
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-400/40 px-3 py-0.5 text-xs font-black text-amber-300">
+                <Check className="size-3.5" />
+                فوز اعتباري (3 نقاط)
+              </span>
+            ) : alreadyFinished ? (
               <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 px-3 py-0.5 text-xs font-black text-emerald-300">
                 <Check className="size-3.5" />
                 {t('committee.result.statusFinished', 'نهاية المباراة')}
@@ -103,9 +121,21 @@ export default function ScoreActions({
                 className="size-full object-contain filter drop-shadow-sm"
               />
             </div>
-            <span className="mt-2 text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={awayName}>
-              {awayName}
-            </span>
+            <div className="mt-2 flex items-center justify-center gap-1.5 flex-wrap">
+              <span className="text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={awayName}>
+                {awayName}
+              </span>
+              {awayTeam?.status === 'withdrawn' && (
+                <span className="rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 text-[9px] font-black">
+                  منسحب
+                </span>
+              )}
+              {awayTeam?.status === 'disqualified' && (
+                <span className="rounded-md bg-rose-500/20 text-rose-300 border border-rose-400/40 px-1.5 py-0.5 text-[9px] font-black">
+                  مُقصى
+                </span>
+              )}
+            </div>
             <span className="text-[10px] sm:text-[11px] font-bold text-slate-400">
               {t('match.awayTeam', 'الفريق الضيف')}
             </span>

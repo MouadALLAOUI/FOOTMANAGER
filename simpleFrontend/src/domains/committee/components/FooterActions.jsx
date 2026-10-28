@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Flag, Menu, Pause, Play, RefreshCw, StepForward, Clock } from 'lucide-react'
+import { Flag, Menu, Pause, Play, RefreshCw, StepForward, Clock, Sparkles } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 
 export default function FooterActions({
@@ -23,13 +23,26 @@ export default function FooterActions({
   onTogglePause,
   timerText = null,
   canFinishMatch = false,
+  hasDisciplinedTeam = false,
+  isDefaultResult = false,
+  onAwardDefaultPoints = null,
+  applyingDefaultPoints = false,
+  opponentTeamName = '',
   t,
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   // Contextual primary action — the one correct button for the current state.
   let primary = null
-  if (alreadyFinished) {
+  if (hasDisciplinedTeam && !isDefaultResult && !alreadyFinished && onAwardDefaultPoints) {
+    primary = {
+      key: 'award_default',
+      icon: <Sparkles className="size-4 text-amber-200" />,
+      label: `إعطاء 3 نقاط اعتبارية لـ ${opponentTeamName || 'الخصم'}`,
+      action: onAwardDefaultPoints,
+      variant: 'amber',
+    }
+  } else if (alreadyFinished) {
     primary = { key: 'finish', icon: null, label: t('committee.result.saveForceChanges', 'حفظ وفرض التعديلات'), action: () => setConfirmOpen(true), variant: 'danger' }
   } else if (matchNotStarted) {
     primary = { key: 'start', icon: <Play className="size-4" />, label: t('committee.result.runMatch'), action: runMatch, variant: null }
@@ -68,6 +81,13 @@ export default function FooterActions({
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} aria-hidden="true" />
               <div className="absolute bottom-full start-0 z-50 mb-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xl">
+                {hasDisciplinedTeam && !isDefaultResult && !alreadyFinished && onAwardDefaultPoints && (
+                  <MenuItem
+                    icon={<Sparkles className="size-4 text-amber-500" />}
+                    label={`إعطاء 3 نقاط لـ ${opponentTeamName || 'الخصم'}`}
+                    onClick={() => { setMenuOpen(false); onAwardDefaultPoints() }}
+                  />
+                )}
                 {!alreadyFinished && (
                   <MenuItem label={t('committee.result.saveDraft')} onClick={() => { setMenuOpen(false); saveDraft() }} />
                 )}
@@ -103,9 +123,11 @@ export default function FooterActions({
             className={`h-12 flex-1 min-w-0 rounded-2xl px-4 text-xs sm:text-sm font-black flex items-center justify-center gap-2 transition-all active:scale-98 shadow-md ${
               primary.variant === 'danger'
                 ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/25'
-                : primary.variant === 'outline'
-                  ? 'border-2 border-emerald-600 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100'
-                  : 'bg-gradient-to-r from-[#00C853] to-[#009E3D] hover:from-[#00B84D] hover:to-[#008A35] text-white shadow-emerald-500/25'
+                : primary.variant === 'amber'
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/25'
+                  : primary.variant === 'outline'
+                    ? 'border-2 border-emerald-600 text-emerald-700 bg-emerald-50/50 hover:bg-emerald-100'
+                    : 'bg-gradient-to-r from-[#00C853] to-[#009E3D] hover:from-[#00B84D] hover:to-[#008A35] text-white shadow-emerald-500/25'
             }`}
           >
             {primary.icon}

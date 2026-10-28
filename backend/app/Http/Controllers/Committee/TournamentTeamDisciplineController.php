@@ -40,11 +40,14 @@ class TournamentTeamDisciplineController extends Controller
         $this->authorize('manage', $tournament);
 
         $reason = $request->input('reason');
-        $result = $this->discipline->withdrawTeam($tournament, $teamId, $reason, $request->user()?->id);
+        $applyRemaining = $request->boolean('apply_remaining', false);
+        $result = $this->discipline->withdrawTeam($tournament, $teamId, $reason, $request->user()?->id, $applyRemaining);
 
         return response()->json([
             'data' => $result,
-            'message' => 'تم تسجيل انسحاب الفريق من البطولة بنجاح',
+            'message' => $applyRemaining
+                ? 'تم تسجيل انسحاب الفريق وتطبيق النتائج الاعتبارية على كافة مبارياته المتبقية وتحديث الترتيب بنجاح'
+                : 'تم تسجيل انسحاب الفريق من البطولة بنجاح',
         ]);
     }
 
@@ -56,11 +59,29 @@ class TournamentTeamDisciplineController extends Controller
         $this->authorize('manage', $tournament);
 
         $reason = $request->input('reason');
-        $result = $this->discipline->disqualifyTeam($tournament, $teamId, $reason, $request->user()?->id);
+        $applyRemaining = $request->boolean('apply_remaining', false);
+        $result = $this->discipline->disqualifyTeam($tournament, $teamId, $reason, $request->user()?->id, $applyRemaining);
 
         return response()->json([
             'data' => $result,
-            'message' => 'تم تسجيل طرد الفريق من البطولة بنجاح',
+            'message' => $applyRemaining
+                ? 'تم تسجيل طرد الفريق وتطبيق النتائج الاعتبارية على كافة مبارياته المتبقية وتحديث الترتيب بنجاح'
+                : 'تم تسجيل طرد الفريق من البطولة بنجاح',
+        ]);
+    }
+
+    /**
+     * Apply default results to all remaining matches of a disciplined team in bulk.
+     */
+    public function applyAllDefaultResults(Request $request, Tournament $tournament, int $teamId): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $result = $this->discipline->applyAllDefaultResults($tournament, $teamId, $request->user()?->id);
+
+        return response()->json([
+            'data' => $result,
+            'message' => "تم تطبيق النتائج الاعتبارية بنجاح على {$result['applied_count']} مباراة متبقية وتحديث جدول الترتيب",
         ]);
     }
 

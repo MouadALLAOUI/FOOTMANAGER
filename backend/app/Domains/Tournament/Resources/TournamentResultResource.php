@@ -34,11 +34,13 @@ class TournamentResultResource extends JsonResource
                 'id' => $this->homeTeam->id,
                 'name' => $this->homeTeam->name,
                 'logo_url' => $this->homeTeam->logo_url,
+                'status' => $this->teamTournamentStatus($this->home_team_id),
             ] : null),
             'away_team' => $this->whenLoaded('awayTeam', fn () => $this->awayTeam ? [
                 'id' => $this->awayTeam->id,
                 'name' => $this->awayTeam->name,
                 'logo_url' => $this->awayTeam->logo_url,
+                'status' => $this->teamTournamentStatus($this->away_team_id),
             ] : null),
             'match' => $match ? [
                 'id' => $match->id,
@@ -143,5 +145,25 @@ class TournamentResultResource extends JsonResource
             ->where('competition_id', $this->competition_id)
             ->where('season_id', $this->season_id)
             ->first();
+    }
+
+    private function teamTournamentStatus(?int $teamId): ?string
+    {
+        if (! $teamId || ! $this->tournament()) {
+            return null;
+        }
+
+        static $cache = [];
+        $key = "{$this->tournament()->id}_{$teamId}";
+
+        if (! array_key_exists($key, $cache)) {
+            $tt = \App\Domains\Tournament\Models\TournamentTeam::query()
+                ->where('tournament_id', $this->tournament()->id)
+                ->where('team_id', $teamId)
+                ->first(['status']);
+            $cache[$key] = $tt?->status;
+        }
+
+        return $cache[$key];
     }
 }

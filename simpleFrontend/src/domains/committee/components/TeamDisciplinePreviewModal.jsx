@@ -40,11 +40,13 @@ export default function TeamDisciplinePreviewModal({
   const [submitting, setSubmitting] = useState(false)
   const [data, setData] = useState(null)
   const [reason, setReason] = useState('')
+  const [applyRemaining, setApplyRemaining] = useState(true)
 
   useEffect(() => {
     if (open && tournamentId && team?.id) {
       setLoading(true)
       setReason('')
+      setApplyRemaining(true)
       api
         .get(`/committee/tournaments/${tournamentId}/teams/${team.id}/discipline-preview`)
         .then((res) => {
@@ -68,9 +70,10 @@ export default function TeamDisciplinePreviewModal({
       const endpoint = isWithdraw ? 'withdraw' : 'disqualify'
       const res = await api.post(`/committee/tournaments/${tournamentId}/teams/${team.id}/${endpoint}`, {
         reason: reason.trim() || undefined,
+        apply_remaining: applyRemaining,
       })
       toast.success(res.data?.message || `تم تسجيل ${actionLabel} الفريق بنجاح`)
-      if (onSuccess) onSuccess()
+      if (onSuccess) onSuccess({ appliedRemaining: applyRemaining })
       onClose()
     } catch (err) {
       toastApiError(err)
@@ -221,6 +224,28 @@ export default function TeamDisciplinePreviewModal({
             </div>
           )}
         </div>
+
+        {/* Toggle Option for applying default results immediately */}
+        {remainingMatches.length > 0 && (
+          <label className="flex items-start gap-3 rounded-2xl border-2 border-emerald-500/30 bg-emerald-50/60 p-4 transition-all hover:bg-emerald-50 cursor-pointer shadow-xs">
+            <input
+              type="checkbox"
+              checked={applyRemaining}
+              onChange={(e) => setApplyRemaining(e.target.checked)}
+              className="mt-0.5 size-5 rounded-lg text-emerald-600 focus:ring-emerald-500/20 cursor-pointer accent-emerald-600"
+            />
+            <div className="flex-1 min-w-0">
+              <span className="text-xs sm:text-sm font-black text-slate-900 block leading-snug">
+                اعتماد الفوز الاعتباري (3 نقاط و {defaultWinScore}) وتحديث جدول الترتيب فوراً لكافة المباريات المتبقية ({remainingMatches.length})
+              </span>
+              <p className="mt-1 text-[11px] sm:text-xs text-slate-600 font-semibold leading-relaxed">
+                {applyRemaining
+                  ? `سيتم منح 3 نقاط اعتبارية لفرق الخصوم في جدول الترتيب تلقائياً وتحديث حالة المباريات المتبقية إلى ملعوبة، مع تحرير المواعيد المستعارة.`
+                  : `إلغاء التفعيل سيترك المباريات المتبقية في جدول المباريات دون تغيير ليتم اعتماد نتائجها مباراة بمباراة يدوياً.`}
+              </p>
+            </div>
+          </label>
+        )}
 
         {/* Reason / Internal Committee Note */}
         <div>

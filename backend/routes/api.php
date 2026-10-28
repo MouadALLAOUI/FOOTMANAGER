@@ -236,6 +236,7 @@ Route::post('/tournaments/{tournament}/join', [TournamentRegistrationController:
     });
 
     Route::get('/teams/{team}/profile', [PublicTeamProfileController::class, 'show']);
+    Route::get('/players/{player}', [PublicPlayerProfileController::class, 'show']);
     Route::get('/players/{player}/profile', [PublicPlayerProfileController::class, 'show']);
     Route::get('/terrain-owners/{id}/profile', [TerrainOwnerProfileController::class, 'show']);
     Route::get('/committee-members/{id}/profile', [CommitteeMemberProfileController::class, 'show']);

@@ -45,6 +45,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
   }
 
   const profile = topPlayer?.profile || topPlayer || {}
+  const playerId = profile.id || topPlayer.id || topPlayer.user_id
   const playerName = profile.user?.name || profile.name || 'لاعب معتمد'
   const teamName = profile.team?.name || 'فريق رياضي'
   const venueOrCity = profile.stadium || profile.city || 'المغرب'
@@ -139,7 +140,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
           {/* Action Navigation and Track Stats Button */}
           <div className="flex flex-col items-end gap-2 shrink-0">
             <Link
-              to="/matches"
+              to={playerId ? `/players/${playerId}` : '/matches'}
               className="size-7 sm:size-8 rounded-full bg-slate-100 border border-slate-200/80 grid place-items-center text-slate-600 hover:bg-slate-200 transition-colors shadow-2xs"
               aria-label="عرض تفاصيل اللاعب"
             >
@@ -147,7 +148,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             </Link>
 
             <Link
-              to="/matches"
+              to={playerId ? `/players/${playerId}` : '/matches'}
               className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/90 hover:bg-emerald-200/90 border border-emerald-300 text-emerald-800 px-3 py-1 text-[11px] sm:text-xs font-black shadow-xs transition-colors"
             >
               <Trophy className="size-3 sm:size-3.5 text-emerald-700" />

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
@@ -238,7 +239,16 @@ export function RankList({ title, icon: Icon, items }) {
               <span className="w-4 shrink-0 text-center text-[11px] font-black text-slate-400">{i + 1}</span>
               <TeamAvatar team={{ id: row.team_id, name: row.team_name, logo_url: row.team_logo_url }} className="size-6" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-bold text-slate-700">{row.name || '—'}</p>
+                {row.player_id ? (
+                  <Link
+                    to={`/players/${row.player_id}`}
+                    className="block truncate text-xs font-bold text-slate-700 transition-colors hover:text-emerald-600 hover:underline"
+                  >
+                    {row.name || '—'}
+                  </Link>
+                ) : (
+                  <p className="truncate text-xs font-bold text-slate-700">{row.name || '—'}</p>
+                )}
                 {row.team_name && <p className="truncate text-[10px] font-semibold text-slate-400">{row.team_name}</p>}
               </div>
               <Badge variant="info">{row.count}</Badge>

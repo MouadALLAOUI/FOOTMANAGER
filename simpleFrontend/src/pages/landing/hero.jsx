@@ -125,7 +125,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
     } else if (type === 'team') {
       navigate(`/matches?team=${encodeURIComponent(item.name)}`)
     } else if (type === 'player') {
-      navigate(`/matches?player=${encodeURIComponent(item.name)}`)
+      navigate(`/players/${item.id}`)
     }
   }
 

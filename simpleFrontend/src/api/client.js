@@ -42,6 +42,7 @@ api.interceptors.response.use(
         pathname === '/matches' ||
         pathname === '/live' ||
         pathname.startsWith('/tournaments') ||
+        pathname.startsWith('/players') ||
         pathname.startsWith('/about') ||
         pathname.startsWith('/contact') ||
         pathname.startsWith('/terms') ||

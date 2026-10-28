@@ -38,6 +38,7 @@ export default function TeamLogo({
     <img
       src={imageSrc}
       alt={displayName || alt || 'logo'}
+      crossOrigin="anonymous"
       loading="eager"
       decoding="async"
       onError={() => setFailed(true)}

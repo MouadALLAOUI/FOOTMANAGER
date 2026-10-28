@@ -12,7 +12,7 @@ import {
   faSpinner,
   faTrophy,
 } from '@fortawesome/free-solid-svg-icons'
-import { toBlob } from 'html-to-image'
+import { shareOrDownloadMatchCard } from '../../lib/cardExportUtils'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import { matchDay, formatTime } from '../../lib/adapters'
@@ -21,92 +21,27 @@ import { useToast } from '../../components/ui/Toast'
 import Carousel from '../../components/Carousel'
 import Reveal from './reveal'
 
-const TRANSPARENT_PIXEL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAEASTN7V4='
-
 function ShareButton({ cardRef, title, text, t }) {
   const [sharing, setSharing] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const { toast } = useToast()
 
   const handleShare = async () => {
-    if (sharing) return
+    if (sharing || !cardRef?.current) return
     setSharing(true)
     const shareUrl = window.location.href
+    const cleanName = (title || 'tournament-match')
+      .toLowerCase()
+      .replace(/[^a-z0-9\u0600-\u06FF]/gi, '-')
+      .replace(/-+/g, '-')
 
     try {
-      let imageFile = null
-
-      if (cardRef?.current) {
-        try {
-          const blob = await toBlob(cardRef.current, {
-            cacheBust: false,
-            skipFonts: true,
-            imagePlaceholder: TRANSPARENT_PIXEL,
-            pixelRatio: 2,
-            filter: (node) => !node?.classList?.contains?.('no-share-capture'),
-            onImageErrorHandler: () => TRANSPARENT_PIXEL,
-          })
-          if (blob) {
-            const cleanName = (title || 'tournament-match')
-              .toLowerCase()
-              .replace(/[^a-z0-9]/gi, '-')
-              .replace(/-+/g, '-')
-            imageFile = new File([blob], `${cleanName}.png`, { type: 'image/png' })
-          }
-        } catch (captureErr) {
-          console.warn('tournament match capture failed:', captureErr)
-        }
-      }
-
-      if (imageFile && navigator.canShare && navigator.canShare({ files: [imageFile] })) {
-        try {
-          await navigator.share({
-            title: title || 'FootManager',
-            text: `${text ? text + '\n' : ''}${shareUrl}`,
-            url: shareUrl,
-            files: [imageFile],
-          })
-          toast?.success?.(t('landing.liveNext.shareSuccess'))
-          return
-        } catch (err) {
-          if (err?.name === 'AbortError') return
-        }
-      }
-
-      if (navigator.share && navigator.canShare && navigator.canShare({ url: shareUrl })) {
-        try {
-          await navigator.share({
-            title: title || 'FootManager',
-            text: `${text ? text + '\n' : ''}${shareUrl}`,
-            url: shareUrl,
-          })
-          toast?.success?.(t('landing.liveNext.shareSuccess'))
-          return
-        } catch (err) {
-          if (err?.name === 'AbortError') return
-        }
-      }
-
-      if (imageFile) {
-        const link = document.createElement('a')
-        link.download = imageFile.name
-        link.href = URL.createObjectURL(imageFile)
-        link.click()
-        URL.revokeObjectURL(link.href)
-      }
-
-      await navigator.clipboard.writeText(shareUrl)
-      if (imageFile) {
-        toast?.success?.(t('landing.liveNext.shareImageDownloaded'))
-      } else {
-        toast?.success?.(t('landing.liveNext.shareSuccess'))
-      }
-    } catch {
-      try {
-        await navigator.clipboard.writeText(shareUrl)
-        toast?.success?.(t('landing.liveNext.shareSuccess'))
-      } catch {}
+      await shareOrDownloadMatchCard({
+        cardElement: cardRef.current,
+        title: title || 'FootManager',
+        text: text ? `${text}\n${shareUrl}` : shareUrl,
+        url: shareUrl,
+        filename: `${cleanName}.png`,
+        targetWidth: 800,
+      })
     } finally {
       setSharing(false)
     }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { toBlob } from 'html-to-image'
+import { inlineAllImages } from '../../../../lib/cardExportUtils'
 import {
   X,
   Download,
@@ -134,21 +135,19 @@ export default function TournamentSummaryImageModal({ data, appName, onClose }) 
 
   const generateBlob = async () => {
     if (!cardRef.current) return null
+    await inlineAllImages(cardRef.current)
     try {
       return await toBlob(cardRef.current, {
         cacheBust: false,
         skipFonts: true,
-        imagePlaceholder: TRANSPARENT_PIXEL,
         pixelRatio: 2,
         filter: (node) => !node?.classList?.contains?.('no-share-capture'),
-        onImageErrorHandler: () => TRANSPARENT_PIXEL,
       })
     } catch (e1) {
       console.warn('Summary capture primary failed, falling back:', e1)
       return await toBlob(cardRef.current, {
         cacheBust: true,
         skipFonts: true,
-        imagePlaceholder: TRANSPARENT_PIXEL,
         pixelRatio: 1.5,
       })
     }

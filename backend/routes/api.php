@@ -123,6 +123,7 @@ use App\Http\Controllers\Public\TeamProfileController as PublicTeamProfileContro
 use App\Http\Controllers\Public\PlayerProfileController as PublicPlayerProfileController;
 use App\Http\Controllers\Public\TerrainOwnerProfileController;
 use App\Http\Controllers\Public\CommitteeMemberProfileController;
+use App\Http\Controllers\Public\MediaProxyController;
 use App\Http\Controllers\StadiumController;
 use App\Http\Controllers\Terrain\BookingController;
 use App\Http\Controllers\Terrain\DirectBookingController;
@@ -240,6 +241,7 @@ Route::post('/tournaments/{tournament}/join', [TournamentRegistrationController:
     Route::get('/players/{player}/profile', [PublicPlayerProfileController::class, 'show']);
     Route::get('/terrain-owners/{id}/profile', [TerrainOwnerProfileController::class, 'show']);
     Route::get('/committee-members/{id}/profile', [CommitteeMemberProfileController::class, 'show']);
+    Route::get('/media/proxy', [MediaProxyController::class, 'proxy']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/devices', [DeviceController::class, 'index']);

@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react'
 import { toBlob } from 'html-to-image'
+import { inlineAllImages } from '../../../lib/cardExportUtils'
 import TeamLogo from '../../../components/profile/TeamLogo'
 import { toast } from '../../../components/ui/Toast/toastStore'
 import { formatPositionArabic } from './header'
@@ -33,13 +34,12 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
 
   const generateCardBlob = async () => {
     if (!cardRef.current) return null
+    await inlineAllImages(cardRef.current)
     return toBlob(cardRef.current, {
       cacheBust: false,
       skipFonts: true,
-      imagePlaceholder: TRANSPARENT_PIXEL,
       pixelRatio: 2,
       filter: (node) => !node?.classList?.contains?.('no-share-capture'),
-      onImageErrorHandler: () => TRANSPARENT_PIXEL,
     })
   }
 

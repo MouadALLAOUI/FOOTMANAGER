@@ -327,8 +327,8 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
 
   // Upcoming matches strictly from real database API data, scheduled within next 7 days
   const rawUpcoming = useMemo(() => {
-    const now = Date.now() - 30 * 60 * 1000
-    const maxWindow = Date.now() + 7 * 24 * 60 * 60 * 1000
+    const now = Date.now() - 6 * 60 * 60 * 1000
+    const maxWindow = Date.now() + 8 * 24 * 60 * 60 * 1000
     const list =
       liveData?.upcoming && liveData.upcoming.length > 0
         ? liveData.upcoming
@@ -355,8 +355,8 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
 
   // Check if active tournaments include scheduled matches within next 7 days
   const realTournamentUpcoming = useMemo(() => {
-    const now = Date.now() - 30 * 60 * 1000
-    const maxWindow = Date.now() + 7 * 24 * 60 * 60 * 1000
+    const now = Date.now() - 6 * 60 * 60 * 1000
+    const maxWindow = Date.now() + 8 * 24 * 60 * 60 * 1000
     const res = []
     if (tournaments && Array.isArray(tournaments)) {
       for (const t of tournaments) {
@@ -971,3 +971,5 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     </section>
   )
 }
+
+

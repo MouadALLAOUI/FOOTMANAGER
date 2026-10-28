@@ -13,6 +13,7 @@ import { ProfileModalProvider } from './components/profile/ProfileModalContext'
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications'
 import PwaUpdatePrompt from './components/pwa/PwaUpdatePrompt'
 import SmartGenieModal from './components/mascot/SmartGenieModal'
+import TopNewsTicker from './components/system/TopNewsTicker'
 
 const Landing = lazy(() => import('./pages/landing'))
 const About = lazy(() => import('./pages/about'))
@@ -66,6 +67,7 @@ function App() {
       <Suspense fallback={<RouteFallback />}>
         <ErrorBoundary>
           <ActivityLockBanner />
+          <TopNewsTicker />
           <MaintenanceGate>
             <ProfileModalProvider>
               <Routes>
@@ -171,3 +173,4 @@ function App() {
 }
 
 export default App
+

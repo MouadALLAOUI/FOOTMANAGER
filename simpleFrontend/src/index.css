@@ -6,6 +6,8 @@
 } */
 
 :root {
+  --announce-height: 0px;
+  --safe-top-offset: env(safe-area-inset-top, 0px);
   --bg-main: #F4F6F1;
   --bg-card: #FFFFFF;
   --text-main: #0F172A;

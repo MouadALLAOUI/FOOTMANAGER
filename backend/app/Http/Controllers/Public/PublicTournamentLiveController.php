@@ -11,10 +11,11 @@ use App\Domains\Tournament\Resources\TournamentLandingMatchResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * Landing page feed of tournament matches: currently live matches (with score +
- * recent events + owning tournament) and the single next upcoming match.
+ * recent events + owning tournament) and the scheduled upcoming matches within 7 days.
  */
 class PublicTournamentLiveController extends Controller
 {
@@ -22,12 +23,8 @@ class PublicTournamentLiveController extends Controller
     {
         $tournaments = Tournament::query()
             ->whereNull('hidden_at')
-            ->whereIn('status', [
-                Tournament::STATUS_IN_PROGRESS,
-                Tournament::STATUS_REGISTRATION_CLOSED,
-                Tournament::STATUS_OPEN_FOR_REGISTRATION,
-            ])
-            ->get(['id', 'slug', 'name', 'competition_id', 'season_id']);
+            ->where('status', '!=', Tournament::STATUS_CANCELLED)
+            ->get(['id', 'slug', 'name', 'competition_id', 'season_id', 'status']);
 
         $pairs = $tournaments
             ->map(fn (Tournament $t) => [
@@ -35,38 +32,44 @@ class PublicTournamentLiveController extends Controller
                 'season_id' => $t->season_id,
                 'tournament' => $t,
             ])
-            ->filter(fn (array $p) => $p['competition_id'] && $p['season_id'])
+            ->filter(fn (array $p) => !empty($p['competition_id']))
             ->values();
 
-        if ($pairs->isEmpty()) {
-            return response()->json(['data' => ['live' => [], 'next' => null]]);
-        }
-
         $lookup = [];
-        foreach ($pairs as $pair) {
-            $t = $pair['tournament'];
-            $lookup["{$pair['competition_id']}:{$pair['season_id']}"] = [
+        foreach ($tournaments as $t) {
+            $data = [
                 'id' => $t->id,
                 'name' => $t->name,
                 'slug' => $t->slug,
             ];
+            if ($t->competition_id && $t->season_id) {
+                $lookup["{$t->competition_id}:{$t->season_id}"] = $data;
+            }
+            if ($t->competition_id && !isset($lookup["comp:{$t->competition_id}"])) {
+                $lookup["comp:{$t->competition_id}"] = $data;
+            }
         }
 
         $scope = function ($q) use ($pairs) {
-            $q->where(function ($qq) use ($pairs) {
-                foreach ($pairs as $pair) {
-                    $qq->orWhere(fn ($w) => $w
-                        ->where('competition_id', $pair['competition_id'])
-                        ->where('season_id', $pair['season_id']));
-                }
-            });
+            if ($pairs->isNotEmpty()) {
+                $q->where(function ($qq) use ($pairs) {
+                    foreach ($pairs as $pair) {
+                        $qq->orWhere(function ($w) use ($pair) {
+                            $w->where('competition_id', $pair['competition_id']);
+                            if (!empty($pair['season_id'])) {
+                                $w->where('season_id', $pair['season_id']);
+                            }
+                        });
+                    }
+                });
+            }
         };
 
         $live = Fixture::query()
-            ->where($scope)
+            ->when($pairs->isNotEmpty(), $scope)
             ->whereHas('match', fn ($q) => $q->whereIn('status', MatchStatus::live()))
             ->with([
-                'round', 'group', 'homeTeam', 'awayTeam', 'stadium',
+                'round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'competition',
                 'match.events' => fn ($q) => $q->orderByDesc('created_at')->limit(15),
                 'match.events.team', 'match.events.player', 'match.events.assistPlayer',
             ])
@@ -80,51 +83,65 @@ class PublicTournamentLiveController extends Controller
         $sevenDaysLater = (clone $now)->addDays(7);
 
         $upcoming = Fixture::query()
-            ->where($scope)
+            ->when($pairs->isNotEmpty(), $scope)
             ->whereNotNull('home_team_id')
             ->whereNotNull('away_team_id')
-            ->where('scheduled_at', '>=', $now)
+            ->where('scheduled_at', '>=', (clone $now)->subHours(2))
             ->where('scheduled_at', '<=', $sevenDaysLater)
-            ->where('status', FixtureStatus::Scheduled)
+            ->where(function ($q) {
+                $q->where('status', FixtureStatus::Scheduled)
+                    ->orWhere('status', 'scheduled');
+            })
             ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', array_merge(
                 MatchStatus::live(),
                 [MatchStatus::Finished, MatchStatus::Cancelled, MatchStatus::Postponed]
             )))
-            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])
+            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'competition', 'match'])
             ->orderBy('scheduled_at', 'asc')
             ->orderBy('id', 'asc')
             ->limit(50)
             ->get();
 
         $finished = Fixture::query()
-            ->where($scope)
+            ->when($pairs->isNotEmpty(), $scope)
             ->whereNotNull('home_team_id')
             ->whereNotNull('away_team_id')
             ->where(function ($q) {
                 $q->where('status', FixtureStatus::Played)
+                    ->orWhere('status', 'played')
                     ->orWhereHas('match', fn ($mq) => $mq->where('status', MatchStatus::Finished));
             })
-            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'match'])
+            ->with(['round', 'group', 'homeTeam', 'awayTeam', 'stadium', 'competition', 'match'])
             ->orderByDesc('scheduled_at')
             ->orderByDesc('id')
             ->limit(15)
             ->get();
 
+        $resolveTournament = function (Fixture $f) use ($lookup) {
+            return $lookup["{$f->competition_id}:{$f->season_id}"]
+                ?? $lookup["comp:{$f->competition_id}"]
+                ?? ($f->competition ? [
+                    'id' => $f->competition->id,
+                    'name' => $f->competition->name,
+                    'slug' => Str::slug($f->competition->name),
+                ] : null);
+        };
+
         $liveData = $live
             ->map(fn (Fixture $f) => (new TournamentLandingMatchResource($f))
-                ->withTournament($lookup["{$f->competition_id}:{$f->season_id}"] ?? null)
+                ->withTournament($resolveTournament($f))
                 ->toArray($request))
             ->values();
 
         $upcomingData = $upcoming
             ->map(fn (Fixture $f) => (new TournamentLandingMatchResource($f))
-                ->withTournament($lookup["{$f->competition_id}:{$f->season_id}"] ?? null)
+                ->withTournament($resolveTournament($f))
                 ->toArray($request))
             ->values();
 
         $finishedData = $finished
             ->map(fn (Fixture $f) => (new TournamentLandingMatchResource($f))
-                ->withTournament($lookup["{$f->competition_id}:{$f->season_id}"] ?? null)
+                ->withTournament($resolveTournament($f))
                 ->toArray($request))
             ->values();
 

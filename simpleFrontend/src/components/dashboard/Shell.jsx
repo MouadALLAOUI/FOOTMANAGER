@@ -232,8 +232,7 @@ export default function Shell({
       >
         {t('common.skipToContent')}
       </a>
-      <aside
-        className={`fixed inset-y-0 start-0 z-40 hidden flex-col bg-[#0B1F3A] transition-all duration-300 lg:flex ${
+      <aside style={{ top: "var(--announce-height, 0px)" }} className={`fixed inset-y-0 start-0 z-40 hidden flex-col bg-[#0B1F3A] transition-all duration-300 lg:flex ${
           collapsed ? 'w-[84px]' : 'w-[264px]'
         }`}
       >
@@ -251,14 +250,14 @@ export default function Shell({
       {mobileOpen && (
         <div className="fixed inset-0 z-[9999] lg:hidden animate-in fade-in duration-200">
           <div className="absolute inset-0 bg-slate-950/60" onClick={() => setMobileOpen(false)} aria-hidden="true" />
-          <aside className="relative inset-y-0 start-0 h-full w-[280px] max-w-[85vw] bg-[#0B1F3A] shadow-2xl flex flex-col z-10 animate-in slide-in-from-start duration-300">
+          <aside className="relative inset-y-0 start-0 h-full w-[280px] max-w-[85vw] bg-[#0B1F3A] shadow-2xl flex flex-col z-10 animate-in slide-in-from-start duration-300" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
             {sidebarContent}
           </aside>
         </div>
       )}
 
       <main id="main-content" className={`min-w-0 transition-all duration-300 ${collapsed ? 'lg:ps-[84px]' : 'lg:ps-[264px]'}`}>
-        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white shadow-xs">
+        <header className="sticky z-30 border-b border-slate-200 bg-white shadow-xs transition-[top] duration-200" style={{ top: "var(--announce-height, 0px)", paddingTop: "var(--safe-top-offset, 0px)" }}>
           <div className="flex h-16 items-center gap-2 sm:gap-3 px-3 sm:px-5 lg:px-8">
             <button
               type="button"
@@ -452,3 +451,4 @@ export default function Shell({
     </div>
   )
 }
+

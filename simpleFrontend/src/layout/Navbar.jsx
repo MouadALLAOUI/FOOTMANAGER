@@ -128,8 +128,7 @@ export default function Navbar() {
     }`
 
   return (
-    <header
-      className={`fixed inset-x-0 z-[9990] transition-all duration-[350ms] ease-out ${
+    <header style={{ paddingTop: "var(--safe-top-offset, 0px)" }} className={`fixed inset-x-0 z-[9990] transition-all duration-[350ms] ease-out ${
         scrolled ? 'top-[calc(var(--announce-height,0px)+18px)]' : 'top-[var(--announce-height,0px)]'
       }`}
     >
@@ -357,3 +356,4 @@ export default function Navbar() {
     </header>
   )
 }
+

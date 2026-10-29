@@ -89,7 +89,7 @@ class PublicTournamentController extends Controller
     {
         $tournament = $this->resolveTournament($tournament);
 
-        $tournament->load(['organizer', 'stadium'])->loadCount('tournamentTeams');
+        $tournament->load(['organizer', 'stadium.images'])->loadCount('tournamentTeams');
 
         return response()->json(['data' => new TournamentDetailResource($tournament)]);
     }

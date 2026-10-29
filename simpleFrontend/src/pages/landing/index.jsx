@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import SEO from '../../components/system/SEO'
 import TopBanner from './topBanner'
 import PwaTopBanner from './pwaTopBanner'
-import MainHeader from './header'
+import { isStandalone, isBannerDismissed } from './pwaHelper'
 import HeroSection from './hero'
 import StatsBar from './statsBar'
 import LiveTournamentCard from './liveTournamentCard'
@@ -18,7 +18,13 @@ import SearchResultsSheet from './searchResults'
 export default function Landing() {
   const [city, setCity] = useState('')
   const [resultsOpen, setResultsOpen] = useState(false)
-  const [pwaBannerActive, setPwaBannerActive] = useState(false)
+  const [pwaBannerActive, setPwaBannerActive] = useState(() => {
+    try {
+      return !isStandalone() && !isBannerDismissed()
+    } catch {
+      return false
+    }
+  })
 
   // Default theme is 'light' (Option 1: Base light background with designated dark sections)
   const [theme, setTheme] = useState(() => {
@@ -75,21 +81,19 @@ export default function Landing() {
         id="main-content"
         className="w-full max-w-full space-y-2 sm:space-y-4 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+var(--genie-size))] sm:pb-12"
       >
-        {/* 1. Top Banners: Never show both banners together. PWA banner has first priority. */}
-        <PwaTopBanner theme={theme} onVisibilityChange={setPwaBannerActive} />
-        {!pwaBannerActive && <TopBanner theme={theme} />}
-
-        {/* 2. Main Platform Header (Crisp Light / Dark depending on active theme) */}
-        <MainHeader theme={theme} onToggleTheme={toggleTheme} />
-
-        {/* 3. Innovative Hero Section (Designated Dark Section) with Slogan & Smart Search Bar (z-[9999]) */}
-        <HeroSection
-          theme={theme}
-          onSearchSubmit={(term) => {
-            setCity(term)
-            setResultsOpen(true)
-          }}
-        />
+        {/* 1. Top Banners & Hero Envelope (Seamless zero-gap integration) */}
+        <div className="w-full max-w-full">
+          <PwaTopBanner theme={theme} onVisibilityChange={setPwaBannerActive} />
+          {!pwaBannerActive && <TopBanner theme={theme} />}
+          <HeroSection
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onSearchSubmit={(term) => {
+              setCity(term)
+              setResultsOpen(true)
+            }}
+          />
+        </div>
 
         {/* 4. Balanced KPI Stats Bar (z-10) */}
         <StatsBar theme={theme} />

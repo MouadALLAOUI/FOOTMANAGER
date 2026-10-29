@@ -21,7 +21,7 @@ import { useNotificationUnreadCount } from '../../api/queries'
 import { triggerPwaInstall, isStandalone } from './pwaHelper'
 import NotificationSheet from './notificationSheet'
 
-export default function MainHeader({ theme = 'dark', onToggleTheme }) {
+export default function MainHeader({ theme = 'dark', onToggleTheme, transparent = false }) {
   const { t } = useTranslation()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -49,10 +49,16 @@ export default function MainHeader({ theme = 'dark', onToggleTheme }) {
   const userInitial = user?.name ? user.name.trim().charAt(0).toUpperCase() : null
 
   return (
-    <header style={{ paddingTop: "var(--safe-top-offset, 0px)" }} className={`sticky top-0 z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] w-full max-w-full overflow-visible transition-colors ${
-        isDark
-          ? 'bg-[#14221C] border-b border-emerald-900/50 shadow-sm'
-          : 'bg-white border-b border-slate-200/80 shadow-sm'
+    <header
+      style={{ paddingTop: "var(--safe-top-offset, 0px)" }}
+      className={`w-full max-w-full overflow-visible transition-colors ${
+        transparent
+          ? 'relative z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] bg-transparent border-b border-white/10 text-white'
+          : `sticky top-0 z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] ${
+              isDark
+                ? 'bg-[#14221C] border-b border-emerald-900/50 shadow-sm'
+                : 'bg-white border-b border-slate-200/80 shadow-sm'
+            }`
       }`}
     >
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
@@ -70,14 +76,14 @@ export default function MainHeader({ theme = 'dark', onToggleTheme }) {
           <div className="flex flex-col">
             <span
               className={`text-base sm:text-lg font-black tracking-tight ${
-                isDark ? 'text-white' : 'text-slate-900'
+                transparent || isDark ? 'text-white' : 'text-slate-900'
               }`}
             >
               أجي نقصرو
             </span>
             <span
               className={`hidden text-[10px] font-bold sm:block ${
-                isDark ? 'text-emerald-400' : 'text-emerald-600'
+                transparent || isDark ? 'text-emerald-400' : 'text-emerald-600'
               }`}
             >
               منصة دوريات كرة القدم وملاعب القرب
@@ -101,7 +107,9 @@ export default function MainHeader({ theme = 'dark', onToggleTheme }) {
               }}
               aria-label="الإشعارات والتنبيهات"
               className={`relative grid size-10 place-items-center rounded-2xl border transition-all cursor-pointer ${
-                isDark
+                transparent
+                  ? 'border-white/20 bg-white/10 text-white hover:bg-white/20 backdrop-blur-xs'
+                  : isDark
                   ? 'border-emerald-900/50 bg-[#14221C] text-slate-300 hover:bg-emerald-900/30 hover:text-white'
                   : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
               }`}

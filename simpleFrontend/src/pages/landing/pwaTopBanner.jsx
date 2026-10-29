@@ -8,7 +8,13 @@ import {
 } from './pwaHelper'
 
 export default function PwaTopBanner({ theme = 'dark', onVisibilityChange }) {
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(() => {
+    try {
+      return !isStandalone() && !isBannerDismissed()
+    } catch {
+      return false
+    }
+  })
   const [installedSuccess, setInstalledSuccess] = useState(false)
 
   useEffect(() => {
@@ -60,8 +66,6 @@ export default function PwaTopBanner({ theme = 'dark', onVisibilityChange }) {
 
   if (!visible) return null
 
-  const isDark = theme === 'dark' || document.documentElement.classList.contains('dark')
-
   // Success state immediately after installation
   if (installedSuccess) {
     return (
@@ -80,11 +84,7 @@ export default function PwaTopBanner({ theme = 'dark', onVisibilityChange }) {
   return (
     <div
       aria-label="تثبيت التطبيق"
-      className={`relative z-[var(--z-sticky)] w-full border-b transition-colors shadow-xs ${
-        isDark
-          ? 'bg-[#14221C] text-slate-200 border-emerald-900/50'
-          : 'bg-emerald-50 text-slate-800 border-emerald-200'
-      }`}
+      className="relative z-[var(--z-sticky)] w-full border-b transition-colors shadow-xs bg-gradient-to-r from-[#064E3B] via-[#0A161E] to-[#064E3B] text-white border-emerald-500/30"
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2 text-xs font-bold sm:px-6">
         <div className="flex shrink-0 items-center gap-2.5">

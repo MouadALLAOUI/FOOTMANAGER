@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { coverThumb } from '../../../lib/thumb'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowLeft,
@@ -133,10 +134,12 @@ function QuickInfoStrip({ tour, stats }) {
 
 function InfoPanel({ tour }) {
   const { t } = useTranslation()
+  const [viewMode, setViewMode] = useState('image')
   const stadium = tour.stadium
   const hasCoords = Boolean(stadium && typeof stadium.latitude === 'number' && typeof stadium.longitude === 'number')
   const mapSrc = hasCoords ? `https://maps.google.com/maps?q=${stadium.latitude},${stadium.longitude}&z=15&output=embed` : null
   const mapsUrl = stadium?.google_maps_url || (hasCoords ? `https://www.google.com/maps?q=${stadium.latitude},${stadium.longitude}` : null)
+  const stadiumImg = coverThumb(stadium, '/stadium_sample_1.png')
 
   const rows = [
     { icon: Layers, label: t('public.overview.groups'), value: tour.groups_count > 0 ? `${tour.groups_count}` : '—' },
@@ -165,36 +168,77 @@ function InfoPanel({ tour }) {
             </div>
           ))}
         </dl>
-        <div className="relative h-56 overflow-hidden rounded-2xl bg-slate-100 lg:h-auto lg:min-h-[13rem]">
-          {mapSrc ? (
+        <div className="group relative h-60 sm:h-64 overflow-hidden rounded-2xl bg-slate-900 shadow-inner lg:h-auto lg:min-h-[14rem]">
+          {viewMode === 'map' && mapSrc ? (
             <iframe
-              title={stadium.name}
+              title={stadium?.name || 'موقع الملعب'}
               src={mapSrc}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               allowFullScreen
-              className="absolute inset-0 h-full w-full border-0"
+              className="absolute inset-0 size-full border-0"
             />
           ) : (
-            <div className="grid h-full place-items-center text-slate-300"><MapPin className="size-10" /></div>
+            <>
+              {stadiumImg ? (
+                <img
+                  src={stadiumImg}
+                  alt={stadium?.name || 'صورة الملعب'}
+                  className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="grid size-full place-items-center text-slate-400 bg-slate-100">
+                  <MapPin className="size-10" />
+                </div>
+              )}
+              {/* تدرج معتم رقيق لضمان وضوح الشارات والنصوص */}
+              <div
+                className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-slate-950/45 pointer-events-none"
+                aria-hidden="true"
+              />
+            </>
           )}
+
+          {/* شارة اسم الملعب والمدينة في الأعلى */}
           {stadium?.name && (
-            <span className="absolute start-3 top-3 inline-flex max-w-[70%] items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-slate-800 shadow backdrop-blur">
-              <MapPin className="size-3.5 shrink-0 text-green-600" />
+            <div className="absolute start-3 top-3 inline-flex max-w-[70%] items-center gap-1.5 rounded-full bg-slate-950/80 border border-white/20 px-3 py-1.5 text-xs font-black text-white shadow-md backdrop-blur">
+              <MapPin className="size-3.5 shrink-0 text-emerald-400" />
               <span className="truncate">{stadium.name}</span>
-            </span>
+            </div>
           )}
-          {mapsUrl && (
-            <a
-              href={mapsUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="absolute bottom-3 start-3 inline-flex items-center gap-1.5 rounded-full bg-slate-900/90 px-3 py-1.5 text-[11px] font-bold text-white shadow backdrop-blur transition-colors hover:bg-slate-900"
+
+          {/* زر التبديل بين صورة الملعب والخريطة إذا توفرت الإحداثيات */}
+          {mapSrc && (
+            <button
+              type="button"
+              onClick={() => setViewMode(v => v === 'image' ? 'map' : 'image')}
+              className="absolute end-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 hover:bg-white text-slate-900 px-3 py-1 text-xs font-black shadow-md backdrop-blur transition-all active:scale-95 cursor-pointer"
             >
-              <MapPin className="size-3" />
-              {t('public.overview.maps')}
-            </a>
+              {viewMode === 'map' ? '📷 صورة الملعب' : '🗺️ الخريطة'}
+            </button>
           )}
+
+          {/* الإجراءات السفلية: رابط خرائط جوجل واسم المدينة */}
+          <div className="absolute bottom-3 inset-x-3 flex items-center justify-between gap-2 pointer-events-none">
+            {mapsUrl ? (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur transition-all active:scale-95"
+              >
+                <MapPin className="size-3.5 shrink-0" />
+                <span>{t('public.overview.maps')}</span>
+              </a>
+            ) : <div />}
+
+            {(stadium?.city || stadium?.address) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-slate-950/75 border border-white/10 px-2.5 py-1 text-[10px] font-bold text-slate-200 backdrop-blur">
+                <span>{stadium.city || stadium.address}</span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </Collapsible>

@@ -218,8 +218,8 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
                   </div>
                   <div className="w-px h-6 bg-slate-800" />
                   <div>
-                    <span className="block text-[10px] font-semibold text-slate-400">النقاط</span>
-                    <span className="text-xs sm:text-sm font-black text-amber-400 tabular-nums">{currentTeam.points}</span>
+                    <span className="block text-[10px] font-semibold text-slate-400">الأهداف</span>
+                    <span className="text-xs sm:text-sm font-black text-amber-400 tabular-nums">{currentTeam.goals_for ?? 0}</span>
                   </div>
                   {currentTeam.member_count > 0 && (
                     <>

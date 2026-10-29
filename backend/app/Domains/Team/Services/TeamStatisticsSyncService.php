@@ -53,6 +53,8 @@ class TeamStatisticsSyncService
             ->where(function ($q) {
                 $q->where('score_status', 'confirmed')->orWhereNotNull('host_score');
             })
+            ->whereNotNull('host_score')
+            ->whereNotNull('opponent_score')
             ->whereNotIn('id', $linkedReqIds)
             ->where(function ($q) use ($teamId) {
                 $q->where('host_team_id', $teamId)->orWhere('opponent_team_id', $teamId);

@@ -266,35 +266,12 @@ class MatchResultController extends Controller
             $hostScore = $match->host_score;
             $oppScore = $match->opponent_score;
 
-            // Update host team
-            $hostTeam->increment('matches_played');
-            $hostTeam->increment('goals_for', $hostScore);
-            $hostTeam->increment('goals_against', $oppScore);
-            $hostTeam->update([
-                'goal_difference' => $hostTeam->fresh()->goals_for - $hostTeam->fresh()->goals_against,
-            ]);
-
-            // Update opponent team
-            $opponentTeam->increment('matches_played');
-            $opponentTeam->increment('goals_for', $oppScore);
-            $opponentTeam->increment('goals_against', $hostScore);
-            $opponentTeam->update([
-                'goal_difference' => $opponentTeam->fresh()->goals_for - $opponentTeam->fresh()->goals_against,
-            ]);
-
-            if ($hostScore > $oppScore) {
-                $hostTeam->increment('wins');
-                $hostTeam->increment('points', 3);
-                $opponentTeam->increment('losses');
-            } elseif ($hostScore < $oppScore) {
-                $opponentTeam->increment('wins');
-                $opponentTeam->increment('points', 3);
-                $hostTeam->increment('losses');
-            } else {
-                $hostTeam->increment('draws');
-                $hostTeam->increment('points');
-                $opponentTeam->increment('draws');
-                $opponentTeam->increment('points');
+            $syncService = app(\App\Domains\Team\Services\TeamStatisticsSyncService::class);
+            if ($hostTeam) {
+                $syncService->syncTeam($hostTeam);
+            }
+            if ($opponentTeam) {
+                $syncService->syncTeam($opponentTeam);
             }
 
             $this->updatePlayerStandings($match, $hostScore, $oppScore);

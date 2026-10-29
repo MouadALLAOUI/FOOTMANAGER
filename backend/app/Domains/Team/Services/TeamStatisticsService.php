@@ -3,6 +3,8 @@
 namespace App\Domains\Team\Services;
 
 use App\Domains\Booking\Models\TerrainBooking;
+use App\Domains\Match\Enums\MatchStatus;
+use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchRequest;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Support\TeamCache;
@@ -153,19 +155,56 @@ class TeamStatisticsService
 
     private function completedMatchesInRange(Team $team, Carbon $from, Carbon $to): array
     {
-        return MatchRequest::query()
-            ->where('status', 'completed')
-            ->whereBetween('match_datetime', [$from, $to])
-            ->where(function ($q) use ($team) {
-                $q->where('host_team_id', $team->id)->orWhere('opponent_team_id', $team->id);
+        $teamId = (int) $team->id;
+
+        $tournMatches = FootballMatch::query()
+            ->where('status', MatchStatus::Finished)
+            ->where(function ($q) use ($teamId) {
+                $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
             })
-            ->orderBy('match_datetime', 'asc')
+            ->where(function ($q) use ($from, $to) {
+                $q->whereBetween('started_at', [$from, $to])
+                    ->orWhere(function ($sub) use ($from, $to) {
+                        $sub->whereNull('started_at')->whereBetween('created_at', [$from, $to]);
+                    });
+            })
+            ->get(['id', 'home_team_id', 'away_team_id', 'home_score', 'away_score', 'winner_team_id', 'started_at', 'ended_at', 'created_at'])
+            ->map(function (FootballMatch $m) use ($teamId) {
+                $isHome = (int) $m->home_team_id === $teamId;
+                $scoreFor = (int) ($isHome ? $m->home_score : $m->away_score);
+                $scoreAgainst = (int) ($isHome ? $m->away_score : $m->home_score);
+                $result = $scoreFor > $scoreAgainst ? 'win' : ($scoreFor < $scoreAgainst ? 'loss' : ($m->winner_team_id ? ((int) $m->winner_team_id === $teamId ? 'win' : 'loss') : 'draw'));
+                $dt = $m->started_at ?? $m->ended_at ?? $m->created_at;
+
+                return [
+                    'raw_date' => $dt,
+                    'date' => $dt?->toDateString() ?? '',
+                    'hour' => $dt ? (int) $dt->format('G') : 0,
+                    'score_for' => $scoreFor,
+                    'score_against' => $scoreAgainst,
+                    'result' => $result,
+                    'goals_for' => $scoreFor,
+                    'goals_against' => $scoreAgainst,
+                ];
+            });
+
+        $linkedReqIds = FootballMatch::whereNotNull('match_request_id')->pluck('match_request_id');
+        $friendlyMatches = MatchRequest::query()
+            ->where('status', 'completed')
+            ->where('score_status', 'confirmed')
+            ->whereNotIn('id', $linkedReqIds)
+            ->whereBetween('match_datetime', [$from, $to])
+            ->where(function ($q) use ($teamId) {
+                $q->where('host_team_id', $teamId)->orWhere('opponent_team_id', $teamId);
+            })
             ->get(['id', 'host_team_id', 'opponent_team_id', 'host_score', 'opponent_score', 'match_datetime'])
-            ->map(function (MatchRequest $match) use ($team) {
-                $isHost = (int) $match->host_team_id === (int) $team->id;
+            ->map(function (MatchRequest $match) use ($teamId) {
+                $isHost = (int) $match->host_team_id === $teamId;
                 $scoreFor = (int) ($isHost ? $match->host_score : $match->opponent_score);
                 $scoreAgainst = (int) ($isHost ? $match->opponent_score : $match->host_score);
+
                 return [
+                    'raw_date' => $match->match_datetime,
                     'date' => $match->match_datetime?->toDateString() ?? '',
                     'hour' => $match->match_datetime ? (int) $match->match_datetime->format('G') : 0,
                     'score_for' => $scoreFor,
@@ -174,34 +213,88 @@ class TeamStatisticsService
                     'goals_for' => $scoreFor,
                     'goals_against' => $scoreAgainst,
                 ];
-            })->all();
+            });
+
+        return $tournMatches->concat($friendlyMatches)
+            ->sortBy(fn ($item) => $item['raw_date'] ?? Carbon::createFromTimestamp(0))
+            ->values()
+            ->map(function ($item) {
+                unset($item['raw_date']);
+                return $item;
+            })
+            ->all();
     }
 
     private function matchBreakdown(Team $team): array
     {
-        $base = MatchRequest::query()->where(function ($q) use ($team) {
-            $q->where('host_team_id', $team->id)->orWhere('opponent_team_id', $team->id);
-        });
+        $teamId = (int) $team->id;
+
+        $linkedReqIds = FootballMatch::whereNotNull('match_request_id')->pluck('match_request_id');
+        $baseFriendly = MatchRequest::query()
+            ->whereNotIn('id', $linkedReqIds)
+            ->where(function ($q) use ($teamId) {
+                $q->where('host_team_id', $teamId)->orWhere('opponent_team_id', $teamId);
+            });
+
+        $baseTourn = FootballMatch::query()
+            ->where(function ($q) use ($teamId) {
+                $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
+            });
+
+        $completed = (int) (clone $baseFriendly)->where('status', 'completed')->where('score_status', 'confirmed')->count()
+            + (int) (clone $baseTourn)->where('status', MatchStatus::Finished)->count();
+
+        $upcoming = (int) (clone $baseFriendly)->whereIn('status', ['accepted', 'open'])->where('match_datetime', '>=', now())->count()
+            + (int) (clone $baseTourn)->where('status', MatchStatus::Scheduled)->count();
+
+        $cancelled = (int) (clone $baseFriendly)->where('status', 'cancelled')->count()
+            + (int) (clone $baseTourn)->where('status', MatchStatus::Cancelled)->count();
 
         return [
-            'total' => (int) (clone $base)->count(),
-            'completed' => (int) (clone $base)->where('status', 'completed')->count(),
-            'upcoming' => (int) (clone $base)->whereIn('status', ['accepted', 'open'])->where('match_datetime', '>=', now())->count(),
-            'cancelled' => (int) (clone $base)->where('status', 'cancelled')->count(),
+            'total' => $completed + $upcoming + $cancelled,
+            'completed' => $completed,
+            'upcoming' => $upcoming,
+            'cancelled' => $cancelled,
         ];
     }
 
     private function matchBreakdownInRange(Team $team, Carbon $from, Carbon $to): array
     {
-        $base = MatchRequest::query()->where(function ($q) use ($team) {
-            $q->where('host_team_id', $team->id)->orWhere('opponent_team_id', $team->id);
-        })->whereBetween('match_datetime', [$from, $to]);
+        $teamId = (int) $team->id;
+
+        $linkedReqIds = FootballMatch::whereNotNull('match_request_id')->pluck('match_request_id');
+        $baseFriendly = MatchRequest::query()
+            ->whereNotIn('id', $linkedReqIds)
+            ->where(function ($q) use ($teamId) {
+                $q->where('host_team_id', $teamId)->orWhere('opponent_team_id', $teamId);
+            })
+            ->whereBetween('match_datetime', [$from, $to]);
+
+        $baseTourn = FootballMatch::query()
+            ->where(function ($q) use ($teamId) {
+                $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
+            })
+            ->where(function ($q) use ($from, $to) {
+                $q->whereBetween('started_at', [$from, $to])
+                    ->orWhere(function ($sub) use ($from, $to) {
+                        $sub->whereNull('started_at')->whereBetween('created_at', [$from, $to]);
+                    });
+            });
+
+        $completed = (int) (clone $baseFriendly)->where('status', 'completed')->where('score_status', 'confirmed')->count()
+            + (int) (clone $baseTourn)->where('status', MatchStatus::Finished)->count();
+
+        $upcoming = (int) (clone $baseFriendly)->whereIn('status', ['accepted', 'open'])->count()
+            + (int) (clone $baseTourn)->where('status', MatchStatus::Scheduled)->count();
+
+        $cancelled = (int) (clone $baseFriendly)->where('status', 'cancelled')->count()
+            + (int) (clone $baseTourn)->where('status', MatchStatus::Cancelled)->count();
 
         return [
-            'total' => (int) (clone $base)->count(),
-            'completed' => (int) (clone $base)->where('status', 'completed')->count(),
-            'upcoming' => (int) (clone $base)->whereIn('status', ['accepted', 'open'])->count(),
-            'cancelled' => (int) (clone $base)->where('status', 'cancelled')->count(),
+            'total' => $completed + $upcoming + $cancelled,
+            'completed' => $completed,
+            'upcoming' => $upcoming,
+            'cancelled' => $cancelled,
         ];
     }
 
@@ -309,28 +402,61 @@ class TeamStatisticsService
      */
     private function completedMatches(Team $team): array
     {
-        return MatchRequest::query()
-            ->where('status', 'completed')
-            ->where(function ($q) use ($team) {
-                $q->where('host_team_id', $team->id)->orWhere('opponent_team_id', $team->id);
+        $teamId = (int) $team->id;
+
+        // Tournament matches across all competitions
+        $tournMatches = FootballMatch::query()
+            ->where('status', MatchStatus::Finished)
+            ->where(function ($q) use ($teamId) {
+                $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
             })
-            ->orderBy('match_datetime', 'asc')
-            ->get(['id', 'host_team_id', 'opponent_team_id', 'host_score', 'opponent_score', 'match_datetime'])
-            ->map(function (MatchRequest $match) use ($team) {
-                if ((int) $match->host_team_id === (int) $team->id) {
-                    $scoreFor = (int) $match->host_score;
-                    $scoreAgainst = (int) $match->opponent_score;
-                } else {
-                    $scoreFor = (int) $match->opponent_score;
-                    $scoreAgainst = (int) $match->host_score;
-                }
+            ->get(['id', 'home_team_id', 'away_team_id', 'home_score', 'away_score', 'winner_team_id', 'started_at', 'ended_at', 'created_at'])
+            ->map(function (FootballMatch $m) use ($teamId) {
+                $isHome = (int) $m->home_team_id === $teamId;
+                $scoreFor = (int) ($isHome ? $m->home_score : $m->away_score);
+                $scoreAgainst = (int) ($isHome ? $m->away_score : $m->home_score);
+                $result = $scoreFor > $scoreAgainst ? 'win' : ($scoreFor < $scoreAgainst ? 'loss' : ($m->winner_team_id ? ((int) $m->winner_team_id === $teamId ? 'win' : 'loss') : 'draw'));
+                $dt = $m->started_at ?? $m->ended_at ?? $m->created_at;
 
                 return [
+                    'raw_date' => $dt,
+                    'date' => $dt?->toDateString() ?? '',
+                    'score_for' => $scoreFor,
+                    'score_against' => $scoreAgainst,
+                    'result' => $result,
+                ];
+            });
+
+        // Friendly matches
+        $linkedReqIds = FootballMatch::whereNotNull('match_request_id')->pluck('match_request_id');
+        $friendlyMatches = MatchRequest::query()
+            ->where('status', 'completed')
+            ->where('score_status', 'confirmed')
+            ->whereNotIn('id', $linkedReqIds)
+            ->where(function ($q) use ($teamId) {
+                $q->where('host_team_id', $teamId)->orWhere('opponent_team_id', $teamId);
+            })
+            ->get(['id', 'host_team_id', 'opponent_team_id', 'host_score', 'opponent_score', 'match_datetime'])
+            ->map(function (MatchRequest $match) use ($teamId) {
+                $isHost = (int) $match->host_team_id === $teamId;
+                $scoreFor = (int) ($isHost ? $match->host_score : $match->opponent_score);
+                $scoreAgainst = (int) ($isHost ? $match->opponent_score : $match->host_score);
+
+                return [
+                    'raw_date' => $match->match_datetime,
                     'date' => $match->match_datetime?->toDateString() ?? '',
                     'score_for' => $scoreFor,
                     'score_against' => $scoreAgainst,
                     'result' => $scoreFor > $scoreAgainst ? 'win' : ($scoreFor < $scoreAgainst ? 'loss' : 'draw'),
                 ];
+            });
+
+        return $tournMatches->concat($friendlyMatches)
+            ->sortBy(fn ($item) => $item['raw_date'] ?? Carbon::createFromTimestamp(0))
+            ->values()
+            ->map(function ($item) {
+                unset($item['raw_date']);
+                return $item;
             })
             ->all();
     }

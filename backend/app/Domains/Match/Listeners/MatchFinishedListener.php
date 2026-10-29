@@ -75,32 +75,7 @@ class MatchFinishedListener implements ShouldQueue
 
     protected function updateTeamRecords($match): void
     {
-        $teamIds = array_unique([$match->home_team_id, $match->away_team_id]);
-
-        foreach ($teamIds as $teamId) {
-            $team = Team::query()->find($teamId);
-
-            if (! $team) {
-                continue;
-            }
-
-            $team->matches_played = (int) $team->matches_played + 1;
-            $team->goals_for = (int) $team->goals_for + $match->scoreFor((int) $teamId);
-            $team->goals_against = (int) $team->goals_against + $match->scoreAgainst((int) $teamId);
-            $team->goal_difference = (int) $team->goals_for - (int) $team->goals_against;
-
-            match ($match->resultFor((int) $teamId)) {
-                'win' => $team->wins = (int) $team->wins + 1,
-                'draw' => $team->draws = (int) $team->draws + 1,
-                'loss' => $team->losses = (int) $team->losses + 1,
-                default => null,
-            };
-
-            $team->points = (int) $team->wins * 3 + (int) $team->draws;
-            $team->save();
-
-            TeamCache::flushTeam((int) $teamId);
-        }
+        app(\App\Domains\Team\Services\TeamStatisticsSyncService::class)->syncForMatch($match);
     }
 
     protected function notifyTeams($match): void

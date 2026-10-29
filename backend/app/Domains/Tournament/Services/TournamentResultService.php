@@ -17,6 +17,7 @@ use App\Domains\Match\Models\MatchStatistic;
 use App\Domains\Match\Models\PlayerMatchPerformance;
 use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Team\Services\TeamStatisticsSyncService;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
 use Illuminate\Support\Facades\DB;
@@ -30,7 +31,13 @@ class TournamentResultService
         private readonly TournamentSuspensionService $suspensions,
         private readonly TournamentTerrainBookingService $bookings,
         private readonly TournamentFoulRuleService $foulRules,
+        private readonly ?TeamStatisticsSyncService $teamStatsSync = null,
     ) {}
+
+    private function getTeamStatsSync(): TeamStatisticsSyncService
+    {
+        return $this->teamStatsSync ?? app(TeamStatisticsSyncService::class);
+    }
 
     /**
      * @param  array{
@@ -156,6 +163,8 @@ class TournamentResultService
                 $this->standings->rebuildGroup($tournament, $fixture->group_id);
                 $this->setup->ensureKnockoutRoundsWhenReady($tournament, $tournament->season);
             }
+
+            $this->getTeamStatsSync()->syncForMatch($match);
 
             $this->audit($match, $fixture, 'result_created', $userId, [
                 'status' => MatchStatus::Finished->value,
@@ -346,6 +355,10 @@ class TournamentResultService
                 $fixture->forceFill(['status' => FixtureStatus::Cancelled])->save();
             } elseif ($status === MatchStatus::Postponed) {
                 $fixture->forceFill(['status' => FixtureStatus::Postponed])->save();
+            }
+
+            if ($status === MatchStatus::Finished || $match->getOriginal('status') === MatchStatus::Finished) {
+                $this->getTeamStatsSync()->syncForMatch($match);
             }
 
             $this->audit($match, $fixture, $isNew ? 'result_created' : 'result_updated', $userId, [

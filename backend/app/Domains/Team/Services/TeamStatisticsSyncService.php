@@ -2,6 +2,8 @@
 
 namespace App\Domains\Team\Services;
 
+use App\Domains\Competition\Enums\FixtureStatus;
+use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchRequest;
@@ -24,9 +26,21 @@ class TeamStatisticsSyncService
 
         $teamId = (int) $team->id;
 
-        // 1. All finished tournament matches from all competitions
+        // 1. Collect match IDs from played tournament fixtures
+        $fixtureMatchIds = Fixture::query()
+            ->where(function ($q) use ($teamId) {
+                $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
+            })
+            ->whereIn('status', ['played', FixtureStatus::Played])
+            ->whereNotNull('match_id')
+            ->pluck('match_id');
+
+        // All finished tournament matches from all competitions
         $tournamentMatches = FootballMatch::query()
-            ->where('status', MatchStatus::Finished)
+            ->where(function ($q) use ($fixtureMatchIds) {
+                $q->whereIn('status', [MatchStatus::Finished, 'finished', 'played', 'completed'])
+                  ->orWhereIn('id', $fixtureMatchIds);
+            })
             ->where(function ($q) use ($teamId) {
                 $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
             })
@@ -35,8 +49,10 @@ class TeamStatisticsSyncService
         // 2. All completed & confirmed friendly matches (excluding matches linked to FootballMatch)
         $linkedReqIds = FootballMatch::whereNotNull('match_request_id')->pluck('match_request_id');
         $friendlyMatches = MatchRequest::query()
-            ->where('status', 'completed')
-            ->where('score_status', 'confirmed')
+            ->whereIn('status', ['completed', 'finished', 'played'])
+            ->where(function ($q) {
+                $q->where('score_status', 'confirmed')->orWhereNotNull('host_score');
+            })
             ->whereNotIn('id', $linkedReqIds)
             ->where(function ($q) use ($teamId) {
                 $q->where('host_team_id', $teamId)->orWhere('opponent_team_id', $teamId);

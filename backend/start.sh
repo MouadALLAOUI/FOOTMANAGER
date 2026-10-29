@@ -10,6 +10,9 @@ php artisan storage:link --force 2>/dev/null || true
 # 3. Auto-run database migrations safely on every deployment
 php artisan migrate --force 2>/dev/null || true
 
+# 3.1. Synchronize all team statistics across tournaments and matches
+php artisan teams:sync-stats 2>/dev/null || true
+
 # 4. Cache configuration
 php artisan config:cache
 

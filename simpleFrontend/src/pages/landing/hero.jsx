@@ -16,8 +16,9 @@ import {
 import api from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { formatPlayerPosition } from '../../lib/adapters'
+import MainHeader from './header'
 
-export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
+export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTheme }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
@@ -28,6 +29,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
   const [suggestLoading, setSuggestLoading] = useState(false)
   const [suggestOpen, setSuggestOpen] = useState(false)
   const searchContainerRef = useRef(null)
+  const inputRef = useRef(null)
 
   // Fetch real in-progress matches
   useEffect(() => {
@@ -94,15 +96,27 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  // Close suggestions when clicking outside
+  // Close suggestions when clicking outside or pressing Escape
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
         setSuggestOpen(false)
       }
     }
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setSuggestOpen(false)
+        inputRef.current?.blur()
+      }
+    }
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('touchstart', handleClickOutside, { passive: true })
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   const handleSearch = (e) => {
@@ -153,7 +167,9 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
   return (
     <section
       aria-label="مقدمة المنصة"
-      className="relative z-0 flex w-full max-w-full flex-col items-center justify-center overflow-visible px-4 pt-6 pb-12 sm:pt-14 sm:pb-20 text-center rounded-b-[24px]"
+      className={`relative flex w-full max-w-full flex-col items-center justify-start overflow-visible text-center rounded-b-[24px] transition-[z-index] ${
+        suggestOpen ? 'z-30' : 'z-0'
+      }`}
     >
       {/* 1. Background Picture */}
       <picture className="absolute inset-0 size-full overflow-hidden rounded-b-[24px]">
@@ -167,20 +183,25 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
           loading="eager"
           fetchPriority="high"
           decoding="async"
-          style={{ objectPosition: '50% 64%' }}
+          style={{ objectPosition: '50% 30%' }}
           className="size-full object-cover"
         />
       </picture>
 
-      {/* 2. Lightened Linear Gradient Overlay: 15% at top to 85% at bottom */}
+      {/* 2. Lightened Linear Gradient Overlay: 20% at top to 85% at bottom */}
       <div
-        className="absolute inset-0 pointer-events-none z-1 bg-gradient-to-b from-[#0F3D2E]/15 via-[#0F3D2E]/45 to-[#0F3D2E]/85 rounded-b-[24px]"
+        className="absolute inset-0 pointer-events-none z-1 bg-gradient-to-b from-[#0F3D2E]/20 via-[#0F3D2E]/50 to-[#0F3D2E]/85 rounded-b-[24px]"
         aria-hidden="true"
       />
 
-      {/* 3. Hero Interactive Content */}
-      <div className="relative z-10 flex w-full max-w-4xl flex-col items-center">
-        {/* Live Matches Badge (Crisp without distorted backdrop blur) */}
+      {/* 3. Integrated Platform Header (Transparent, directly over the mountain sunset sky) */}
+      <div className="relative z-30 w-full">
+        <MainHeader theme={theme} onToggleTheme={onToggleTheme} transparent={true} />
+      </div>
+
+      {/* 4. Hero Interactive Content */}
+      <div className="relative z-10 flex w-full max-w-4xl flex-col items-center px-4 pt-3 pb-8 sm:pt-6 sm:pb-14">
+        {/* Live Matches Badge */}
         {liveCount > 0 && (
           <div className="flex items-center justify-center mb-3 sm:mb-6">
             <Link
@@ -237,24 +258,39 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
           </Link>
         </div>
 
-        {/* 4. Smart Search Bar with Live Auto-Suggest - z-10 cleanly over stats bar */}
-        <div ref={searchContainerRef} className="relative z-10 mt-3.5 sm:mt-6 w-full max-w-md">
+        {/* 4. Smart Search Bar with Flexible Responsive Sizing & Subtle Focus */}
+        <div ref={searchContainerRef} className="relative z-30 mt-3.5 sm:mt-6 w-full max-w-lg mx-auto">
           <form onSubmit={handleSearch} role="search">
-            <div className="relative flex h-11 sm:h-13 w-full items-center rounded-2xl border border-white/40 bg-white px-3 shadow-xl transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30">
+            <div className="relative flex h-12 sm:h-13 w-full items-center rounded-2xl bg-white ps-3.5 sm:ps-4 pe-20 sm:pe-24 border border-slate-200/90 shadow-md shadow-black/10 transition-all duration-200 focus-within:border-emerald-500/70 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:shadow-[0_4px_24px_rgba(16,185,129,0.18)]">
+              {/* Text Input with RTL Alignment & iOS zoom prevention (16px) */}
               <input
+                ref={inputRef}
                 type="text"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={suggestOpen}
+                aria-controls="search-suggestions-popover"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  if (e.target.value.trim().length >= 1) {
+                    setSuggestOpen(true)
+                  }
+                }}
                 onFocus={() => {
                   if (searchTerm.trim().length >= 1) setSuggestOpen(true)
                 }}
                 placeholder="ابحث عن بطولة، فريق، لاعب، أو ملعب..."
                 aria-label="ابحث عن بطولة، فريق، لاعب، أو ملعب"
-                className="h-full w-full bg-transparent ps-2 sm:ps-3 pe-8 sm:pe-9 text-xs sm:text-sm font-bold text-slate-900 placeholder:text-slate-500 outline-none"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck="false"
+                className="h-full w-full bg-transparent text-[16px] sm:text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none text-start"
               />
 
+              {/* Action Buttons on Left in RTL (end-*) */}
               {suggestLoading ? (
-                <div className="absolute end-1.5 sm:end-2 grid size-8 sm:size-9 place-items-center text-emerald-600">
+                <div className="absolute end-12 sm:end-13 grid size-7 place-items-center text-emerald-600">
                   <Loader2 className="size-4 animate-spin" />
                 </div>
               ) : searchTerm.trim() ? (
@@ -263,72 +299,49 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                   onClick={() => {
                     setSearchTerm('')
                     setSuggestOpen(false)
+                    inputRef.current?.focus()
                   }}
-                  className="absolute end-10 grid size-6 place-items-center rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                  aria-label="مسح البحث"
+                  className="absolute end-12 sm:end-13 grid size-7 place-items-center rounded-full text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                 >
-                  <X className="size-3.5" />
+                  <X className="size-4" />
                 </button>
               ) : null}
 
+              {/* Green Circular Search Button */}
               <button
                 type="submit"
                 aria-label="بدء البحث"
-                className="absolute end-1.5 sm:end-2 grid size-8 sm:size-9 place-items-center rounded-xl bg-[#1F7A4D] hover:bg-[#1A6841] text-white shadow-xs transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                className="absolute end-1.5 sm:end-2 grid size-9 sm:size-10 place-items-center rounded-xl bg-[#1F7A4D] hover:bg-[#1A6841] text-white shadow-xs transition-transform hover:scale-105 active:scale-95 cursor-pointer"
               >
-                <Search className="size-3.5 sm:size-4" />
+                <Search className="size-4 sm:size-4.5" />
               </button>
             </div>
           </form>
 
-          {/* Floating Live Auto-Suggest Popover */}
+          {/* 5. Floating Live Auto-Suggest Popover - Floats strictly on top of Statistics Bar (z-40) */}
           {suggestOpen && searchTerm.trim().length >= 1 && (
-            <div className="absolute top-full inset-x-0 mt-2 z-20 rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-2xl overflow-hidden text-start">
+            <div
+              id="search-suggestions-popover"
+              role="listbox"
+              className="absolute top-full inset-x-0 mt-2 z-40 rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white text-slate-900 shadow-2xl overflow-hidden text-start animate-in fade-in duration-150"
+            >
               {suggestLoading && !hasSuggestions ? (
                 <div className="flex items-center justify-center gap-2 py-6 text-xs font-bold text-slate-500">
                   <Loader2 className="size-4 animate-spin text-emerald-600" />
                   <span>جاري البحث الفوري...</span>
                 </div>
               ) : !hasSuggestions ? (
-                <div className="py-4 px-4 text-center text-xs text-slate-500 font-bold">
+                <div className="py-5 px-4 text-center text-xs text-slate-500 font-bold">
                   لا توجد نتائج مطابقة لـ "{searchTerm}"
                 </div>
               ) : (
-                <div className="max-h-[340px] overflow-y-auto divide-y divide-slate-100 p-2">
-                  {/* قسم البطولات */}
-                  {suggestions.tournaments && suggestions.tournaments.length > 0 && (
-                    <div className="py-1.5">
-                      <div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black text-amber-700 uppercase tracking-wider">
-                        <Trophy className="size-3 text-amber-600" />
-                        <span>البطولات</span>
-                      </div>
-                      {suggestions.tournaments.map((tour) => (
-                        <button
-                          key={`tour-${tour.id}`}
-                          type="button"
-                          onClick={() => handleSelectSuggestion('tournament', tour)}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-slate-800 hover:bg-amber-50/80 transition-colors cursor-pointer text-start"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-800 text-[10px] font-black">
-                              <Trophy className="size-3.5" />
-                            </span>
-                            <span className="truncate">{tour.name}</span>
-                          </div>
-                          {tour.location && (
-                            <span className="text-[10px] text-slate-400 shrink-0 font-medium">
-                              {tour.location}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* قسم اللاعبين */}
+                <div className="max-h-[min(52dvh,340px)] overflow-y-auto overscroll-contain divide-y divide-slate-100 p-2 text-start">
+                  {/* قسم اللاعبين (Matching Reference Image) */}
                   {suggestions.players && suggestions.players.length > 0 && (
                     <div className="py-1.5">
-                      <div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black text-emerald-700 uppercase tracking-wider">
-                        <User className="size-3 text-emerald-600" />
+                      <div className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-black text-emerald-700 tracking-wider">
+                        <User className="size-3.5 text-emerald-600" />
                         <span>اللاعبون</span>
                       </div>
                       {suggestions.players.map((pl) => (
@@ -336,19 +349,48 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                           key={`pl-${pl.id}`}
                           type="button"
                           onClick={() => handleSelectSuggestion('player', pl)}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-slate-800 hover:bg-emerald-50/80 transition-colors cursor-pointer text-start"
+                          className="group flex w-full items-center justify-between gap-3 rounded-2xl p-2.5 sm:p-3 text-start hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-black">
-                              <Target className="size-3.5" />
-                            </span>
-                            <span className="truncate">{pl.name}</span>
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Player Avatar with Fallback Monogram */}
+                            <div className="relative size-10 sm:size-11 shrink-0 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100 grid place-items-center shadow-xs">
+                              {pl.photo_thumbnail_url || pl.photo_url ? (
+                                <img
+                                  src={pl.photo_thumbnail_url || pl.photo_url}
+                                  alt={pl.name}
+                                  className="size-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none'
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                                  }}
+                                />
+                              ) : null}
+                              <span
+                                className={`text-slate-500 text-xs font-black ${
+                                  pl.photo_thumbnail_url || pl.photo_url ? 'hidden' : ''
+                                }`}
+                              >
+                                {pl.name ? pl.name.trim().charAt(0) : 'ل'}
+                              </span>
+                            </div>
+
+                            {/* Player Info Column */}
+                            <div className="min-w-0 flex flex-col">
+                              <span className="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
+                                {pl.name}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500 truncate mt-0.5">
+                                {pl.team?.name
+                                  ? `لاعب · ${pl.team.name}`
+                                  : pl.position
+                                  ? `لاعب · ${formatPlayerPosition(pl.position)}`
+                                  : 'لاعب مسجل بالمنصة'}
+                              </span>
+                            </div>
                           </div>
-                          {pl.position && (
-                            <span className="text-[10px] text-slate-500 shrink-0 font-bold">
-                              {formatPlayerPosition(pl.position)}
-                            </span>
-                          )}
+
+                          {/* Left Chevron Indicator */}
+                          <ChevronLeft className="size-4 text-slate-400 group-hover:text-slate-600 group-hover:-translate-x-0.5 transition-all shrink-0" />
                         </button>
                       ))}
                     </div>
@@ -357,8 +399,8 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                   {/* قسم الفرق */}
                   {suggestions.teams && suggestions.teams.length > 0 && (
                     <div className="py-1.5">
-                      <div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black text-sky-700 uppercase tracking-wider">
-                        <Shield className="size-3 text-sky-600" />
+                      <div className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-black text-sky-700 tracking-wider">
+                        <Shield className="size-3.5 text-sky-600" />
                         <span>الفرق</span>
                       </div>
                       {suggestions.teams.map((tm) => (
@@ -366,29 +408,74 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                           key={`tm-${tm.id}`}
                           type="button"
                           onClick={() => handleSelectSuggestion('team', tm)}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-slate-800 hover:bg-sky-50/80 transition-colors cursor-pointer text-start"
+                          className="group flex w-full items-center justify-between gap-3 rounded-2xl p-2.5 sm:p-3 text-start hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-sky-100 text-sky-800 text-[10px] font-black">
-                              <Shield className="size-3.5" />
-                            </span>
-                            <span className="truncate">{tm.name}</span>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-700 border border-sky-100 shadow-xs">
+                              {tm.logo_url || tm.logo_path ? (
+                                <img
+                                  src={tm.logo_url || tm.logo_path}
+                                  alt={tm.name}
+                                  className="size-full rounded-2xl object-cover"
+                                  onError={(e) => { e.currentTarget.style.display = 'none' }}
+                                />
+                              ) : (
+                                <Shield className="size-5 text-sky-600" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex flex-col">
+                              <span className="text-sm font-black text-slate-900 group-hover:text-sky-700 transition-colors truncate">
+                                {tm.name}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500 truncate mt-0.5">
+                                {tm.city ? `فريق · ${tm.city}` : 'فريق كرة قدم معتمد'}
+                              </span>
+                            </div>
                           </div>
-                          {tm.city && (
-                            <span className="text-[10px] text-slate-400 shrink-0 font-medium">
-                              {tm.city}
-                            </span>
-                          )}
+                          <ChevronLeft className="size-4 text-slate-400 group-hover:text-slate-600 group-hover:-translate-x-0.5 transition-all shrink-0" />
                         </button>
                       ))}
                     </div>
                   )}
 
-                  {/* قسم الملاعب */}
+                  {/* قسم البطولات */}
+                  {suggestions.tournaments && suggestions.tournaments.length > 0 && (
+                    <div className="py-1.5">
+                      <div className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-black text-amber-700 tracking-wider">
+                        <Trophy className="size-3.5 text-amber-600" />
+                        <span>البطولات</span>
+                      </div>
+                      {suggestions.tournaments.map((tour) => (
+                        <button
+                          key={`tour-${tour.id}`}
+                          type="button"
+                          onClick={() => handleSelectSuggestion('tournament', tour)}
+                          className="group flex w-full items-center justify-between gap-3 rounded-2xl p-2.5 sm:p-3 text-start hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-amber-50 text-amber-700 border border-amber-100 shadow-xs">
+                              <Trophy className="size-5 text-amber-600" />
+                            </div>
+                            <div className="min-w-0 flex flex-col">
+                              <span className="text-sm font-black text-slate-900 group-hover:text-amber-700 transition-colors truncate">
+                                {tour.name}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500 truncate mt-0.5">
+                                {tour.location ? `بطولة · ${tour.location}` : 'دوري كرة قدم'}
+                              </span>
+                            </div>
+                          </div>
+                          <ChevronLeft className="size-4 text-slate-400 group-hover:text-slate-600 group-hover:-translate-x-0.5 transition-all shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* قسم ملاعب القرب */}
                   {suggestions.stadiums && suggestions.stadiums.length > 0 && (
                     <div className="py-1.5">
-                      <div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-black text-amber-700 uppercase tracking-wider">
-                        <Landmark className="size-3 text-amber-600" />
+                      <div className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-black text-teal-700 tracking-wider">
+                        <Landmark className="size-3.5 text-teal-600" />
                         <span>ملاعب القرب</span>
                       </div>
                       {suggestions.stadiums.map((std) => (
@@ -396,19 +483,22 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                           key={`std-${std.id}`}
                           type="button"
                           onClick={() => handleSelectSuggestion('stadium', std)}
-                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold text-slate-800 hover:bg-amber-50/80 transition-colors cursor-pointer text-start"
+                          className="group flex w-full items-center justify-between gap-3 rounded-2xl p-2.5 sm:p-3 text-start hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
                         >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-800 text-[10px] font-black">
-                              <Landmark className="size-3.5" />
-                            </span>
-                            <span className="truncate">{std.name}</span>
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-teal-50 text-teal-700 border border-teal-100 shadow-xs">
+                              <Landmark className="size-5 text-teal-600" />
+                            </div>
+                            <div className="min-w-0 flex flex-col">
+                              <span className="text-sm font-black text-slate-900 group-hover:text-teal-700 transition-colors truncate">
+                                {std.name}
+                              </span>
+                              <span className="text-xs font-semibold text-slate-500 truncate mt-0.5">
+                                {std.city ? `ملعب قرب · ${std.city}` : 'ملعب متاح للحجز'}
+                              </span>
+                            </div>
                           </div>
-                          {std.city && (
-                            <span className="text-[10px] text-slate-400 shrink-0 font-medium">
-                              {std.city}
-                            </span>
-                          )}
+                          <ChevronLeft className="size-4 text-slate-400 group-hover:text-slate-600 group-hover:-translate-x-0.5 transition-all shrink-0" />
                         </button>
                       ))}
                     </div>
@@ -419,7 +509,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
                     <button
                       type="button"
                       onClick={handleSearch}
-                      className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white py-2 text-xs font-black transition-colors cursor-pointer"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white py-2.5 text-xs font-black transition-colors cursor-pointer"
                     >
                       <Search className="size-3.5" />
                       <span>عرض جميع النتائج لـ "{searchTerm}"</span>

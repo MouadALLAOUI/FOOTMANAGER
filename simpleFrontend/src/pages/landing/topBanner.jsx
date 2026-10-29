@@ -35,11 +35,7 @@ export default function TopBanner({ theme = 'dark' }) {
   return (
     <aside
       aria-label="إعلان الملف الدائم"
-      className={`relative z-[var(--z-sticky)] w-full max-w-full overflow-hidden border-b transition-colors ${
-        isDark
-          ? 'bg-gradient-to-r from-[#064E3B] via-[#0F172A] to-[#064E3B] text-slate-100 border-emerald-500/30 shadow-md'
-          : 'bg-gradient-to-r from-emerald-100 via-emerald-50 to-emerald-100 text-slate-900 border-emerald-300 shadow-xs'
-      }`}
+      className="relative z-[var(--z-sticky)] w-full max-w-full overflow-hidden border-b transition-colors bg-gradient-to-r from-[#064E3B] via-[#0A161E] to-[#064E3B] text-white border-emerald-500/30 shadow-md"
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2.5 px-3 py-2 text-xs font-bold sm:px-6 sm:py-2.5">
         {/* Right side in RTL: Sparkle Badge + Banner Text */}
@@ -48,7 +44,7 @@ export default function TopBanner({ theme = 'dark' }) {
             <Sparkles className="size-3.5 text-amber-400 animate-pulse" />
           </span>
 
-          <p className="truncate text-[11px] sm:text-xs font-black tracking-tight text-white">
+          <p className="truncate text-[11px] sm:text-xs font-black tracking-tight text-white drop-shadow-xs">
             {bannerText}
           </p>
         </div>
@@ -68,11 +64,7 @@ export default function TopBanner({ theme = 'dark' }) {
           {/* Quick Register Manager (Manage Team) */}
           <Link
             to="/register?role=manager"
-            className={`hidden xs:inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-[10px] sm:text-[11px] font-black transition-all active:scale-95 border ${
-              isDark
-                ? 'bg-slate-800/90 hover:bg-slate-700 text-emerald-300 border-emerald-500/30'
-                : 'bg-white hover:bg-slate-100 text-emerald-800 border-emerald-300'
-            }`}
+            className="hidden xs:inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-[10px] sm:text-[11px] font-black transition-all active:scale-95 border bg-slate-800/90 hover:bg-slate-700 text-emerald-300 border-emerald-500/30"
             title="تسجيل مسير لإدارة الفريق والمباريات"
           >
             <Shield className="size-3 shrink-0 text-emerald-400" />
@@ -85,11 +77,7 @@ export default function TopBanner({ theme = 'dark' }) {
           type="button"
           onClick={handleDismiss}
           aria-label="إغلاق الإعلان"
-          className={`grid size-6 shrink-0 place-items-center rounded-lg transition-colors cursor-pointer ${
-            isDark
-              ? 'text-slate-400 hover:bg-white/10 hover:text-white'
-              : 'text-slate-500 hover:bg-emerald-200/60 hover:text-slate-900'
-          }`}
+          className="grid size-6 shrink-0 place-items-center rounded-lg transition-colors cursor-pointer text-slate-400 hover:bg-white/10 hover:text-white"
         >
           <X className="size-3.5" />
         </button>

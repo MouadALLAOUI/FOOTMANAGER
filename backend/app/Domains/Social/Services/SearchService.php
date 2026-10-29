@@ -141,7 +141,7 @@ class SearchService
             })
             ->active()
             ->with('team:id,name')
-            ->select(['id', 'name', 'position', 'team_id', 'user_id', 'followers_count'])
+            ->select(['id', 'name', 'position', 'team_id', 'user_id', 'photo_path', 'photo_thumbnail_path', 'followers_count'])
             ->limit($limit)
             ->get();
 

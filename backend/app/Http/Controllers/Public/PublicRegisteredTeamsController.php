@@ -6,6 +6,7 @@ use App\Domains\Booking\Models\TerrainBooking;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Stadium\Models\Stadium;
 use App\Domains\Team\Models\Team;
+use App\Domains\Team\Services\TeamStatisticsSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -33,8 +34,11 @@ class PublicRegisteredTeamsController extends Controller
 
         $paginated = $query->paginate($perPage);
 
-        $teams = collect($paginated->items())->map(function (Team $team) {
-            $manager = $team->manager;
+        $syncService = app(TeamStatisticsSyncService::class);
+
+        $teams = collect($paginated->items())->map(function (Team $team) use ($syncService) {
+            $synced = $syncService->syncTeam($team);
+            $manager = $synced->manager;
             $isOnline = $manager ? $manager->isOnline() : false;
 
             // Normalize Moroccan phone number for display & WhatsApp
@@ -54,24 +58,24 @@ class PublicRegisteredTeamsController extends Controller
             }
 
             return [
-                'id' => $team->id,
-                'name' => $team->name,
-                'city' => $team->city ?: ($team->primaryStadium?->city ?: 'المغرب'),
-                'logo_url' => $team->logo_url,
-                'points' => (int) $team->points,
-                'matches_played' => (int) $team->matches_played,
-                'wins' => (int) $team->wins,
-                'draws' => (int) $team->draws,
-                'losses' => (int) $team->losses,
-                'member_count' => (int) $team->member_count,
-                'primary_color' => $team->primary_color ?: '#10B981',
-                'secondary_color' => $team->secondary_color ?: '#0F172A',
-                'primary_stadium' => $team->primaryStadium ? [
-                    'id' => $team->primaryStadium->id,
-                    'name' => $team->primaryStadium->name,
-                    'city' => $team->primaryStadium->city,
-                    'player_format' => $team->primaryStadium->player_format,
-                    'price_per_team' => $team->primaryStadium->price_per_team,
+                'id' => $synced->id,
+                'name' => $synced->name,
+                'city' => $synced->city ?: ($synced->primaryStadium?->city ?: 'المغرب'),
+                'logo_url' => $synced->logo_url,
+                'points' => (int) $synced->points,
+                'matches_played' => (int) $synced->matches_played,
+                'wins' => (int) $synced->wins,
+                'draws' => (int) $synced->draws,
+                'losses' => (int) $synced->losses,
+                'member_count' => (int) $synced->member_count,
+                'primary_color' => $synced->primary_color ?: '#10B981',
+                'secondary_color' => $synced->secondary_color ?: '#0F172A',
+                'primary_stadium' => $synced->primaryStadium ? [
+                    'id' => $synced->primaryStadium->id,
+                    'name' => $synced->primaryStadium->name,
+                    'city' => $synced->primaryStadium->city,
+                    'player_format' => $synced->primaryStadium->player_format,
+                    'price_per_team' => $synced->primaryStadium->price_per_team,
                 ] : null,
                 'manager' => $manager ? [
                     'id' => $manager->id,

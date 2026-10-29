@@ -1797,7 +1797,7 @@ export default function LeagueAssignmentPanel({
 
       {/* Auto-Schedule Confirmation Modal */}
       {confirmModalData && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setConfirmModalData(null)}
@@ -1870,7 +1870,7 @@ export default function LeagueAssignmentPanel({
 
       {/* Backend Confirmation Modal (if existing schedules will be overwritten) */}
       {regenConfirmData && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setRegenConfirmData(null)}
@@ -1907,7 +1907,7 @@ export default function LeagueAssignmentPanel({
         const selectedTeamData = eligibleList.find((t) => String(t.team_id) === String(selectedNewOpponentId))
 
         return (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
             <div
               className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
               onClick={() => setOpponentSwapFixture(null)}
@@ -2063,7 +2063,7 @@ export default function LeagueAssignmentPanel({
 
       {/* Postpone Fixture Modal */}
       {postponeFixture && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setPostponeFixture(null)}
@@ -2133,7 +2133,7 @@ export default function LeagueAssignmentPanel({
 
       {/* Move to Own Slot Modal */}
       {moveToOwnSlotFixture && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setMoveToOwnSlotFixture(null)}
@@ -2193,7 +2193,7 @@ export default function LeagueAssignmentPanel({
 
       {/* Advance Match Confirmation Modal */}
       {advanceCandidateModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setAdvanceCandidateModal(null)}
@@ -2300,7 +2300,7 @@ export default function LeagueAssignmentPanel({
 
       {/* Reschedule Suggestions Modal */}
       {rescheduleFixture && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setRescheduleFixture(null)}
@@ -2370,7 +2370,7 @@ export default function LeagueAssignmentPanel({
 
       {/* Quick Assign Dialog */}
       {quickAssignFixture && quickAssignSlot && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => { setQuickAssignFixture(null); setQuickAssignSlot(null); }}
@@ -2444,7 +2444,7 @@ export default function LeagueAssignmentPanel({
 
       {/* Slot Pool Fixture Picker Modal */}
       {slotPoolFixturePicker && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setSlotPoolFixturePicker(null)}

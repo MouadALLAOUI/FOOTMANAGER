@@ -200,9 +200,9 @@ function MobileSearchSheet({ open, onClose, values, onChange, cities, onSearch }
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-[3px]" onClick={onClose} />
+      <div className="fixed inset-0 z-[var(--z-overlay)] bg-black/60 backdrop-blur-xs" onClick={onClose} />
       <div
-        className={`fixed inset-x-0 bottom-0 z-[101] mx-auto flex max-h-[85vh] w-full max-w-[1100px] flex-col rounded-t-[28px] bg-white p-4 pb-6 shadow-[0_-25px_70px_rgba(2,6,23,0.4)] transition-transform duration-[350ms] ease-out ${
+        className={`fixed inset-x-0 bottom-0 z-[var(--z-drawer)] mx-auto flex max-h-[calc(100dvh-32px)] w-full max-w-[1100px] flex-col rounded-t-[28px] bg-white p-4 pb-6 shadow-2xl transition-transform duration-[350ms] ease-out ${
           dragging ? '!transition-none' : ''
         }`}
         style={dragging ? { transform: `translateY(${dragY}px)` } : undefined}

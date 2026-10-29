@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
@@ -79,6 +80,20 @@ export default function Shell({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden'
+      const onKey = (e) => {
+        if (e.key === 'Escape') setMobileOpen(false)
+      }
+      window.addEventListener('keydown', onKey)
+      return () => {
+        document.body.style.overflow = ''
+        window.removeEventListener('keydown', onKey)
+      }
+    }
+  }, [mobileOpen])
+
   const today = useMemo(() => {
     try {
       const locale = i18n.language?.startsWith('en') ? 'en' : 'ar-MA'
@@ -157,7 +172,7 @@ export default function Shell({
           </div>
           {!collapsed && (
             <div className="min-w-0 leading-tight">
-              <p className="truncate text-sm font-black text-white">{t(brand)}</p>
+              <p className="break-words whitespace-normal text-sm font-black text-white leading-tight">{t(brand)}</p>
               <p className="text-[10px] font-semibold text-white/40">{t('shell.brandTagline')}</p>
             </div>
           )}
@@ -225,14 +240,14 @@ export default function Shell({
   )
 
   return (
-    <div className="min-h-screen bg-[#F4F7FB]">
+    <div className="min-h-[100dvh] bg-[#F4F7FB]">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[200] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-bold focus:text-slate-900 focus:shadow-lg focus:ring-2 focus:ring-green-500"
+        className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[var(--z-toast)] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-bold focus:text-slate-900 focus:shadow-lg focus:ring-2 focus:ring-green-500"
       >
         {t('common.skipToContent')}
       </a>
-      <aside style={{ top: "var(--announce-height, 0px)" }} className={`fixed inset-y-0 start-0 z-40 hidden flex-col bg-[#0B1F3A] transition-all duration-300 lg:flex ${
+      <aside style={{ top: "var(--announce-height, 0px)" }} className={`fixed inset-y-0 start-0 z-[var(--z-drawer)] hidden flex-col bg-[#0F172A] transition-all duration-300 lg:flex ${
           collapsed ? 'w-[84px]' : 'w-[264px]'
         }`}
       >
@@ -247,24 +262,57 @@ export default function Shell({
         {sidebarContent}
       </aside>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-[9999] lg:hidden animate-in fade-in duration-200">
-          <div className="absolute inset-0 bg-slate-950/60" onClick={() => setMobileOpen(false)} aria-hidden="true" />
-          <aside className="relative inset-y-0 start-0 h-full w-[280px] max-w-[85vw] bg-[#0B1F3A] shadow-2xl flex flex-col z-10 animate-in slide-in-from-start duration-300" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-            {sidebarContent}
-          </aside>
-        </div>
-      )}
+      {mobileOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[var(--z-drawer)] lg:hidden">
+            <div
+              className="fixed inset-0 z-[var(--z-overlay)] bg-slate-950/80 backdrop-blur-xs transition-opacity duration-200"
+              onClick={() => setMobileOpen(false)}
+              aria-hidden="true"
+            />
+            <aside
+              role="dialog"
+              aria-modal="true"
+              aria-label={t(brand)}
+              className="fixed inset-y-0 start-0 z-[var(--z-drawer)] h-[100dvh] w-[290px] max-w-[85vw] bg-[#0F172A] shadow-2xl flex flex-col animate-in slide-in-from-start duration-300 select-none"
+              style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+            >
+              <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-white/10 shrink-0">
+                <div className="min-w-0 flex-1 pe-2">
+                  <p className="break-words whitespace-normal text-sm font-black text-white leading-snug">{t(brand)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(false)}
+                  aria-label={t('common.close')}
+                  className="grid size-11 place-items-center rounded-xl text-white/70 hover:text-white hover:bg-white/10 cursor-pointer"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+              {sidebarContent}
+            </aside>
+          </div>,
+          document.body,
+        )}
 
-      <main id="main-content" className={`min-w-0 transition-all duration-300 ${collapsed ? 'lg:ps-[84px]' : 'lg:ps-[264px]'}`}>
-        <header className="sticky z-30 border-b border-slate-200 bg-white shadow-xs transition-[top] duration-200" style={{ top: "var(--announce-height, 0px)", paddingTop: "var(--safe-top-offset, 0px)" }}>
-          <div className="flex h-16 items-center gap-2 sm:gap-3 px-3 sm:px-5 lg:px-8">
+      <main
+        id="main-content"
+        className={`min-w-0 min-h-[100dvh] pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+var(--genie-size))] lg:pb-12 transition-all duration-300 ${
+          collapsed ? 'lg:ps-[84px]' : 'lg:ps-[264px]'
+        }`}
+      >
+        <header
+          className="sticky top-0 z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] border-b border-slate-200 bg-white shadow-xs transition-[top] duration-200"
+          style={{ paddingTop: 'var(--safe-top-offset, 0px)' }}
+        >
+          <div className="flex h-14 items-center gap-2 sm:gap-3 px-3 sm:px-5 lg:px-8">
             <button
               type="button"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? t('shell.closeMenu') : t('shell.openMenu')}
               aria-expanded={mobileOpen}
-              className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 lg:hidden"
+              className="grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 lg:hidden cursor-pointer"
             >
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>

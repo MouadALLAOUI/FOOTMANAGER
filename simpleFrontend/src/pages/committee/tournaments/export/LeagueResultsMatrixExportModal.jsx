@@ -280,7 +280,7 @@ export default function LeagueResultsMatrixExportModal({
   }, [])
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/80 p-3 sm:p-6 backdrop-blur-sm overflow-y-auto" dir="rtl">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-slate-950/80 p-3 sm:p-6 backdrop-blur-sm overflow-y-auto" dir="rtl">
       <div className="relative flex flex-col w-full max-w-5xl max-h-[92vh] bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden my-auto text-slate-100">
         
         {/* Top Header / Modal Toolbar */}

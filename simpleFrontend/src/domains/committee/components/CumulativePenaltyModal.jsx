@@ -102,7 +102,7 @@ export default function CumulativePenaltyModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-3 sm:p-4">
       {/* Dark blur backdrop */}
       <div
         className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"

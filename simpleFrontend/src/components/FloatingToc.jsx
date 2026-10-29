@@ -50,7 +50,7 @@ export default function FloatingToc({ sections, label }) {
         onClick={() => setOpen((prev) => !prev)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="btn-ripple fixed bottom-6 end-6 z-[90] flex h-12 items-center gap-2.5 rounded-2xl bg-slate-950 px-5 text-sm font-bold text-white shadow-[0_16px_45px_rgba(2,6,23,0.45)] ring-1 ring-white/10 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-slate-800 active:translate-y-0"
+        className="btn-ripple fixed bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+12px)] end-6 z-[var(--z-sticky)] flex h-12 items-center gap-2.5 rounded-2xl bg-slate-950 px-5 text-sm font-bold text-white shadow-[0_16px_45px_rgba(2,6,23,0.45)] ring-1 ring-white/10 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-slate-800 active:translate-y-0"
       >
         <FontAwesomeIcon icon={open ? faXmark : faList} className="size-4 text-green-400" />
         {label}
@@ -59,12 +59,12 @@ export default function FloatingToc({ sections, label }) {
       {open &&
         createPortal(
           <>
-            <div className="fixed inset-0 z-[95] cursor-default" onClick={() => setOpen(false)} />
+            <div className="fixed inset-0 z-[var(--z-overlay)] bg-slate-900/40 backdrop-blur-xs cursor-default" onClick={() => setOpen(false)} />
             <div
               ref={panelRef}
               role="dialog"
               aria-label={label}
-              className="pop-in fixed bottom-24 end-6 z-[96] flex max-h-[min(65vh,520px)] w-[min(360px,calc(100vw-48px))] flex-col overflow-hidden rounded-3xl bg-white shadow-[0_24px_80px_-12px_rgba(2,6,23,0.35)] ring-1 ring-slate-200/70"
+              className="pop-in fixed bottom-24 end-6 z-[var(--z-modal)] flex max-h-[min(65vh,520px)] w-[min(360px,calc(100vw-48px))] flex-col overflow-hidden rounded-3xl bg-white shadow-[0_24px_80px_-12px_rgba(2,6,23,0.35)] ring-1 ring-slate-200/70"
             >
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                 <p className="flex items-center gap-2.5 text-sm font-black uppercase tracking-wide text-slate-900">

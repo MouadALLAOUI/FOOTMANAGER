@@ -39,10 +39,12 @@ export default function HeaderBlock({ t, homeName, awayName, tournament, fixture
           <button
             type="button"
             onClick={onClose}
-            aria-label={t('common.close')}
-            className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            aria-label="خروج مؤقت"
+            className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-black text-slate-700 bg-slate-100 hover:bg-slate-200 active:scale-95 transition-all cursor-pointer"
+            title="خروج مؤقت من نافذة المباراة"
           >
-            <X className="size-5" />
+            <X className="size-4 text-slate-500" />
+            <span>خروج مؤقت</span>
           </button>
         </div>
       </div>

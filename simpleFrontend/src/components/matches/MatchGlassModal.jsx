@@ -1083,7 +1083,7 @@ export default function MatchGlassModal({
       </div>
 
       {/* Main Interactive Modal */}
-      <div className="fixed inset-0 z-50 overflow-y-auto p-2 sm:p-4">
+      <div className="fixed inset-0 z-[var(--z-modal)] overflow-y-auto p-2 sm:p-4">
         <div className="flex min-h-full items-center justify-center">
           {/* Dark blur backdrop */}
           <div

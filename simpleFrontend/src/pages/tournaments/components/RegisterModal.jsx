@@ -66,7 +66,7 @@ export default function RegisterModal({ open, onClose, tour, availability, team,
   const period = `${fmtPeriod(tour.registration_start_at || availability?.registration_start_at)} → ${fmtPeriod(tour.registration_end_at || availability?.registration_end_at)}`
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={close} />
       <div className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
         <div className="flex items-start justify-between gap-3 px-6 pb-2 pt-6">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import { useDialogA11y } from './ui'
@@ -107,16 +108,16 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
     document.body.style.userSelect = 'none'
   }
 
-  return (
-    <div className="fixed inset-0 z-[99999]">
-      <div className={`${closing ? 'overlay-out' : 'overlay-in'} absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
+  return createPortal(
+    <div className="fixed inset-0 z-[var(--z-drawer)]">
+      <div className={`${closing ? 'overlay-out' : 'overlay-in'} fixed inset-0 z-[var(--z-overlay)] bg-slate-900/50 backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleIdRef.current}
         tabIndex={-1}
-        className={`absolute inset-y-0 end-0 flex flex-col bg-white shadow-2xl outline-none transition-transform duration-300 ${
+        className={`fixed inset-y-0 end-0 z-[var(--z-drawer)] flex h-[100dvh] flex-col bg-white shadow-2xl outline-none transition-transform duration-300 ${
           open && !closing ? 'translate-x-0' : 'translate-x-full rtl:-translate-x-full'
         } ${mobile ? 'w-full' : ''}`}
         style={!mobile && width > 0 ? { width: `${width}px`, maxWidth: '100%' } : undefined}
@@ -133,7 +134,7 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
             <span className="h-8 w-0.5 rounded-full bg-slate-300" />
           </div>
         )}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-6 sm:py-4">
+        <div className="shrink-0 flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
           <div className="min-w-0 flex-1">
             <h3 id={titleIdRef.current} className="break-words text-base font-extrabold text-slate-900">{title}</h3>
             {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
@@ -142,14 +143,15 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
             type="button"
             onClick={requestClose}
             aria-label={t('common.close')}
-            className="grid size-9 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="grid size-11 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
           >
-            <X className="size-4" />
+            <X className="size-5" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
-        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 px-4 py-3.5 sm:px-6 sm:py-4">{footer}</div>}
+        {footer && <div className="shrink-0 flex flex-wrap justify-end gap-2 border-t border-slate-100 px-4 py-3 sm:px-6">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

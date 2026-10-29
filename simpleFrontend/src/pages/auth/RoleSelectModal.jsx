@@ -54,7 +54,7 @@ export default function RoleSelectModal({ isOpen, onClose, onSelectRole, provide
   const providerName = provider === 'facebook' ? 'Facebook' : 'Google'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
       <div
         className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-slate-100 transition-all sm:p-8"
         onClick={(e) => e.stopPropagation()}

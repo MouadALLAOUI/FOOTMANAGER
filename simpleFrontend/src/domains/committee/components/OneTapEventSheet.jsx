@@ -65,7 +65,7 @@ export default function OneTapEventSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 transition-all"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-3 sm:p-4 transition-all"
       dir="rtl"
       onClick={onClose}
     >

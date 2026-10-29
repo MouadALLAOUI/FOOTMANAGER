@@ -128,18 +128,12 @@ export default function Navbar() {
     }`
 
   return (
-    <header style={{ paddingTop: "var(--safe-top-offset, 0px)" }} className={`fixed inset-x-0 z-[9990] transition-all duration-[350ms] ease-out ${
-        scrolled ? 'top-[calc(var(--announce-height,0px)+18px)]' : 'top-[var(--announce-height,0px)]'
-      }`}
+    <header
+      className="sticky top-0 z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] w-full bg-[#0F172A] border-b border-white/10 shadow-sm select-none"
+      style={{ paddingTop: 'var(--safe-top-offset, 0px)' }}
     >
-      <div
-        className={`mx-auto flex h-[80px] items-center justify-between px-4 sm:px-6 transition-all duration-[350ms] ease-out ${
-          scrolled
-            ? 'w-[calc(100%-20px)] sm:w-[calc(100%-60px)] max-w-[1400px] rounded-[20px] bg-[#0F172A]/95 shadow-[0_20px_50px_rgba(2,6,23,0.6)] ring-1 ring-white/15'
-            : 'w-full max-w-[1400px] bg-[#0F172A]/90 sm:bg-transparent border-b border-white/5 sm:border-transparent'
-        }`}
-      >
-        <div className="flex items-center gap-4 lg:gap-8">
+      <div className="mx-auto flex h-14 items-center justify-between px-4 sm:px-6 w-full max-w-7xl">
+        <div className="flex items-center gap-3 lg:gap-8">
           <a
             href="#top"
             onClick={(e) => {
@@ -152,11 +146,11 @@ export default function Navbar() {
             <img
               src="/logo.jpeg"
               alt=""
-              className="size-10 sm:size-11 shrink-0 rounded-xl object-cover shadow-[0_8px_20px_rgba(22,163,74,0.45)] ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-105"
+              className="size-8 sm:size-9 shrink-0 rounded-xl object-cover shadow-[0_4px_12px_rgba(22,163,74,0.35)] ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-105"
             />
             <div className="leading-tight">
               <p className="text-sm sm:text-base font-extrabold text-white">أجي نقصرو</p>
-              <p className="hidden text-[11px] text-white/60 sm:block">{t('landing.nav.tagline')}</p>
+              <p className="hidden text-[10px] text-white/60 sm:block">{t('landing.nav.tagline')}</p>
             </div>
           </a>
         </div>
@@ -183,9 +177,9 @@ export default function Navbar() {
           <button
             type="button"
             onClick={toggleLang}
-            className="hidden h-11 items-center gap-2 rounded-2xl px-3 text-sm font-semibold text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white md:flex lg:px-4"
+            className="hidden h-9 items-center gap-2 rounded-xl px-2.5 text-xs font-semibold text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white md:flex lg:px-3"
           >
-            <FontAwesomeIcon icon={faGlobe} className="size-4" />
+            <FontAwesomeIcon icon={faGlobe} className="size-3.5" />
             <span className="hidden lg:inline">{currentLang}</span>
           </button>
 
@@ -194,17 +188,17 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => navigate(homeForRole(user.role))}
-                className="flex h-10 items-center gap-2 rounded-2xl bg-green-500 px-4 text-xs font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 active:translate-y-0 whitespace-nowrap lg:h-11 lg:px-6 lg:text-sm"
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-green-500 px-3.5 text-xs font-bold text-white shadow-[0_6px_16px_rgba(22,163,74,0.35)] transition-all duration-200 hover:bg-green-600 active:scale-95 whitespace-nowrap"
               >
-                <FontAwesomeIcon icon={faGaugeHigh} className="size-4" />
+                <FontAwesomeIcon icon={faGaugeHigh} className="size-3.5" />
                 {t('landing.nav.dashboard')}
               </button>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex h-10 items-center gap-2 rounded-2xl border border-white/20 px-3 text-xs font-semibold text-white/80 transition-all duration-300 hover:bg-white/10 hover:text-white whitespace-nowrap lg:h-11 lg:px-4 lg:text-sm"
+                className="flex h-9 items-center gap-1.5 rounded-xl border border-white/20 px-3 text-xs font-semibold text-white/80 transition-all duration-200 hover:bg-white/10 hover:text-white whitespace-nowrap"
               >
-                <FontAwesomeIcon icon={faArrowRightFromBracket} className="size-4" />
+                <FontAwesomeIcon icon={faArrowRightFromBracket} className="size-3.5" />
                 {t('landing.nav.logout')}
               </button>
             </div>
@@ -213,18 +207,18 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="flex h-10 items-center gap-2 rounded-[14px] border border-white/20 px-4 text-xs font-semibold text-white transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/10 active:translate-y-0 whitespace-nowrap lg:h-11 lg:px-5 lg:text-sm"
+                className="flex h-9 items-center gap-1.5 rounded-xl border border-white/20 px-3.5 text-xs font-semibold text-white transition-all duration-200 hover:border-white/40 hover:bg-white/10 active:scale-95 whitespace-nowrap"
               >
-                <FontAwesomeIcon icon={faUser} className="size-4" />
+                <FontAwesomeIcon icon={faUser} className="size-3.5" />
                 {t('landing.nav.login')}
               </button>
 
               <button
                 type="button"
                 onClick={() => navigate('/register')}
-                className="flex h-10 items-center gap-2 rounded-2xl bg-green-500 px-4 text-xs font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 hover:shadow-[0_18px_45px_rgba(22,163,74,0.55)] active:translate-y-0 whitespace-nowrap lg:h-11 lg:px-7 lg:text-sm"
+                className="flex h-9 items-center gap-1.5 rounded-xl bg-green-500 px-4 text-xs font-bold text-white shadow-[0_6px_16px_rgba(22,163,74,0.35)] transition-all duration-200 hover:bg-green-600 active:scale-95 whitespace-nowrap"
               >
-                <FontAwesomeIcon icon={faPlus} className="size-4" />
+                <FontAwesomeIcon icon={faPlus} className="size-3.5" />
                 {t('landing.nav.addField')}
               </button>
             </div>
@@ -235,9 +229,9 @@ export default function Navbar() {
               type="button"
               onClick={() => navigate('/register')}
               aria-label={t('landing.nav.addField')}
-              className="flex h-11 items-center gap-2 rounded-2xl bg-green-500 px-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 hover:bg-green-600 active:scale-95 md:hidden"
+              className="flex h-9 items-center gap-1.5 rounded-xl bg-green-500 px-3 text-xs font-bold text-white shadow-[0_6px_16px_rgba(22,163,74,0.35)] transition-all duration-200 hover:bg-green-600 active:scale-95 md:hidden"
             >
-              <FontAwesomeIcon icon={faPlus} className="size-4" />
+              <FontAwesomeIcon icon={faPlus} className="size-3.5" />
               <span className="hidden sm:inline">{t('landing.nav.addField')}</span>
             </button>
           )}
@@ -247,20 +241,20 @@ export default function Navbar() {
             aria-label={t('landing.nav.menuAria')}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="grid size-11 place-items-center rounded-2xl text-white transition-colors hover:bg-white/10 md:hidden"
+            className="grid size-11 place-items-center rounded-xl text-white transition-colors hover:bg-white/10 md:hidden cursor-pointer"
           >
-            {open ? <FontAwesomeIcon icon={faXmark} className="size-6" /> : <FontAwesomeIcon icon={faBars} className="size-6" />}
+            {open ? <FontAwesomeIcon icon={faXmark} className="size-5" /> : <FontAwesomeIcon icon={faBars} className="size-5" />}
           </button>
         </div>
       </div>
 
       {mounted &&
         createPortal(
-          <div className="fixed inset-0 z-[99999] md:hidden">
+          <div className="fixed inset-0 z-[var(--z-drawer)] md:hidden">
             <div
               onClick={() => setOpen(false)}
               aria-hidden="true"
-              className={`absolute inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 ease-out ${
+              className={`fixed inset-0 z-[var(--z-overlay)] bg-slate-950/70 backdrop-blur-xs transition-opacity duration-300 ease-out ${
                 visible ? 'opacity-100' : 'opacity-0'
               }`}
             />
@@ -269,16 +263,16 @@ export default function Navbar() {
               role="dialog"
               aria-modal="true"
               aria-label={t('landing.nav.menuAria')}
-              className={`absolute end-0 top-0 flex h-full w-[86%] max-w-[360px] flex-col bg-[rgba(10,16,26,0.97)] shadow-[0_24px_60px_rgba(2,6,23,0.55)] ring-1 ring-white/10 backdrop-blur-xl ${
+              className={`fixed end-0 top-0 z-[var(--z-drawer)] flex h-[100dvh] w-[86%] max-w-[360px] flex-col bg-[#0F172A] shadow-2xl ring-1 ring-white/10 ${
                 visible ? 'drawer-in' : 'drawer-out'
               }`}
             >
-              <div className="flex items-center justify-between border-b border-white/10 p-5">
+              <div className="flex h-14 items-center justify-between border-b border-white/10 px-5">
                 <div className="flex items-center gap-3">
                   <img
                     src="/logo.jpeg"
                     alt=""
-                    className="size-10 rounded-xl object-cover ring-1 ring-white/20"
+                    className="size-8 rounded-xl object-cover ring-1 ring-white/20"
                   />
                   <p className="text-base font-extrabold text-white">أجي نقصرو</p>
                 </div>
@@ -286,7 +280,7 @@ export default function Navbar() {
                   type="button"
                   aria-label={t('common.close')}
                   onClick={() => setOpen(false)}
-                  className="grid size-10 place-items-center rounded-xl text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+                  className="grid size-11 place-items-center rounded-xl text-white/70 transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
                 >
                   <FontAwesomeIcon icon={faXmark} className="size-5" />
                 </button>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Search } from 'lucide-react'
@@ -91,10 +92,10 @@ export default function CommandPalette({ open, onClose, groups = [], placeholder
   const q = query.trim().toLowerCase()
   let flatIndex = -1
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-start justify-center p-4 pt-24">
+  return createPortal(
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-start justify-center p-4 pt-24">
       <div
-        className="overlay-in absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+        className="overlay-in fixed inset-0 z-[var(--z-overlay)] bg-slate-900/60 backdrop-blur-xs"
         onClick={() => {
           setQuery('')
           onClose()
@@ -106,7 +107,7 @@ export default function CommandPalette({ open, onClose, groups = [], placeholder
         role="dialog"
         aria-modal="true"
         aria-label={placeholder}
-        className="pop-in relative w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_24px_60px_rgba(15,23,42,0.2)] outline-none"
+        className="pop-in relative z-[var(--z-modal)] w-full max-w-xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl outline-none"
       >
         <div className="flex items-center gap-3 border-b border-slate-100 px-5 py-4">
           <Search className="size-4 text-slate-500" />
@@ -173,6 +174,7 @@ export default function CommandPalette({ open, onClose, groups = [], placeholder
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

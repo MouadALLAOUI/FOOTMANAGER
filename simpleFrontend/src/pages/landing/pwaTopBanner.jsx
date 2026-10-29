@@ -67,7 +67,7 @@ export default function PwaTopBanner({ theme = 'dark', onVisibilityChange }) {
     return (
       <div
         role="status"
-        className="relative z-40 w-full border-b bg-emerald-600 text-white border-emerald-500 py-2 px-4 shadow-md transition-all animate-fade-in"
+        className="relative z-[var(--z-sticky)] w-full border-b bg-emerald-600 text-white border-emerald-500 py-2 px-4 shadow-md transition-all animate-fade-in"
       >
         <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 text-xs font-black sm:text-sm">
           <CheckCircle className="size-4 shrink-0 text-white" />
@@ -80,7 +80,7 @@ export default function PwaTopBanner({ theme = 'dark', onVisibilityChange }) {
   return (
     <div
       aria-label="تثبيت التطبيق"
-      className={`relative z-40 w-full border-b transition-colors shadow-xs ${
+      className={`relative z-[var(--z-sticky)] w-full border-b transition-colors shadow-xs ${
         isDark
           ? 'bg-[#14221C] text-slate-200 border-emerald-900/50'
           : 'bg-emerald-50 text-slate-800 border-emerald-200'

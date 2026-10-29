@@ -15,7 +15,7 @@ export default function ProductionMobileNav() {
   const isTeam = currentPath.startsWith('/dashboard/team')
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] lg:hidden">
+    <div className="fixed bottom-0 inset-x-0 z-[var(--z-bottom-nav)] bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] lg:hidden">
       <div className="flex items-center justify-around h-16 px-2 max-w-md mx-auto relative">
         {/* 1. Home */}
         <Link

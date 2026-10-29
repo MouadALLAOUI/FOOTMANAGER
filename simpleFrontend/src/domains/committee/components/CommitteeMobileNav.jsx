@@ -24,7 +24,7 @@ export default function CommitteeMobileNav({ activeTournamentId = null, onOpenMo
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] lg:hidden"
+      className="fixed bottom-0 inset-x-0 z-[var(--z-bottom-nav)] bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] lg:hidden h-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom)] select-none"
       aria-label="Committee Mobile Navigation"
     >
       <div className="flex items-center justify-around h-16 px-3 max-w-md mx-auto">

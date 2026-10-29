@@ -37,7 +37,7 @@ export default function EventTypePicker({ open, options, onPick, onClose }) {
   return (
     <>
       {/* Mobile: bottom sheet */}
-      <div className="fixed inset-0 z-[110] flex items-end sm:hidden">
+      <div className="fixed inset-0 z-[var(--z-modal)] flex items-end sm:hidden">
         <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
         <div
           role="dialog"
@@ -62,7 +62,7 @@ export default function EventTypePicker({ open, options, onPick, onClose }) {
       </div>
 
       {/* Desktop: centered popover card */}
-      <div className="fixed inset-0 z-[110] hidden items-center justify-center p-6 sm:flex">
+      <div className="fixed inset-0 z-[var(--z-modal)] hidden items-center justify-center p-6 sm:flex">
         <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
         <div
           role="dialog"

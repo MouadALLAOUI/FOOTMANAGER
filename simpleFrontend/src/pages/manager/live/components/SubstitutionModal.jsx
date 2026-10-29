@@ -27,7 +27,7 @@ export default function SubstitutionModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="substitution-title"
-      className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
     >
       <div className="w-full max-w-lg rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl">
         {/* Header */}

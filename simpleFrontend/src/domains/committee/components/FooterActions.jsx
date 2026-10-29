@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Flag, Menu, Pause, Play, RefreshCw, StepForward, Clock, Sparkles } from 'lucide-react'
+import { Flag, Menu, Pause, Play, RefreshCw, StepForward, Clock, Sparkles, LogOut } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 
 export default function FooterActions({
@@ -106,9 +106,12 @@ export default function FooterActions({
                 {!alreadyFinished && (
                   <MenuItem label={t('committee.result.finishMatch')} onClick={() => { setMenuOpen(false); setConfirmOpen(true) }} />
                 )}
-                {!(matchNotStarted || isLiveMatch || alreadyFinished) && (
-                  <MenuItem danger label={t('common.cancel')} onClick={() => { setMenuOpen(false); onClose() }} />
-                )}
+                <MenuItem
+                  danger
+                  icon={<LogOut className="size-4 text-rose-500 rotate-180" />}
+                  label="خروج مؤقت من المباراة"
+                  onClick={() => { setMenuOpen(false); onClose() }}
+                />
               </div>
             </>
           )}
@@ -143,6 +146,17 @@ export default function FooterActions({
             <span>{t('committee.result.saveDraft')}</span>
           </button>
         )}
+
+        {/* 3. Dedicated Temporary Exit Button - Always visible and accessible */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="h-12 shrink-0 px-3 sm:px-4 rounded-2xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800 active:scale-95 transition-all flex items-center justify-center gap-1.5 text-xs sm:text-sm font-black shadow-xs cursor-pointer select-none"
+          title="خروج مؤقت من نافذة المباراة"
+        >
+          <LogOut className="size-4 text-slate-600 rotate-180" />
+          <span className="whitespace-nowrap">خروج مؤقت</span>
+        </button>
 
         {/* Finish match extra shortcut if allowed */}
         {!alreadyFinished && canFinishMatch && onQuickFinish && (

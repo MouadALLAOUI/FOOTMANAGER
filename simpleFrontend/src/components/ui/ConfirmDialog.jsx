@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import useScrollLock from '../useScrollLock'
@@ -91,9 +92,9 @@ export function ConfirmDialog({
   const meta = toneMeta[tone] || toneMeta.default
   const resolvedCancel = cancelLabel || t('common.cancel')
 
-  return (
-    <div className="fixed inset-0 z-[130] flex items-end justify-center p-4 sm:items-center">
-      <div className={`${closing ? 'overlay-out' : 'overlay-in'} absolute inset-0 bg-slate-900/50 backdrop-blur-sm`} onClick={requestClose} aria-hidden="true" />
+  return createPortal(
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-end justify-center p-4 sm:items-center">
+      <div className={`${closing ? 'overlay-out' : 'overlay-in'} fixed inset-0 z-[var(--z-overlay)] bg-slate-900/60 backdrop-blur-xs`} onClick={requestClose} aria-hidden="true" />
       <div
         ref={panelRef}
         role="alertdialog"
@@ -101,7 +102,7 @@ export function ConfirmDialog({
         aria-labelledby={titleIdRef.current}
         aria-describedby={description ? descIdRef.current : undefined}
         tabIndex={-1}
-        className={`${closing ? 'pop-out' : 'pop-in'} relative w-full max-w-md rounded-t-3xl bg-white shadow-2xl outline-none sm:rounded-3xl`}
+        className={`${closing ? 'pop-out' : 'pop-in'} relative z-[var(--z-modal)] w-full max-w-md rounded-t-3xl bg-white shadow-2xl outline-none sm:rounded-3xl`}
       >
         <div className="px-6 pt-6">
           <div className="flex items-start gap-4">
@@ -121,7 +122,7 @@ export function ConfirmDialog({
             type="button"
             disabled={loading}
             onClick={requestClose}
-            className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-500/20 disabled:opacity-50"
+            className="rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-slate-500/20 disabled:opacity-50 cursor-pointer"
           >
             {resolvedCancel}
           </button>
@@ -129,14 +130,15 @@ export function ConfirmDialog({
             type="button"
             disabled={loading}
             onClick={onConfirm}
-            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold shadow-sm transition-all focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-60 ${meta.confirm}`}
+            className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold shadow-sm transition-all focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${meta.confirm}`}
           >
             {loading && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
             {loading ? t('common.loading') || '…' : confirmLabel}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

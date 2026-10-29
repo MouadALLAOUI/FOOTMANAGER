@@ -38,7 +38,7 @@ export default function PwaUpdatePrompt() {
   return (
     <div
       role="alert"
-      className="fixed bottom-20 sm:bottom-6 start-4 end-4 sm:start-auto sm:end-6 z-50 max-w-sm rounded-2xl bg-gradient-to-r from-[#0F3D2E] to-[#144837] border border-emerald-500/40 p-3.5 shadow-2xl backdrop-blur-md text-white animate-bounce-in"
+      className="fixed bottom-20 sm:bottom-6 start-4 end-4 sm:start-auto sm:end-6 z-[var(--z-toast)] max-w-sm rounded-2xl bg-gradient-to-r from-[#0F3D2E] to-[#144837] border border-emerald-500/40 p-3.5 shadow-2xl backdrop-blur-md text-white animate-bounce-in"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">

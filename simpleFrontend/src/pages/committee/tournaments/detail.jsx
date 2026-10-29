@@ -185,7 +185,7 @@ export default function TournamentDetail() {
         </div>
 
         {/* Top Badges & Actions */}
-        <div className="relative z-[9999] flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-black text-emerald-300">
               <Trophy className="size-3.5 text-emerald-400" />
@@ -199,7 +199,7 @@ export default function TournamentDetail() {
           </div>
 
           {/* Actions in Hero */}
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto relative z-[9999]">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto relative z-10">
             {/* Pending Delegated Results button */}
             {pendingCount > 0 && (
               <button

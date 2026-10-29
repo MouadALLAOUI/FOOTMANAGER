@@ -30,7 +30,7 @@ export default function OverrideWarningModal({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-4 animate-in fade-in duration-150"
       dir="rtl"
       onClick={onClose}
     >

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import { Home, Trophy, Radio, Landmark, Smartphone, X, Share, PlusSquare } from 'lucide-react'
 
@@ -11,6 +12,15 @@ export default function BottomNav({ theme = 'dark' }) {
     window.addEventListener('aji_show_pwa_modal', handleShowModal)
     return () => window.removeEventListener('aji_show_pwa_modal', handleShowModal)
   }, [])
+
+  useEffect(() => {
+    if (showPwaModal) {
+      document.body.style.overflow = 'hidden'
+      return () => {
+        document.body.style.overflow = ''
+      }
+    }
+  }, [showPwaModal])
 
   const isDark = theme === 'dark' || document.documentElement.classList.contains('dark')
 
@@ -33,7 +43,7 @@ export default function BottomNav({ theme = 'dark' }) {
     <>
       <nav
         aria-label="التنقل الرئيسي للهاتف"
-        className={`fixed bottom-0 inset-x-0 z-50 sm:hidden border-t backdrop-blur-xl transition-colors ${
+        className={`fixed bottom-0 inset-x-0 z-[var(--z-bottom-nav)] sm:hidden border-t backdrop-blur-xl transition-colors h-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom)] select-none ${
           isDark
             ? 'bg-[#14221C]/95 border-emerald-900/50 text-slate-400'
             : 'bg-white/95 border-slate-200 text-slate-600'
@@ -65,33 +75,38 @@ export default function BottomNav({ theme = 'dark' }) {
       </nav>
 
       {/* PWA / App Install Guidance Modal */}
-      {showPwaModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
-        >
+      {showPwaModal &&
+        createPortal(
           <div
-            className={`w-full max-w-sm rounded-3xl p-5 border shadow-2xl transition-all ${
-              isDark ? 'bg-[#14221C] border-emerald-900/50 text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            role="dialog"
+            aria-modal="true"
+            className="fixed inset-0 z-[var(--z-modal)] flex items-end sm:items-center justify-center p-4"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-700/30">
-              <div className="flex items-center gap-2">
-                <span className="grid size-9 place-items-center rounded-xl bg-emerald-500/15 text-emerald-400">
-                  <Smartphone className="size-5" />
-                </span>
-                <h3 className="text-sm font-black">تثبيت تطبيق أجي نقصرو</h3>
+            <div
+              className="fixed inset-0 z-[var(--z-overlay)] bg-black/70 backdrop-blur-xs"
+              onClick={() => setShowPwaModal(false)}
+            />
+            <div
+              className={`relative z-[var(--z-modal)] w-full max-w-sm rounded-3xl p-5 border shadow-2xl transition-all max-h-[calc(100dvh-32px)] flex flex-col ${
+                isDark ? 'bg-[#14221C] border-emerald-900/50 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-700/30 shrink-0">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-9 place-items-center rounded-xl bg-emerald-500/15 text-emerald-400">
+                    <Smartphone className="size-5" />
+                  </span>
+                  <h3 className="text-sm font-black">تثبيت تطبيق أجي نقصرو</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPwaModal(false)}
+                  aria-label="إغلاق"
+                  className="grid size-11 place-items-center rounded-xl text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X className="size-5" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowPwaModal(false)}
-                aria-label="إغلاق"
-                className="grid size-7 place-items-center rounded-lg text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
 
             <div className="py-4 space-y-3 text-xs leading-relaxed">
               <p className="font-semibold text-slate-300">
@@ -136,7 +151,8 @@ export default function BottomNav({ theme = 'dark' }) {
               حسناً، فهمت
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

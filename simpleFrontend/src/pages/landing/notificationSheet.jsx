@@ -345,7 +345,7 @@ export default function NotificationSheet({
     <>
       {/* خلفية معتمة للنقر في الخارج وإغلاق القائمة */}
       <div
-        className="fixed inset-0 z-[99998] bg-black/60 backdrop-blur-xs transition-opacity sm:bg-transparent sm:backdrop-blur-none"
+        className="fixed inset-0 z-[var(--z-overlay)] bg-black/60 backdrop-blur-xs transition-opacity sm:bg-transparent sm:backdrop-blur-none"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -354,7 +354,7 @@ export default function NotificationSheet({
       <div
         role="dialog"
         aria-label="قائمة التنبيهات والإشعارات"
-        className={`fixed inset-x-0 bottom-0 z-[9999] flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[28px] border-t shadow-2xl transition-all sm:absolute sm:inset-auto sm:end-0 sm:top-14 sm:max-h-[520px] sm:w-[380px] sm:rounded-3xl sm:border sm:shadow-2xl ${
+        className={`fixed inset-x-0 bottom-0 z-[var(--z-modal)] flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[28px] border-t shadow-2xl transition-all sm:absolute sm:inset-auto sm:end-0 sm:top-14 sm:max-h-[520px] sm:w-[380px] sm:rounded-3xl sm:border sm:shadow-2xl ${
           isDark
             ? 'border-emerald-900/50 bg-[#14221C] text-white shadow-black/80'
             : 'border-slate-200 bg-white text-slate-900 shadow-xl'

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   CalendarDays,
   CheckCircle2,
@@ -52,6 +53,20 @@ export default function FriendlyChallengeModal({ open, onClose, targetTeam }) {
       setChallengerTeamName(`فريق ${user.name}`)
     }
   }, [user])
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+      const onKey = (e) => {
+        if (e.key === 'Escape') onClose()
+      }
+      window.addEventListener('keydown', onKey)
+      return () => {
+        document.body.style.overflow = ''
+        window.removeEventListener('keydown', onKey)
+      }
+    }
+  }, [open, onClose])
 
   // Load public stadiums
   useEffect(() => {
@@ -146,11 +161,11 @@ export default function FriendlyChallengeModal({ open, onClose, targetTeam }) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-950/70"
+        className="fixed inset-0 z-[var(--z-overlay)] bg-slate-950/70"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -160,7 +175,7 @@ export default function FriendlyChallengeModal({ open, onClose, targetTeam }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="challenge-modal-title"
-        className="relative w-full max-w-lg overflow-hidden rounded-[26px] border border-emerald-500/40 bg-[#0F172A] text-white shadow-2xl ring-1 ring-emerald-500/20 max-h-[92vh] flex flex-col"
+        className="relative z-[var(--z-modal)] w-full max-w-lg overflow-hidden rounded-[26px] border border-emerald-500/40 bg-[#0F172A] text-white shadow-2xl ring-1 ring-emerald-500/20 max-h-[calc(100dvh-32px)] flex flex-col"
         dir="rtl"
       >
         {/* Header */}
@@ -182,7 +197,7 @@ export default function FriendlyChallengeModal({ open, onClose, targetTeam }) {
             type="button"
             onClick={onClose}
             aria-label="إغلاق النافذة"
-            className="grid size-9 place-items-center rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
+            className="grid size-11 min-w-[44px] min-h-[44px] place-items-center rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer"
           >
             <X className="size-5" />
           </button>
@@ -366,6 +381,7 @@ export default function FriendlyChallengeModal({ open, onClose, targetTeam }) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

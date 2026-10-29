@@ -153,7 +153,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
   return (
     <section
       aria-label="مقدمة المنصة"
-      className="relative z-50 flex w-full max-w-full flex-col items-center justify-center overflow-visible px-4 pt-6 pb-12 sm:pt-14 sm:pb-20 text-center rounded-b-[24px]"
+      className="relative z-0 flex w-full max-w-full flex-col items-center justify-center overflow-visible px-4 pt-6 pb-12 sm:pt-14 sm:pb-20 text-center rounded-b-[24px]"
     >
       {/* 1. Background Picture */}
       <picture className="absolute inset-0 size-full overflow-hidden rounded-b-[24px]">
@@ -237,8 +237,8 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
           </Link>
         </div>
 
-        {/* 4. Smart Search Bar with Live Auto-Suggest - z-[9999] cleanly over stats bar */}
-        <div ref={searchContainerRef} className="relative z-[9999] mt-3.5 sm:mt-6 w-full max-w-md">
+        {/* 4. Smart Search Bar with Live Auto-Suggest - z-10 cleanly over stats bar */}
+        <div ref={searchContainerRef} className="relative z-10 mt-3.5 sm:mt-6 w-full max-w-md">
           <form onSubmit={handleSearch} role="search">
             <div className="relative flex h-11 sm:h-13 w-full items-center rounded-2xl border border-white/40 bg-white px-3 shadow-xl transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/30">
               <input
@@ -280,9 +280,9 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit }) {
             </div>
           </form>
 
-          {/* Floating Live Auto-Suggest Popover with z-[9999] */}
+          {/* Floating Live Auto-Suggest Popover */}
           {suggestOpen && searchTerm.trim().length >= 1 && (
-            <div className="absolute top-full inset-x-0 mt-2 z-[9999] rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-2xl overflow-hidden text-start">
+            <div className="absolute top-full inset-x-0 mt-2 z-20 rounded-2xl border border-slate-200/90 bg-white text-slate-900 shadow-2xl overflow-hidden text-start">
               {suggestLoading && !hasSuggestions ? (
                 <div className="flex items-center justify-center gap-2 py-6 text-xs font-bold text-slate-500">
                   <Loader2 className="size-4 animate-spin text-emerald-600" />

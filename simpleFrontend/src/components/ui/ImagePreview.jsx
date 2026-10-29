@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight, X, ImageOff } from 'lucide-react'
 import useScrollLock from '../useScrollLock'
@@ -57,10 +58,10 @@ export default function ImagePreview({
 
   if (!open) return null
 
-  return (
+  return createPortal(
     <div
       ref={backdropRef}
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-950/90 p-4"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-slate-950/90 p-4"
       onClick={(e) => { if (e.target === backdropRef.current) close() }}
       role="dialog"
       aria-modal="true"
@@ -69,7 +70,7 @@ export default function ImagePreview({
       <button
         type="button"
         onClick={close}
-        className="absolute end-3 top-3 z-10 grid size-10 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20 sm:end-5 sm:top-5"
+        className="absolute end-3 top-3 z-10 grid size-11 place-items-center rounded-full bg-white/10 text-white backdrop-blur-sm transition-colors hover:bg-white/20 sm:end-5 sm:top-5 cursor-pointer"
         aria-label={t('common.close')}
       >
         <X className="size-5" />
@@ -121,6 +122,7 @@ export default function ImagePreview({
           </span>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

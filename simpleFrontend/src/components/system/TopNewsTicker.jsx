@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Radio, Sparkles, Trophy, Zap, MapPin, Shield, Megaphone, X } from 'lucide-react'
 import { usePublicSettings } from '../../api/queries'
 import { useMascotSettings } from '../../utils/mascotSettings'
@@ -72,9 +72,13 @@ const TONES = {
 
 export default function TopNewsTicker() {
   const barRef = useRef(null)
+  const location = useLocation()
   const { data } = usePublicSettings()
   const mascotSettings = useMascotSettings()
   const [dismissed, setDismissed] = useState(false)
+
+  // Strictly visible ONLY on landing/home page ('/'). Hidden on all other pages, completely hidden in committee dashboard.
+  const isLandingPage = location.pathname === '/'
 
   const settings = data?.settings || {}
   const dbEnabled = settings?.announcement_enabled === true || settings?.announcement_enabled === '1'
@@ -103,8 +107,8 @@ export default function TopNewsTicker() {
     return DEFAULT_NEWS_HEADLINES
   }, [customText])
 
-  // Bar is active by default to prevent PWA status-bar blur; disabled only if explicitly toggled off
-  const isEnabled = dbEnabled || mascotSettings?.ticker_enabled !== false
+  // Bar is active only on landing page and not dismissed
+  const isEnabled = isLandingPage && (dbEnabled || mascotSettings?.ticker_enabled !== false)
 
   // Publish ticker height to CSS variable --announce-height for dynamic fixed Navbar offset
   useLayoutEffect(() => {
@@ -113,7 +117,7 @@ export default function TopNewsTicker() {
 
     const updateHeight = () => {
       if (el && isEnabled && !dismissed) {
-        const h = el.getBoundingClientRect().height
+        const h = el.getBoundingClientRect().height || 32
         root.style.setProperty('--announce-height', `${Math.round(h)}px`)
       } else {
         root.style.setProperty('--announce-height', '0px')
@@ -126,7 +130,7 @@ export default function TopNewsTicker() {
     return () => {
       window.removeEventListener('resize', updateHeight)
       root.style.setProperty('--announce-height', '0px')
-        root.style.setProperty('--safe-top-offset', 'env(safe-area-inset-top, 0px)')
+      root.style.setProperty('--safe-top-offset', 'env(safe-area-inset-top, 0px)')
     }
   }, [isEnabled, dismissed, headlines])
 
@@ -138,12 +142,12 @@ export default function TopNewsTicker() {
       dir="rtl"
       role="region"
       aria-label="شريط الأخبار والإعلانات"
-      className={`sticky top-0 z-[99995] w-full max-w-full overflow-hidden select-none border-b transition-colors shadow-xs ${tone.bg} ${tone.border}`}
+      className={`sticky top-0 z-[var(--z-sticky)] h-8 max-h-8 min-h-[32px] w-full max-w-full overflow-hidden select-none border-b transition-colors shadow-xs ${tone.bg} ${tone.border}`}
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
       }}
     >
-      <div className="mx-auto flex h-7 sm:h-8 max-w-full items-center justify-between px-2 sm:px-4 text-xs">
+      <div className="mx-auto flex h-8 max-h-8 items-center justify-between px-2 sm:px-4 text-xs">
         {/* Right Badge: عاجل ⚽ */}
         <div className="z-20 flex shrink-0 items-center gap-1.5 pe-2.5 ps-1">
           <span

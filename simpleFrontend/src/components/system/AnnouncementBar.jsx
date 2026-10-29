@@ -133,7 +133,7 @@ export default function AnnouncementBar({ announcements: propAnnouncements = [],
       onBlur={() => setPaused(false)}
       className={`relative overflow-hidden transition-[height,opacity,transform] duration-300 ease-out ${tone.bar} ${
         closing ? 'announce-collapse' : ''
-      } ${sticky ? 'sticky top-0 z-[49]' : ''}`}
+      } ${sticky ? 'sticky top-0 z-[var(--z-sticky)]' : ''}`}
     >
       <div
         className={`mx-auto flex min-h-[40px] max-w-[1400px] flex-col items-start justify-center gap-1.5 px-12 py-2 sm:flex-row sm:items-center sm:gap-3 sm:px-14 md:px-16 ${

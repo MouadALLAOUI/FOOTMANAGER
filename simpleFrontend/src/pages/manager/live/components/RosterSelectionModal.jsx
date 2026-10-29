@@ -38,7 +38,7 @@ export default function RosterSelectionModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="roster-select-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm"
     >
       <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">

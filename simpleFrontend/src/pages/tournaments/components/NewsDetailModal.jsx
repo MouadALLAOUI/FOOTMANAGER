@@ -19,7 +19,7 @@ export default function NewsDetailModal({ open, onClose, tournamentKey, newsId }
   const m = detailQuery.data
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
         <div className="flex items-center justify-between gap-3 px-6 pb-2 pt-6">

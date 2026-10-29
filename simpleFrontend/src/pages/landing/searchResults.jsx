@@ -290,16 +290,16 @@ export default function SearchResultsSheet({ open, city, onClose }) {
   const hasResults = list.length > 0
 
   return createPortal(
-    <div className="fixed inset-0 z-[100]">
+    <div className="fixed inset-0 z-[var(--z-modal)]">
       <div
         onClick={onClose}
-        className={`absolute inset-0 bg-black/40 backdrop-blur-[4px] transition-opacity duration-[350ms] ease-out ${
+        className={`fixed inset-0 z-[var(--z-overlay)] bg-black/60 backdrop-blur-xs transition-opacity duration-[350ms] ease-out ${
           visible ? 'opacity-100' : 'opacity-0'
         }`}
       />
 
       <div
-        className={`absolute inset-x-0 bottom-0 mx-auto flex h-[90vh] w-full max-w-[1100px] flex-col rounded-t-[32px] bg-white shadow-[0_-25px_70px_rgba(2,6,23,0.4)] transition-transform duration-[350ms] ease-out ${
+        className={`fixed inset-x-0 bottom-0 z-[var(--z-modal)] mx-auto flex h-[90dvh] max-h-[calc(100dvh-32px)] w-full max-w-[1100px] flex-col rounded-t-[32px] bg-white shadow-[0_-25px_70px_rgba(2,6,23,0.4)] transition-transform duration-[350ms] ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
         } ${dragging ? '!transition-none' : ''}`}
         style={dragging ? { transform: `translateY(${dragY}px)` } : undefined}
@@ -318,7 +318,7 @@ export default function SearchResultsSheet({ open, city, onClose }) {
             type="button"
             aria-label={t('common.close')}
             onClick={onClose}
-            className="absolute end-5 top-1 grid size-10 place-items-center rounded-full bg-white text-slate-500 shadow-[0_6px_20px_rgba(17,24,39,0.15)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:rotate-90 hover:text-slate-900 active:scale-95"
+            className="absolute end-5 top-1 grid size-11 place-items-center rounded-full bg-white text-slate-500 shadow-[0_6px_20px_rgba(17,24,39,0.15)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:rotate-90 hover:text-slate-900 active:scale-95 cursor-pointer"
           >
             <FontAwesomeIcon icon={faXmark} className="size-5" />
           </button>

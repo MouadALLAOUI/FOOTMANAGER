@@ -58,7 +58,7 @@ export default function Landing() {
     <div
       dir="rtl"
       lang="ar"
-      className={`min-h-screen w-full max-w-full overflow-x-hidden transition-colors duration-300 pb-16 sm:pb-0 ${
+      className={`min-h-[100dvh] w-full max-w-full overflow-x-hidden transition-colors duration-300 ${
         isDark ? 'bg-[#0F3D2E] text-slate-100' : 'bg-[#F4F6F1] text-slate-900'
       }`}
     >
@@ -71,7 +71,10 @@ export default function Landing() {
       />
 
       {/* Semantic Main Element with Unified Proportions & Balanced Spacing */}
-      <main id="main-content" className="w-full max-w-full space-y-2 sm:space-y-4 pb-[88px]">
+      <main
+        id="main-content"
+        className="w-full max-w-full space-y-2 sm:space-y-4 pb-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+var(--genie-size))] sm:pb-12"
+      >
         {/* 1. Top Banners: Never show both banners together. PWA banner has first priority. */}
         <PwaTopBanner theme={theme} onVisibilityChange={setPwaBannerActive} />
         {!pwaBannerActive && <TopBanner theme={theme} />}

@@ -235,7 +235,7 @@ export default function TimeSlotPicker({
         createPortal(
           <>
             <div
-              className="fixed inset-0 z-[140] bg-slate-900/40 backdrop-blur-[2px] transition-opacity"
+              className="fixed inset-0 z-[var(--z-overlay)] bg-slate-900/40 backdrop-blur-[2px] transition-opacity"
               onClick={() => setOpen(false)}
               aria-hidden="true"
             />
@@ -245,7 +245,7 @@ export default function TimeSlotPicker({
                 aria-modal="true"
                 aria-label={label || displayPlaceholder}
                 dir={isRtl ? 'rtl' : 'ltr'}
-                className="fixed inset-x-0 bottom-0 z-[141] max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-[0_-20px_50px_rgba(2,6,23,0.3)] animate-in slide-in-from-bottom duration-200"
+                className="fixed inset-x-0 bottom-0 z-[var(--z-modal)] max-h-[80vh] overflow-y-auto rounded-t-3xl bg-white p-5 pb-8 shadow-[0_-20px_50px_rgba(2,6,23,0.3)] animate-in slide-in-from-bottom duration-200"
               >
                 <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-slate-200" />
                 <div className="mb-4 flex items-center justify-between border-b border-slate-100 pb-3">
@@ -294,7 +294,7 @@ export default function TimeSlotPicker({
                 aria-label={label || displayPlaceholder}
                 dir={isRtl ? 'rtl' : 'ltr'}
                 style={{ top: pos.top, left: pos.left, width: pos.width }}
-                className="fixed z-[141] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.18)] ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-150"
+                className="fixed z-[var(--z-modal)] rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.18)] ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-150"
               >
                 <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
                   <div className="flex items-center gap-2">

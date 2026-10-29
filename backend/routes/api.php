@@ -869,6 +869,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/teams/{teamId}/withdraw', [TournamentTeamDisciplineController::class, 'withdraw']);
                 Route::post('/teams/{teamId}/disqualify', [TournamentTeamDisciplineController::class, 'disqualify']);
                 Route::post('/teams/{teamId}/reverse-discipline', [TournamentTeamDisciplineController::class, 'reverse']);
+                Route::post('/teams/{teamId}/apply-all-default-results', [TournamentTeamDisciplineController::class, 'applyAllDefaultResults']);
                 Route::post('/fixtures/{fixture}/apply-default-result', [TournamentTeamDisciplineController::class, 'applyDefaultResult']);
                 Route::post('/fixtures/{fixture}/reassign-freed-slot', [TournamentTeamDisciplineController::class, 'reassignFreedSlot']);
                 Route::post('/teams', [TournamentTeamController::class, 'store']);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import {
   Sparkles,
@@ -84,6 +85,20 @@ export default function SmartGenieModal() {
     }
   }, [open, loadContext])
 
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden'
+      const onKey = (e) => {
+        if (e.key === 'Escape') setOpen(false)
+      }
+      window.addEventListener('keydown', onKey)
+      return () => {
+        document.body.style.overflow = ''
+        window.removeEventListener('keydown', onKey)
+      }
+    }
+  }, [open])
+
   if (settings.mascot_enabled === false) return null
 
   const handleOpen = () => {
@@ -131,49 +146,77 @@ export default function SmartGenieModal() {
   }
 
   return (
-    <aside
-      aria-label="الجني الذكي"
-      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] end-4 sm:bottom-6 sm:end-6 z-50 flex flex-col items-end select-none"
-      dir="rtl"
-    >
-      {/* Interactive Contextual Modal Popup */}
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="genie-modal-title"
-          className="fade-in mb-3 w-[360px] sm:w-[400px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[20px] border border-[#10B981] bg-[#0F172A] text-white shadow-2xl shadow-emerald-950/80 ring-1 ring-[#10B981]/30 flex flex-col max-h-[75vh] animate-in fade-in zoom-in-95 duration-200"
-        >
-          {/* Header: Title, Mascot with Online Dot, and >=44px Close Button */}
-          <div className="flex items-center justify-between gap-3 border-b border-emerald-500/20 bg-[#0a101d] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <GenieMascot size={42} border status={true} animated />
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 id="genie-modal-title" className="text-sm font-black text-white">
-                    الجني الذكي
-                  </h3>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
-                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>متاح الآن</span>
-                  </span>
-                </div>
-                <p className="text-[11px] font-medium text-slate-400">
-                  مرشدك الذكي لخدمات منصة أجي نقصرو
-                </p>
-              </div>
+    <>
+      <aside
+        aria-label="الجني الذكي"
+        className="fixed bottom-[calc(var(--bottom-nav-height)+env(safe-area-inset-bottom,0px)+12px)] end-4 sm:bottom-6 sm:end-6 z-[var(--z-genie)] flex flex-col items-end select-none"
+        dir="rtl"
+      >
+        {/* Floating Trigger Button: 56px circle with Genie image ONLY, no text inside or over button */}
+        <div className="flex items-center gap-2">
+          {!open && (
+            <div className="hidden sm:inline-flex items-center gap-1 rounded-full bg-[#0F172A] border border-[#10B981]/60 px-3 py-1 text-xs font-bold text-white shadow-lg pointer-events-none animate-in fade-in slide-in-from-start-2">
+              <span>الجني الذكي</span>
             </div>
+          )}
 
-            {/* Close button with min-width and min-height >= 44px */}
-            <button
-              type="button"
+          <button
+            type="button"
+            onClick={() => (open ? handleClose() : handleOpen())}
+            aria-label="الجني الذكي"
+            title="الجني الذكي"
+            className="relative flex size-14 items-center justify-center rounded-full bg-[#0F172A] border border-[#10B981] shadow-xl shadow-emerald-950/70 transition-all hover:scale-105 active:scale-95 cursor-pointer ring-2 ring-[#10B981]/30 p-0 overflow-visible"
+          >
+            <GenieMascot size={50} border={false} status={true} animated />
+          </button>
+        </div>
+      </aside>
+
+      {/* Interactive Contextual Modal Popup via Portal */}
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-[var(--z-modal)] flex items-end sm:items-center justify-end p-3 sm:p-6" dir="rtl">
+            <div
+              className="fixed inset-0 z-[var(--z-overlay)] bg-slate-950/65 backdrop-blur-xs transition-opacity"
               onClick={handleClose}
-              aria-label="إغلاق نافذة الجني الذكي"
-              className="grid min-w-[44px] min-h-[44px] size-11 place-items-center rounded-xl bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700 hover:border-emerald-500/40 border border-slate-700 transition-colors cursor-pointer"
+              aria-hidden="true"
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="genie-modal-title"
+              className="fade-in relative z-[var(--z-modal)] w-[360px] sm:w-[420px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[24px] border border-[#10B981] bg-[#0F172A] text-white shadow-2xl shadow-emerald-950/90 ring-1 ring-[#10B981]/30 flex flex-col max-h-[calc(100dvh-32px)] sm:max-h-[min(650px,calc(100dvh-60px))] animate-in fade-in zoom-in-95 duration-200"
             >
-              <X className="size-5" />
-            </button>
-          </div>
+              {/* Header: Title, Mascot with Online Dot, and >=44px Close Button */}
+              <div className="flex items-center justify-between gap-3 border-b border-emerald-500/20 bg-[#0a101d] px-4 py-3 shrink-0">
+                <div className="flex items-center gap-3">
+                  <GenieMascot size={42} border status={true} animated />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 id="genie-modal-title" className="text-sm font-black text-white">
+                        الجني الذكي
+                      </h3>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
+                        <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        <span>متاح الآن</span>
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-medium text-slate-400">
+                      مرشدك الذكي لخدمات منصة أجي نقصرو
+                    </p>
+                  </div>
+                </div>
+
+                {/* Close button with min-width and min-height >= 44px */}
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  aria-label="إغلاق نافذة الجني الذكي"
+                  className="grid min-w-[44px] min-h-[44px] size-11 place-items-center rounded-xl bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700 hover:border-emerald-500/40 border border-slate-700 transition-colors cursor-pointer"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
 
           {/* Body Content */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -505,26 +548,9 @@ export default function SmartGenieModal() {
             </Link>
           </div>
         </div>
-      )}
-
-      {/* Floating Trigger Button: 56px circle with Genie image ONLY, no text inside or over button */}
-      <div className="flex items-center gap-2">
-        {!open && (
-          <div className="hidden sm:inline-flex items-center gap-1 rounded-full bg-[#0F172A] border border-[#10B981]/60 px-3 py-1 text-xs font-bold text-white shadow-lg pointer-events-none animate-in fade-in slide-in-from-start-2">
-            <span>الجني الذكي</span>
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => (open ? handleClose() : handleOpen())}
-          aria-label="الجني الذكي"
-          title="الجني الذكي"
-          className="relative flex size-14 items-center justify-center rounded-full bg-[#0F172A] border border-[#10B981] shadow-xl shadow-emerald-950/70 transition-all hover:scale-105 active:scale-95 cursor-pointer ring-2 ring-[#10B981]/30 p-0 overflow-visible"
-        >
-          <GenieMascot size={50} border={false} status={true} animated />
-        </button>
-      </div>
-    </aside>
+      </div>,
+      document.body,
+    )}
+    </>
   )
 }

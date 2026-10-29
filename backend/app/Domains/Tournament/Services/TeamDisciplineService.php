@@ -144,9 +144,9 @@ class TeamDisciplineService
     /**
      * Mark team as withdrawn.
      */
-    public function withdrawTeam(Tournament $tournament, int $teamId, ?string $reason = null, ?int $userId = null): array
+    public function withdrawTeam(Tournament $tournament, int $teamId, ?string $reason = null, ?int $userId = null, bool $applyRemaining = false): array
     {
-        return DB::transaction(function () use ($tournament, $teamId, $reason, $userId) {
+        return DB::transaction(function () use ($tournament, $teamId, $reason, $userId, $applyRemaining) {
             $tournamentTeam = TournamentTeam::query()
                 ->where('tournament_id', $tournament->id)
                 ->where('team_id', $teamId)
@@ -173,8 +173,13 @@ class TeamDisciplineService
                     'tournament_id' => $tournament->id,
                     'status' => TournamentTeam::STATUS_WITHDRAWN,
                     'reason' => $reason ?? 'انسحاب معتمد من اللجنة المنظمة',
+                    'apply_remaining' => $applyRemaining,
                 ],
             ]);
+
+            if ($applyRemaining) {
+                $this->applyAllDefaultResults($tournament, $teamId, $userId);
+            }
 
             return $this->getDisciplinePreview($tournament, $teamId);
         });
@@ -183,9 +188,9 @@ class TeamDisciplineService
     /**
      * Mark team as disqualified.
      */
-    public function disqualifyTeam(Tournament $tournament, int $teamId, ?string $reason = null, ?int $userId = null): array
+    public function disqualifyTeam(Tournament $tournament, int $teamId, ?string $reason = null, ?int $userId = null, bool $applyRemaining = false): array
     {
-        return DB::transaction(function () use ($tournament, $teamId, $reason, $userId) {
+        return DB::transaction(function () use ($tournament, $teamId, $reason, $userId, $applyRemaining) {
             $tournamentTeam = TournamentTeam::query()
                 ->where('tournament_id', $tournament->id)
                 ->where('team_id', $teamId)
@@ -212,10 +217,64 @@ class TeamDisciplineService
                     'tournament_id' => $tournament->id,
                     'status' => TournamentTeam::STATUS_DISQUALIFIED,
                     'reason' => $reason ?? 'طرد معتمد من اللجنة المنظمة',
+                    'apply_remaining' => $applyRemaining,
                 ],
             ]);
 
+            if ($applyRemaining) {
+                $this->applyAllDefaultResults($tournament, $teamId, $userId);
+            }
+
             return $this->getDisciplinePreview($tournament, $teamId);
+        });
+    }
+
+    /**
+     * Apply default results to all remaining unplayed fixtures for a disciplined team.
+     *
+     * @return array<string, mixed>
+     */
+    public function applyAllDefaultResults(Tournament $tournament, int $teamId, ?int $userId = null): array
+    {
+        return DB::transaction(function () use ($tournament, $teamId, $userId) {
+            $tournamentTeam = TournamentTeam::query()
+                ->where('tournament_id', $tournament->id)
+                ->where('team_id', $teamId)
+                ->with('team')
+                ->firstOrFail();
+
+            if (! in_array($tournamentTeam->status, [TournamentTeam::STATUS_WITHDRAWN, TournamentTeam::STATUS_DISQUALIFIED], true)) {
+                throw new DomainException('يجب تسجيل انسحاب أو طرد الفريق أولاً قبل تطبيق النتائج الاعتبارية للمباريات');
+            }
+
+            $unplayedFixtures = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->where(function ($q) use ($teamId) {
+                    $q->where('home_team_id', $teamId)->orWhere('away_team_id', $teamId);
+                })
+                ->where('status', '!=', FixtureStatus::Played)
+                ->whereDoesntHave('match', function ($q) {
+                    $q->where('status', MatchStatus::Finished);
+                })
+                ->get();
+
+            $appliedFixtures = [];
+            foreach ($unplayedFixtures as $fixture) {
+                // If fixture already has a live match, skip it
+                if ($fixture->match && in_array($fixture->match->status, MatchStatus::live(), true)) {
+                    continue;
+                }
+
+                $res = $this->applyMatchDefaultResult($tournament, $fixture, $teamId, $userId);
+                $appliedFixtures[] = $res['fixture'];
+            }
+
+            return [
+                'applied_count' => count($appliedFixtures),
+                'fixtures' => $appliedFixtures,
+                'preview' => $this->getDisciplinePreview($tournament, $teamId),
+            ];
         });
     }
 

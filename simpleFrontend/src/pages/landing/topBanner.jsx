@@ -35,7 +35,7 @@ export default function TopBanner({ theme = 'dark' }) {
   return (
     <aside
       aria-label="إعلان الملف الدائم"
-      className={`relative z-50 w-full max-w-full overflow-hidden border-b transition-colors ${
+      className={`relative z-[var(--z-sticky)] w-full max-w-full overflow-hidden border-b transition-colors ${
         isDark
           ? 'bg-gradient-to-r from-[#064E3B] via-[#0F172A] to-[#064E3B] text-slate-100 border-emerald-500/30 shadow-md'
           : 'bg-gradient-to-r from-emerald-100 via-emerald-50 to-emerald-100 text-slate-900 border-emerald-300 shadow-xs'

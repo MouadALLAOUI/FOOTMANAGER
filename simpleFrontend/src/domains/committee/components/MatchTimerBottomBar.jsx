@@ -47,7 +47,7 @@ export default function MatchTimerBottomBar({
   const canSubmit = isFinished || secondHalfEnded || curStatus === 'finished'
 
   return (
-    <footer className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-200/90 bg-white/95 px-3 py-2.5 sm:px-5 sm:py-3 backdrop-blur-md shadow-[0_-4px_20px_rgba(15,23,42,0.08)]" dir="rtl">
+    <footer className="fixed bottom-0 inset-x-0 z-[var(--z-bottom-nav)] border-t border-slate-200/90 bg-white/95 px-3 py-2.5 sm:px-5 sm:py-3 backdrop-blur-md shadow-[0_-4px_20px_rgba(15,23,42,0.08)]" dir="rtl">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-2.5">
         {/* Left: Timer Display & Pause/Resume Button */}
         <div className="flex items-center gap-2">

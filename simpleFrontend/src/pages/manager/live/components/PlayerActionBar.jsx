@@ -18,7 +18,7 @@ export default function PlayerActionBar({
   return (
     <aside
       aria-label="إجراءات اللاعب المحدد"
-      className="fixed inset-x-0 bottom-16 z-40 px-3 sm:bottom-20 sm:px-6"
+      className="fixed inset-x-0 bottom-16 z-[var(--z-bottom-nav)] px-3 sm:bottom-20 sm:px-6"
     >
       <div className="mx-auto max-w-5xl overflow-hidden rounded-3xl border border-slate-200/90 bg-white/95 p-2.5 shadow-2xl backdrop-blur-md transition-all sm:p-3.5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

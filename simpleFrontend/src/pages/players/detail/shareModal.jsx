@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Check,
   CheckCircle2,
@@ -19,14 +20,25 @@ import TeamLogo from '../../../components/profile/TeamLogo'
 import { toast } from '../../../components/ui/Toast/toastStore'
 import { formatPositionArabic } from './header'
 
-const TRANSPARENT_PIXEL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAEASTN7V4='
-
 export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
   const cardRef = useRef(null)
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
   const [imgError, setImgError] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden'
+      const onKey = (e) => {
+        if (e.key === 'Escape') onClose()
+      }
+      window.addEventListener('keydown', onKey)
+      return () => {
+        document.body.style.overflow = ''
+        window.removeEventListener('keydown', onKey)
+      }
+    }
+  }, [isOpen, onClose])
 
   if (!isOpen || !player) return null
 
@@ -34,11 +46,15 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
 
   const generateCardBlob = async () => {
     if (!cardRef.current) return null
-    await inlineAllImages(cardRef.current)
+    try {
+      await inlineAllImages(cardRef.current)
+    } catch {}
+
     return toBlob(cardRef.current, {
       cacheBust: false,
       skipFonts: true,
-      pixelRatio: 2,
+      pixelRatio: 3,
+      quality: 0.95,
       filter: (node) => !node?.classList?.contains?.('no-share-capture'),
     })
   }
@@ -51,26 +67,27 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
       const blob = await generateCardBlob()
       if (!blob) throw new Error('فشل توليد صورة البطاقة')
 
-      const file = new File([blob], `player-${player.id}-card.png`, {
+      const file = new File([blob], `aji-player-${player.id}.png`, {
         type: 'image/png',
       })
 
-      // Attempt native Web Share API with image file
+      // Native Web Share API with image file
       if (
+        typeof navigator !== 'undefined' &&
         navigator.canShare &&
         navigator.canShare({ files: [file] }) &&
         navigator.share
       ) {
         await navigator.share({
           title: `بطاقة اللاعب ${player.name} — أجي نقصرو`,
-          text: `شاهد بطاقة وإحصائيات اللاعب ${player.name} على منصة أجي نقصرو`,
+          text: `شاهد بطاقة وإحصائيات اللاعب ${player.name} على منصة أجي نقصرو لكرة القدم`,
           url: profileUrl,
           files: [file],
         })
         toast.success('تمت مشاركة البطاقة بنجاح')
       } else {
-        // Fallback: download the image and copy link
-        downloadBlob(blob, `player-${player.id}-card.png`)
+        // Fallback: download image and copy link
+        downloadBlob(blob, `aji-player-${player.id}.png`)
         await navigator.clipboard.writeText(profileUrl)
         toast.success('تم تنزيل بطاقة اللاعب ونسخ الرابط')
       }
@@ -89,7 +106,7 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
     try {
       const blob = await generateCardBlob()
       if (!blob) throw new Error('فشل توليد الصورة')
-      downloadBlob(blob, `player-${player.id}-card.png`)
+      downloadBlob(blob, `aji-player-${player.id}.png`)
       toast.success('تم تنزيل صورة البطاقة بنجاح')
     } catch {
       toast.error('حدث خطأ أثناء تنزيل الصورة')
@@ -131,39 +148,52 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
 
   const hasPhoto = Boolean(player.avatar_url) && !imgError
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto"
+      aria-labelledby="player-share-modal-title"
+      className="fixed inset-0 z-[var(--z-modal)] flex flex-col items-center justify-center p-2 sm:p-4 select-none overflow-hidden"
     >
-      <div className="relative my-auto flex flex-col items-center max-w-md w-full rounded-3xl border border-slate-800 bg-[#0A101D] p-4 sm:p-6 shadow-2xl text-white">
-        {/* Header & Close */}
-        <div className="w-full flex items-center justify-between pb-3 border-b border-slate-800/80 mb-4">
+      {/* Dimmed Backdrop */}
+      <div
+        className="fixed inset-0 z-[var(--z-overlay)] bg-slate-950/80 backdrop-blur-md"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <div className="relative z-[var(--z-modal)] my-auto flex flex-col items-center max-w-sm sm:max-w-md w-full max-h-[calc(100dvh-20px)] rounded-3xl border border-slate-800 bg-[#0A101D] p-3 sm:p-5 shadow-2xl text-white">
+        {/* Header & 44px Close Button */}
+        <div className="shrink-0 w-full flex items-center justify-between pb-2.5 border-b border-slate-800/80 mb-2">
           <div className="flex items-center gap-2">
             <span className="grid size-7 place-items-center rounded-xl bg-emerald-500/10 text-emerald-400">
               <Share2 className="size-4" />
             </span>
-            <h3 className="text-sm sm:text-base font-black text-white">
+            <h3 id="player-share-modal-title" className="text-xs sm:text-sm font-black text-white">
               بطاقة اللاعب (9:16)
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="grid size-8 place-items-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="grid size-11 min-w-[44px] min-h-[44px] place-items-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
             aria-label="إغلاق"
           >
             <X className="size-5" />
           </button>
         </div>
 
-        {/* 9:16 Card Container Preview (Capturable area) */}
-        <div className="overflow-hidden rounded-2xl shadow-2xl ring-1 ring-slate-800 my-2">
+        {/* 9:16 Card Container Preview (Capturable area, max-height: calc(100dvh - 200px) with object-fit: contain) */}
+        <div className="shrink min-h-0 flex items-center justify-center overflow-hidden my-auto w-full">
           <div
             ref={cardRef}
-            style={{ width: '320px', height: '568px' }}
-            className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#0B132B] via-[#0F172A] to-[#060A14] p-5 text-white select-none"
+            style={{
+              maxHeight: 'calc(100dvh - 200px)',
+              aspectRatio: '9 / 16',
+              width: 'auto',
+              maxWidth: '320px',
+            }}
+            className="relative flex flex-col justify-between overflow-hidden rounded-2xl shadow-2xl ring-1 ring-slate-800 bg-gradient-to-b from-[#0B132B] via-[#0F172A] to-[#060A14] p-3.5 sm:p-4 text-white select-none w-full"
           >
             {/* Atmospheric Background & Field Lines */}
             <div className="pointer-events-none absolute -top-16 -start-16 size-48 rounded-full bg-emerald-500/20 blur-3xl" />
@@ -172,33 +202,33 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
             <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 border-b border-emerald-500/10" />
 
             {/* 1. Card Top Branding */}
-            <div className="relative z-10 flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div className="relative z-10 flex items-center justify-between border-b border-slate-800/80 pb-2">
               <div className="flex items-center gap-2">
-                <span className="grid size-7 place-items-center rounded-xl bg-emerald-500 text-slate-950 font-black text-xs shadow-md">
+                <span className="grid size-6 place-items-center rounded-lg bg-emerald-500 text-slate-950 font-black text-[10px] shadow-md">
                   AN
                 </span>
                 <div className="text-start leading-tight">
-                  <span className="block text-xs font-black text-white tracking-wider">
+                  <span className="block text-[11px] font-black text-white tracking-wider">
                     أجي نقصرو
                   </span>
-                  <span className="block text-[8px] font-bold text-emerald-400 tracking-widest uppercase">
+                  <span className="block text-[7px] font-bold text-emerald-400 tracking-widest uppercase">
                     AJI NQSSRO
                   </span>
                 </div>
               </div>
 
-              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[9px] font-extrabold text-amber-300">
-                <CheckCircle2 className="size-2.5 text-amber-400" />
+              <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-[8px] font-extrabold text-amber-300">
+                <CheckCircle2 className="size-2 text-amber-400" />
                 <span>بطاقة رسمية معتمدة</span>
               </span>
             </div>
 
             {/* 2. Hero Center: Player Photo & Identity */}
-            <div className="relative z-10 flex flex-col items-center text-center my-auto py-2">
+            <div className="relative z-10 flex flex-col items-center text-center my-auto py-1">
               {/* Photo Frame */}
               <div className="relative">
-                <div className="size-24 rounded-3xl p-1 bg-gradient-to-tr from-emerald-400 via-emerald-500 to-amber-400 shadow-xl shadow-emerald-950/60">
-                  <div className="size-full overflow-hidden rounded-[20px] bg-slate-900 grid place-items-center">
+                <div className="size-16 sm:size-20 rounded-2xl p-0.5 bg-gradient-to-tr from-emerald-400 via-emerald-500 to-amber-400 shadow-lg shadow-emerald-950/60">
+                  <div className="size-full overflow-hidden rounded-[14px] bg-slate-900 grid place-items-center">
                     {hasPhoto ? (
                       <img
                         src={player.avatar_url}
@@ -207,7 +237,7 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
                         className="size-full object-cover object-top"
                       />
                     ) : (
-                      <div className="flex size-full items-center justify-center bg-slate-800 text-emerald-400 text-2xl font-black">
+                      <div className="flex size-full items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-emerald-400 text-xl font-black">
                         {initials}
                       </div>
                     )}
@@ -215,29 +245,29 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
                 </div>
 
                 {player.number != null && (
-                  <div className="absolute -bottom-1.5 -end-1.5 grid size-7 place-items-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-xs shadow-md border-2 border-[#0F172A]">
+                  <div className="absolute -bottom-1 -end-1 grid size-6 place-items-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black text-[10px] shadow-md border-2 border-[#0F172A]">
                     #{player.number}
                   </div>
                 )}
               </div>
 
               {/* Name & Position */}
-              <h4 className="mt-3 text-lg font-black text-white tracking-tight leading-snug">
+              <h4 className="mt-1.5 text-sm sm:text-base font-black text-white tracking-tight leading-snug">
                 {player.name}
               </h4>
 
-              <div className="mt-1 flex items-center gap-1.5">
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-black text-emerald-300">
+              <div className="mt-0.5 flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[9px] font-black text-emerald-300">
                   <Shield className="size-2.5 text-emerald-400" />
                   <span>{formatPositionArabic(player.position)}</span>
                 </span>
                 {player.team ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-0.5 text-[10px] font-bold text-slate-300">
-                    <TeamLogo team={player.team} className="size-3.5 rounded-sm" />
+                  <span className="inline-flex items-center gap-1 rounded-full border border-slate-700 bg-slate-800/80 px-2 py-0.5 text-[9px] font-bold text-slate-300">
+                    <TeamLogo team={player.team} className="size-3 rounded-xs" />
                     <span>{player.team.name}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 text-[10px] font-bold text-sky-300">
+                  <span className="inline-flex items-center rounded-full border border-sky-500/30 bg-sky-500/15 px-2 py-0.5 text-[9px] font-bold text-sky-300">
                     لاعب حر
                   </span>
                 )}
@@ -245,43 +275,43 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
             </div>
 
             {/* 3. Verified Performance Metrics Grid */}
-            <div className="relative z-10 grid grid-cols-3 gap-2 my-2 text-center">
+            <div className="relative z-10 grid grid-cols-3 gap-1.5 my-1 text-center">
               {/* Goals */}
-              <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-2">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-1.5">
                 <div className="flex items-center justify-center gap-1 text-emerald-400 mb-0.5">
-                  <Flame className="size-3 text-emerald-400" />
-                  <span className="text-[9px] font-bold text-slate-400">الأهداف</span>
+                  <Flame className="size-2.5 text-emerald-400" />
+                  <span className="text-[8px] font-bold text-slate-400">الأهداف</span>
                 </div>
-                <span className="text-lg font-black text-white tabular-nums">
+                <span className="text-base font-black text-white tabular-nums leading-none">
                   {stats?.goals ?? 0}
                 </span>
               </div>
 
               {/* Tournaments */}
-              <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-2">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-1.5">
                 <div className="flex items-center justify-center gap-1 text-amber-400 mb-0.5">
-                  <Trophy className="size-3 text-amber-400" />
-                  <span className="text-[9px] font-bold text-slate-400">البطولات</span>
+                  <Trophy className="size-2.5 text-amber-400" />
+                  <span className="text-[8px] font-bold text-slate-400">البطولات</span>
                 </div>
-                <span className="text-lg font-black text-white tabular-nums">
+                <span className="text-base font-black text-white tabular-nums leading-none">
                   {stats?.tournaments_count ?? 0}
                 </span>
               </div>
 
               {/* Matches */}
-              <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-2">
+              <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-1.5">
                 <div className="flex items-center justify-center gap-1 text-sky-400 mb-0.5">
-                  <Users className="size-3 text-sky-400" />
-                  <span className="text-[9px] font-bold text-slate-400">المباريات</span>
+                  <Users className="size-2.5 text-sky-400" />
+                  <span className="text-[8px] font-bold text-slate-400">المباريات</span>
                 </div>
-                <span className="text-lg font-black text-white tabular-nums">
+                <span className="text-base font-black text-white tabular-nums leading-none">
                   {stats?.matches_played ?? 0}
                 </span>
               </div>
             </div>
 
             {/* 4. Card Bottom Branding & URL */}
-            <div className="relative z-10 border-t border-slate-800/80 pt-2.5 flex items-center justify-between text-[9px] text-slate-400 font-bold">
+            <div className="relative z-10 border-t border-slate-800/80 pt-2 flex items-center justify-between text-[8px] text-slate-400 font-bold">
               <span>منصة كرة القدم الأولى بالمغرب</span>
               <span className="text-emerald-400 font-extrabold tracking-wider">
                 ajin9essro.com
@@ -290,14 +320,14 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="w-full mt-4 space-y-2">
+        {/* Fixed Action Bar at Bottom: Always Visible Without Scrolling */}
+        <div className="shrink-0 w-full mt-2.5 space-y-1.5">
           {/* Main Share Button */}
           <button
             type="button"
             onClick={handleShare}
             disabled={generating}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 py-3 px-4 text-xs sm:text-sm font-black text-white shadow-lg shadow-emerald-950/50 transition-all cursor-pointer disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-emerald-400 py-2.5 px-4 text-xs sm:text-sm font-black text-white shadow-lg shadow-emerald-950/60 ring-1 ring-emerald-400/30 transition-all cursor-pointer disabled:opacity-60"
           >
             {generating ? (
               <>
@@ -307,7 +337,7 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
             ) : (
               <>
                 <Share2 className="size-4" />
-                <span>مشاركة البطاقة (WhatsApp / Instagram)</span>
+                <span>مشاركة</span>
               </>
             )}
           </button>
@@ -318,7 +348,7 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
               type="button"
               onClick={handleDownload}
               disabled={generating}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 py-2.5 px-3 text-xs font-bold text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 py-2 px-3 text-xs font-bold text-slate-200 transition-colors cursor-pointer disabled:opacity-50"
             >
               <Download className="size-3.5 text-emerald-400" />
               <span>تنزيل (PNG)</span>
@@ -327,7 +357,7 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
             <button
               type="button"
               onClick={handleCopyLink}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 py-2.5 px-3 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 py-2 px-3 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
             >
               {copied ? (
                 <>
@@ -344,6 +374,7 @@ export default function PlayerShareModal({ isOpen, onClose, player, stats }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -164,9 +164,9 @@ class TournamentRegistrationController extends Controller
                 $phone = '+212' . $phone;
             }
 
-            // Find or create manager user
+            // Find or create manager user safely by phone or email
             $email = 'manager_' . preg_replace('/\D/', '', $phone) . '@ajin9essro.com';
-            $user = User::query()->where('phone', $phone)->first();
+            $user = User::query()->where('phone', $phone)->orWhere('email', $email)->first();
             if (! $user) {
                 $user = User::query()->create([
                     'name' => trim($validated['manager_name']),
@@ -177,8 +177,17 @@ class TournamentRegistrationController extends Controller
                     'is_whatsapp' => true,
                     'password' => bcrypt(str()->random(20)),
                 ]);
-            } elseif (! $user->email) {
-                $user->update(['email' => $email]);
+            } else {
+                $userUpdates = [];
+                if (! $user->phone) {
+                    $userUpdates['phone'] = $phone;
+                }
+                if (! $user->email) {
+                    $userUpdates['email'] = $email;
+                }
+                if (! empty($userUpdates)) {
+                    $user->update($userUpdates);
+                }
             }
 
             // Check if team name already exists in this tournament
@@ -194,51 +203,80 @@ class TournamentRegistrationController extends Controller
                 if ($existingReg) {
                     throw new DomainException('فريق بهذا الاسم مسجل بالفعل أو طلبه قيد المراجعة في هذه البطولة', 409);
                 }
-            }
 
-            $team = Team::query()->create([
-                'name' => $teamName,
-                'city' => trim($validated['city'] ?? $tournament->location ?? 'الدار البيضاء'),
-                'manager_id' => $user->id,
-                'is_free' => false,
-                'category' => $tournament->category ?? 'adult',
-            ]);
-
-            // Handle logo file upload
-            if ($request->hasFile('logo')) {
-                $logoFile = $request->file('logo');
-                $result = app(\App\Domains\Shared\Services\ImageThumbnailService::class)
-                    ->storeWithThumbnail($logoFile, 'teams/logos');
-                $team->update([
-                    'logo_path' => $result['path'],
-                    'logo_thumbnail_path' => $result['thumbnail_path'],
+                if ((int) $existingTeam->manager_id === (int) $user->id) {
+                    $team = $existingTeam;
+                    if ($request->filled('city')) {
+                        $team->update(['city' => trim($validated['city'])]);
+                    }
+                } else {
+                    $team = Team::query()->create([
+                        'name' => $teamName,
+                        'city' => trim($validated['city'] ?? $tournament->location ?? 'الدار البيضاء'),
+                        'manager_id' => $user->id,
+                        'is_free' => false,
+                        'category' => $tournament->category ?? 'adult',
+                    ]);
+                }
+            } else {
+                $team = Team::query()->create([
+                    'name' => $teamName,
+                    'city' => trim($validated['city'] ?? $tournament->location ?? 'الدار البيضاء'),
+                    'manager_id' => $user->id,
+                    'is_free' => false,
+                    'category' => $tournament->category ?? 'adult',
                 ]);
             }
 
-            // Register tournament team with pending status
-            $registration = TournamentTeam::query()->create([
-                'tournament_id' => $tournament->id,
-                'team_id' => $team->id,
-                'status' => TournamentTeam::STATUS_PENDING,
-                'payment_status' => TournamentTeam::PAYMENT_PENDING,
-                'rules_accepted_at' => now(),
-                'rules_accepted_by' => $user->id,
-            ]);
+            // Handle logo file upload safely
+            if ($request->hasFile('logo')) {
+                try {
+                    $logoFile = $request->file('logo');
+                    $result = app(\App\Domains\Shared\Services\ImageThumbnailService::class)
+                        ->storeWithThumbnail($logoFile, 'teams/logos');
+                    $team->update([
+                        'logo_path' => $result['path'],
+                        'logo_thumbnail_path' => $result['thumbnail_path'],
+                    ]);
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning('Team logo thumbnail upload failed: ' . $e->getMessage());
+                    $path = $request->file('logo')->store('teams/logos', 'public');
+                    $team->update(['logo_path' => $path]);
+                }
+            }
 
-            // Register player list
+            // Register tournament team with pending status (safely handling prior cancelled/rejected records)
+            $registration = TournamentTeam::query()->updateOrCreate(
+                [
+                    'tournament_id' => $tournament->id,
+                    'team_id' => $team->id,
+                ],
+                [
+                    'status' => TournamentTeam::STATUS_PENDING,
+                    'payment_status' => TournamentTeam::PAYMENT_PENDING,
+                    'rules_accepted_at' => now(),
+                    'rules_accepted_by' => $user->id,
+                ]
+            );
+
+            // Register player list safely
             $players = $request->input('players', []);
             if (is_array($players)) {
                 foreach ($players as $idx => $p) {
                     if (empty($p['name'])) continue;
-                    $player = \App\Domains\Player\Models\Player::query()->create([
-                        'team_id' => $team->id,
-                        'name' => trim($p['name']),
-                        'position' => $p['position'] ?? 'midfielder',
-                        'number' => $idx + 1,
-                        'status' => 'active',
-                    ]);
+                    $player = \App\Domains\Player\Models\Player::query()->firstOrCreate(
+                        [
+                            'team_id' => $team->id,
+                            'name' => trim($p['name']),
+                        ],
+                        [
+                            'position' => $p['position'] ?? 'midfielder',
+                            'number' => $idx + 1,
+                            'status' => 'active',
+                        ]
+                    );
 
-                    \App\Domains\Tournament\Models\TournamentSquadMember::query()->create([
+                    \App\Domains\Tournament\Models\TournamentSquadMember::query()->firstOrCreate([
                         'tournament_id' => $tournament->id,
                         'team_id' => $team->id,
                         'player_id' => $player->id,
@@ -253,19 +291,21 @@ class TournamentRegistrationController extends Controller
                 $dayOfWeek = $request->filled('booking_day_of_week') ? (int) $request->input('booking_day_of_week') : 5;
                 $startTime = $request->input('booking_time', '20:00');
                 $endTime = \Carbon\Carbon::parse($startTime)->addHour()->format('H:i');
+                $bookingDate = now()->isDayOfWeek($dayOfWeek) ? now()->toDateString() : now()->next($dayOfWeek)->toDateString();
 
                 $pitchReservation = \App\Domains\Booking\Models\TerrainBooking::query()->create([
                     'terrain_id' => $stadiumId ?: null,
                     'custom_pitch_name' => $stadiumId ? null : trim((string) $request->input('custom_pitch_name')),
                     'manager_id' => $user->id,
                     'team_id' => $team->id,
+                    'booking_date' => $bookingDate,
                     'booking_type' => 'match',
-                    'flow_type' => 'tournament_league_slot',
+                    'flow_type' => 'direct',
                     'reservation_type' => 'weekly_subscription',
                     'day_of_week' => $dayOfWeek,
                     'start_time' => $startTime,
                     'end_time' => $endTime,
-                    'start_date' => now()->toDateString(),
+                    'start_date' => $bookingDate,
                     'end_date' => now()->addMonths(6)->toDateString(),
                     'status' => 'pending', // Requires pitch manager approval
                     'notes' => 'طلب حجز أسبوعي لدوري: ' . $tournament->name . ($request->filled('pitch_notes') ? ' | ' . $request->input('pitch_notes') : ''),

@@ -217,6 +217,11 @@ export default function TournamentJoinPage() {
       return
     }
 
+    if (tournament?.tournament_format === 'league' && !selectedStadiumId && !customPitchName.trim()) {
+      toast.error('يرجى اختيار ملعب القرب المعتمد أو إدخال اسم ملعبكم لإتمام التسجيل بنظام الدوري')
+      return
+    }
+
     // Filter valid players
     const validPlayers = players.filter((p) => p.name.trim().length > 0)
 
@@ -305,7 +310,7 @@ export default function TournamentJoinPage() {
 
       toast.success('تم إرسال طلب انضمام فريقكم بنجاح!')
     } catch (err) {
-      const msg = err.response?.data?.message || 'حدث خطأ أثناء إرسال طلب الانضمام، يرجى المحاولة ثانية'
+      const msg = err.response?.data?.message || (err.response?.status === 500 ? 'حدث خطأ في الخادم أثناء معالجة الطلب، يرجى المحاولة ثانية' : 'حدث خطأ أثناء إرسال طلب الانضمام، يرجى المحاولة ثانية')
       toast.error(msg)
     } finally {
       setSubmitting(false)

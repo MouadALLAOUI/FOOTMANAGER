@@ -321,7 +321,9 @@ export default function TournamentJoinPage() {
   const handleCheckStatus = async () => {
     setCheckingStatus(true)
     try {
-      const res = await api.get(`/v1/tournaments/${slug}/me`)
+      const res = await api
+        .get(`/v1/tournaments/${slug}/registration/me`)
+        .catch(() => api.get(`/v1/tournaments/${slug}/me`))
       const reg = res.data?.data?.registration
       if (reg?.status === 'registered') {
         toast.success('تهانينا! تمت الموافقة على فريقكم رسمياً!')

@@ -411,6 +411,7 @@ class Tournament extends Model
     public function isVisiblePublicly(): bool
     {
         return in_array($this->status, [
+            self::STATUS_DRAFT,
             self::STATUS_OPEN_FOR_REGISTRATION,
             self::STATUS_REGISTRATION_CLOSED,
             self::STATUS_IN_PROGRESS,

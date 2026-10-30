@@ -58,7 +58,13 @@ export default function Step3PublishTournament({
     }
   }
 
-  const handleShareWhatsApp = () => {
+  const handleShareWhatsApp = async () => {
+    if (tournament.status === 'draft') {
+      try {
+        await api.post(`/committee/tournaments/${tournament.id}/open-registration`)
+        if (refresh) refresh()
+      } catch {}
+    }
     const text = `🏆 *دعوة للمشاركة في بطولة ${tournament.name}*\n\nتعلن اللجنة المنظمة عن فتح باب التسجيل الرسمي في البطولة عبر منصة "أجي نقصرو".\n\n🔗 *رابط تفاصيل البطولة والتسجيل المباشر:*\n${publicUrl}\n\nسارعوا بتسجيل فرقكم والمشاركة في المنافسات!`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
   }

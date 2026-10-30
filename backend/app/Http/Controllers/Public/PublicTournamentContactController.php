@@ -40,14 +40,18 @@ class PublicTournamentContactController extends Controller
     private function resolveTournament(string $key): Tournament
     {
         $decodedKey = rawurldecode($key);
-        $tournament = ctype_digit($key)
-            ? Tournament::query()->find((int) $key)
+        $tournament = is_numeric($key)
+            ? Tournament::query()->whereKey((int) $key)->first()
             : Tournament::query()
                 ->where('slug', $key)
                 ->orWhere('slug', $decodedKey)
+                ->orWhere('uuid', $key)
                 ->first();
 
-        if (! $tournament || ! $tournament->isVisiblePublicly()) {
+        $user = request()->user();
+        $isOwnerOrAdmin = $user && ($user->role === 'admin' || ($tournament && (int) $user->id === (int) $tournament->organizer_id));
+
+        if (! $tournament || (! $isOwnerOrAdmin && ! $tournament->isVisiblePublicly())) {
             abort(404, 'البطولة غير موجودة أو غير منشورة');
         }
 

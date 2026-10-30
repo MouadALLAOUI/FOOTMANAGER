@@ -354,8 +354,8 @@ class TournamentRegistrationController extends Controller
 
     private function availabilityState(Tournament $tournament, int $remaining): string
     {
-        if ($tournament->status === Tournament::STATUS_OPEN_FOR_REGISTRATION) {
-            if (! $tournament->registrationWindowOpen()) {
+        if (in_array($tournament->status, [Tournament::STATUS_DRAFT, Tournament::STATUS_OPEN_FOR_REGISTRATION], true)) {
+            if (! $tournament->registrationWindowOpen() && $tournament->status === Tournament::STATUS_OPEN_FOR_REGISTRATION) {
                 if ($tournament->registration_start_at && $tournament->registration_start_at->isFuture()) {
                     return 'not_started';
                 }
@@ -380,14 +380,18 @@ class TournamentRegistrationController extends Controller
     private function resolveTournament(string $key): Tournament
     {
         $decodedKey = rawurldecode($key);
-        $tournament = ctype_digit($key)
-            ? Tournament::query()->find((int) $key)
+        $tournament = is_numeric($key)
+            ? Tournament::query()->whereKey((int) $key)->first()
             : Tournament::query()
                 ->where('slug', $key)
                 ->orWhere('slug', $decodedKey)
+                ->orWhere('uuid', $key)
                 ->first();
 
-        if (! $tournament || ! $tournament->isVisiblePublicly()) {
+        $user = request()->user();
+        $isOwnerOrAdmin = $user && ($user->role === 'admin' || ($tournament && (int) $user->id === (int) $tournament->organizer_id));
+
+        if (! $tournament || (! $isOwnerOrAdmin && ! $tournament->isVisiblePublicly())) {
             abort(404, 'البطولة غير موجودة أو غير منشورة');
         }
 

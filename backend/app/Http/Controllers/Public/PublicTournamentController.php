@@ -345,9 +345,10 @@ class PublicTournamentController extends Controller
             : Tournament::query()
                 ->where('slug', $key)
                 ->orWhere('slug', $decodedKey)
+                ->orWhere('uuid', $key)
                 ->first();
 
-        abort_unless($tournament instanceof Tournament, 404);
+        abort_unless($tournament instanceof Tournament, 404, 'البطولة غير موجودة');
         $this->abortIfPrivate($tournament);
 
         return $tournament;
@@ -355,6 +356,11 @@ class PublicTournamentController extends Controller
 
     private function abortIfPrivate(Tournament $tournament): void
     {
-        abort_unless($tournament->isVisiblePublicly(), 404);
+        $user = request()->user();
+        if ($user && ($user->role === 'admin' || (int) $user->id === (int) $tournament->organizer_id)) {
+            return;
+        }
+
+        abort_unless($tournament->isVisiblePublicly(), 404, 'البطولة غير متاحة حالياً');
     }
 }

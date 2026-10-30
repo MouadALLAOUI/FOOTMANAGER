@@ -268,6 +268,7 @@ Route::post('/tournaments/{tournament}/join', [TournamentRegistrationController:
 
     Route::middleware(['auth:sanctum', 'module.maintenance:tournaments'])->group(function () {
         Route::get('/tournaments/{tournament}/registration/me', [TournamentRegistrationController::class, 'me']);
+        Route::get('/tournaments/{tournament}/me', [TournamentRegistrationController::class, 'me']);
 
         Route::middleware(['activity.not_locked', 'throttle:team-request'])->group(function () {
             Route::post('/tournaments/{tournament}/registration', [TournamentRegistrationController::class, 'register']);

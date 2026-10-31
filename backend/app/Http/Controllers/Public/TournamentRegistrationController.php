@@ -190,6 +190,13 @@ class TournamentRegistrationController extends Controller
                 }
             }
 
+            // Map tournament category safely to team category enum (adult, teenager, children)
+            $teamCategory = match ($tournament->category) {
+                'شبان', 'teenager' => 'teenager',
+                'صغار', 'children' => 'children',
+                default => 'adult',
+            };
+
             // Check if team name already exists in this tournament
             $teamName = trim($validated['team_name']);
             $existingTeam = Team::query()->where('name', $teamName)->first();
@@ -215,7 +222,7 @@ class TournamentRegistrationController extends Controller
                         'city' => trim($validated['city'] ?? $tournament->location ?? 'الدار البيضاء'),
                         'manager_id' => $user->id,
                         'is_free' => false,
-                        'category' => $tournament->category ?? 'adult',
+                        'category' => $teamCategory,
                     ]);
                 }
             } else {
@@ -224,7 +231,7 @@ class TournamentRegistrationController extends Controller
                     'city' => trim($validated['city'] ?? $tournament->location ?? 'الدار البيضاء'),
                     'manager_id' => $user->id,
                     'is_free' => false,
-                    'category' => $tournament->category ?? 'adult',
+                    'category' => $teamCategory,
                 ]);
             }
 

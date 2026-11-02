@@ -392,7 +392,14 @@ class TournamentFixtureService
             }
         }
 
-        if ($homeTeamId > 0 && MatchMembershipService::teamHasMatchConflict($homeTeamId, $datetime, $excludeMatchId)) {
+        if ($homeTeamId > 0 && MatchMembershipService::teamHasMatchConflict(
+            $homeTeamId,
+            $datetime,
+            $excludeMatchId,
+            $tournament?->competition_id,
+            $excludeFixtureId,
+            checkAmicals: false,
+        )) {
             if (! $overrideWarnings) {
                 $homeTeam = Team::find($homeTeamId);
                 throw new SchedulingWarningException(
@@ -404,7 +411,14 @@ class TournamentFixtureService
             }
         }
 
-        if ($awayTeamId > 0 && MatchMembershipService::teamHasMatchConflict($awayTeamId, $datetime, $excludeMatchId)) {
+        if ($awayTeamId > 0 && MatchMembershipService::teamHasMatchConflict(
+            $awayTeamId,
+            $datetime,
+            $excludeMatchId,
+            $tournament?->competition_id,
+            $excludeFixtureId,
+            checkAmicals: false,
+        )) {
             if (! $overrideWarnings) {
                 $awayTeam = Team::find($awayTeamId);
                 throw new SchedulingWarningException(
@@ -1172,7 +1186,14 @@ class TournamentFixtureService
             return;
         }
 
-        if (MatchMembershipService::teamHasMatchConflict($teamId, $fixture->scheduled_at, $fixture->match_id)) {
+        if (MatchMembershipService::teamHasMatchConflict(
+            $teamId,
+            $fixture->scheduled_at,
+            $fixture->match_id,
+            $fixture->competition_id,
+            $fixture->id,
+            checkAmicals: false,
+        )) {
             throw new DomainException('الفريق لديه مباراة أخرى في نفس هذا التوقيت');
         }
     }
@@ -1583,6 +1604,7 @@ class TournamentFixtureService
                         $teamSlots,
                         $pair[0],
                         $pair[1],
+                        $tournament->competition_id,
                     );
 
                     if (! empty($conflicts)) {
@@ -1666,6 +1688,7 @@ class TournamentFixtureService
                 $teamSlots,
                 $home,
                 $away,
+                $tournament->competition_id,
             );
 
             if (! empty($conflicts) && $strategy === self::STRATEGY_SKIP) {
@@ -1899,9 +1922,10 @@ class TournamentFixtureService
         array &$teamSlots,
         int $homeTeamId,
         int $awayTeamId,
+        ?int $competitionId = null,
     ): array {
         if ($strategy === self::STRATEGY_AUTO_ROLL) {
-            return $this->autoRollSlot($stadiumIds, $preferredDay, $defaultTime, $stadiumSlots, $teamSlots, $homeTeamId, $awayTeamId);
+            return $this->autoRollSlot($stadiumIds, $preferredDay, $defaultTime, $stadiumSlots, $teamSlots, $homeTeamId, $awayTeamId, $competitionId);
         }
 
         $preferred = Carbon::parse($preferredDay->toDateString().' '.$defaultTime.':00');
@@ -1922,11 +1946,11 @@ class TournamentFixtureService
             }
         }
 
-        if (! $this->teamFree($homeTeamId, $preferred, $teamSlots)) {
+        if (! $this->teamFree($homeTeamId, $preferred, $teamSlots, $competitionId)) {
             $conflicts[] = 'الفريق المضيف لديه مباراة أخرى في هذا التوقيت';
         }
 
-        if (! $this->teamFree($awayTeamId, $preferred, $teamSlots)) {
+        if (! $this->teamFree($awayTeamId, $preferred, $teamSlots, $competitionId)) {
             $conflicts[] = 'الفريق الضيف لديه مباراة أخرى في هذا التوقيت';
         }
 
@@ -1950,6 +1974,7 @@ class TournamentFixtureService
         array &$teamSlots,
         int $homeTeamId,
         int $awayTeamId,
+        ?int $competitionId = null,
     ): array {
         $cursor = Carbon::parse($preferredDay->toDateString().' '.$defaultTime.':00');
         $last = $cursor->copy();
@@ -1958,14 +1983,14 @@ class TournamentFixtureService
             $last = $cursor->copy();
 
             if (empty($stadiumIds)) {
-                if ($this->teamFree($homeTeamId, $cursor, $teamSlots) && $this->teamFree($awayTeamId, $cursor, $teamSlots)) {
+                if ($this->teamFree($homeTeamId, $cursor, $teamSlots, $competitionId) && $this->teamFree($awayTeamId, $cursor, $teamSlots, $competitionId)) {
                     return [null, $cursor, []];
                 }
             } else {
                 foreach ($stadiumIds as $stadiumId) {
                     if ($this->slotFree($stadiumId, $cursor, $stadiumSlots)
-                        && $this->teamFree($homeTeamId, $cursor, $teamSlots)
-                        && $this->teamFree($awayTeamId, $cursor, $teamSlots)) {
+                        && $this->teamFree($homeTeamId, $cursor, $teamSlots, $competitionId)
+                        && $this->teamFree($awayTeamId, $cursor, $teamSlots, $competitionId)) {
                         return [$stadiumId, $cursor, []];
                     }
                 }
@@ -2068,7 +2093,7 @@ class TournamentFixtureService
     /**
      * @param  array<int, array<int, Carbon>>  $teamSlots
      */
-    private function teamFree(int $teamId, Carbon $datetime, array &$teamSlots): bool
+    private function teamFree(int $teamId, Carbon $datetime, array &$teamSlots, ?int $competitionId = null): bool
     {
         $windowMinutes = PlayerMatchGuard::MATCH_WINDOW_HOURS * 60;
 
@@ -2078,7 +2103,7 @@ class TournamentFixtureService
             }
         }
 
-        return ! MatchMembershipService::teamHasMatchConflict($teamId, $datetime);
+        return ! MatchMembershipService::teamHasMatchConflict($teamId, $datetime, null, $competitionId);
     }
 
     /**

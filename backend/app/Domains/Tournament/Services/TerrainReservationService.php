@@ -181,8 +181,16 @@ class TerrainReservationService
 
             $homeTeamId = (int) ($fixture->home_team_id ?? 0);
             $awayTeamId = (int) ($fixture->away_team_id ?? 0);
+            $competitionId = $fixture->competition_id ?: $this->tournamentFor($fixture)?->competition_id;
 
-            if ($homeTeamId > 0 && MatchMembershipService::teamHasMatchConflict($homeTeamId, $datetime, $fixture->match_id)) {
+            if ($homeTeamId > 0 && MatchMembershipService::teamHasMatchConflict(
+                $homeTeamId,
+                $datetime,
+                $fixture->match_id,
+                $competitionId,
+                $fixture->id,
+                checkAmicals: false,
+            )) {
                 if (! $overrideWarnings) {
                     throw new SchedulingWarningException(
                         'الفريق المضيف (' . ($fixture->homeTeam?->name ?? 'المضيف') . ') لديه مباراة أخرى في هذا التوقيت أو فترة راحة غير كافية',
@@ -193,7 +201,14 @@ class TerrainReservationService
                 }
             }
 
-            if ($awayTeamId > 0 && MatchMembershipService::teamHasMatchConflict($awayTeamId, $datetime, $fixture->match_id)) {
+            if ($awayTeamId > 0 && MatchMembershipService::teamHasMatchConflict(
+                $awayTeamId,
+                $datetime,
+                $fixture->match_id,
+                $competitionId,
+                $fixture->id,
+                checkAmicals: false,
+            )) {
                 if (! $overrideWarnings) {
                     throw new SchedulingWarningException(
                         'الفريق الضيف (' . ($fixture->awayTeam?->name ?? 'الضيف') . ') لديه مباراة أخرى في هذا التوقيت أو فترة راحة غير كافية',

@@ -162,7 +162,19 @@ export default function AdminTeams() {
         }
         return (
           <div className="min-w-0">
-            <p className="truncate text-xs font-bold text-slate-800">{managerName}</p>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="truncate text-xs font-bold text-slate-800">{managerName}</p>
+              {row.manager?.status === 'rejected' && (
+                <span className="text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded">
+                  مرفوض
+                </span>
+              )}
+              {row.manager?.status === 'blocked' && (
+                <span className="text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200 px-1.5 py-0.2 rounded">
+                  محظور
+                </span>
+              )}
+            </div>
             {managerPhone && (
               <span className="dir-ltr inline-flex items-center gap-1 text-[11px] text-slate-500 font-semibold mt-0.5">
                 <Phone className="size-2.5 text-slate-400" />

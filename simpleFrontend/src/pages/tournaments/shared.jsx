@@ -112,29 +112,29 @@ export function StandingsTable({ groups }) {
                         className="flex items-center gap-2.5 text-start"
                       >
                         <TeamAvatar team={row.team} className="size-7" />
-                        <span className="truncate font-bold text-slate-800 transition-colors hover:text-green-700">{row.team?.name || '—'}</span>
+                        <span className="truncate font-bold text-slate-800 dark:text-[#F5F7F2] transition-colors hover:text-green-700">{row.team?.name || '—'}</span>
                         {(row.status === 'withdrawn' || row.team?.status === 'withdrawn') && (
-                          <span className="ms-1.5 inline-block shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-black text-amber-700 ring-1 ring-amber-200">
+                          <span className="ms-1.5 inline-block shrink-0 rounded-md bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-400 ring-1 ring-amber-200 dark:ring-amber-500/30">
                             منسحب
                           </span>
                         )}
                         {(row.status === 'disqualified' || row.team?.status === 'disqualified') && (
-                          <span className="ms-1.5 inline-block shrink-0 rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-black text-rose-700 ring-1 ring-rose-200">
+                          <span className="ms-1.5 inline-block shrink-0 rounded-md bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 text-[10px] font-black text-rose-700 dark:text-rose-400 ring-1 ring-rose-200 dark:ring-rose-500/30">
                             مُقصى
                           </span>
                         )}
                       </button>
                     </td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.played}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.wins}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.draws}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.losses}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.goals_for}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600">{row.goals_against}</td>
-                    <td className={`px-2 py-3 text-center font-bold ${row.goal_difference >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.played}</td>
+                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.wins}</td>
+                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.draws}</td>
+                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.losses}</td>
+                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.goals_for}</td>
+                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.goals_against}</td>
+                    <td className={`px-2 py-3 text-center font-bold ${row.goal_difference >= 0 ? 'text-emerald-600 dark:text-[#42D889]' : 'text-rose-500 dark:text-[#FF6868]'}`}>
                       {row.goal_difference >= 0 ? '+' : ''}{row.goal_difference}
                     </td>
-                    <td className="px-2 py-3 text-center text-base font-black text-slate-900">{row.points}</td>
+                    <td className="px-2 py-3 text-center text-base font-black text-slate-900 dark:text-[#D0FF38]">{row.points}</td>
                     <td className="px-2 py-3 text-center">
                       {(row.form || []).length ? (
                         <div className="flex items-center justify-center gap-1">
@@ -178,13 +178,13 @@ export function BracketView({ rounds, onOpen }) {
               const canOpen = Boolean(onOpen) && Boolean(f.match_id)
               const inner = (
                 <>
-                  <div className={`flex min-w-0 items-center gap-2 ${winner && winner === f.home_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
+                  <div className={`flex min-w-0 items-center gap-2 ${winner && winner === f.home_team_id ? 'text-[#111313] dark:text-[#F5F7F2]' : 'text-slate-500 dark:text-[#B2B9B3]'}`}>
                     <TeamAvatar team={f.home_team} className="size-7" />
                     <span className="truncate text-xs font-bold">{f.home_team?.name || t('committee.detail.tbd')}</span>
                     {winner === f.home_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
                   </div>
                   <div className="flex flex-col items-center">
-                    <span className="text-base font-black tabular-nums text-slate-900">
+                    <span className="text-base font-black tabular-nums text-[#111313] dark:text-[#D0FF38]">
                       {played ? `${f.home_score} - ${f.away_score}` : <span className="text-slate-400">vs</span>}
                     </span>
                     {played && f.home_penalties != null && (
@@ -193,7 +193,7 @@ export function BracketView({ rounds, onOpen }) {
                       </span>
                     )}
                   </div>
-                  <div className={`flex min-w-0 items-center justify-end gap-2 ${winner && winner === f.away_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
+                  <div className={`flex min-w-0 items-center justify-end gap-2 ${winner && winner === f.away_team_id ? 'text-[#111313] dark:text-[#F5F7F2]' : 'text-slate-500 dark:text-[#B2B9B3]'}`}>
                     {winner === f.away_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
                     <span className="truncate text-xs font-bold">{f.away_team?.name || t('committee.detail.tbd')}</span>
                     <TeamAvatar team={f.away_team} className="size-7" />
@@ -273,32 +273,32 @@ export function StatisticsSummary({ stats }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-3xl border border-slate-200/70 bg-white p-5">
-          <p className="text-2xl font-black text-slate-900">{summary.matches_played ?? 0}</p>
-          <p className="mt-0.5 text-xs font-semibold text-slate-500">{t('committee.detail.stat.matches')}</p>
+        <div className="rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 shadow-xs">
+          <p className="text-2xl font-black text-[#111313] dark:text-[#D0FF38] tabular-nums">{summary.matches_played ?? 0}</p>
+          <p className="mt-0.5 text-xs font-semibold text-[#65706A] dark:text-[#B2B9B3]">{t('committee.detail.stat.matches')}</p>
         </div>
-        <div className="rounded-3xl border border-slate-200/70 bg-white p-5">
-          <p className="text-2xl font-black text-slate-900">{summary.total_goals ?? 0}</p>
-          <p className="mt-0.5 text-xs font-semibold text-slate-500">{t('committee.detail.stat.goals')}</p>
+        <div className="rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 shadow-xs">
+          <p className="text-2xl font-black text-[#111313] dark:text-[#D0FF38] tabular-nums">{summary.total_goals ?? 0}</p>
+          <p className="mt-0.5 text-xs font-semibold text-[#65706A] dark:text-[#B2B9B3]">{t('committee.detail.stat.goals')}</p>
         </div>
-        <div className="rounded-3xl border border-slate-200/70 bg-white p-5">
-          <p className="text-2xl font-black text-slate-900">{summary.average_goals_per_match ?? 0}</p>
-          <p className="mt-0.5 text-xs font-semibold text-slate-500">{t('committee.detail.stat.avgGoals')}</p>
+        <div className="rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 shadow-xs">
+          <p className="text-2xl font-black text-[#111313] dark:text-[#D0FF38] tabular-nums">{summary.average_goals_per_match ?? 0}</p>
+          <p className="mt-0.5 text-xs font-semibold text-[#65706A] dark:text-[#B2B9B3]">{t('committee.detail.stat.avgGoals')}</p>
         </div>
-        <div className="rounded-3xl border border-slate-200/70 bg-white p-5">
-          <p className="text-2xl font-black text-slate-900">{summary.scheduled ?? 0}</p>
-          <p className="mt-0.5 text-xs font-semibold text-slate-500">{t('committee.detail.stat.upcoming')}</p>
+        <div className="rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 shadow-xs">
+          <p className="text-2xl font-black text-[#111313] dark:text-[#D0FF38] tabular-nums">{summary.scheduled ?? 0}</p>
+          <p className="mt-0.5 text-xs font-semibold text-[#65706A] dark:text-[#B2B9B3]">{t('committee.detail.stat.upcoming')}</p>
         </div>
       </div>
 
       {s.champion && (
-        <div className="flex items-center gap-4 rounded-3xl border border-amber-200/70 bg-gradient-to-l from-amber-50 to-white p-5">
+        <div className="flex items-center gap-4 rounded-3xl border border-amber-300 dark:border-amber-500/40 bg-gradient-to-l from-amber-50 to-white dark:from-[#252B27] dark:to-[#1B201D] p-5 shadow-xs">
           <span className="grid size-14 place-items-center rounded-2xl bg-amber-500 text-white shadow-[0_10px_24px_rgba(245,158,11,0.4)]">
             <Trophy className="size-7" />
           </span>
           <div>
-            <p className="text-xs font-bold text-amber-600">{t('committee.detail.champion')}</p>
-            <p className="text-lg font-black text-slate-900">{s.champion.name}</p>
+            <p className="text-xs font-bold text-amber-600 dark:text-amber-400">{t('committee.detail.champion')}</p>
+            <p className="text-lg font-black text-[#111313] dark:text-[#D0FF38]">{s.champion.name}</p>
           </div>
         </div>
       )}

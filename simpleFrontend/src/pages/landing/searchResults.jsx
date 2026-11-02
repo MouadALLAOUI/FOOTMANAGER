@@ -52,8 +52,8 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
   const { t, i18n } = useTranslation()
 
   return (
-    <article className="group flex flex-col gap-5 rounded-[20px] bg-white p-4 shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(17,24,39,0.15)] md:flex-row md:items-center">
-      <div className="relative h-[170px] w-full shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 via-emerald-800 to-slate-950 md:w-[280px]">
+    <article className="group flex flex-col gap-5 rounded-[20px] bg-white dark:bg-[#1B201D] p-4 shadow-sm ring-1 ring-[#E1E5DF] dark:ring-[#303832] transition-all duration-300 ease-out hover:-translate-y-1 md:flex-row md:items-center">
+      <div className="relative h-[170px] w-full shrink-0 overflow-hidden rounded-2xl bg-slate-900 md:w-[280px]">
         <div className="absolute inset-0 bg-[radial-gradient(120%_60%_at_50%_0%,rgba(255,255,255,0.25),transparent_60%)]" />
         <img
           src={card.image}
@@ -63,21 +63,21 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
           onError={hideBrokenImage}
           className="relative size-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.05]"
         />
-        <span className="absolute top-3 end-3 rounded-full bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-md">
+        <span className="absolute top-3 end-3 rounded-full bg-emerald-600 dark:bg-[#D0FF38] px-3 py-1 text-xs font-black text-white dark:text-[#101211] shadow-md">
           {t('landing.results.available')}
         </span>
         <button
           type="button"
           aria-label="favorite"
           onClick={() => onToggleLike(card)}
-          className="absolute top-3 start-3 grid size-9 place-items-center rounded-full bg-white/20 text-white shadow-sm ring-1 ring-white/30 backdrop-blur-md transition hover:scale-110 active:scale-95"
+          className="absolute top-3 start-3 grid size-9 place-items-center rounded-full bg-black/40 text-white shadow-sm ring-1 ring-white/20 backdrop-blur-md transition hover:scale-110 active:scale-95"
         >
           <FontAwesomeIcon
             icon={liked ? faHeart : faHeartRegular}
             className="size-4 transition group-hover:scale-110"
           />
         </button>
-        <span className="absolute bottom-3 start-3 flex items-center gap-1 rounded-full bg-black/30 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
+        <span className="absolute bottom-3 start-3 flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-md">
           <FontAwesomeIcon icon={faMapPin} className="size-3" />
           {card.format}
         </span>
@@ -85,28 +85,28 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
 
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="bidi-plaintext min-w-0 truncate text-lg font-extrabold text-slate-900">{card.name}</h3>
+          <h3 className="bidi-plaintext min-w-0 truncate text-lg font-extrabold text-[#111313] dark:text-[#F5F7F2]">{card.name}</h3>
           {card.rating != null && (
-            <span className="flex shrink-0 items-center gap-1 text-sm font-bold text-slate-700">
+            <span className="flex shrink-0 items-center gap-1 text-sm font-bold text-amber-500 dark:text-amber-400">
               <FontAwesomeIcon icon={faStar} className="size-4 text-amber-400" />
               {card.rating}
-              <span className="font-medium text-slate-400">({formatCount(card.reviews, i18n.language)})</span>
+              <span className="font-medium text-[#65706A] dark:text-[#B2B9B3]">({formatCount(card.reviews, i18n.language)})</span>
             </span>
           )}
         </div>
-        <p className="flex items-center gap-1.5 text-sm text-slate-500">
-          <FontAwesomeIcon icon={faMapPin} className="size-4 shrink-0 text-slate-400" />
+        <p className="flex items-center gap-1.5 text-sm text-[#65706A] dark:text-[#B2B9B3]">
+          <FontAwesomeIcon icon={faMapPin} className="size-4 shrink-0 text-[#65706A] dark:text-[#B2B9B3]" />
           <span className="bidi-plaintext min-w-0 truncate">{card.location}</span>
         </p>
-        <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
-          <FontAwesomeIcon icon={faClock} className="size-4 text-slate-400" />
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-[#65706A] dark:text-[#B2B9B3]">
+          <FontAwesomeIcon icon={faClock} className="size-4 text-[#65706A] dark:text-[#B2B9B3]" />
           {card.isOpen ? t('landing.fields.openNow') : t('landing.fields.closed')}
         </p>
         <div className="flex flex-wrap gap-2">
           {(card.chips || []).map((chip) => (
             <span
               key={chip}
-              className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600"
+              className="rounded-full bg-[#E9ECE7] dark:bg-[#252B27] px-3 py-1 text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3]"
             >
               {t(`landing.results.chips.${chip}`)}
             </span>
@@ -114,17 +114,17 @@ function FieldCard({ card, liked, onToggleLike, onBook }) {
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 pt-4 md:flex-col md:items-end md:justify-center md:border-0 md:border-s md:pt-0 md:ps-6">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#E1E5DF] dark:border-[#303832] pt-4 md:flex-col md:items-end md:justify-center md:border-0 md:border-s md:pt-0 md:ps-6">
         <div className="text-end">
-          <p className="text-xl font-extrabold text-green-600">
+          <p className="text-xl font-extrabold text-[#16834A] dark:text-[#D0FF38]">
             {formatCount(card.price, i18n.language)} {t('fieldsPage.card.currency')}
           </p>
-          <p className="mt-0.5 text-xs text-slate-400">{t('landing.results.perHour')}</p>
+          <p className="mt-0.5 text-xs text-[#65706A] dark:text-[#B2B9B3]">{t('landing.results.perHour')}</p>
         </div>
         <button
           type="button"
           onClick={() => onBook(card)}
-          className="flex h-11 items-center gap-2 rounded-[14px] bg-green-500 px-6 text-sm font-bold text-white shadow-[0_10px_25px_rgba(22,163,74,0.35)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-[0_16px_35px_rgba(22,163,74,0.5)] active:translate-y-0"
+          className="flex h-11 items-center gap-2 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-6 text-sm font-black text-[#111313] dark:text-[#101211] shadow-xs transition-all duration-300 ease-out active:scale-95 cursor-pointer"
         >
           <FontAwesomeIcon icon={faCalendarCheck} className="size-4" />
           {t('landing.results.book')}
@@ -140,23 +140,23 @@ function MatchCard({ card, accent, onChallenge }) {
   return (
     <article
       style={{ '--accent': accent.color }}
-      className="group flex flex-wrap items-center gap-5 rounded-[20px] bg-white p-5 shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(17,24,39,0.15)]"
+      className="group flex flex-wrap items-center gap-5 rounded-[20px] bg-white dark:bg-[#1B201D] p-5 shadow-sm ring-1 ring-[#E1E5DF] dark:ring-[#303832] transition-all duration-300 ease-out hover:-translate-y-1"
     >
       <div
-        className={`grid size-14 shrink-0 place-items-center rounded-full shadow-md ring-4 ring-slate-50 transition-transform duration-300 ease-out group-hover:scale-105 ${accent.soft}`}
+        className={`grid size-14 shrink-0 place-items-center rounded-full shadow-md ring-4 ring-[#E1E5DF] dark:ring-[#303832] transition-transform duration-300 ease-out group-hover:scale-105 ${accent.soft}`}
       >
         <FontAwesomeIcon icon={faFutbol} className="size-8 text-[var(--accent)]" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="bidi-plaintext min-w-0 truncate text-lg font-extrabold text-slate-900">{card.team}</h3>
-          <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-            <FontAwesomeIcon icon={faTrophy} className="size-3.5 text-slate-400" />
+          <h3 className="bidi-plaintext min-w-0 truncate text-lg font-extrabold text-[#111313] dark:text-[#F5F7F2]">{card.team}</h3>
+          <span className="flex items-center gap-1.5 text-xs font-semibold text-[#65706A] dark:text-[#B2B9B3]">
+            <FontAwesomeIcon icon={faTrophy} className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
             {t(`landing.matches.levels.${card.level}`)}
           </span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-slate-500">
+        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-[#65706A] dark:text-[#B2B9B3]">
           <span className="flex min-w-0 items-center gap-1.5">
             <FontAwesomeIcon icon={faMapPin} className="size-3.5 shrink-0 text-slate-400" />
             <span className="bidi-plaintext truncate">{card.city}</span>
@@ -299,7 +299,7 @@ export default function SearchResultsSheet({ open, city, onClose }) {
       />
 
       <div
-        className={`fixed inset-x-0 bottom-0 z-[var(--z-modal)] mx-auto flex h-[90dvh] max-h-[calc(100dvh-32px)] w-full max-w-[1100px] flex-col rounded-t-[32px] bg-white shadow-[0_-25px_70px_rgba(2,6,23,0.4)] transition-transform duration-[350ms] ease-out ${
+        className={`fixed inset-x-0 bottom-0 z-[var(--z-modal)] mx-auto flex h-[90dvh] max-h-[calc(100dvh-32px)] w-full max-w-[1100px] flex-col rounded-t-[32px] bg-white dark:bg-[#1B201D] border-t border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] shadow-[0_-25px_70px_rgba(2,6,23,0.4)] transition-transform duration-[350ms] ease-out ${
           visible ? 'translate-y-0' : 'translate-y-full'
         } ${dragging ? '!transition-none' : ''}`}
         style={dragging ? { transform: `translateY(${dragY}px)` } : undefined}
@@ -310,7 +310,7 @@ export default function SearchResultsSheet({ open, city, onClose }) {
           onPointerUp={onHandleUp}
           className="flex cursor-grab touch-none justify-center pt-4 pb-2 active:cursor-grabbing"
         >
-          <div className="h-[6px] w-[70px] rounded-full bg-slate-200 transition-colors hover:bg-slate-300" />
+          <div className="h-[6px] w-[70px] rounded-full bg-slate-300 dark:bg-[#303832] transition-colors" />
         </div>
 
         <div className="relative px-8 pt-2 pb-4">
@@ -318,13 +318,13 @@ export default function SearchResultsSheet({ open, city, onClose }) {
             type="button"
             aria-label={t('common.close')}
             onClick={onClose}
-            className="absolute end-5 top-1 grid size-11 place-items-center rounded-full bg-white text-slate-500 shadow-[0_6px_20px_rgba(17,24,39,0.15)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:rotate-90 hover:text-slate-900 active:scale-95 cursor-pointer"
+            className="absolute end-5 top-1 grid size-11 place-items-center rounded-full bg-[#E9ECE7] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] ring-1 ring-[#E1E5DF] dark:ring-[#303832] transition-all duration-300 ease-out hover:rotate-90 active:scale-95 cursor-pointer"
           >
             <FontAwesomeIcon icon={faXmark} className="size-5" />
           </button>
           <div className="text-center">
-            <h2 className="text-2xl font-black text-slate-900">{t('landing.results.title')}</h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <h2 className="text-2xl font-black text-[#111313] dark:text-[#D0FF38]">{t('landing.results.title')}</h2>
+            <p className="mt-1 text-sm text-[#65706A] dark:text-[#B2B9B3]">
               {formatCount(fieldsTotal, i18n.language)} {t('landing.results.tabs.fields')} •{' '}
               {formatCount(matchesTotal, i18n.language)} {t('landing.results.tabs.matches')}
             </p>
@@ -332,17 +332,17 @@ export default function SearchResultsSheet({ open, city, onClose }) {
         </div>
 
         <div className="px-8">
-          <div className="relative mx-auto max-w-[420px] rounded-2xl bg-slate-100 p-1">
+          <div className="relative mx-auto max-w-[420px] rounded-2xl bg-[#E9ECE7] dark:bg-[#252B27] p-1 border border-[#E1E5DF] dark:border-[#303832]">
             <div
-              className="absolute inset-y-1 start-1 w-[calc(50%-4px)] rounded-xl bg-green-500 shadow-[0_6px_18px_rgba(22,163,74,0.4)] transition-transform duration-300 ease-out"
+              className="absolute inset-y-1 start-1 w-[calc(50%-4px)] rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] shadow-xs transition-transform duration-300 ease-out"
               style={{ transform: `translateX(${tab * (isRtl ? -100 : 100)}%)` }}
             />
             <div className="relative grid grid-cols-2">
               <button
                 type="button"
                 onClick={() => setTab(0)}
-                className={`z-10 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold transition-colors duration-300 ${
-                  tab === 0 ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                className={`z-10 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-black transition-colors duration-300 cursor-pointer ${
+                  tab === 0 ? 'text-[#111313]' : 'text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2]'
                 }`}
               >
                 <FontAwesomeIcon icon={faFutbol} className="size-5" />
@@ -351,8 +351,8 @@ export default function SearchResultsSheet({ open, city, onClose }) {
               <button
                 type="button"
                 onClick={() => setTab(1)}
-                className={`z-10 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold transition-colors duration-300 ${
-                  tab === 1 ? 'text-white' : 'text-slate-600 hover:text-slate-900'
+                className={`z-10 flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-black transition-colors duration-300 cursor-pointer ${
+                  tab === 1 ? 'text-[#111313]' : 'text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2]'
                 }`}
               >
                 <FontAwesomeIcon icon={faFutbol} className="size-5" />
@@ -392,17 +392,17 @@ export default function SearchResultsSheet({ open, city, onClose }) {
             )
           ) : (
             <div className="flex h-full flex-col items-center justify-center py-16 text-center">
-              <FontAwesomeIcon icon={faFutbol} className="size-24 text-slate-200" />
-              <h3 className="mt-6 text-xl font-extrabold text-slate-900">
+              <FontAwesomeIcon icon={faFutbol} className="size-24 text-slate-300 dark:text-slate-700" />
+              <h3 className="mt-6 text-xl font-extrabold text-[#111313] dark:text-[#F5F7F2]">
                 {t('landing.results.empty.title')}
               </h3>
-              <p className="mt-2 max-w-sm text-sm text-slate-500">
+              <p className="mt-2 max-w-sm text-sm text-[#65706A] dark:text-[#B2B9B3]">
                 {t('landing.results.empty.description')}
               </p>
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-8 flex h-12 items-center rounded-2xl bg-green-500 px-7 text-sm font-bold text-white shadow-[0_12px_30px_rgba(22,163,74,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-green-700 active:translate-y-0"
+                className="mt-8 flex h-12 items-center rounded-2xl bg-[#B8F000] dark:bg-[#D0FF38] px-7 text-sm font-black text-[#111313] shadow-md transition-all duration-300 hover:brightness-105 active:scale-95 cursor-pointer"
               >
                 {t('landing.results.empty.button')}
               </button>

@@ -215,16 +215,16 @@ function MobileSearchSheet({ open, onClose, values, onChange, cities, onSearch }
         >
           <div className="h-[6px] w-[70px] rounded-full bg-slate-200" />
         </div>
-        <div className="relative flex items-center justify-between border-b border-slate-100 pb-4">
-          <h3 className="flex items-center gap-2 text-lg font-extrabold text-slate-900">
-            <FontAwesomeIcon icon={faMagnifyingGlass} className="size-5 text-green-600" />
+        <div className="relative flex items-center justify-between border-b border-[#E1E5DF] dark:border-[#303832] pb-4">
+          <h3 className="flex items-center gap-2 text-lg font-extrabold text-[#111313] dark:text-[#F5F7F2]">
+            <FontAwesomeIcon icon={faMagnifyingGlass} className="size-5 text-[#16834A] dark:text-[#D0FF38]" />
             {t('fieldsPage.search.sheetTitle')}
           </h3>
           <button
             type="button"
             onClick={onClose}
             aria-label={t('common.close')}
-            className="grid size-10 place-items-center rounded-full bg-slate-100 text-slate-500 transition hover:rotate-90 hover:text-slate-900"
+            className="grid size-10 place-items-center rounded-full bg-slate-100 dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] transition hover:rotate-90 hover:text-[#111313] dark:hover:text-[#F5F7F2] cursor-pointer"
           >
             <FontAwesomeIcon icon={faXmark} className="size-5" />
           </button>

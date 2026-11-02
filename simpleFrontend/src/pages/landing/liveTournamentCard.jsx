@@ -904,11 +904,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
       {/* 3. شريط آخر النتائج المكتملة (News Results Ticker with Compact Logos & Continuous Loop) */}
       {displayRecent.length > 0 && (
         <div
-          className={`ticker-container mt-2.5 flex items-center gap-2 overflow-hidden rounded-2xl border px-3 py-1.5 transition-colors relative ${
-            isDark
-              ? 'bg-[#14221C] border-emerald-900/40 text-slate-300 shadow-sm'
-              : 'bg-white border-slate-200/80 text-slate-700 shadow-2xs'
-          }`}
+          className="ticker-container mt-2.5 flex items-center gap-2 overflow-hidden rounded-2xl border px-3 py-1.5 transition-colors relative bg-white dark:bg-[#1B201D] border-[#E1E5DF] dark:border-[#303832] text-[#65706A] dark:text-[#B2B9B3] shadow-xs"
           title="مرر الفأرة فوق الشريط للتوقف وقراءة النتائج"
         >
           {/* شارة ثابتة في البداية: آخر النتائج */}
@@ -918,8 +914,8 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
           </div>
 
           {/* تدرج تلاشي ناعم في الأطراف */}
-          <div className={`pointer-events-none absolute inset-y-0 start-[105px] w-6 z-1 ${isDark ? 'bg-gradient-to-l from-transparent to-[#14221C]' : 'bg-gradient-to-l from-transparent to-white'}`} />
-          <div className={`pointer-events-none absolute inset-y-0 end-0 w-8 z-1 ${isDark ? 'bg-gradient-to-r from-transparent to-[#14221C]' : 'bg-gradient-to-r from-transparent to-white'}`} />
+          <div className="pointer-events-none absolute inset-y-0 start-[105px] w-6 z-1 bg-gradient-to-l from-transparent to-white dark:to-[#1B201D]" />
+          <div className="pointer-events-none absolute inset-y-0 end-0 w-8 z-1 bg-gradient-to-r from-transparent to-white dark:to-[#1B201D]" />
 
           {/* المسار المتحرك باستمرار وبسلاسة مع ميزة التوقف عند تمرير الفأرة */}
           <div className="flex-1 overflow-hidden relative">

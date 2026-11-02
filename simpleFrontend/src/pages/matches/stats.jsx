@@ -23,27 +23,27 @@ export default function CommunityStats() {
   const { data } = useApi(() => api.get('/v1/stats').then((r) => r.data))
 
   return (
-    <section className="bg-slate-50 py-[100px] lg:py-[120px]">
+    <section className="bg-[#F7F8F5] dark:bg-[#101211] py-16 sm:py-24">
       <div className="mx-auto max-w-[1400px] px-6">
         <div className="grid grid-cols-2 gap-5 lg:grid-cols-4 lg:gap-7">
           {items.map(({ key, icon: Icon, color, soft, field }, i) => {
             const value = data?.[field]
             return (
               <Reveal key={key} delay={i * 90}>
-                <article className="group relative overflow-hidden rounded-[24px] bg-white p-8 shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_26px_60px_rgba(17,24,39,0.14)]">
+                <article className="group relative overflow-hidden rounded-[24px] bg-white dark:bg-[#1B201D] p-8 shadow-sm border border-[#E1E5DF] dark:border-[#303832] transition-all duration-300 ease-out hover:-translate-y-2">
                   <div
                     aria-hidden="true"
-                    className="absolute -end-10 -top-10 size-32 rounded-full bg-[radial-gradient(circle,rgba(34,197,94,0.12),transparent_70%)] transition-transform duration-500 ease-out group-hover:scale-150"
+                    className="absolute -end-10 -top-10 size-32 rounded-full bg-[radial-gradient(circle,rgba(208,255,56,0.12),transparent_70%)] transition-transform duration-500 ease-out group-hover:scale-150"
                   />
                   <div
-                    className={`grid size-[68px] place-items-center rounded-[20px] transition-transform duration-300 ease-out group-hover:scale-110 ${soft}`}
+                    className={`grid size-[68px] place-items-center rounded-[20px] transition-transform duration-300 ease-out group-hover:scale-110 ${soft} dark:bg-[#252B27]`}
                   >
                     <FontAwesomeIcon icon={Icon} style={{ color }} className="size-8" />
                   </div>
-                  <p className="mt-6 text-4xl font-black tabular-nums text-slate-900">
+                  <p className="mt-6 text-4xl font-black tabular-nums text-[#111313] dark:text-[#D0FF38]">
                     {value == null ? '…' : formatCount(value, i18n.language)}
                   </p>
-                  <p className="mt-1.5 text-sm font-semibold text-slate-500">
+                  <p className="mt-1.5 text-sm font-semibold text-[#65706A] dark:text-[#B2B9B3]">
                     {t(`matchesPage.stats.${key}.label`)}
                   </p>
                 </article>

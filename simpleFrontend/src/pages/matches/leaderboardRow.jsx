@@ -80,43 +80,43 @@ export default function LeaderboardRow({ row }) {
           </div>
         )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-extrabold text-slate-900">{row.name}</p>
-          <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-slate-500 md:hidden">
-            <FontAwesomeIcon icon={faMapPin} className="size-3 shrink-0 text-slate-400" />
+          <p className="truncate text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">{row.name}</p>
+          <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-[#65706A] dark:text-[#B2B9B3] md:hidden">
+            <FontAwesomeIcon icon={faMapPin} className="size-3 shrink-0 text-[#65706A] dark:text-[#B2B9B3]" />
             <span className="truncate">{row.city}</span>
           </p>
         </div>
       </div>
 
-      <span className="hidden items-center gap-1.5 text-sm font-semibold text-slate-500 md:flex">
-        <FontAwesomeIcon icon={faMapPin} className="size-3.5 text-slate-400" />
+      <span className="hidden items-center gap-1.5 text-sm font-semibold text-[#65706A] dark:text-[#B2B9B3] md:flex">
+        <FontAwesomeIcon icon={faMapPin} className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
         {row.city}
       </span>
 
-      <span className="hidden text-center text-sm font-semibold tabular-nums text-slate-600 md:block">
+      <span className="hidden text-center text-sm font-semibold tabular-nums text-slate-600 dark:text-[#F5F7F2] md:block">
         {row.played}
       </span>
-      <span className="hidden text-center text-sm font-semibold tabular-nums text-slate-600 md:block">
+      <span className="hidden text-center text-sm font-semibold tabular-nums text-slate-600 dark:text-[#F5F7F2] md:block">
         {row.wins}
       </span>
-      <span className="hidden text-center text-sm font-semibold tabular-nums text-slate-600 md:block">
+      <span className="hidden text-center text-sm font-semibold tabular-nums text-slate-600 dark:text-[#F5F7F2] md:block">
         {row.goals}
       </span>
 
-      <span className="text-center text-base font-black tabular-nums text-green-600">{row.points}</span>
+      <span className="text-center text-base font-black tabular-nums text-green-600 dark:text-[#D0FF38]">{row.points}</span>
 
       <div className="col-span-3 mt-2.5 md:hidden">
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
+        <div className="flex items-center gap-3 rounded-2xl bg-slate-50 dark:bg-[#252B27] px-3 py-2 ring-1 ring-slate-100 dark:ring-[#303832]">
           {[
             { key: 'played', value: row.played },
             { key: 'wins', value: row.wins },
             { key: 'goals', value: row.goals },
           ].map(({ key, value }, i) => (
             <Fragment key={key}>
-              {i > 0 && <span className="text-[11px] text-slate-300">·</span>}
+              {i > 0 && <span className="text-[11px] text-slate-300 dark:text-[#303832]">·</span>}
               <span className="flex min-w-0 items-baseline gap-1">
-                <span className="text-[13px] font-black tabular-nums text-slate-800">{value}</span>
-                <span className="text-[11px] font-semibold text-slate-400">
+                <span className="text-[13px] font-black tabular-nums text-[#111313] dark:text-[#D0FF38]">{value}</span>
+                <span className="text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3]">
                   {t(`matchesPage.leaderboard.${key}`)}
                 </span>
               </span>

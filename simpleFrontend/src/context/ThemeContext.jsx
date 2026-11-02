@@ -12,9 +12,29 @@ export function ThemeProvider({ children }) {
     try {
       const saved = localStorage.getItem('aji_theme')
       if (saved === 'light' || saved === 'dark') return saved
+      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        return 'dark'
+      }
     } catch {}
     return 'light'
   })
+
+  useEffect(() => {
+    try {
+      const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)')
+      if (!mq) return
+      const handler = (e) => {
+        try {
+          const saved = localStorage.getItem('aji_theme')
+          if (!saved) {
+            setThemeState(e.matches ? 'dark' : 'light')
+          }
+        } catch {}
+      }
+      mq.addEventListener('change', handler)
+      return () => mq.removeEventListener('change', handler)
+    } catch {}
+  }, [])
 
   useEffect(() => {
     try {

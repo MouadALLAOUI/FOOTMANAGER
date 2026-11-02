@@ -14,11 +14,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, isDark }) {
 
   return (
     <article
-      className={`group w-[260px] sm:w-[290px] shrink-0 snap-start flex flex-col justify-between overflow-hidden rounded-2xl border transition-all hover:scale-[1.01] ${
-        isDark
-          ? 'bg-[#121E33]/90 border-slate-700/60 shadow-md'
-          : 'bg-white border-slate-200/90 shadow-sm'
-      }`}
+      className="group w-[260px] sm:w-[290px] shrink-0 snap-start flex flex-col justify-between overflow-hidden rounded-2xl border transition-all hover:scale-[1.01] bg-[#F7F8F5] dark:bg-[#252B27] border-[#E1E5DF] dark:border-[#303832] shadow-xs"
     >
       {/* Thumbnail Banner */}
       <div className="relative h-[140px] overflow-hidden bg-slate-800">
@@ -128,21 +124,21 @@ export default function AvailableFields({ theme = 'dark' }) {
 
   return (
     <section id="fields" aria-labelledby="fields-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-6 sm:my-8">
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800/80 bg-[#0F172A] p-5 sm:p-7 text-white shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 sm:p-7 text-[#111313] dark:text-[#F5F7F2] shadow-sm">
         {/* Section Header */}
-        <header className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-800 pb-4 mb-5">
+        <header className="flex flex-wrap items-end justify-between gap-3 border-b border-[#E1E5DF] dark:border-[#303832] pb-4 mb-5">
           <div>
-            <h2 id="fields-heading" className="text-xl sm:text-2xl font-black text-white">
+            <h2 id="fields-heading" className="text-xl sm:text-2xl font-black text-[#111313] dark:text-[#F5F7F2]">
               ملاعب القرب المتاحة للحجز
             </h2>
-            <p className="mt-1 text-xs sm:text-sm font-semibold text-slate-300">
+            <p className="mt-1 text-xs sm:text-sm font-semibold text-[#65706A] dark:text-[#B2B9B3]">
               اختر الملعب الأنسب لفريقك واحجز توقيتك المفضل بسهولة وسرعة
             </p>
           </div>
 
           <Link
             to="/stadiums"
-            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-black text-emerald-400 hover:text-emerald-300 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-black text-[#16834A] dark:text-[#D0FF38] hover:underline transition-colors"
           >
             <span>عرض كافة الملاعب</span>
             <ArrowUpRight className="size-4" />

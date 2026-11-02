@@ -19,12 +19,21 @@ function formatArabicDate(dateStr) {
 
 function getSingleStatus(tour) {
   if (tour.status === 'open_for_registration' || tour.registration_open || tour.status === 'open') {
-    return { label: 'مفتوحة', style: 'bg-emerald-100 text-emerald-800 border-emerald-300' }
+    return {
+      label: 'مفتوحة',
+      style: 'bg-emerald-100 dark:bg-[#D0FF38]/20 text-emerald-800 dark:text-[#D0FF38] border-emerald-300 dark:border-[#D0FF38]/40',
+    }
   }
   if (tour.status === 'upcoming' || tour.status === 'draft') {
-    return { label: 'قريباً', style: 'bg-sky-100 text-sky-800 border-sky-300' }
+    return {
+      label: 'قريباً',
+      style: 'bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-300 border-sky-300 dark:border-sky-500/40',
+    }
   }
-  return { label: 'مغلقة', style: 'bg-slate-200 text-slate-800 border-slate-300' }
+  return {
+    label: 'مغلقة',
+    style: 'bg-slate-200 dark:bg-[#252B27] text-slate-800 dark:text-[#B2B9B3] border-slate-300 dark:border-[#303832]',
+  }
 }
 
 export default function TournamentCard({ tournament: tour, className = '' }) {

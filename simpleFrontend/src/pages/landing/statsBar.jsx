@@ -51,8 +51,6 @@ export default function StatsBar({ theme = 'dark' }) {
     return null
   }
 
-  const isDark = theme === 'dark' || document.documentElement.classList.contains('dark')
-
   const gridColsClass =
     activeItems.length === 3
       ? 'grid-cols-3'
@@ -63,25 +61,17 @@ export default function StatsBar({ theme = 'dark' }) {
   return (
     <section aria-label="إحصائيات المنصة" className="relative z-0 mx-auto w-full max-w-4xl px-4 sm:px-6 -mt-6 mb-4 sm:mb-6">
       <div
-        className={`grid ${gridColsClass} divide-x divide-x-reverse rounded-2xl border p-3 sm:p-5 transition-all shadow-xl ${
-          isDark
-            ? 'bg-[#14221C] border-emerald-900/50 divide-emerald-900/40 text-slate-100'
-            : 'bg-white border-slate-200 divide-slate-200 text-slate-900'
-        }`}
+        className={`grid ${gridColsClass} divide-x divide-x-reverse rounded-2xl border p-3 sm:p-5 transition-all shadow-sm bg-white dark:bg-[#1B201D] border-[#E1E5DF] dark:border-[#303832] divide-[#E1E5DF] dark:divide-[#303832] text-[#111313] dark:text-[#F5F7F2]`}
       >
         {activeItems.map((item) => (
           <div key={item.key} className="flex flex-col items-center justify-center text-center px-2">
             <span
-              className={`text-2xl sm:text-3xl md:text-4xl font-black font-mono tabular-nums ${
-                isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'
-              }`}
+              className="text-2xl sm:text-3xl md:text-4xl font-black font-mono tabular-nums text-[#111313] dark:text-[#F5F7F2]"
             >
               {item.value}
             </span>
             <span
-              className={`mt-1 text-xs sm:text-sm font-black whitespace-nowrap ${
-                isDark ? 'text-[#D0FF38]' : 'text-[#16834A]'
-              }`}
+              className="mt-1 text-xs sm:text-sm font-black whitespace-nowrap text-[#16834A] dark:text-[#D0FF38]"
             >
               {item.label}
             </span>

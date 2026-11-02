@@ -43,14 +43,10 @@ export default function MascotFaq({ theme = 'dark' }) {
   return (
     <section aria-labelledby="faq-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-6 sm:my-8">
       <div
-        className={`relative overflow-hidden rounded-3xl border p-5 sm:p-8 transition-all ${
-          isDark
-            ? 'bg-[#14221C] border-emerald-900/50 shadow-2xl ring-1 ring-emerald-500/15'
-            : 'bg-white border-slate-200/90 shadow-xl ring-1 ring-emerald-500/10'
-        }`}
+        className="relative overflow-hidden rounded-3xl border p-5 sm:p-8 transition-all bg-white dark:bg-[#1B201D] border-[#E1E5DF] dark:border-[#303832] shadow-sm"
       >
         {/* Header with Official Genie Mascot */}
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-6 border-b border-slate-700/25 text-center sm:text-start">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-6 border-b border-[#E1E5DF] dark:border-[#303832] text-center sm:text-start">
           <div className="relative">
             <GenieMascot size={64} animated />
             <span className="absolute bottom-0 end-0 size-3 rounded-full bg-[#B8F000] dark:bg-[#D0FF38] ring-2 ring-[#111313]" />
@@ -63,11 +59,11 @@ export default function MascotFaq({ theme = 'dark' }) {
             </div>
             <h2
               id="faq-heading"
-              className={`text-xl sm:text-2xl font-black ${isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'}`}
+              className="text-xl sm:text-2xl font-black text-[#111313] dark:text-[#F5F7F2]"
             >
               الأسئلة الشائعة وإرشادات المنصة
             </h2>
-            <p className="mt-1 text-xs sm:text-sm font-semibold text-slate-400">
+            <p className="mt-1 text-xs sm:text-sm font-semibold text-[#65706A] dark:text-[#B2B9B3]">
               كل ما تحتاج لمعرفته حول حجز الملاعب، تنظيم المباريات، والمشاركة في البطولات المحلية.
             </p>
           </div>
@@ -82,12 +78,8 @@ export default function MascotFaq({ theme = 'dark' }) {
                 key={item.id}
                 className={`overflow-hidden rounded-2xl border transition-all ${
                   isOpen
-                    ? isDark
-                      ? 'border-emerald-500/40 bg-[#121E33]/90 shadow-md ring-1 ring-emerald-500/20'
-                      : 'border-emerald-400 bg-emerald-50/40 shadow-sm ring-1 ring-emerald-500/20'
-                    : isDark
-                      ? 'border-slate-800/80 bg-slate-900/40 hover:bg-slate-900/70'
-                      : 'border-slate-200 bg-slate-50/80 hover:bg-slate-100/60'
+                    ? 'border-[#B8F000] dark:border-[#D0FF38]/50 bg-[#E9ECE7]/60 dark:bg-[#252B27] shadow-sm'
+                    : 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#1B201D] hover:bg-[#E9ECE7] dark:hover:bg-[#252B27]'
                 }`}
               >
                 <button
@@ -96,16 +88,14 @@ export default function MascotFaq({ theme = 'dark' }) {
                   aria-expanded={isOpen}
                   className="flex w-full items-center justify-between gap-3 p-4 text-start font-black text-xs sm:text-sm transition-colors cursor-pointer"
                 >
-                  <span className={isOpen ? 'text-[#16834A] dark:text-[#D0FF38] font-black' : isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'}>
+                  <span className={isOpen ? 'text-[#16834A] dark:text-[#D0FF38] font-black' : 'text-[#111313] dark:text-[#F5F7F2]'}>
                     {item.question}
                   </span>
                   <span
                     className={`grid size-7 shrink-0 place-items-center rounded-xl transition-transform duration-300 ${
                       isOpen
-                        ? 'rotate-180 bg-emerald-500 text-white'
-                        : isDark
-                          ? 'bg-slate-800 text-slate-400'
-                          : 'bg-slate-200 text-slate-600'
+                        ? 'rotate-180 bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313]'
+                        : 'bg-[#E9ECE7] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3]'
                     }`}
                   >
                     <ChevronDown className="size-4" />
@@ -113,11 +103,11 @@ export default function MascotFaq({ theme = 'dark' }) {
                 </button>
 
                 {isOpen && (
-                  <div className="px-4 pb-4 pt-1 text-xs sm:text-sm leading-relaxed border-t border-slate-700/20 flex items-start gap-3">
+                  <div className="px-4 pb-4 pt-1 text-xs sm:text-sm leading-relaxed border-t border-[#E1E5DF] dark:border-[#303832] flex items-start gap-3">
                     <div className="mt-1 shrink-0">
                       <GenieMascot size={22} border={false} />
                     </div>
-                    <p className={`mt-0.5 ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <p className="mt-0.5 text-[#65706A] dark:text-[#B2B9B3]">
                       {item.answer}
                     </p>
                   </div>

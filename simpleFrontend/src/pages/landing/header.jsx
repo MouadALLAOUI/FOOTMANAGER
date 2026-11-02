@@ -61,8 +61,8 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
           ? 'relative z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] bg-transparent border-b border-white/10 text-white'
           : `sticky top-0 z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] ${
               isDark
-                ? 'bg-[#14221C] border-b border-emerald-900/50 shadow-sm'
-                : 'bg-white border-b border-slate-200/80 shadow-sm'
+                ? 'bg-[#1B201D] border-b border-[#303832] shadow-sm'
+                : 'bg-white border-b border-[#E1E5DF] shadow-sm'
             }`
       }`}
     >
@@ -115,8 +115,8 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                 transparent
                   ? 'border-white/20 bg-white/10 text-white hover:bg-white/20 backdrop-blur-xs'
                   : isDark
-                  ? 'border-emerald-900/50 bg-[#14221C] text-slate-300 hover:bg-emerald-900/30 hover:text-white'
-                  : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                  ? 'border-[#303832] bg-[#252B27] text-[#B2B9B3] hover:text-[#F5F7F2]'
+                  : 'border-[#E1E5DF] bg-[#E9ECE7] text-[#111313] hover:text-black'
               }`}
             >
               <Bell className="size-4.5" />
@@ -174,8 +174,8 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                   role="menu"
                   className={`fade-in absolute end-0 top-12 z-[var(--z-drawer)] w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border p-2 shadow-xl ${
                     isDark
-                      ? 'border-emerald-900/50 bg-[#14221C] text-white shadow-black/90'
-                      : 'border-slate-200 bg-white text-slate-900 shadow-xl'
+                      ? 'border-[#303832] bg-[#1B201D] text-[#F5F7F2] shadow-black/90'
+                      : 'border-[#E1E5DF] bg-white text-[#111313] shadow-xl'
                   }`}
                 >
                   {/* User Profile Header */}
@@ -184,7 +184,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                       <div>
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-black truncate">{user.name}</p>
-                          <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black text-emerald-400">
+                          <span className="rounded-full bg-[#B8F000]/20 dark:bg-[#D0FF38]/20 border border-[#B8F000]/40 dark:border-[#D0FF38]/40 px-2 py-0.5 text-[10px] font-black text-[#111313] dark:text-[#D0FF38]">
                             {user.role === 'admin'
                               ? 'مدير المنصة'
                               : user.role === 'manager'
@@ -194,7 +194,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                               : 'لاعب'}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                        <p className="text-[11px] text-[#65706A] dark:text-[#B2B9B3] mt-0.5 truncate">
                           {user.email || user.phone}
                         </p>
                       </div>
@@ -202,7 +202,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                       <div className="flex items-center justify-between gap-2">
                         <div>
                           <p className="text-xs font-black">مرحباً بك في أجي نقصرو!</p>
-                          <p className="text-[10px] text-slate-400">سجّل دخولك للوصول إلى فريقك</p>
+                          <p className="text-[10px] text-[#65706A] dark:text-[#B2B9B3]">سجّل دخولك للوصول إلى فريقك</p>
                         </div>
                       </div>
                     )}
@@ -217,8 +217,8 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         onClick={() => setAccountMenuOpen(false)}
                         className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition-colors ${
                           isDark
-                            ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                            : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                            ? 'bg-[#B8F000]/20 text-[#D0FF38] hover:bg-[#B8F000]/30'
+                            : 'bg-[#B8F000]/25 text-[#111313] hover:bg-[#B8F000]/35'
                         }`}
                       >
                         <div className="flex items-center gap-2.5">
@@ -236,7 +236,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         if (handleToggle) handleToggle()
                       }}
                       className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer ${
-                        isDark ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                        isDark ? 'hover:bg-[#252B27] text-[#B2B9B3]' : 'hover:bg-[#E9ECE7] text-[#65706A]'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
@@ -247,7 +247,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         )}
                         <span>{isDark ? 'الوضع النهاري' : 'الوضع الداكن'}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400">
+                      <span className="text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
                         {isDark ? 'مُفعّل' : 'مُعطّل'}
                       </span>
                     </button>
@@ -260,21 +260,21 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         triggerPwaInstall()
                       }}
                       className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer ${
-                        isDark ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
+                        isDark ? 'hover:bg-[#252B27] text-[#B2B9B3]' : 'hover:bg-[#E9ECE7] text-[#65706A]'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <Smartphone className="size-4 text-emerald-400" />
+                        <Smartphone className="size-4 text-[#16834A] dark:text-[#D0FF38]" />
                         <span>{isStandalone() ? 'التطبيق مُثبّت بنجاح' : 'ثبّت التطبيق'}</span>
                       </div>
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-md font-bold">
+                      <span className="text-[10px] bg-[#B8F000]/20 dark:bg-[#D0FF38]/20 text-[#111313] dark:text-[#D0FF38] px-1.5 py-0.5 rounded-md font-bold">
                         {isStandalone() ? 'جاهز' : 'PWA'}
                       </span>
                     </button>
 
                     {/* Guest Options */}
                     {!user && (
-                      <div className="pt-2 border-t border-slate-700/30 space-y-1.5">
+                      <div className="pt-2 border-t border-[#E1E5DF] dark:border-[#303832] space-y-1.5">
                         <Link
                           to="/register-player"
                           onClick={() => setAccountMenuOpen(false)}
@@ -310,11 +310,11 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
 
                     {/* Logout Option */}
                     {user && (
-                      <div className="pt-2 border-t border-slate-700/30">
+                      <div className="pt-2 border-t border-[#E1E5DF] dark:border-[#303832]">
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-[#D93636] dark:text-[#FF6868] hover:bg-rose-500/10 transition-colors cursor-pointer"
                         >
                           <LogOut className="size-4" />
                           <span>تسجيل الخروج</span>

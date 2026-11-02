@@ -57,22 +57,22 @@ function FieldCard({ card, liked, onToggleLike, onBook, variant }) {
           {card.reviews > 0 && (
             <span className="flex items-center gap-1.5">
               <FontAwesomeIcon icon={faStar} className="size-4 text-amber-400" />
-              <span className="text-sm font-bold text-slate-800">{card.rating}</span>
-              <span className="text-xs text-slate-400">({formatCount(card.reviews, i18n.language)})</span>
+              <span className="text-sm font-bold text-amber-500 dark:text-amber-400">{card.rating}</span>
+              <span className="text-xs text-[#65706A] dark:text-[#B2B9B3]">({formatCount(card.reviews, i18n.language)})</span>
             </span>
           )}
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-600">
+          <span className="rounded-full bg-slate-100 dark:bg-[#252B27] px-3 py-1 text-[11px] font-bold text-slate-600 dark:text-[#B2B9B3]">
             {t(`fieldsPage.search.types.${card.type}`)}
           </span>
         </div>
 
         <h3 className="mt-2 truncate text-base font-black text-[#111313] dark:text-[#F5F7F2]">{card.name}</h3>
-        <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-          <FontAwesomeIcon icon={faMapPin} className="size-3.5 text-slate-400" />
+        <p className="mt-1 flex items-center gap-1.5 text-sm text-[#65706A] dark:text-[#B2B9B3]">
+          <FontAwesomeIcon icon={faMapPin} className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
           {card.city}
         </p>
-        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-600">
-          <FontAwesomeIcon icon={faClock} className="size-3.5 text-slate-400" />
+        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-[#65706A] dark:text-[#B2B9B3]">
+          <FontAwesomeIcon icon={faClock} className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
           {card.isOpen ? t('fieldsPage.card.openNow') : t('fieldsPage.card.closed')}
         </p>
 
@@ -81,7 +81,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, variant }) {
             <p className="text-lg font-black text-[#16834A] dark:text-[#D0FF38]">
               {formatCount(card.price, i18n.language)} <span className="text-sm font-semibold">{t('fieldsPage.card.currency')}</span>
             </p>
-            <p className="mt-0.5 text-xs text-slate-400">{t('fieldsPage.card.perHour')}</p>
+            <p className="mt-0.5 text-xs text-[#65706A] dark:text-[#B2B9B3]">{t('fieldsPage.card.perHour')}</p>
           </div>
           <button
             type="button"

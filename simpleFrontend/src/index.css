@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* * {
   user-select: none;
   --moz-user-select: none;
@@ -155,6 +157,51 @@ body {
   color: var(--text-main);
   max-width: 100%;
   overflow-x: clip;
+}
+
+/* ==========================================================================
+   Global Dark Mode Legibility & Contrast System
+   Guarantees zero invisible/black text across all pages in Dark Mode.
+   - Highlights KPI numbers, statistics, scores and key indicators in Brand Lime (#D0FF38)
+   - Converts hardcoded black/slate-900 texts without dark: variants into crisp white (#F5F7F2)
+   - Converts hardcoded muted texts into soft readable gray (#B2B9B3)
+   ========================================================================== */
+
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: var(--text-main);
+}
+
+/* Hardcoded dark/black text overrides in dark mode */
+.dark .text-black:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]):not([class*="bg-amber-"]):not([class*="bg-yellow-"]),
+.dark .text-slate-950:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-slate-900:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-slate-800:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-gray-900:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-gray-800:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-zinc-900:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-zinc-800:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-\[\#111313\]:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]) {
+  color: var(--text-main) !important;
+}
+
+/* Hardcoded secondary/muted text overrides in dark mode */
+.dark .text-slate-700:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-slate-600:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-gray-700:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-gray-600:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]),
+.dark .text-\[\#65706A\]:not([class*="dark:text-"]):not([class*="bg-\[#B8F000\]"]):not([class*="bg-\[#D0FF38\]"]):not([class*="bg-lime"]):not([class*="btn-primary-lime"]) {
+  color: var(--text-muted) !important;
+}
+
+/* Highlighted numbers, statistics and scores in dark mode */
+.dark .kpi-number,
+.dark .stat-highlight {
+  color: var(--brand-lime) !important;
 }
 
 .sr-only {

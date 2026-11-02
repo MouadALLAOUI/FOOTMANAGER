@@ -15,21 +15,21 @@ export default function FeaturedTournaments({ tournaments }) {
     <section id="featured-tournaments" aria-label={t('public.tournaments.upcoming.title', 'البطولات المميزة والقادمة')}>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="flex items-center gap-1.5 text-xs font-black text-green-600">
+          <div className="flex items-center gap-1.5 text-xs font-black text-[#16834A] dark:text-[#D0FF38]">
             <Sparkles className="size-3.5" />
             <span>{t('public.tournaments.upcoming.eyebrow', 'أبرز المسابقات')}</span>
           </div>
-          <h2 className="mt-1 text-xl font-black text-slate-900 md:text-2xl">
+          <h2 className="mt-1 text-xl font-black text-[#111313] dark:text-[#D0FF38] md:text-2xl">
             {t('public.tournaments.upcoming.title', 'البطولات المميزة والقادمة')}
           </h2>
-          <p className="mt-1 text-xs font-semibold text-slate-500">
+          <p className="mt-1 text-xs font-semibold text-[#65706A] dark:text-[#B2B9B3]">
             {t('public.tournaments.upcoming.subtitle', 'بطولات مفتوحة للتسجيل أو جارية حالياً')}
           </p>
         </div>
         <button
           type="button"
           onClick={() => document.getElementById('tournaments-directory')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          className="inline-flex items-center gap-1.5 text-xs font-black text-green-600 transition-colors hover:text-green-700"
+          className="inline-flex items-center gap-1.5 text-xs font-black text-[#16834A] dark:text-[#D0FF38] transition-colors hover:brightness-110 cursor-pointer"
         >
           {t('public.tournaments.upcoming.viewAll', 'عرض جميع البطولات')}
           <ArrowRight className="size-3.5 rtl:rotate-180" />
@@ -46,7 +46,7 @@ export default function FeaturedTournaments({ tournaments }) {
             <Link
               key={tour.id}
               to={`/tournaments/${tour.slug || tour.id}`}
-              className="group flex w-[86%] shrink-0 snap-start flex-col overflow-hidden rounded-[24px] border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-green-500/40 hover:shadow-[0_18px_40px_rgba(15,23,42,0.12)] sm:w-80"
+              className="group flex w-[86%] shrink-0 snap-start flex-col overflow-hidden rounded-[24px] border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-xs transition-all duration-300 hover:-translate-y-1 sm:w-80"
             >
               <div
                 className="relative flex h-24 items-center justify-between overflow-hidden px-4"
@@ -131,11 +131,11 @@ export default function FeaturedTournaments({ tournaments }) {
                   )}
                 </div>
 
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                  <span className="text-[11px] font-bold text-slate-400">
+                <div className="mt-3 flex items-center justify-between border-t border-[#E1E5DF] dark:border-[#303832] pt-3">
+                  <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
                     {tour.organizer?.name ? `${t('public.tournaments.organizer', 'المنظم')}: ${tour.organizer.name}` : ''}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-xs font-black text-green-600 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform">
+                  <span className="inline-flex items-center gap-1 text-xs font-black text-[#16834A] dark:text-[#D0FF38] group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5 transition-transform">
                     {t('public.tournaments.viewDetails', 'تفاصيل البطولة')}
                     <ArrowRight className="size-3.5 rtl:rotate-180" />
                   </span>

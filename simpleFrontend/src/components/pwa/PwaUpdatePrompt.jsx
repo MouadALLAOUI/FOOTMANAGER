@@ -38,16 +38,16 @@ export default function PwaUpdatePrompt() {
   return (
     <div
       role="alert"
-      className="fixed bottom-20 sm:bottom-6 start-4 end-4 sm:start-auto sm:end-6 z-[var(--z-toast)] max-w-sm rounded-2xl bg-gradient-to-r from-[#0F3D2E] to-[#144837] border border-emerald-500/40 p-3.5 shadow-2xl backdrop-blur-md text-white animate-bounce-in"
+      className="fixed bottom-20 sm:bottom-6 start-4 end-4 sm:start-auto sm:end-6 z-[var(--z-toast)] max-w-sm rounded-2xl bg-[#1B201D] border border-[#303832] p-3.5 shadow-2xl backdrop-blur-md text-[#F5F7F2] animate-bounce-in"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-300">
+          <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-[#D0FF38]/20 text-[#D0FF38]">
             <Sparkles className="size-4" />
           </span>
           <div>
-            <p className="text-xs font-black">تحديث جديد متوفر</p>
-            <p className="text-[11px] text-emerald-200/80">نسخة محسنة وجديدة من أجي نقصرو</p>
+            <p className="text-xs font-black text-[#F5F7F2]">تحديث جديد متوفر</p>
+            <p className="text-[11px] text-[#B2B9B3]">نسخة محسنة وجديدة من أجي نقصرو</p>
           </div>
         </div>
 
@@ -56,7 +56,7 @@ export default function PwaUpdatePrompt() {
             type="button"
             onClick={handleApplyUpdate}
             disabled={updating}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-3 py-1.5 text-xs font-black text-white shadow-md shadow-emerald-500/30 transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-3 py-1.5 text-xs font-black text-[#111313] shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
           >
             <RefreshCw className={`size-3.5 ${updating ? 'animate-spin' : ''}`} />
             <span>{updating ? 'جارٍ التحديث...' : 'حدّث الآن'}</span>
@@ -65,7 +65,7 @@ export default function PwaUpdatePrompt() {
             type="button"
             onClick={() => setUpdateAvailable(false)}
             aria-label="إغلاق"
-            className="grid size-7 place-items-center rounded-lg text-emerald-300/70 hover:text-white hover:bg-emerald-800/40 cursor-pointer"
+            className="grid size-7 place-items-center rounded-lg text-[#B2B9B3] hover:text-[#F5F7F2] hover:bg-[#252B27] cursor-pointer"
           >
             <X className="size-3.5" />
           </button>

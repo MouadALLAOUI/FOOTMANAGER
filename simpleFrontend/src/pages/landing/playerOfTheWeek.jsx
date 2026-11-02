@@ -108,7 +108,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
         <div className="flex items-center justify-between gap-2 sm:gap-4 py-2.5 border-y border-[#E1E5DF] dark:border-[#303832]">
           <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             {/* Player Avatar with native #1 Golden Badge */}
-            <div className="relative size-16 sm:size-20 shrink-0 rounded-2xl bg-[#0F291E] border-2 border-emerald-400 shadow-md overflow-hidden flex items-center justify-center">
+            <div className="relative size-16 sm:size-20 shrink-0 rounded-2xl bg-[#E9ECE7] dark:bg-[#252B27] border-2 border-[#B8F000] dark:border-[#D0FF38] shadow-md overflow-hidden flex items-center justify-center">
               <img
                 src={photoUrl}
                 alt={playerName}

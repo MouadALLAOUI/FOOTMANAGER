@@ -68,7 +68,7 @@ export default function Landing() {
         {/* 5. Luxury Match Card & Real Results Ticker (Designated Dark Section) */}
         <LiveTournamentCard theme={theme} />
 
-        {/* 6. Featured Tournaments (Light Section with high contrast #14221C headers) */}
+        {/* 6. Featured Tournaments */}
         <Tournaments theme={theme} />
 
         {/* 7. Available Fields Carousel (Designated Dark Section with integer prices & clear contact rules) */}

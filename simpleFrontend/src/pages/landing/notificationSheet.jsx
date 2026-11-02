@@ -356,8 +356,8 @@ export default function NotificationSheet({
         aria-label="قائمة التنبيهات والإشعارات"
         className={`fixed inset-x-0 bottom-0 z-[var(--z-modal)] flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-[28px] border-t shadow-2xl transition-all sm:absolute sm:inset-auto sm:end-0 sm:top-14 sm:max-h-[520px] sm:w-[380px] sm:rounded-3xl sm:border sm:shadow-2xl ${
           isDark
-            ? 'border-emerald-900/50 bg-[#14221C] text-white shadow-black/80'
-            : 'border-slate-200 bg-white text-slate-900 shadow-xl'
+            ? 'border-[#303832] bg-[#1B201D] text-[#F5F7F2] shadow-black/80'
+            : 'border-[#E1E5DF] bg-white text-[#111313] shadow-xl'
         }`}
       >
         {/* مقبض السحب للجوال */}
@@ -368,7 +368,7 @@ export default function NotificationSheet({
         {/* ترويسة القائمة */}
         <div
           className={`flex items-center justify-between border-b px-4 py-3 sm:px-5 ${
-            isDark ? 'border-emerald-900/40 bg-[#14221C]/80' : 'border-slate-100 bg-slate-50/80'
+            isDark ? 'border-[#303832] bg-[#252B27]' : 'border-[#E1E5DF] bg-[#E9ECE7]/80'
           }`}
         >
           <div className="flex items-center gap-2">
@@ -389,7 +389,9 @@ export default function NotificationSheet({
                 type="button"
                 onClick={handleMarkAllRead}
                 disabled={markingAll}
-                className="flex items-center gap-1.5 rounded-xl px-2 py-1 text-[11px] font-bold text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/20 transition-colors cursor-pointer"
+                className={`flex items-center gap-1.5 rounded-xl px-2 py-1 text-[11px] font-bold transition-colors cursor-pointer ${
+                  isDark ? 'text-[#D0FF38] hover:bg-[#D0FF38]/10' : 'text-[#16834A] hover:bg-[#B8F000]/20'
+                }`}
               >
                 <CheckCheck className="size-3.5" />
                 <span>تعليم الكل كمقروء</span>
@@ -400,7 +402,7 @@ export default function NotificationSheet({
               onClick={onClose}
               aria-label="إغلاق الإشعارات"
               className={`grid size-7 place-items-center rounded-xl transition-colors sm:hidden ${
-                isDark ? 'text-slate-400 hover:bg-emerald-900/30 hover:text-white' : 'text-slate-500 hover:bg-slate-100'
+                isDark ? 'text-[#B2B9B3] hover:bg-[#252B27] hover:text-white' : 'text-[#65706A] hover:bg-[#E9ECE7]'
               }`}
             >
               <X className="size-4" />
@@ -409,7 +411,7 @@ export default function NotificationSheet({
         </div>
 
         {/* جسم الإشعارات */}
-        <div className="flex-1 overflow-y-auto divide-y divide-emerald-900/20 overscroll-contain">
+        <div className="flex-1 overflow-y-auto divide-y divide-[#E1E5DF] dark:divide-[#303832] overscroll-contain">
           {isInitialLoading ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-slate-400">
               <Loader2 className="size-6 animate-spin text-emerald-500" />
@@ -420,16 +422,16 @@ export default function NotificationSheet({
             <div className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
               <div
                 className={`grid size-14 place-items-center rounded-2xl ${
-                  isDark ? 'bg-emerald-950/40 text-emerald-500/70 border border-emerald-900/30' : 'bg-slate-100 text-slate-400'
+                  isDark ? 'bg-[#252B27] text-[#D0FF38] border border-[#303832]' : 'bg-[#E9ECE7] text-[#65706A]'
                 }`}
               >
                 <BellOff className="size-7" />
               </div>
               <div className="space-y-1">
-                <p className={`text-sm font-black ${isDark ? 'text-white' : 'text-slate-800'}`}>
+                <p className={`text-sm font-black ${isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'}`}>
                   ما عندك حتى إشعار دابا.
                 </p>
-                <p className="text-[11px] text-slate-400 max-w-[240px] leading-relaxed">
+                <p className="text-[11px] text-[#65706A] dark:text-[#B2B9B3] max-w-[240px] leading-relaxed">
                   أي جديد على مبارياتك وتحدياتك وحجوزات الملاعب غادي يوصلك هنا مباشرة.
                 </p>
               </div>
@@ -439,13 +441,13 @@ export default function NotificationSheet({
               {/* قسم: اليوم */}
               {today.length > 0 && (
                 <div className="pt-2">
-                  <div className="flex items-center justify-between px-4 py-1.5 text-[11px] font-black text-emerald-400">
+                  <div className="flex items-center justify-between px-4 py-1.5 text-[11px] font-black text-[#16834A] dark:text-[#D0FF38]">
                     <span>اليوم</span>
-                    <span className="text-[10px] font-bold text-slate-500">
+                    <span className="text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
                       {today.length} إشعار
                     </span>
                   </div>
-                  <div className="divide-y divide-emerald-900/10">
+                  <div className="divide-y divide-[#E1E5DF] dark:divide-[#303832]">
                     {today.map((n) => (
                       <NotificationRow
                         key={n.id}
@@ -463,15 +465,15 @@ export default function NotificationSheet({
                 <div className="pt-2">
                   <div
                     className={`flex items-center justify-between px-4 py-1.5 text-[11px] font-black ${
-                      isDark ? 'text-slate-400' : 'text-slate-500'
+                      isDark ? 'text-[#B2B9B3]' : 'text-[#65706A]'
                     }`}
                   >
                     <span>سابقًا</span>
-                    <span className="text-[10px] font-bold text-slate-500">
+                    <span className="text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
                       {earlier.length} إشعار
                     </span>
                   </div>
-                  <div className="divide-y divide-emerald-900/10">
+                  <div className="divide-y divide-[#E1E5DF] dark:divide-[#303832]">
                     {earlier.map((n) => (
                       <NotificationRow
                         key={n.id}
@@ -493,8 +495,8 @@ export default function NotificationSheet({
                     disabled={isFetching}
                     className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                       isDark
-                        ? 'bg-emerald-900/30 text-emerald-300 hover:bg-emerald-900/50 border border-emerald-800/40'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-[#252B27] text-[#F5F7F2] hover:bg-[#303832] border border-[#303832]'
+                        : 'bg-[#E9ECE7] text-[#111313] hover:bg-[#E1E5DF]'
                     }`}
                   >
                     {isFetching ? (
@@ -537,11 +539,11 @@ function NotificationRow({ notification, isDark, onClick }) {
       className={`group relative flex w-full items-start gap-3 p-3.5 text-start transition-colors cursor-pointer ${
         n.is_read
           ? isDark
-            ? 'hover:bg-emerald-950/20'
-            : 'hover:bg-slate-50'
+            ? 'hover:bg-[#252B27]'
+            : 'hover:bg-[#F7F8F5]'
           : isDark
-          ? 'bg-emerald-950/30 hover:bg-emerald-950/50'
-          : 'bg-emerald-50/60 hover:bg-emerald-50'
+          ? 'bg-[#252B27]/70 hover:bg-[#252B27]'
+          : 'bg-[#B8F000]/15 hover:bg-[#B8F000]/25'
       }`}
     >
       {/* الأيقونة المعبرة */}
@@ -554,17 +556,17 @@ function NotificationRow({ notification, isDark, onClick }) {
         <div className="flex items-center justify-between gap-2">
           <p
             className={`truncate text-xs font-extrabold ${
-              isDark ? 'text-white' : 'text-slate-900'
+              isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'
             }`}
           >
             {n.title}
           </p>
 
-          {/* نقطة تمييز غير المقروء الخضراء #1F7A4D */}
+          {/* نقطة تمييز غير المقروء الخضراء */}
           {!n.is_read && (
             <span
               className="size-2 shrink-0 rounded-full shadow-xs"
-              style={{ backgroundColor: '#1F7A4D' }}
+              style={{ backgroundColor: isDark ? '#D0FF38' : '#16834A' }}
               title="غير مقروء"
             />
           )}
@@ -573,7 +575,7 @@ function NotificationRow({ notification, isDark, onClick }) {
         {n.body && (
           <p
             className={`mt-0.5 text-[11px] leading-relaxed line-clamp-2 ${
-              isDark ? 'text-slate-300' : 'text-slate-600'
+              isDark ? 'text-[#B2B9B3]' : 'text-[#65706A]'
             }`}
           >
             {n.body}
@@ -581,12 +583,12 @@ function NotificationRow({ notification, isDark, onClick }) {
         )}
 
         <div className="mt-1.5 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-slate-400">
+          <span className="text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
             {formattedTime}
           </span>
           <ChevronLeft
             className={`size-3.5 opacity-0 transition-opacity group-hover:opacity-100 ${
-              isDark ? 'text-emerald-400' : 'text-emerald-600'
+              isDark ? 'text-[#D0FF38]' : 'text-[#16834A]'
             }`}
           />
         </div>

@@ -22,13 +22,23 @@ class TeamController extends Controller
         $perPage = min(100, max(1, (int) $request->query('per_page', 15)));
 
         $query = Team::query()
-            ->with(['manager:id,name,phone,email,status'])
+            ->with(['manager', 'currentManager'])
             ->withCount(['players', 'tournamentTeams as tournaments_count']);
 
         if ($type === 'free') {
-            $query->where('is_free', true);
+            $query->where(function ($q) {
+                $q->where('is_free', true)
+                    ->orWhere(function ($sq) {
+                        $sq->whereNull('manager_id')
+                            ->whereDoesntHave('currentManager');
+                    });
+            });
         } elseif ($type === 'manager') {
-            $query->where('is_free', false);
+            $query->where('is_free', false)
+                ->where(function ($q) {
+                    $q->whereNotNull('manager_id')
+                        ->orWhereHas('currentManager');
+                });
         }
 
         if ($search !== '') {
@@ -37,6 +47,11 @@ class TeamController extends Controller
                     ->orWhere('city', 'like', "%{$search}%")
                     ->orWhere('association_name', 'like', "%{$search}%")
                     ->orWhereHas('manager', function ($mq) use ($search) {
+                        $mq->where('name', 'like', "%{$search}%")
+                            ->orWhere('phone', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('currentManager', function ($mq) use ($search) {
                         $mq->where('name', 'like', "%{$search}%")
                             ->orWhere('phone', 'like', "%{$search}%")
                             ->orWhere('email', 'like', "%{$search}%");
@@ -55,11 +70,24 @@ class TeamController extends Controller
 
         $stats = [
             'total' => Team::query()->count(),
-            'free' => Team::query()->where('is_free', true)->count(),
-            'manager' => Team::query()->where('is_free', false)->count(),
+            'free' => Team::query()->where(function ($q) {
+                $q->where('is_free', true)
+                    ->orWhere(function ($sq) {
+                        $sq->whereNull('manager_id')
+                            ->whereDoesntHave('currentManager');
+                    });
+            })->count(),
+            'manager' => Team::query()->where('is_free', false)->where(function ($q) {
+                $q->whereNotNull('manager_id')
+                    ->orWhereHas('currentManager');
+            })->count(),
         ];
 
         $items = $paginator->getCollection()->map(function (Team $team) {
+            $manager = $team->manager ?? $team->currentManager;
+            $hasManager = $manager !== null;
+            $isFree = (bool) $team->is_free || ! $hasManager;
+
             return [
                 'id' => $team->id,
                 'name' => $team->name,
@@ -68,20 +96,22 @@ class TeamController extends Controller
                 'level' => $team->level,
                 'association_name' => $team->association_name,
                 'logo_url' => $team->logo_url,
-                'is_free' => (bool) $team->is_free,
+                'is_free' => $isFree,
                 'created_at' => $team->created_at?->toIso8601String(),
                 'matches_played' => (int) $team->matches_played,
                 'points' => (int) $team->points,
                 'players_count' => (int) $team->players_count,
                 'tournaments_count' => (int) $team->tournaments_count,
-                'can_delete' => (bool) $team->is_free,
-                'manager' => $team->manager ? [
-                    'id' => $team->manager->id,
-                    'name' => $team->manager->name,
-                    'phone' => $team->manager->phone,
-                    'email' => $team->manager->email,
-                    'status' => $team->manager->status,
+                'can_delete' => $isFree,
+                'manager' => $manager ? [
+                    'id' => $manager->id,
+                    'name' => $manager->name,
+                    'phone' => $manager->phone,
+                    'email' => $manager->email,
+                    'status' => $manager->status,
                 ] : null,
+                'manager_name' => $manager?->name,
+                'manager_phone' => $manager?->phone,
             ];
         });
 
@@ -99,9 +129,10 @@ class TeamController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $team = Team::findOrFail($id);
+        $team = Team::with(['manager', 'currentManager'])->findOrFail($id);
 
-        if (! $team->is_free) {
+        $manager = $team->manager ?? $team->currentManager;
+        if ($manager && ! $team->is_free) {
             return response()->json([
                 'message' => 'لا يمكن حذف فرق المسيرين. يمكن حذف الفرق الحرة فقط.',
             ], 422);
@@ -116,7 +147,7 @@ class TeamController extends Controller
         });
 
         return response()->json([
-            'message' => 'تم حذف الفريق الحر بنجاح',
+            'message' => 'تم حذف الفريق بنجاح',
         ]);
     }
 
@@ -127,19 +158,19 @@ class TeamController extends Controller
             'ids.*' => 'integer|distinct',
         ]);
 
-        $teams = Team::whereIn('id', $data['ids'])->get();
+        $teams = Team::with(['manager', 'currentManager'])->whereIn('id', $data['ids'])->get();
 
-        $freeTeams = $teams->where('is_free', true);
-        $managerTeamsCount = $teams->where('is_free', false)->count();
+        $deletableTeams = $teams->filter(fn ($t) => ($t->is_free || (! $t->manager && ! $t->currentManager)));
+        $managerTeamsCount = $teams->count() - $deletableTeams->count();
 
-        if ($freeTeams->isEmpty()) {
+        if ($deletableTeams->isEmpty()) {
             return response()->json([
-                'message' => 'لم يتم تحديد أي فريق حر للحذف. فرق المسيرين لا يمكن حذفها.',
+                'message' => 'لم يتم تحديد أي فريق قابل للحذف. فرق المسيرين لا يمكن حذفها.',
             ], 422);
         }
 
-        DB::transaction(function () use ($freeTeams) {
-            foreach ($freeTeams as $team) {
+        DB::transaction(function () use ($deletableTeams) {
+            foreach ($deletableTeams as $team) {
                 User::where('current_team_id', $team->id)->update(['current_team_id' => null]);
                 $this->deleteTeamFiles($team);
                 $teamId = $team->id;
@@ -148,8 +179,8 @@ class TeamController extends Controller
             }
         });
 
-        $deletedCount = $freeTeams->count();
-        $message = "تم حذف {$deletedCount} فريق حر بنجاح";
+        $deletedCount = $deletableTeams->count();
+        $message = "تم حذف {$deletedCount} فريق بنجاح";
         if ($managerTeamsCount > 0) {
             $message .= " (تم استثناء {$managerTeamsCount} من فرق المسيرين لحمايتها)";
         }

@@ -1312,10 +1312,22 @@ export default function LeagueAssignmentPanel({
                         <span className="rounded-lg bg-emerald-50 px-2.5 py-0.5 text-xs font-black text-emerald-800">
                           {slot.day_name} • {slot.date}
                         </span>
-                        <span className="flex items-center gap-1 text-xs font-bold text-slate-600">
-                          <Clock className="size-3 text-slate-400" />
-                          {slot.time}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1 text-xs font-bold text-slate-600">
+                            <Clock className="size-3 text-slate-400" />
+                            {slot.time}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-[11px] font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 h-6 px-2"
+                            onClick={() => setDismissConfirmSlot(slot)}
+                            title="إخفاء هذا الموعد من قائمة المواعيد المتاحة للبطولة"
+                          >
+                            <EyeOff className="size-3 me-1" />
+                            إخفاء
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between gap-2 pt-1">

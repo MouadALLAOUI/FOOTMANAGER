@@ -39,16 +39,31 @@ class LeagueAssignmentService
             return collect();
         }
 
-        $allowedStadiumIds = $tournament->stadiums()->where('is_open', true)->pluck('stadiums.id')->all();
-        if (empty($allowedStadiumIds)) {
-            $allowedStadiumIds = Fixture::query()
-                ->where('competition_id', $tournament->competition_id)
-                ->where('season_id', $tournament->season_id)
-                ->whereNotNull('stadium_id')
-                ->whereHas('stadium', fn ($sq) => $sq->where('is_open', true))
+        $tournamentConfigStadiumIds = $tournament->stadiums()->where('is_open', true)->pluck('stadiums.id')->all();
+        if ($tournament->stadium_id) {
+            $mainStadium = \App\Domains\Stadium\Models\Stadium::query()->where('id', $tournament->stadium_id)->where('is_open', true)->first();
+            if ($mainStadium) {
+                $tournamentConfigStadiumIds[] = (int) $mainStadium->id;
+            }
+        }
+        $tournamentConfigStadiumIds = array_values(array_unique(array_filter($tournamentConfigStadiumIds)));
+
+        if (! empty($tournamentConfigStadiumIds)) {
+            $allowedStadiumIds = $tournamentConfigStadiumIds;
+        } else {
+            // If tournament has no specific stadiums assigned, only allow stadiums where enrolled teams have confirmed/approved bookings
+            $allowedStadiumIds = TerrainBooking::query()
+                ->whereIn('team_id', $teamIds)
+                ->whereIn('status', ['approved', 'confirmed'])
+                ->whereNull('archived_at')
+                ->whereHas('terrain', fn ($t) => $t->where('is_open', true))
                 ->distinct()
-                ->pluck('stadium_id')
+                ->pluck('terrain_id')
                 ->all();
+        }
+
+        if (empty($allowedStadiumIds)) {
+            return collect();
         }
 
         $today = Carbon::today();
@@ -79,13 +94,13 @@ class LeagueAssignmentService
         // Pre-fetch closures in date range
         $closures = \App\Domains\Booking\Models\TerrainSlotClosure::query()
             ->whereBetween('closure_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
-            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('terrain_id', $allowedStadiumIds))
+            ->whereIn('terrain_id', $allowedStadiumIds)
             ->get();
 
         // Pre-fetch occurrences in date range
         $occurrences = \App\Domains\Booking\Models\TerrainBookingOccurrence::query()
             ->whereBetween('occurrence_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
-            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('stadium_id', $allowedStadiumIds))
+            ->whereIn('stadium_id', $allowedStadiumIds)
             ->get();
 
         $slots = collect();
@@ -103,7 +118,7 @@ class LeagueAssignmentService
             })
             ->whereDate('booking_date', '>=', $effectiveMin->toDateString())
             ->whereDate('booking_date', '<=', $endDate->toDateString())
-            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('terrain_id', $allowedStadiumIds))
+            ->whereIn('terrain_id', $allowedStadiumIds)
             ->with(['terrain', 'team'])
             ->get();
 
@@ -152,7 +167,7 @@ class LeagueAssignmentService
             ->whereIn('status', ['approved', 'confirmed'])
             ->whereNull('archived_at')
             ->whereHas('terrain', fn ($t) => $t->where('is_open', true))
-            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('terrain_id', $allowedStadiumIds))
+            ->whereIn('terrain_id', $allowedStadiumIds)
             ->with(['terrain', 'team'])
             ->get();
 
@@ -240,26 +255,49 @@ class LeagueAssignmentService
                 \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED,
                 \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED,
             ])
-            ->where(function ($q) use ($tournament, $teamIds) {
+            ->whereIn('stadium_id', $allowedStadiumIds)
+            ->whereHas('stadium', fn ($sq) => $sq->where('is_open', true))
+            ->whereHas('booking', function ($bq) use ($teamIds) {
+                $bq->whereIn('team_id', $teamIds)
+                    ->whereIn('status', ['approved', 'confirmed'])
+                    ->whereNull('archived_at');
+            })
+            ->where(function ($q) use ($tournament) {
                 $q->where('metadata->tournament_id', $tournament->id)
-                    ->orWhere(function ($sq) use ($teamIds) {
-                        $sq->whereNull('metadata->tournament_id')
-                            ->whereHas('booking', fn ($bq) => $bq->whereIn('team_id', $teamIds)->whereNull('archived_at')->whereIn('status', ['approved', 'confirmed']));
-                    });
+                    ->orWhereNull('metadata->tournament_id');
             })
             ->whereBetween('occurrence_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
-            ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('stadium_id', $allowedStadiumIds))
-            ->whereHas('stadium', fn ($sq) => $sq->where('is_open', true))
             ->with(['booking.terrain', 'booking.team', 'stadium'])
             ->get();
 
         foreach ($freedOrReleased as $occ) {
-            if (! $occ->booking) {
+            // Defensive validation and self-healing of corrupt/ghost occurrences
+            if (! $occ->booking || ! $occ->stadium) {
+                if ($occ->status === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED) {
+                    $occ->update(['status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_CANCELLED]);
+                }
+                continue;
+            }
+
+            // Booking must be confirmed/approved and not archived
+            if (! in_array($occ->booking->status, ['approved', 'confirmed'], true) || $occ->booking->archived_at !== null) {
+                if ($occ->status === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED) {
+                    $occ->update(['status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_CANCELLED]);
+                }
+                continue;
+            }
+
+            // Occurrence stadium must match parent booking terrain and be among allowed tournament stadiums
+            if ((int) $occ->stadium_id !== (int) $occ->booking->terrain_id || ! in_array((int) $occ->stadium_id, $allowedStadiumIds, true)) {
+                if ($occ->status === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED) {
+                    $occ->update(['status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_CANCELLED]);
+                }
                 continue;
             }
 
             $date = Carbon::parse($occ->occurrence_date);
-            $datetime = Carbon::parse($date->toDateString().' '.$occ->start_time);
+            $dateStr = $date->toDateString();
+            $datetime = Carbon::parse($dateStr.' '.$occ->start_time);
 
             if ($datetime->isPast()) {
                 continue;
@@ -270,9 +308,20 @@ class LeagueAssignmentService
                 continue;
             }
 
-            $alreadyAdded = $slots->contains(function ($s) use ($occ, $date) {
+            // Check if terrain slot has a closure
+            $isClosed = $closures->contains(function ($c) use ($occ, $dateStr) {
+                return (int) $c->terrain_id === (int) $occ->stadium_id
+                    && $c->closure_date === $dateStr
+                    && $c->start_time < $occ->end_time
+                    && $c->end_time > $occ->start_time;
+            });
+            if ($isClosed) {
+                continue;
+            }
+
+            $alreadyAdded = $slots->contains(function ($s) use ($occ, $dateStr) {
                 return (int) $s['booking']->id === (int) $occ->terrain_booking_id
-                    && $s['date_str'] === $date->toDateString();
+                    && $s['date_str'] === $dateStr;
             });
             if ($alreadyAdded) {
                 continue;
@@ -281,7 +330,7 @@ class LeagueAssignmentService
             $slots->push([
                 'booking' => $occ->booking,
                 'date' => $date,
-                'date_str' => $date->toDateString(),
+                'date_str' => $dateStr,
                 'start_time' => $occ->start_time,
                 'end_time' => $occ->end_time,
                 'datetime' => $datetime,
@@ -298,9 +347,21 @@ class LeagueAssignmentService
             $slots = $slots->filter(function ($s) use ($dismissedSlots) {
                 $bookingId = $s['booking']?->id;
                 $dateStr = $s['date_str'] ?? '';
-                $slotKey = "{$bookingId}_{$dateStr}";
-                $slotId = "pool_slot_{$bookingId}_{$dateStr}";
-                return ! in_array($slotKey, $dismissedSlots, true) && ! in_array($slotId, $dismissedSlots, true);
+                $occId = $s['occurrence_id'] ?? null;
+                $keys = [
+                    "{$bookingId}_{$dateStr}",
+                    "pool_slot_{$bookingId}_{$dateStr}",
+                ];
+                if ($occId) {
+                    $keys[] = "occ_{$occId}";
+                    $keys[] = "occurrence_{$occId}";
+                }
+                foreach ($keys as $k) {
+                    if (in_array($k, $dismissedSlots, true)) {
+                        return false;
+                    }
+                }
+                return true;
             });
         }
 
@@ -2561,7 +2622,10 @@ class LeagueAssignmentService
             $dismissedSlots = (array) ($tournament->plan['dismissed_slots'] ?? []);
             $slotKey = "{$booking->id}_{$slot['date_str']}";
             $slotId = "pool_slot_{$booking->id}_{$slot['date_str']}";
-            if (in_array($slotKey, $dismissedSlots, true) || in_array($slotId, $dismissedSlots, true)) {
+            $occId = $slot['occurrence_id'] ?? null;
+            if (in_array($slotKey, $dismissedSlots, true) 
+                || in_array($slotId, $dismissedSlots, true)
+                || ($occId && (in_array("occ_{$occId}", $dismissedSlots, true) || in_array("occurrence_{$occId}", $dismissedSlots, true)))) {
                 continue;
             }
 
@@ -3053,6 +3117,14 @@ class LeagueAssignmentService
             }
             if (! in_array($slotId, $dismissed, true)) {
                 $dismissed[] = $slotId;
+            }
+            if ($occurrenceId) {
+                if (! in_array("occ_{$occurrenceId}", $dismissed, true)) {
+                    $dismissed[] = "occ_{$occurrenceId}";
+                }
+                if (! in_array("occurrence_{$occurrenceId}", $dismissed, true)) {
+                    $dismissed[] = "occurrence_{$occurrenceId}";
+                }
             }
 
             $plan['dismissed_slots'] = array_values(array_unique($dismissed));

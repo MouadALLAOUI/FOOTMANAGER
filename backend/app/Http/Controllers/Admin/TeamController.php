@@ -31,13 +31,19 @@ class TeamController extends Controller
                     ->orWhere(function ($sq) {
                         $sq->whereNull('manager_id')
                             ->whereDoesntHave('currentManager');
-                    });
+                    })
+                    ->orWhereHas('manager', fn ($mq) => $mq->whereIn('status', ['rejected', 'blocked']))
+                    ->orWhereHas('currentManager', fn ($mq) => $mq->whereIn('status', ['rejected', 'blocked']));
             });
         } elseif ($type === 'manager') {
             $query->where('is_free', false)
                 ->where(function ($q) {
-                    $q->whereNotNull('manager_id')
-                        ->orWhereHas('currentManager');
+                    $q->where(function ($sq) {
+                        $sq->whereNotNull('manager_id')
+                            ->orWhereHas('currentManager');
+                    })
+                    ->whereDoesntHave('manager', fn ($mq) => $mq->whereIn('status', ['rejected', 'blocked']))
+                    ->whereDoesntHave('currentManager', fn ($mq) => $mq->whereIn('status', ['rejected', 'blocked']));
                 });
         }
 
@@ -75,18 +81,24 @@ class TeamController extends Controller
                     ->orWhere(function ($sq) {
                         $sq->whereNull('manager_id')
                             ->whereDoesntHave('currentManager');
-                    });
+                    })
+                    ->orWhereHas('manager', fn ($mq) => $mq->whereIn('status', ['rejected', 'blocked']))
+                    ->orWhereHas('currentManager', fn ($mq) => $mq->whereIn('status', ['rejected', 'blocked']));
             })->count(),
             'manager' => Team::query()->where('is_free', false)->where(function ($q) {
-                $q->whereNotNull('manager_id')
-                    ->orWhereHas('currentManager');
+                $q->where(function ($sq) {
+                    $sq->whereNotNull('manager_id')
+                        ->orWhereHas('currentManager');
+                })
+                ->whereDoesntHave('manager', fn ($mq) => $mq->whereIn('status', ['rejected', 'blocked']))
+                ->whereDoesntHave('currentManager', fn ($mq) => $mq->whereIn('status', ['rejected', 'blocked']));
             })->count(),
         ];
 
         $items = $paginator->getCollection()->map(function (Team $team) {
             $manager = $team->manager ?? $team->currentManager;
-            $hasManager = $manager !== null;
-            $isFree = (bool) $team->is_free || ! $hasManager;
+            $hasActiveManager = $manager !== null && ! in_array($manager->status, ['rejected', 'blocked'], true);
+            $isFree = (bool) $team->is_free || ! $hasActiveManager;
 
             return [
                 'id' => $team->id,
@@ -132,9 +144,11 @@ class TeamController extends Controller
         $team = Team::with(['manager', 'currentManager'])->findOrFail($id);
 
         $manager = $team->manager ?? $team->currentManager;
-        if ($manager && ! $team->is_free) {
+        $hasActiveManager = $manager !== null && ! in_array($manager->status, ['rejected', 'blocked'], true);
+
+        if ($hasActiveManager && ! $team->is_free) {
             return response()->json([
-                'message' => 'لا يمكن حذف فرق المسيرين. يمكن حذف الفرق الحرة فقط.',
+                'message' => 'لا يمكن حذف فرق المسيرين المعتمدين لحماية بيانات حساب المسير.',
             ], 422);
         }
 
@@ -160,12 +174,16 @@ class TeamController extends Controller
 
         $teams = Team::with(['manager', 'currentManager'])->whereIn('id', $data['ids'])->get();
 
-        $deletableTeams = $teams->filter(fn ($t) => ($t->is_free || (! $t->manager && ! $t->currentManager)));
+        $deletableTeams = $teams->filter(function ($t) {
+            $m = $t->manager ?? $t->currentManager;
+            $hasActiveManager = $m !== null && ! in_array($m->status, ['rejected', 'blocked'], true);
+            return $t->is_free || ! $hasActiveManager;
+        });
         $managerTeamsCount = $teams->count() - $deletableTeams->count();
 
         if ($deletableTeams->isEmpty()) {
             return response()->json([
-                'message' => 'لم يتم تحديد أي فريق قابل للحذف. فرق المسيرين لا يمكن حذفها.',
+                'message' => 'لم يتم تحديد أي فريق قابل للحذف. فرق المسيرين المعتمدين لا يمكن حذفها.',
             ], 422);
         }
 
@@ -182,7 +200,7 @@ class TeamController extends Controller
         $deletedCount = $deletableTeams->count();
         $message = "تم حذف {$deletedCount} فريق بنجاح";
         if ($managerTeamsCount > 0) {
-            $message .= " (تم استثناء {$managerTeamsCount} من فرق المسيرين لحمايتها)";
+            $message .= " (تم استثناء {$managerTeamsCount} من فرق المسيرين المعتمدين لحمايتها)";
         }
 
         return response()->json([

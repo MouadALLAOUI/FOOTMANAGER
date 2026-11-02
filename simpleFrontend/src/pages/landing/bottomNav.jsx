@@ -87,8 +87,8 @@ export default function BottomNav({ theme = 'dark' }) {
               onClick={() => setShowPwaModal(false)}
             />
             <div
-              className={`relative z-[var(--z-modal)] w-full max-w-sm rounded-3xl p-5 border shadow-2xl transition-all max-h-[calc(100dvh-32px)] flex flex-col ${
-                isDark ? 'bg-[#14221C] border-emerald-900/50 text-white' : 'bg-white border-slate-200 text-slate-900'
+              className={`relative z-[var(--z-modal)] w-full max-w-sm rounded-xl p-5 border shadow-xl transition-all max-h-[calc(100dvh-32px)] flex flex-col ${
+                isDark ? 'bg-[#1B201D] border-[#303832] text-[#F5F7F2]' : 'bg-white border-[#E1E5DF] text-[#111313]'
               }`}
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-700/30 shrink-0">

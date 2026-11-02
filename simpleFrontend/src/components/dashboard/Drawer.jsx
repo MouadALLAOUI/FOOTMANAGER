@@ -110,14 +110,14 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
 
   return createPortal(
     <div className="fixed inset-0 z-[var(--z-drawer)]">
-      <div className={`${closing ? 'overlay-out' : 'overlay-in'} fixed inset-0 z-[var(--z-overlay)] bg-slate-900/50 backdrop-blur-[2px]`} onClick={requestClose} aria-hidden="true" />
+      <div className={`${closing ? 'overlay-out' : 'overlay-in'} fixed inset-0 z-[var(--z-overlay)] bg-black/60`} onClick={requestClose} aria-hidden="true" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleIdRef.current}
         tabIndex={-1}
-        className={`fixed inset-y-0 end-0 z-[var(--z-drawer)] flex h-[100dvh] flex-col bg-white shadow-2xl outline-none transition-transform duration-300 ${
+        className={`fixed inset-y-0 end-0 z-[var(--z-drawer)] flex h-[100dvh] flex-col bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] border-s border-[#E1E5DF] dark:border-[#303832] shadow-xl outline-none transition-transform duration-300 ${
           open && !closing ? 'translate-x-0' : 'translate-x-full rtl:-translate-x-full'
         } ${mobile ? 'w-full' : ''}`}
         style={!mobile && width > 0 ? { width: `${width}px`, maxWidth: '100%' } : undefined}
@@ -134,22 +134,22 @@ export default function Drawer({ open, onClose, title, subtitle, size, footer, c
             <span className="h-8 w-0.5 rounded-full bg-slate-300" />
           </div>
         )}
-        <div className="shrink-0 flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-6">
+        <div className="shrink-0 flex items-center justify-between gap-3 border-b border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-4 py-3 sm:px-5">
           <div className="min-w-0 flex-1">
-            <h3 id={titleIdRef.current} className="break-words text-base font-extrabold text-slate-900">{title}</h3>
-            {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
+            <h3 id={titleIdRef.current} className="break-words text-base font-extrabold text-[#111313] dark:text-[#F5F7F2]">{title}</h3>
+            {subtitle && <p className="mt-0.5 break-words text-xs text-[#65706A] dark:text-[#B2B9B3]">{subtitle}</p>}
           </div>
           <button
             type="button"
             onClick={requestClose}
             aria-label={t('common.close')}
-            className="grid size-11 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+            className="grid size-11 place-items-center rounded-lg text-[#65706A] dark:text-[#B2B9B3] transition-colors hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] hover:text-[#111313] dark:hover:text-[#F5F7F2] cursor-pointer"
           >
             <X className="size-5" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
-        {footer && <div className="shrink-0 flex flex-wrap justify-end gap-2 border-t border-slate-100 px-4 py-3 sm:px-6">{footer}</div>}
+        {footer && <div className="shrink-0 flex flex-wrap justify-end gap-2 border-t border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-4 py-3 sm:px-5">{footer}</div>}
       </div>
     </div>,
     document.body,

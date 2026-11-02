@@ -79,7 +79,7 @@ export default function CreateMatchCta({ onCreate, onExplore }) {
     <section id="create-match" className="scroll-mt-24 bg-white pb-48 pt-[40px] lg:pb-40">
       <div className="mx-auto max-w-[1400px] px-6">
         <Reveal>
-          <div className="relative overflow-hidden rounded-[30px] bg-[radial-gradient(120%_160%_at_10%_0%,rgba(34,197,94,0.35),transparent_55%),radial-gradient(100%_140%_at_95%_100%,rgba(5,150,105,0.5),transparent_60%),linear-gradient(135deg,#064e3b,#022c22)] px-8 py-12 shadow-[0_40px_100px_rgba(2,6,23,0.5)] ring-1 ring-white/10 lg:px-[70px] lg:py-[60px]">
+          <div className="relative overflow-hidden rounded-xl bg-[#101211] border border-[#303832] px-8 py-10 shadow-xl lg:px-[60px] lg:py-[50px]">
             <div
               aria-hidden="true"
               className="animate-gradient-move pointer-events-none absolute -inset-24 bg-[radial-gradient(55%_70%_at_15%_20%,rgba(34,197,94,0.22),transparent_60%),radial-gradient(45%_60%_at_90%_85%,rgba(16,185,129,0.18),transparent_60%)]"
@@ -117,7 +117,7 @@ export default function CreateMatchCta({ onCreate, onExplore }) {
                   <button
                     type="button"
                     onClick={onCreate}
-                    className="btn-ripple flex h-[54px] items-center gap-2 rounded-[16px] bg-green-500 px-8 text-sm font-bold text-white shadow-[0_16px_40px_rgba(22,163,74,0.5)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-400 hover:shadow-[0_22px_55px_rgba(22,163,74,0.6)] active:translate-y-0"
+                    className="btn-ripple flex h-[54px] items-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] px-8 text-sm font-black text-[#111313] hover:brightness-105 shadow-md transition-all active:translate-y-0"
                   >
                     <FontAwesomeIcon icon={faPlus} className="size-4" />
                     {t('matchesPage.cta.create')}
@@ -125,7 +125,7 @@ export default function CreateMatchCta({ onCreate, onExplore }) {
                   <button
                     type="button"
                     onClick={onExplore}
-                    className="flex h-[54px] items-center gap-2 rounded-[16px] border-2 border-white/30 px-8 text-sm font-bold text-white backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-white/60 hover:bg-white/10 active:translate-y-0"
+                    className="flex h-[54px] items-center gap-2 rounded-lg border-2 border-white/40 px-8 text-sm font-black text-white hover:bg-white/10 transition-all active:translate-y-0"
                   >
                     <FontAwesomeIcon icon={faMagnifyingGlass} className="size-4" />
                     {t('matchesPage.cta.explore')}

@@ -52,12 +52,12 @@ export default function LeaderboardRow({ row }) {
     <div
       onClick={clickable ? () => openTeam({ id: row.team_id, name: row.name, city: row.city, logo_url: row.logo_url }) : undefined}
       className={`${gridClass} ${clickable ? 'cursor-pointer' : ''} transition-colors duration-300 ${
-        top ? `${top.row} ${top.ring} ring-1` : 'hover:bg-slate-50'
+        top ? `${top.row} ${top.ring} ring-1` : 'hover:bg-[#E9ECE7] dark:hover:bg-[#252B27]'
       }`}
     >
       <div className="relative">
         <span
-          className={`grid size-11 place-items-center rounded-2xl bg-gradient-to-br text-sm font-black text-white shadow-md ${top ? top.badge : 'bg-slate-100 text-slate-500'}`}
+          className={`grid size-11 place-items-center rounded-lg bg-gradient-to-br text-sm font-black text-white shadow-md ${top ? top.badge : 'bg-slate-100 text-slate-500'}`}
         >
           {row.id}
         </span>

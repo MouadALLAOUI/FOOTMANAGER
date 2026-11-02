@@ -158,7 +158,7 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
         {/* Featured Card Content */}
         {currentTeam && (
           <div className="relative z-10">
-            <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-[#09151D]/85 p-4 sm:p-5 shadow-inner backdrop-blur-md">
+            <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-4 sm:p-5">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 {/* Team Info */}
                 <div className="flex items-center gap-3.5 w-full sm:w-auto">
@@ -175,7 +175,7 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm sm:text-base font-black text-white whitespace-nowrap drop-shadow-sm">
+                      <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2] whitespace-nowrap">
                         {currentTeam.name}
                       </h3>
                       {/* Real Presence Indicator */}
@@ -206,10 +206,10 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
                 </div>
 
                 {/* Team KPIs */}
-                <div className="flex items-center gap-3 sm:gap-4 shrink-0 bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-center w-full sm:w-auto justify-around">
+                <div className="flex items-center gap-3 sm:gap-4 shrink-0 bg-white dark:bg-[#101211] border border-[#E1E5DF] dark:border-[#303832] rounded-lg px-3 py-2 text-center w-full sm:w-auto justify-around">
                   <div>
                     <span className="block text-[10px] font-semibold text-slate-400">المباريات</span>
-                    <span className="text-xs sm:text-sm font-black text-white tabular-nums">{currentTeam.matches_played}</span>
+                    <span className="text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums">{currentTeam.matches_played}</span>
                   </div>
                   <div className="w-px h-6 bg-slate-800" />
                   <div>
@@ -256,14 +256,14 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
                 <button
                   type="button"
                   onClick={() => handleChallengeClick(currentTeam)}
-                  className="w-full flex items-center justify-between py-3 sm:py-3.5 px-5 sm:px-6 rounded-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-white font-black text-xs sm:text-sm shadow-[0_10px_25px_rgba(16,185,129,0.35)] transition-all duration-300 hover:scale-[1.01] active:scale-98 cursor-pointer"
+                  className="w-full flex items-center justify-between py-3 px-5 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 text-[#111313] font-black text-xs sm:text-sm shadow-sm transition-all active:scale-98 cursor-pointer"
                 >
                   <div className="size-7 sm:size-8 opacity-0" aria-hidden="true" />
                   <div className="flex items-center gap-2">
                     <Swords className="size-4" />
                     <span>تحدي في مباراة ودية</span>
                   </div>
-                  <span className="size-7 sm:size-8 rounded-full bg-white/20 grid place-items-center text-white shrink-0">
+                  <span className="size-7 sm:size-8 rounded-md bg-black/10 grid place-items-center text-[#111313] shrink-0">
                     <ChevronLeft className="size-4 rtl:rotate-0 ltr:rotate-180" />
                   </span>
                 </button>
@@ -271,7 +271,7 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
                 <button
                   type="button"
                   disabled
-                  className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-5 sm:px-6 rounded-full bg-slate-800/80 border border-slate-700/80 text-slate-400 font-bold text-xs sm:text-sm cursor-not-allowed opacity-75"
+                  className="w-full flex items-center justify-center gap-2 py-3 px-5 rounded-lg bg-[#E9ECE7] dark:bg-[#252B27] border border-[#E1E5DF] dark:border-[#303832] text-[#65706A] dark:text-[#B2B9B3] font-bold text-xs sm:text-sm cursor-not-allowed"
                   title="مسير الفريق غير متصل حالياً"
                 >
                   <span>مسير الفريق غير متصل حالياً</span>
@@ -286,7 +286,7 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
                 <button
                   type="button"
                   onClick={() => setCurrentIndex((p) => (p > 0 ? p - 1 : total - 1))}
-                  className="grid size-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+                  className="grid size-8 place-items-center rounded-lg bg-white dark:bg-[#252B27] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] transition-colors cursor-pointer"
                   aria-label="الفريق السابق"
                 >
                   <ChevronRight className="size-4" />
@@ -301,7 +301,7 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
                       onClick={() => setCurrentIndex(idx)}
                       className={`h-1.5 rounded-full transition-all cursor-pointer ${
                         currentIndex === idx
-                          ? 'w-6 bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]'
+                          ? 'w-6 bg-[#B8F000] dark:bg-[#D0FF38]'
                           : 'w-1.5 bg-slate-700 hover:bg-slate-500'
                       }`}
                       aria-label={`فريق ${idx + 1}`}
@@ -312,7 +312,7 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
                 <button
                   type="button"
                   onClick={() => setCurrentIndex((p) => (p < total - 1 ? p + 1 : 0))}
-                  className="grid size-8 place-items-center rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+                  className="grid size-8 place-items-center rounded-lg bg-white dark:bg-[#252B27] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] transition-colors cursor-pointer"
                   aria-label="الفريق التالي"
                 >
                   <ChevronLeft className="size-4" />

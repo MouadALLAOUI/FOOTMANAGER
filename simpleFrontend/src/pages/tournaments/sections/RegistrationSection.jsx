@@ -40,7 +40,7 @@ const TONES = {
     card: 'border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-white to-white',
     icon: 'bg-emerald-500 text-white shadow-[0_12px_30px_rgba(16,185,129,0.4)]',
     chip: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    btn: 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_16px_40px_rgba(16,185,129,0.45)]',
+    btn: 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] hover:brightness-105 shadow-sm',
     text: 'text-emerald-700',
   },
   sky: {
@@ -168,7 +168,7 @@ export default function RegistrationSection({ tour }) {
   if (availQuery.error && !avail) {
     return (
       <section
-        className={`rounded-[1.75rem] border p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] sm:p-7 ${tone.card}`}
+        className={`rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] p-5 shadow-sm sm:p-7 ${tone.card}`}
         aria-label={t('public.registration.title')}
       >
         <SectionError state={availQuery.errorState} onRetry={availQuery.refetch} />
@@ -221,7 +221,7 @@ export default function RegistrationSection({ tour }) {
                     type="button"
                     disabled={!regActionable}
                     onClick={registerAction}
-                    className={`btn-ripple inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-6 text-sm font-extrabold text-white transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 ${tone.btn}`}
+                    className={`btn-ripple inline-flex h-12 items-center justify-center gap-2 rounded-lg px-6 text-sm font-black transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 ${tone.btn}`}
                   >
                     {myReg?.status === 'cancelled' ? <PlusCircle className="size-4" /> : <Rocket className="size-4" />}
                     {myReg?.status === 'cancelled' ? t('public.registration.registerAgain') : t('public.registration.registerCta')}

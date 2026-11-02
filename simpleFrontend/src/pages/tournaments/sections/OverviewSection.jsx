@@ -27,7 +27,7 @@ import { useProfileModal } from '../../../components/profile/ProfileModalContext
 import { Skeleton } from '../../../components/dashboard/ui'
 import Collapsible from '../../../components/tournaments/Collapsible'
 
-const CARD = 'rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)]'
+const CARD = 'rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] shadow-sm'
 
 function toTeam(info) {
   if (!info) return null
@@ -541,10 +541,10 @@ function RecordsCard({ stats, loading }) {
       {hasAny ? (
         <div className="grid grid-cols-2 gap-2.5">
           {tiles.map((tile) => (
-            <div key={tile.key} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
+            <div key={tile.key} className="rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3">
               <span className="grid size-7 place-items-center rounded-lg bg-white text-slate-400 shadow-sm"><tile.icon className="size-3.5" /></span>
               <p className="mt-2 text-[10px] font-bold text-slate-400">{tile.label}</p>
-              <p className="mt-0.5 truncate text-sm font-black text-slate-900" dir="auto">{tile.figure}</p>
+              <p className="mt-0.5 truncate text-sm font-black text-[#111313] dark:text-[#F5F7F2]" dir="auto">{tile.figure}</p>
               {tile.team && (
                 <button
                   type="button"

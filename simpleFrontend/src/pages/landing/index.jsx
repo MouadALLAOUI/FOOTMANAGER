@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useTheme } from '../../context/ThemeContext'
 import SEO from '../../components/system/SEO'
 import TopBanner from './topBanner'
 import PwaTopBanner from './pwaTopBanner'
@@ -26,47 +27,13 @@ export default function Landing() {
     }
   })
 
-  // Default theme is 'light' (Option 1: Base light background with designated dark sections)
-  const [theme, setTheme] = useState(() => {
-    try {
-      const saved = localStorage.getItem('aji_theme')
-      if (saved === 'light' || saved === 'dark') return saved
-    } catch {}
-    return 'light'
-  })
-
-  // Enforce strict RTL and Arabic language attributes
-  useEffect(() => {
-    try {
-      document.documentElement.dir = 'rtl'
-      document.documentElement.lang = 'ar'
-      if (theme === 'dark') {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-    } catch {}
-  }, [theme])
-
-  const toggleTheme = () => {
-    setTheme((prev) => {
-      const next = prev === 'dark' ? 'light' : 'dark'
-      try {
-        localStorage.setItem('aji_theme', next)
-      } catch {}
-      return next
-    })
-  }
-
-  const isDark = theme === 'dark'
+    const { theme, toggleTheme, isDark } = useTheme()
 
   return (
     <div
       dir="rtl"
       lang="ar"
-      className={`min-h-[100dvh] w-full max-w-full overflow-x-hidden transition-colors duration-300 ${
-        isDark ? 'bg-[#0F3D2E] text-slate-100' : 'bg-[#F4F6F1] text-slate-900'
-      }`}
+      className="min-h-[100dvh] w-full max-w-full overflow-x-hidden bg-[#F7F8F5] dark:bg-[#101211] text-[#111313] dark:text-[#F5F7F2]"
     >
       {/* 1. SEO Meta Tags in Pure Standard Arabic */}
       <SEO

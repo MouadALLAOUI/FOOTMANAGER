@@ -34,7 +34,7 @@ function PlayerNotFound({ onBack }) {
         <div className="grid size-20 place-items-center rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 text-rose-400 shadow-xl">
           <UserX className="size-10 text-rose-400" />
         </div>
-        <span className="absolute -bottom-1 -end-1 grid size-7 place-items-center rounded-full bg-slate-950 border border-slate-800 text-slate-400">
+        <span className="absolute -bottom-1 -end-1 grid size-7 place-items-center rounded-full bg-slate-950 border border-slate-800 text-[#65706A] dark:text-[#B2B9B3]">
           <ShieldAlert className="size-4" />
         </span>
       </div>
@@ -134,7 +134,7 @@ export default function PublicPlayerDetail() {
     <>
       <SEO title={pageTitle} description={pageDesc} />
 
-      <main className="min-h-screen bg-[#070B14] py-6 sm:py-10 px-4 sm:px-6 lg:px-8 text-slate-100">
+      <main className="min-h-screen bg-[#F7F8F5] dark:bg-[#101211] text-[#111313] dark:text-[#F5F7F2] py-6 sm:py-10 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl space-y-6">
           {/* Breadcrumb Navigation */}
           <nav aria-label="مسار التنقل" className="flex items-center gap-2 text-xs font-bold text-slate-400">

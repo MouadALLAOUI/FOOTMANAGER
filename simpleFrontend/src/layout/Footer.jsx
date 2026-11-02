@@ -52,11 +52,8 @@ export default function Footer() {
   }
 
   return (
-    <footer className="relative overflow-hidden bg-[#0F172A]">
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="animate-gradient-move absolute -top-48 start-[20%] size-[520px] rounded-full bg-[radial-gradient(circle,rgba(34,197,94,0.16),transparent_65%)] blur-[60px]" />
-        <div className="absolute -bottom-48 end-0 size-[440px] rounded-full bg-[radial-gradient(circle,rgba(22,163,74,0.14),transparent_65%)] blur-[70px]" />
-      </div>
+    <footer className="relative overflow-hidden bg-[#101211] border-t border-[#303832] text-[#F5F7F2]">
+
 
       <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 pt-12 lg:pt-16">
         <div className="pb-10 sm:pb-14">
@@ -67,7 +64,7 @@ export default function Footer() {
                 <img
                   src="/logo.jpeg"
                   alt="أجي نقصرو"
-                  className="size-12 shrink-0 rounded-2xl object-cover shadow-[0_10px_30px_rgba(22,163,74,0.4)] ring-1 ring-white/20"
+                  className="size-12 shrink-0 rounded-lg object-cover border border-[#303832]"
                 />
                 <span className="text-xl font-black text-white">أجي نقصرو</span>
               </div>
@@ -121,7 +118,7 @@ export default function Footer() {
                     key={key}
                     type="button"
                     aria-label={t(`landing.footer.social.labels.${key}`)}
-                    className="grid size-11 place-items-center rounded-2xl bg-white/10 text-slate-200 ring-1 ring-white/15 backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-1 hover:bg-[#1F7A4D] hover:text-white hover:ring-[#1F7A4D] active:translate-y-0 cursor-pointer"
+                    className="grid size-11 place-items-center rounded-lg bg-[#1B201D] text-[#B2B9B3] border border-[#303832] transition-colors hover:text-[#D0FF38] hover:border-[#D0FF38] active:scale-95 cursor-pointer"
                   >
                     <SocialIcon name={key} />
                   </button>
@@ -133,7 +130,7 @@ export default function Footer() {
           {/* Newsletter Form with Clear Visible Border and High Contrast */}
           <form
             onSubmit={subscribe}
-            className="mt-10 sm:mt-14 flex flex-col items-center justify-between gap-5 rounded-[24px] bg-slate-900/90 border border-slate-700/80 p-5 sm:p-7 shadow-xl lg:flex-row"
+            className="mt-10 sm:mt-14 flex flex-col items-center justify-between gap-5 rounded-xl bg-[#1B201D] border border-[#303832] p-5 sm:p-6 shadow-xs lg:flex-row"
           >
             <div className="text-center lg:text-start">
               <h3 className="text-base sm:text-lg font-black text-white">
@@ -150,11 +147,11 @@ export default function Footer() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('landing.footer.newsletter.placeholder')}
                 dir="rtl"
-                className="h-12 w-full rounded-2xl border-2 border-slate-500/80 bg-slate-950 px-4 text-xs sm:text-sm text-white placeholder:text-slate-400 outline-none transition-all duration-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/40"
+                className="h-12 w-full rounded-lg border border-[#303832] bg-[#101211] px-4 text-xs sm:text-sm text-[#F5F7F2] placeholder-[#B2B9B3]/50 outline-none transition-all focus:border-[#D0FF38] focus:ring-2 focus:ring-[#D0FF38]/20"
               />
               <button
                 type="submit"
-                className="h-12 shrink-0 rounded-2xl bg-[#1F7A4D] hover:bg-[#1A6841] px-6 sm:px-8 text-xs sm:text-sm font-black text-white shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-98 cursor-pointer"
+                className="h-12 shrink-0 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] dark:text-[#101211] font-black px-6 sm:px-7 text-xs sm:text-sm transition-all hover:opacity-90 active:scale-98 cursor-pointer"
               >
                 {t('landing.footer.newsletter.button')}
               </button>
@@ -163,7 +160,7 @@ export default function Footer() {
         </div>
 
         {/* Footer Bottom Rights */}
-        <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-800 py-6 text-xs text-slate-400 font-medium sm:flex-row">
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-[#303832] py-6 text-xs text-[#B2B9B3] font-medium sm:flex-row">
           <p>
             {t('landing.footer.bottom.copyright')} · {t('landing.footer.bottom.rights')}
           </p>

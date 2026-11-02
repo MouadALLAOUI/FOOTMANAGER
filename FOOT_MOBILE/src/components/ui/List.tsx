@@ -13,7 +13,7 @@ import { EmptyState } from './EmptyState';
 import { ErrorState } from './ErrorState';
 import { Loading } from './Loading';
 
-interface Props<ItemT> extends Omit<FlatListProps<ItemT>, 'data' | 'renderItem' | 'ListEmptyComponent' | 'onRefresh' | 'refreshing' | 'ListFooterComponent'> {
+interface Props<ItemT> extends Omit<FlatListProps<ItemT>, 'data' | 'renderItem' | 'ListEmptyComponent' | 'onRefresh' | 'refreshing' | 'ListFooterComponent' | 'ListHeaderComponent'> {
   data: ItemT[] | null | undefined;
   renderItem?: ListRenderItem<ItemT>;
   keyExtractor?: (item: ItemT, index: number) => string;
@@ -33,7 +33,7 @@ interface Props<ItemT> extends Omit<FlatListProps<ItemT>, 'data' | 'renderItem' 
   onRefresh?: () => void;
   refreshing?: boolean;
   ListEmptyComponent?: ComponentType | ReactElement | null;
-  ListHeaderComponent?: ComponentType | ReactElement | null;
+  ListHeaderComponent?: FlatListProps<ItemT>['ListHeaderComponent'];
 }
 
 export function List<ItemT>({
@@ -114,7 +114,7 @@ export function List<ItemT>({
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} colors={[colors.primary]} />
         ) : undefined
       }
-      ListFooterComponent={loading && hasItems ? <Loading size="small" variant="inline" /> : null}
+      ListFooterComponent={loading && hasItems ? <Loading size="small" variant="inline" /> : undefined}
       {...flatListProps}
     />
   );

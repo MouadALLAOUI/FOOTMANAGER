@@ -35,12 +35,12 @@ export default function TopBanner({ theme = 'dark' }) {
   return (
     <aside
       aria-label="إعلان الملف الدائم"
-      className="relative z-[var(--z-sticky)] w-full max-w-full overflow-hidden border-b transition-colors bg-gradient-to-r from-[#064E3B] via-[#0A161E] to-[#064E3B] text-white border-emerald-500/30 shadow-md"
+      className="relative z-[var(--z-sticky)] w-full max-w-full overflow-hidden border-b transition-colors bg-[#101211] text-white border-b border-[#303832]"
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-2.5 px-3 py-2 text-xs font-bold sm:px-6 sm:py-2.5">
         {/* Right side in RTL: Sparkle Badge + Banner Text */}
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="hidden sm:grid size-6 shrink-0 place-items-center rounded-lg bg-emerald-500/20 text-emerald-400">
+          <span className="hidden sm:grid size-6 shrink-0 place-items-center rounded-md bg-[#B8F000]/20 text-[#D0FF38]">
             <Sparkles className="size-3.5 text-amber-400 animate-pulse" />
           </span>
 
@@ -54,7 +54,7 @@ export default function TopBanner({ theme = 'dark' }) {
           {/* Quick Register Player (Phone Only) */}
           <Link
             to="/register?role=player"
-            className="inline-flex items-center gap-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-2.5 py-1 text-[10px] sm:text-[11px] font-black text-white shadow-xs transition-all active:scale-95"
+            className="inline-flex items-center gap-1 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-2.5 py-1 text-[10px] sm:text-[11px] font-black text-[#111313] shadow-xs transition-all active:scale-95"
             title="تسجيل لاعب جديد برقم الهاتف فقط"
           >
             <Phone className="size-3 shrink-0" />
@@ -64,7 +64,7 @@ export default function TopBanner({ theme = 'dark' }) {
           {/* Quick Register Manager (Manage Team) */}
           <Link
             to="/register?role=manager"
-            className="hidden xs:inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-[10px] sm:text-[11px] font-black transition-all active:scale-95 border bg-slate-800/90 hover:bg-slate-700 text-emerald-300 border-emerald-500/30"
+            className="hidden xs:inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] sm:text-[11px] font-black transition-all active:scale-95 border border-[#303832] bg-[#252B27] hover:bg-[#303832] text-white"
             title="تسجيل مسير لإدارة الفريق والمباريات"
           >
             <Shield className="size-3 shrink-0 text-emerald-400" />

@@ -49,7 +49,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, isDark }) {
 
         {/* Stadium format badge */}
         <span className="absolute bottom-2 start-2.5 flex items-center gap-1 rounded-md bg-black/50 px-2 py-0.5 text-[10px] font-bold text-white backdrop-blur-xs">
-          <Users className="size-3 text-emerald-400" />
+          <Users className="size-3 text-[#16834A] dark:text-[#D0FF38]" />
           <span>{card.format || 'عشب اصطناعي'}</span>
         </span>
       </div>
@@ -58,7 +58,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, isDark }) {
       <div className="p-3.5 flex flex-col flex-1 justify-between">
         <div>
           <div className="flex items-center justify-between gap-1 mb-1">
-            <h3 className={`text-xs sm:text-sm font-black truncate ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <h3 className={`text-xs sm:text-sm font-black truncate ${isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'}`}>
               {card.name}
             </h3>
             {card.rating != null && (
@@ -95,7 +95,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, isDark }) {
           <button
             type="button"
             onClick={() => onBook(card)}
-            className="inline-flex items-center gap-1 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-3.5 py-1.5 text-xs font-black text-white shadow-sm transition-all active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-1 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-3.5 py-1.5 text-xs font-black text-[#111313] shadow-xs transition-all active:scale-95 cursor-pointer"
           >
             <span>احجز الآن</span>
           </button>

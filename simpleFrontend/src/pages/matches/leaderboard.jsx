@@ -11,7 +11,7 @@ export default function Leaderboard({ rows }) {
   const { t } = useTranslation()
 
   return (
-    <section id="leaderboard" className="scroll-mt-24 bg-white pt-[100px] pb-[110px] lg:pt-[120px] lg:pb-[130px]">
+    <section id="leaderboard" className="scroll-mt-24 bg-[#F7F8F5] dark:bg-[#101211] text-[#111313] dark:text-[#F5F7F2] pt-[60px] pb-[70px] lg:pt-[80px] lg:pb-[90px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <Reveal>
           <header className="mx-auto max-w-2xl text-center">
@@ -19,7 +19,7 @@ export default function Leaderboard({ rows }) {
               <FontAwesomeIcon icon={faChartLine} className="size-3.5" />
               {t('matchesPage.leaderboard.subtitle')}
             </span>
-            <h2 className="mt-5 text-3xl font-black text-slate-900 lg:text-4xl">
+            <h2 className="mt-5 text-3xl font-black text-[#111313] dark:text-[#F5F7F2] lg:text-4xl">
               {t('matchesPage.leaderboard.title')}
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-500 lg:text-base">
@@ -29,9 +29,9 @@ export default function Leaderboard({ rows }) {
         </Reveal>
 
         <Reveal className="mt-12">
-          <div className="overflow-hidden rounded-[28px] bg-white shadow-[0_24px_70px_rgba(17,24,39,0.08)] ring-1 ring-slate-100">
+          <div className="overflow-hidden rounded-xl bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] shadow-sm">
             <div
-              className={`${gridClass} border-b border-slate-100 py-4 text-xs font-bold uppercase tracking-wide text-slate-400`}
+              className={`${gridClass} border-b border-[#E1E5DF] dark:border-[#303832] py-4 text-xs font-bold uppercase tracking-wide text-[#65706A] dark:text-[#B2B9B3]`}
             >
               <span>{t('matchesPage.leaderboard.rank')}</span>
               <span>{t('matchesPage.leaderboard.team')}</span>

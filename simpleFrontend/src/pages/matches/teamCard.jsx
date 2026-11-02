@@ -46,7 +46,7 @@ export default function TeamCard({ team, onChallenge }) {
   }
 
   return (
-    <article className="group flex h-full flex-col rounded-[28px] bg-white p-6 shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_26px_60px_rgba(17,24,39,0.16)] hover:ring-green-500/60">
+    <article className="group flex h-full flex-col rounded-xl bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] p-5 shadow-sm transition-all">
       <div onClick={openProfile} className={`relative block w-full text-center ${clickable ? 'cursor-pointer' : ''}`}>
         <div
           className={`mx-auto grid size-[88px] place-items-center rounded-[26px] transition-transform duration-300 ease-out group-hover:scale-110 ${accent.soft}`}
@@ -54,7 +54,7 @@ export default function TeamCard({ team, onChallenge }) {
           <FontAwesomeIcon icon={faFutbol} style={{ color: accent.color }} className="size-11" />
         </div>
 
-        <h3 className="mt-4 text-xl font-extrabold text-slate-900">{team.name}</h3>
+        <h3 className="mt-4 text-base font-black text-[#111313] dark:text-[#F5F7F2]">{team.name}</h3>
 
         <span
           className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold ${levelBadges[team.level]}`}

@@ -31,7 +31,7 @@ export default function TournamentCard({ tour }) {
     <article className="h-full">
       <Link
         to={`/tournaments/${tour.slug || tour.id}`}
-        className="group flex h-full flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_4px_20px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(15,23,42,0.14)] hover:ring-green-500/50"
+        className="group flex h-full flex-col overflow-hidden rounded-xl bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] shadow-sm transition-all text-[#111313] dark:text-[#F5F7F2]"
       >
         <div
           className="relative h-28 shrink-0 overflow-hidden sm:h-32"
@@ -50,20 +50,20 @@ export default function TournamentCard({ tour }) {
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-slate-950/20" />
 
           <span
-            className={`absolute start-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-extrabold backdrop-blur-md ring-1 shadow-sm ${pill}`}
+            className={`absolute start-3 top-3 inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[11px] font-extrabold backdrop-blur-md ring-1 shadow-sm ${pill}`}
           >
             <span className={`size-1.5 rounded-full ${dot}`} />
             {t(`status.${tour.status}`, tour.status)}
           </span>
 
-          <span className="absolute -bottom-5 start-4 grid size-12 place-items-center overflow-hidden rounded-2xl bg-white p-1 shadow-[0_8px_20px_rgba(15,23,42,0.16)] ring-1 ring-slate-200/80 sm:size-14 sm:-bottom-6 sm:start-5">
+          <span className="absolute -bottom-5 start-4 grid size-12 place-items-center overflow-hidden rounded-lg bg-white dark:bg-[#252B27] p-1 shadow-sm border border-[#E1E5DF] dark:border-[#303832] sm:size-14 sm:-bottom-6 sm:start-5">
             {tour.logo_url ? (
               <img
                 src={tour.logo_url}
                 alt=""
                 loading="lazy"
                 onError={hideBrokenImage}
-                className="size-full rounded-xl object-cover"
+                className="size-full rounded-md object-cover"
               />
             ) : (
               <span className="grid size-full place-items-center rounded-xl bg-gradient-to-br from-green-500 to-slate-900 text-white">
@@ -75,18 +75,18 @@ export default function TournamentCard({ tour }) {
 
         <div className="flex flex-1 flex-col p-4 pt-7 sm:p-5 sm:pt-8">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="line-clamp-1 text-[15px] font-black text-slate-900 transition-colors group-hover:text-green-600 sm:text-base">
+            <h3 className="line-clamp-1 text-[15px] font-black text-[#111313] dark:text-[#F5F7F2] transition-colors group-hover:text-[#16834A] dark:group-hover:text-[#42D889] sm:text-base">
               {tour.name}
             </h3>
             {tour.registration_open && (
-              <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-200">
+              <span className="shrink-0 rounded-md bg-[#16834A]/10 px-2 py-0.5 text-[10px] font-black text-[#16834A] dark:text-[#42D889] border border-[#16834A]/20">
                 {t('public.tournaments.spotsLeft', { count: tour.remaining_teams })}
               </span>
             )}
           </div>
 
           {tour.description && (
-            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-slate-500">
+            <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-[#65706A] dark:text-[#B2B9B3]">
               {tour.description}
             </p>
           )}
@@ -112,9 +112,9 @@ export default function TournamentCard({ tour }) {
             )}
           </div>
 
-          <div className="mt-auto flex items-center justify-between border-t border-slate-100 pt-3.5">
+          <div className="mt-auto flex items-center justify-between border-t border-[#E1E5DF] dark:border-[#303832] pt-3.5">
             <div className="flex items-center gap-2">
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-extrabold text-slate-700">
+              <span className="rounded-md bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-[10px] font-extrabold text-[#65706A] dark:text-[#B2B9B3] border border-[#E1E5DF] dark:border-[#303832]">
                 {t(`committee.tournaments.formats.${tour.tournament_format}`, tour.tournament_format)}
               </span>
               {tour.organizer?.name && (
@@ -124,7 +124,7 @@ export default function TournamentCard({ tour }) {
               )}
             </div>
 
-            <span className="inline-flex items-center gap-1 text-[11px] font-black text-green-600 transition-transform duration-300 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5">
+            <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#16834A] dark:text-[#D0FF38] transition-transform duration-300 group-hover:translate-x-0.5 rtl:group-hover:-translate-x-0.5">
               <span>{t('public.tournaments.viewDetails', 'تفاصيل البطولة')}</span>
               <ArrowRight className="size-3.5 rtl:rotate-180" />
             </span>

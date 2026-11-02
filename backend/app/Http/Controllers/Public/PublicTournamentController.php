@@ -339,13 +339,16 @@ class PublicTournamentController extends Controller
 
     private function resolveTournament(string $key): Tournament
     {
-        $decodedKey = rawurldecode($key);
-        $tournament = is_numeric($key)
-            ? Tournament::query()->whereKey((int) $key)->first()
+        $cleanKey = trim($key);
+        $decodedKey = trim(rawurldecode($key));
+        $tournament = is_numeric($cleanKey)
+            ? Tournament::query()->whereKey((int) $cleanKey)->first()
             : Tournament::query()
-                ->where('slug', $key)
+                ->where('slug', $cleanKey)
                 ->orWhere('slug', $decodedKey)
-                ->orWhere('uuid', $key)
+                ->orWhere('uuid', $cleanKey)
+                ->orWhere('name', $cleanKey)
+                ->orWhere('name', $decodedKey)
                 ->first();
 
         abort_unless($tournament instanceof Tournament, 404, 'البطولة غير موجودة');
@@ -361,6 +364,8 @@ class PublicTournamentController extends Controller
             return;
         }
 
-        abort_unless($tournament->isVisiblePublicly(), 404, 'البطولة غير متاحة حالياً');
+        if ($tournament->isHidden()) {
+            abort(404, 'البطولة غير متاحة حالياً');
+        }
     }
 }

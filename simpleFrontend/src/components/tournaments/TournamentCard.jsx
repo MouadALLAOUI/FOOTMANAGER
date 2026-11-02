@@ -37,7 +37,7 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
 
   return (
     <article
-      className={`group flex h-full w-[85%] sm:w-auto max-w-[340px] shrink-0 snap-start flex-col overflow-hidden rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white text-[#14221C] shadow-sm hover:shadow-md hover:border-emerald-500/50 transition-all duration-200 ${className}`}
+      className={`group flex h-full w-[85%] sm:w-auto max-w-[340px] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] shadow-sm transition-all ${className}`}
     >
       {/* 1. الصورة مع حالة واحدة فقط */}
       <div className="relative h-[160px] overflow-hidden bg-slate-900">
@@ -57,7 +57,7 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
 
         {/* حالة واحدة فقط: مفتوحة / قريباً / مغلقة */}
         <span
-          className={`absolute top-3 start-3 rounded-full border px-3 py-0.5 text-[11px] font-black shadow-xs ${status.style}`}
+          className={`absolute top-3 start-3 border px-2.5 py-0.5 text-[11px] font-black shadow-xs ${status.style}`}
         >
           {status.label}
         </span>
@@ -67,13 +67,13 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
       <div className="flex flex-1 flex-col justify-between p-4 sm:p-5">
         <div>
           {/* العنوان (سطران كحد أقصى بلا قص) */}
-          <h3 className="line-clamp-2 text-sm sm:text-base font-black leading-snug text-[#14221C] group-hover:text-emerald-700 transition-colors">
+          <h3 className="line-clamp-2 text-sm sm:text-base font-black leading-snug text-[#111313] dark:text-[#F5F7F2] group-hover:text-[#16834A] dark:group-hover:text-[#42D889] transition-colors">
             {tour.name}
           </h3>
 
           {/* التاريخ */}
           {formattedDate && (
-            <p className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-slate-600">
+            <p className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">
               <Calendar className="size-3.5 shrink-0 text-emerald-600" />
               <span>{formattedDate}</span>
             </p>
@@ -84,7 +84,7 @@ export default function TournamentCard({ tournament: tour, className = '' }) {
         <div className="pt-4 mt-2">
           <Link
             to={`/tournaments/${tour.slug || tour.id}`}
-            className="flex h-10 w-full items-center justify-center rounded-xl bg-[#1F7A4D] hover:bg-[#166534] text-xs font-black text-white shadow-xs transition-all active:scale-95"
+            className="flex h-10 w-full items-center justify-center rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 text-xs font-black text-[#111313] shadow-xs transition-all active:scale-95"
           >
             التفاصيل
           </Link>

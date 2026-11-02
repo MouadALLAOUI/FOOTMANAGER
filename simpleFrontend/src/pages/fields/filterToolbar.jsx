@@ -84,7 +84,7 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
   const mobileChips = <div className="flex items-center gap-2.5">{chipButtons}</div>
 
   const sortControl = (
-    <label className="relative flex h-11 items-center gap-2 rounded-2xl bg-white px-4 ring-1 ring-slate-200 transition hover:ring-slate-300">
+    <label className="relative flex h-11 items-center gap-2 rounded-lg bg-white dark:bg-[#1B201D] px-3 border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2]">
       <span className="text-xs font-semibold text-slate-400">{t('fieldsPage.toolbar.sortLabel')}</span>
       <select
         value={sort}
@@ -102,7 +102,7 @@ export default function FilterToolbar({ filters, onToggle, onReset, sort, onSort
   )
 
   const viewControl = (
-    <div className="flex h-11 items-center rounded-2xl bg-slate-100 p-1">
+    <div className="flex h-11 items-center rounded-lg bg-[#E9ECE7] dark:bg-[#252B27] p-1">
       {(['grid', 'list']).map((mode) => (
         <button
           key={mode}

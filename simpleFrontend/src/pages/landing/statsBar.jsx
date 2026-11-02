@@ -73,14 +73,14 @@ export default function StatsBar({ theme = 'dark' }) {
           <div key={item.key} className="flex flex-col items-center justify-center text-center px-2">
             <span
               className={`text-2xl sm:text-3xl md:text-4xl font-black font-mono tabular-nums ${
-                isDark ? 'text-white' : 'text-slate-900'
+                isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'
               }`}
             >
               {item.value}
             </span>
             <span
               className={`mt-1 text-xs sm:text-sm font-black whitespace-nowrap ${
-                isDark ? 'text-emerald-400' : 'text-emerald-700'
+                isDark ? 'text-[#D0FF38]' : 'text-[#16834A]'
               }`}
             >
               {item.label}

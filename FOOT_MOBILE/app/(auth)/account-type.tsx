@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Dimensions,
+  Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,319 +10,300 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  ArrowLeft,
-  ArrowRight,
-  LandPlot,
-  Trophy,
-  User,
-  Users,
-} from 'lucide-react-native';
-import Svg, { Ellipse, Path, Rect } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft } from 'lucide-react-native';
+import { StatusBar } from 'expo-status-bar';
 
-import { Screen } from '@/components/ui/Screen';
-import { AjiNqssroLogo } from '@/components/ui/AjiNqssroLogo';
-import { useI18n } from '@/i18n/I18nProvider';
-import { useTheme } from '@/theme/ThemeProvider';
 import { persistentStorage } from '@/services/storage/persistent-storage';
-import { radius, spacing } from '@/theme/spacing';
 
-// Stadium Icon tailored to match the sheet icon
-function StadiumIcon({ size = 32, color = '#059669' }: { size?: number; color?: string }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 36 36" fill="none">
-      <Ellipse cx="18" cy="18" rx="15" ry="11" stroke={color} strokeWidth="2.4" />
-      <Ellipse cx="18" cy="18" rx="9" ry="6" stroke={color} strokeWidth="1.8" strokeDasharray="3 2" />
-      {/* Field markings */}
-      <Path d="M18 12 L18 24" stroke={color} strokeWidth="1.8" />
-      <Path d="M9 18 L27 18" stroke={color} strokeWidth="1.2" strokeDasharray="2 2" />
-      {/* Goal arches */}
-      <Path d="M4 15 C6 15 6 21 4 21" stroke={color} strokeWidth="2" />
-      <Path d="M32 15 C30 15 30 21 32 21" stroke={color} strokeWidth="2" />
-    </Svg>
-  );
-}
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const HORIZONTAL_PADDING = 18;
+const GRID_GAP = 12;
+const CARD_WIDTH = Math.floor((SCREEN_WIDTH - HORIZONTAL_PADDING * 2 - GRID_GAP) / 2);
+const ILLUSTRATION_HEIGHT = Math.round(CARD_WIDTH * (230 / 402));
 
-interface RoleCardItem {
-  id: 'terrain_owner' | 'manager' | 'committee' | 'player';
+type RoleId = 'player' | 'manager' | 'terrain_owner' | 'committee';
+
+interface RoleCardData {
+  id: RoleId;
   title: string;
   desc: string;
-  icon: (color: string) => React.JSX.Element;
-  primaryColor: string;
-  borderColor: string;
-  bgColor: string;
-  activeBgColor: string;
+  image: number;
 }
 
+// Visual placement matching the reference design:
+// Left column: Player (top), Stadium Owner (bottom)
+// Right column: Team Manager (top), Tournament Committee (bottom)
+const LEFT_COLUMN_CARDS: RoleCardData[] = [
+  {
+    id: 'player',
+    title: 'لاعب',
+    desc: 'اكتشف المباريات، انضم إلى الفرق وتابع إحصائياتك.',
+    image: require('../../assets/role-player.png'),
+  },
+  {
+    id: 'terrain_owner',
+    title: 'مالك ملعب',
+    desc: 'أدر ملاعبك والحجوزات والمواعيد.',
+    image: require('../../assets/role-stadium.png'),
+  },
+];
+
+const RIGHT_COLUMN_CARDS: RoleCardData[] = [
+  {
+    id: 'manager',
+    title: 'مسيّر فريق',
+    desc: 'أدر فريقك ولاعبيك ومبارياتك وتحدياتك.',
+    image: require('../../assets/role-manager.png'),
+  },
+  {
+    id: 'committee',
+    title: 'لجنة تنظيم',
+    desc: 'نظّم البطولات والمجموعات والنتائج والترتيب.',
+    image: require('../../assets/role-committee.png'),
+  },
+];
+
 export default function AccountTypeScreen(): React.JSX.Element {
-  const { isRTL } = useI18n();
-  const { colors } = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  // Terrain owner is selected by default as in the design sheet!
-  const [selectedRole, setSelectedRole] = useState<'terrain_owner' | 'manager' | 'committee' | 'player'>('terrain_owner');
-
-  // Clear previous user signup data so it never pollutes a new signup
-  React.useEffect(() => {
+  // Clear stale registration session artifacts to start clean
+  useEffect(() => {
     try {
       persistentStorage.remove('owner.pendingStadium');
       persistentStorage.remove('owner.manualBookings');
       persistentStorage.remove('owner.pendingUser');
     } catch {
-      // Ignore
+      // Ignore storage errors on cleanup
     }
   }, []);
 
-  const ROLE_CARDS: RoleCardItem[] = [
-    {
-      id: 'terrain_owner',
-      title: 'عندي ملعب',
-      desc: 'تسير الملاعب والحجوزات',
-      icon: (c) => <StadiumIcon size={32} color={c} />,
-      primaryColor: '#059669',
-      borderColor: '#10B981',
-      bgColor: '#F0FDF4',
-      activeBgColor: '#ECFDF5',
-    },
-    {
-      id: 'manager',
-      title: 'عندي فريق',
-      desc: 'مثل تصعيد الفريق والمباريات واللاعبين',
-      icon: (c) => <Users size={30} color={c} />,
-      primaryColor: '#2563EB',
-      borderColor: '#93C5FD',
-      bgColor: '#F8FAFC',
-      activeBgColor: '#EFF6FF',
-    },
-    {
-      id: 'committee',
-      title: 'كننظم بطولة',
-      desc: 'تنظيم بنظام البطولة',
-      icon: (c) => <Trophy size={30} color={c} />,
-      primaryColor: '#EA580C',
-      borderColor: '#FDBA74',
-      bgColor: '#F8FAFC',
-      activeBgColor: '#FFF7ED',
-    },
-    {
-      id: 'player',
-      title: 'أنا لاعب',
-      desc: 'تلعب ونتابع فريقك',
-      icon: (c) => <User size={30} color={c} />,
-      primaryColor: '#9333EA',
-      borderColor: '#D8B4FE',
-      bgColor: '#F8FAFC',
-      activeBgColor: '#FAF5FF',
-    },
-  ];
-
-  const handleProceed = () => {
+  const handleSelectRole = (role: RoleId) => {
     router.push({
       pathname: '/(auth)/register',
-      params: { role: selectedRole },
+      params: { role },
     } as never);
   };
 
-  const ForwardArrow = isRTL ? ArrowLeft : ArrowRight;
+  const renderCard = (card: RoleCardData) => (
+    <Pressable
+      key={card.id}
+      onPress={() => handleSelectRole(card.id)}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          transform: [{ scale: pressed ? 0.975 : 1 }],
+          borderColor: pressed ? '#059669' : 'rgba(226, 232, 240, 0.9)',
+          shadowOpacity: pressed ? 0.12 : 0.06,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={card.title}
+      accessibilityHint={card.desc}
+    >
+      {/* 1. Football Role Illustration */}
+      <View style={styles.illustrationWrap}>
+        <Image
+          source={card.image}
+          style={styles.cardImage}
+          resizeMode="cover"
+        />
+      </View>
 
-  return (
-    <Screen padded={false}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Top Header Logo */}
-        <View style={styles.topLogoWrap}>
-          <AjiNqssroLogo size={52} />
-        </View>
-
-        {/* Main Title Question */}
-        <View style={styles.titleWrap}>
-          <Text style={[styles.mainTitle, { color: colors.text }]}>
-            شنو باغي تدير فجي أجي نقصرو؟
+      {/* 2. Text & Forward Indicator Row (RTL aligned) */}
+      <View style={styles.cardContent}>
+        {/* Title and Short Description */}
+        <View style={styles.textWrap}>
+          <Text style={styles.cardTitle}>{card.title}</Text>
+          <Text style={styles.cardDesc} numberOfLines={2}>
+            {card.desc}
           </Text>
         </View>
 
-        {/* 2x2 Grid of Roles */}
-        <View style={styles.grid}>
-          {ROLE_CARDS.map((card) => {
-            const isSelected = selectedRole === card.id;
-            return (
-              <Pressable
-                key={card.id}
-                onPress={() => setSelectedRole(card.id)}
-                style={({ pressed }) => [
-                  styles.card,
-                  {
-                    backgroundColor: isSelected ? card.activeBgColor : card.bgColor,
-                    borderColor: isSelected ? card.primaryColor : card.borderColor,
-                    borderWidth: isSelected ? 2.5 : 1.5,
-                    transform: [{ scale: pressed ? 0.98 : 1 }],
-                    shadowColor: isSelected ? card.primaryColor : '#000',
-                    shadowOpacity: isSelected ? 0.12 : 0.04,
-                    shadowRadius: isSelected ? 8 : 4,
-                    elevation: isSelected ? 3 : 1,
-                  },
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={card.title}
-                accessibilityState={{ selected: isSelected }}
-              >
-                {/* Icon Circle */}
-                <View
-                  style={[
-                    styles.iconCircle,
-                    {
-                      backgroundColor: isSelected ? '#FFFFFF' : card.activeBgColor,
-                      borderColor: isSelected ? card.primaryColor + '40' : 'transparent',
-                    },
-                  ]}
-                >
-                  {card.icon(card.primaryColor)}
-                </View>
+        {/* Circular Green Forward Indicator */}
+        <View style={styles.arrowCircle}>
+          <ChevronLeft size={16} color="#059669" strokeWidth={3} />
+        </View>
+      </View>
+    </Pressable>
+  );
 
-                {/* Card Title */}
-                <Text style={[styles.cardTitle, { color: card.primaryColor }]}>
-                  {card.title}
-                </Text>
+  return (
+    <View style={styles.root}>
+      <StatusBar style="dark" />
 
-                {/* Card Description */}
-                <Text style={[styles.cardDesc, { color: '#64748B' }]}>
-                  {card.desc}
-                </Text>
+      {/* Stadium & Southeastern Moroccan Landscape Background */}
+      <Image
+        source={require('../../assets/role-selection-bg.png')}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
 
-                {/* Check badge on selected */}
-                {isSelected ? (
-                  <View style={[styles.checkBadge, { backgroundColor: card.primaryColor }]}>
-                    <Text style={styles.checkBadgeText}>✓</Text>
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: insets.bottom + 20,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ─── Header: Official Logo & Greetings ─── */}
+        <View style={styles.header}>
+          <Image
+            source={require('../../assets/role-header-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+
+          <Text style={styles.primaryGreeting}>مرحباً بك !</Text>
+          <Text style={styles.secondaryHeading}>كيف تريد استخدام التطبيق؟</Text>
+          <Text style={styles.subtitle}>اختر صفتك لنقدم لك تجربة تناسبك</Text>
+        </View>
+
+        {/* ─── 2x2 Grid of Account Types ─── */}
+        <View style={styles.gridContainer}>
+          {/* Left Column (Player & Stadium Owner) */}
+          <View style={styles.column}>
+            {LEFT_COLUMN_CARDS.map(renderCard)}
+          </View>
+
+          {/* Right Column (Team Manager & Committee) */}
+          <View style={styles.column}>
+            {RIGHT_COLUMN_CARDS.map(renderCard)}
+          </View>
         </View>
       </ScrollView>
-
-      {/* Floating Next Action Button at Bottom */}
-      <View style={[styles.bottomBar, { direction: isRTL ? 'rtl' : 'ltr' }]}>
-        <Pressable
-          onPress={handleProceed}
-          style={({ pressed }) => [
-            styles.floatingBtn,
-            {
-              opacity: pressed ? 0.85 : 1,
-              transform: [{ scale: pressed ? 0.95 : 1 }],
-            },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="متابعة"
-        >
-          <ForwardArrow size={26} color="#FFFFFF" strokeWidth={2.6} />
-        </Pressable>
-      </View>
-    </Screen>
+    </View>
   );
 }
 
-const screenWidth = Dimensions.get('window').width;
-const cardWidth = Math.floor((screenWidth - spacing.lg * 2 - spacing.md) / 2);
-
 const styles = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl,
-    paddingBottom: 110,
-    gap: spacing.lg,
-    alignItems: 'center',
+  root: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
   },
-  topLogoWrap: {
-    alignItems: 'center',
-    marginTop: spacing.md,
+  backgroundImage: {
+    ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
   },
-  titleWrap: {
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: HORIZONTAL_PADDING,
     alignItems: 'center',
-    marginVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
+    justifyContent: 'space-between',
   },
-  mainTitle: {
-    fontSize: 22,
-    fontWeight: '800',
+  header: {
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 16,
+    width: '100%',
+  },
+  logo: {
+    width: 60,
+    height: 64,
+    marginBottom: 8,
+  },
+  primaryGreeting: {
+    fontSize: Math.min(27, Math.round(SCREEN_WIDTH * 0.070)),
+    fontWeight: '900',
+    color: '#00875A',
     textAlign: 'center',
     letterSpacing: -0.3,
+    lineHeight: Platform.OS === 'android' ? 36 : 32,
   },
-  grid: {
+  secondaryHeading: {
+    fontSize: Math.min(19, Math.round(SCREEN_WIDTH * 0.050)),
+    fontWeight: '800',
+    color: '#0B192C',
+    textAlign: 'center',
+    marginTop: 3,
+    letterSpacing: -0.2,
+    lineHeight: Platform.OS === 'android' ? 28 : 25,
+  },
+  subtitle: {
+    fontSize: Math.min(12.5, Math.round(SCREEN_WIDTH * 0.033)),
+    fontWeight: '600',
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 5,
+    paddingHorizontal: 12,
+  },
+  gridContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    direction: 'ltr', // Fixes column anchoring: left column remains on the left, right column on the right
     justifyContent: 'space-between',
     width: '100%',
-    gap: spacing.md,
+    gap: GRID_GAP,
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  column: {
+    width: CARD_WIDTH,
+    gap: GRID_GAP,
   },
   card: {
-    width: cardWidth,
-    minHeight: 155,
-    borderRadius: 20,
-    padding: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    position: 'relative',
+    width: CARD_WIDTH,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    borderWidth: 1.2,
+    borderColor: 'rgba(226, 232, 240, 0.9)',
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  iconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
+  illustrationWrap: {
+    width: '100%',
+    height: ILLUSTRATION_HEIGHT,
+    backgroundColor: '#F1F5F9',
+    overflow: 'hidden',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardContent: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    direction: 'rtl', // Ensures RTL alignment: Arabic text on the right, arrow on the left
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-    borderWidth: 1,
+    justifyContent: 'space-between',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+  },
+  textWrap: {
+    flex: 1,
+    alignItems: 'flex-start',
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: Math.min(15.5, Math.round(SCREEN_WIDTH * 0.040)),
     fontWeight: '800',
-    textAlign: 'center',
+    color: '#0B192C',
+    textAlign: 'right',
+    letterSpacing: -0.2,
   },
   cardDesc: {
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: 'center',
-    paddingHorizontal: 2,
+    fontSize: Math.min(10, Math.round(SCREEN_WIDTH * 0.026)),
+    fontWeight: '500',
+    color: '#64748B',
+    textAlign: 'right',
+    lineHeight: 14,
+    marginTop: 3,
   },
-  checkBadge: {
-    position: 'absolute',
-    top: 10,
-    end: 10,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  arrowCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#ECFDF5',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  checkBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '800',
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 28,
-    start: spacing.lg,
-    end: spacing.lg,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    pointerEvents: 'box-none',
-  },
-  floatingBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#059669',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    flexShrink: 0,
   },
 });

@@ -18,7 +18,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, variant }) {
 
   return (
     <article
-      className={`group overflow-hidden rounded-3xl bg-white shadow-[0_8px_30px_rgba(17,24,39,0.08)] ring-1 ring-slate-100 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_24px_55px_rgba(17,24,39,0.18)] ${
+      className={`group overflow-hidden rounded-xl bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] shadow-sm transition-all ${
         horizontal ? 'flex flex-col sm:flex-row' : 'flex flex-col'
       }`}
     >
@@ -32,7 +32,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, variant }) {
           onError={hideBrokenImage}
           className="relative size-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.07]"
         />
-        <span className="absolute top-3 end-3 rounded-full bg-green-500 px-3 py-1 text-xs font-bold text-white shadow-md">
+        <span className="absolute top-3 end-3 rounded-md bg-[#16834A] px-2.5 py-0.5 text-xs font-black text-white">
           {t('fieldsPage.card.available')}
         </span>
         <button
@@ -66,7 +66,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, variant }) {
           </span>
         </div>
 
-        <h3 className="mt-2 truncate text-lg font-extrabold text-slate-900">{card.name}</h3>
+        <h3 className="mt-2 truncate text-base font-black text-[#111313] dark:text-[#F5F7F2]">{card.name}</h3>
         <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
           <FontAwesomeIcon icon={faMapPin} className="size-3.5 text-slate-400" />
           {card.city}
@@ -76,9 +76,9 @@ function FieldCard({ card, liked, onToggleLike, onBook, variant }) {
           {card.isOpen ? t('fieldsPage.card.openNow') : t('fieldsPage.card.closed')}
         </p>
 
-        <div className="mt-auto flex items-center justify-between gap-3 border-t border-slate-100 pt-4 sm:mt-5">
+        <div className="mt-auto flex items-center justify-between gap-3 border-t border-[#E1E5DF] dark:border-[#303832] pt-4 sm:mt-5">
           <div>
-            <p className="text-xl font-extrabold text-green-600">
+            <p className="text-lg font-black text-[#16834A] dark:text-[#D0FF38]">
               {formatCount(card.price, i18n.language)} <span className="text-sm font-semibold">{t('fieldsPage.card.currency')}</span>
             </p>
             <p className="mt-0.5 text-xs text-slate-400">{t('fieldsPage.card.perHour')}</p>
@@ -86,7 +86,7 @@ function FieldCard({ card, liked, onToggleLike, onBook, variant }) {
           <button
             type="button"
             onClick={() => onBook(card)}
-            className="flex h-12 items-center gap-2 rounded-[14px] bg-green-500 px-5 text-sm font-bold text-white shadow-md shadow-green-500/25 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-700 active:scale-[0.97]"
+            className="flex h-12 items-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] px-5 text-sm font-black text-[#111313] hover:brightness-105 shadow-xs transition-all active:scale-[0.97]"
           >
             <FontAwesomeIcon icon={faCalendarCheck} className="size-4" />
             {t('fieldsPage.card.book')}

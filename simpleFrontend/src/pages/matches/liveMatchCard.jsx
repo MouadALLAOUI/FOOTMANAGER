@@ -27,7 +27,7 @@ export default function LiveMatchCard({ match }) {
   const accentB = accents[(match.id + 3) % accents.length]
 
   return (
-    <article className="group relative h-[260px] w-[min(420px,86vw)] shrink-0 snap-start overflow-hidden rounded-[28px] shadow-[0_14px_45px_rgba(17,24,39,0.2)] ring-1 ring-slate-200 transition-all duration-300 ease-out hover:-translate-y-2 hover:shadow-[0_32px_75px_rgba(17,24,39,0.38)]">
+    <article className="group relative h-[260px] w-[min(420px,86vw)] shrink-0 snap-start overflow-hidden rounded-xl border border-[#303832] shadow-md transition-all">
       <img
         src={match.image}
         alt=""
@@ -42,7 +42,7 @@ export default function LiveMatchCard({ match }) {
         {match.minute}&#39;
       </span>
 
-      <span className="live-badge absolute top-4 end-4 flex items-center gap-1.5 rounded-full bg-red-600 px-3.5 py-1 text-xs font-bold text-white">
+      <span className="live-badge absolute top-4 end-4 flex items-center gap-1.5 rounded-md bg-[#D93636] px-2.5 py-0.5 text-xs font-black text-white">
         <span className="size-1.5 rounded-full bg-white" />
         {t('matchesPage.live.badge')}
       </span>

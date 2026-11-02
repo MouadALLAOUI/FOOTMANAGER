@@ -17,11 +17,16 @@ import {
   Zap,
 } from 'lucide-react'
 import { useAuth, homeForRole } from '../../context/AuthContext'
+import { useTheme } from '../../context/ThemeContext'
 import { useNotificationUnreadCount } from '../../api/queries'
 import { triggerPwaInstall, isStandalone } from './pwaHelper'
 import NotificationSheet from './notificationSheet'
 
 export default function MainHeader({ theme = 'dark', onToggleTheme, transparent = false }) {
+  const { theme: ctxTheme, toggleTheme: ctxToggleTheme, isDark: ctxIsDark } = useTheme()
+  const activeTheme = ctxTheme || theme
+  const isDark = ctxIsDark !== undefined ? ctxIsDark : (theme === 'dark')
+  const handleToggle = onToggleTheme || ctxToggleTheme
   const { t } = useTranslation()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -43,7 +48,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
     } catch {}
   }
 
-  const isDark = theme === 'dark' || document.documentElement.classList.contains('dark')
+  // isDark resolved from ThemeContext
 
   // User Initials or Avatar
   const userInitial = user?.name ? user.name.trim().charAt(0).toUpperCase() : null
@@ -71,19 +76,19 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
           <img
             src="/logo.jpeg"
             alt="شعار منصة أجي نقصرو"
-            className="size-9 sm:size-10 shrink-0 rounded-2xl object-cover shadow-md shadow-emerald-600/30 ring-2 ring-emerald-500/30 transition-transform group-hover:scale-105"
+            className="size-9 sm:size-10 shrink-0 rounded-xl object-cover shadow-emerald-600/30 ring-2 ring-emerald-500/30 transition-transform group-hover:scale-105"
           />
           <div className="flex flex-col">
             <span
               className={`text-base sm:text-lg font-black tracking-tight ${
-                transparent || isDark ? 'text-white' : 'text-slate-900'
+                transparent || isDark ? 'text-white' : 'text-[#111313]'
               }`}
             >
               أجي نقصرو
             </span>
             <span
               className={`hidden text-[10px] font-bold sm:block ${
-                transparent || isDark ? 'text-emerald-400' : 'text-emerald-600'
+                transparent || isDark ? 'text-[#D0FF38]' : 'text-[#65706A]'
               }`}
             >
               منصة دوريات كرة القدم وملاعب القرب
@@ -106,7 +111,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                 setAccountMenuOpen(false)
               }}
               aria-label="الإشعارات والتنبيهات"
-              className={`relative grid size-10 place-items-center rounded-2xl border transition-all cursor-pointer ${
+              className={`relative grid size-10 place-items-center rounded-lg border transition-all cursor-pointer ${
                 transparent
                   ? 'border-white/20 bg-white/10 text-white hover:bg-white/20 backdrop-blur-xs'
                   : isDark
@@ -144,14 +149,14 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
               }}
               aria-label="قائمة الحساب والإعدادات"
               title={user ? user.name : 'قائمة الحساب'}
-              className="relative grid size-10 place-items-center rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 p-0.5 shadow-sm transition-all hover:scale-105 active:scale-95 cursor-pointer ring-2 ring-emerald-500/20"
+              className="relative grid size-10 place-items-center rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] p-0.5 transition-all hover:brightness-105 active:scale-95 cursor-pointer"
             >
               {user ? (
                 user.avatar_url ? (
                   <img
                     src={user.avatar_url}
                     alt={user.name}
-                    className="size-full rounded-[14px] object-cover"
+                    className="size-full rounded-md object-cover"
                   />
                 ) : (
                   <span className="text-sm font-black text-emerald-400">{userInitial}</span>
@@ -167,14 +172,14 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                 <div className="fixed inset-0 z-[var(--z-overlay)]" onClick={() => setAccountMenuOpen(false)} />
                 <div
                   role="menu"
-                  className={`fade-in absolute end-0 top-12 z-[var(--z-drawer)] w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border p-3 shadow-2xl ${
+                  className={`fade-in absolute end-0 top-12 z-[var(--z-drawer)] w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border p-2 shadow-xl ${
                     isDark
                       ? 'border-emerald-900/50 bg-[#14221C] text-white shadow-black/90'
                       : 'border-slate-200 bg-white text-slate-900 shadow-xl'
                   }`}
                 >
                   {/* User Profile Header */}
-                  <div className="p-3 border-b border-slate-700/30 mb-2">
+                  <div className="p-3 border-b border-[#E1E5DF] dark:border-[#303832] mb-2">
                     {user ? (
                       <div>
                         <div className="flex items-center justify-between gap-2">
@@ -210,7 +215,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                       <Link
                         to={homeForRole(user.role)}
                         onClick={() => setAccountMenuOpen(false)}
-                        className={`flex items-center justify-between gap-2 rounded-2xl px-3.5 py-2.5 transition-colors ${
+                        className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition-colors ${
                           isDark
                             ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
                             : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
@@ -228,9 +233,9 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                     <button
                       type="button"
                       onClick={() => {
-                        if (onToggleTheme) onToggleTheme()
+                        if (handleToggle) handleToggle()
                       }}
-                      className={`w-full flex items-center justify-between gap-2 rounded-2xl px-3.5 py-2.5 transition-colors cursor-pointer ${
+                      className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer ${
                         isDark ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                       }`}
                     >
@@ -254,7 +259,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         setAccountMenuOpen(false)
                         triggerPwaInstall()
                       }}
-                      className={`w-full flex items-center justify-between gap-2 rounded-2xl px-3.5 py-2.5 transition-colors cursor-pointer ${
+                      className={`w-full flex items-center justify-between gap-2 rounded-lg px-3 py-2 transition-colors cursor-pointer ${
                         isDark ? 'hover:bg-slate-800 text-slate-200' : 'hover:bg-slate-100 text-slate-700'
                       }`}
                     >
@@ -273,7 +278,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         <Link
                           to="/register-player"
                           onClick={() => setAccountMenuOpen(false)}
-                          className="flex items-center justify-between gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-3.5 py-2.5 font-black transition-all shadow-sm"
+                          className="flex items-center justify-between gap-2 rounded-2xl bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] hover:brightness-105 px-3 py-2 font-black transition-all"
                         >
                           <div className="flex items-center gap-2.5">
                             <Zap className="size-4" />
@@ -285,7 +290,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         <Link
                           to="/login"
                           onClick={() => setAccountMenuOpen(false)}
-                          className="flex items-center gap-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white px-3.5 py-2.5 font-bold transition-colors border border-slate-700/60"
+                          className="flex items-center gap-2.5 rounded-2xl bg-[#111313] dark:bg-[#252B27] hover:brightness-110 text-white px-3 py-2 font-bold transition-colors border border-transparent"
                         >
                           <LogIn className="size-4" />
                           <span>تسجيل الدخول</span>
@@ -293,8 +298,8 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         <Link
                           to="/register"
                           onClick={() => setAccountMenuOpen(false)}
-                          className={`flex items-center gap-2.5 rounded-2xl px-3.5 py-2.5 transition-colors ${
-                            isDark ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700'
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 transition-colors ${
+                            isDark ? 'hover:bg-[#252B27] text-[#B2B9B3]' : 'hover:bg-[#E9ECE7] text-[#65706A]'
                           }`}
                         >
                           <UserPlus className="size-4" />
@@ -309,7 +314,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                         <button
                           type="button"
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-2.5 rounded-2xl px-3.5 py-2.5 text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
                         >
                           <LogOut className="size-4" />
                           <span>تسجيل الخروج</span>

@@ -128,7 +128,7 @@ export default function DataTable({
                   onChange={(e) => setTerm(e.target.value)}
                   placeholder={searchPlaceholder || t('admin.table.search')}
                   aria-label={searchPlaceholder || t('admin.table.search')}
-                  className="h-10 w-full rounded-2xl border border-slate-200 bg-slate-50/60 ps-10 pe-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500/60 focus:bg-white focus:ring-4 focus:ring-green-500/10 sm:w-64"
+                  className="h-9 w-full rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] ps-10 pe-4 text-xs sm:text-sm text-[#111313] dark:text-[#F5F7F2] outline-none transition-all placeholder-[#65706A] dark:placeholder-[#B2B9B3]/50 focus:border-[#B8F000] dark:focus:border-[#D0FF38] focus:ring-2 focus:ring-[#B8F000]/25 sm:w-64"
                 />
               </div>
             )}
@@ -136,7 +136,7 @@ export default function DataTable({
         </div>
 
         {selectable && selected.length > 0 && (
-          <div className="fade-in flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-900 px-4 py-3">
+          <div className="fade-in flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#111313] dark:bg-[#252B27] px-4 py-2.5">
             <p className="text-xs font-bold text-white">
               {t('admin.table.selectedCount', { count: selected.length })}
             </p>
@@ -173,7 +173,7 @@ export default function DataTable({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-start">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/60">
+              <tr className="border-b border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27]">
                 {selectable && (
                   <th className="w-12 px-5 py-3.5">
                     <input
@@ -183,12 +183,12 @@ export default function DataTable({
                         if (el) el.indeterminate = someSelected && !allSelected
                       }}
                       onChange={toggleAll}
-                      className="size-4 rounded border-slate-300 accent-green-500"
+                      className="size-4 rounded border-slate-300 accent-[#B8F000] dark:accent-[#D0FF38]"
                     />
                   </th>
                 )}
                 {columns.map((col) => (
-                  <th key={col.key} className={cn('px-5 py-3.5 text-start text-[11px] font-black uppercase tracking-wider text-slate-500', col.className)}>
+                  <th key={col.key} className={cn('px-5 py-3.5 text-start text-[11px] font-black uppercase tracking-wider text-[#65706A] dark:text-[#B2B9B3]', col.className)}>
                     {headerCell(col)}
                   </th>
                 ))}
@@ -210,9 +210,9 @@ export default function DataTable({
                     }}
                     tabIndex={onRowClick ? 0 : undefined}
                     className={cn(
-                      'border-b border-slate-50 transition-colors last:border-0',
-                      onRowClick ? 'cursor-pointer hover:bg-green-50/40' : '',
-                      isSelected && 'bg-green-50/60',
+                      'border-b border-[#E1E5DF]/50 dark:border-[#303832]/50 transition-colors last:border-0',
+                      onRowClick ? 'cursor-pointer hover:bg-[#E9ECE7]/40 dark:hover:bg-[#252B27]/40' : '',
+                      isSelected && 'bg-[#B8F000]/15 dark:bg-[#D0FF38]/10 text-[#111313] dark:text-[#F5F7F2]',
                     )}
                     style={{ animationDelay: `${i * 20}ms` }}
                   >
@@ -222,12 +222,12 @@ export default function DataTable({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleOne(id)}
-                          className="size-4 rounded border-slate-300 accent-green-500"
+                          className="size-4 rounded border-slate-300 accent-[#B8F000] dark:accent-[#D0FF38]"
                         />
                       </td>
                     )}
                     {columns.map((col) => (
-                      <td key={col.key} className={cn('px-5 py-3.5 text-sm text-slate-700', col.className)}>
+                      <td key={col.key} className={cn('px-5 py-3.5 text-sm text-[#111313] dark:text-[#F5F7F2]', col.className)}>
                         {col.render ? col.render(row) : row[col.key] ?? '—'}
                       </td>
                     ))}

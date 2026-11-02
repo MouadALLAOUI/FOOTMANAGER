@@ -84,11 +84,11 @@ export default function PwaTopBanner({ theme = 'dark', onVisibilityChange }) {
   return (
     <div
       aria-label="تثبيت التطبيق"
-      className="relative z-[var(--z-sticky)] w-full border-b transition-colors shadow-xs bg-gradient-to-r from-[#064E3B] via-[#0A161E] to-[#064E3B] text-white border-emerald-500/30"
+      className="relative z-[var(--z-sticky)] w-full border-b transition-colors shadow-xs bg-[#101211] text-white border-b border-[#303832]"
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2 text-xs font-bold sm:px-6">
         <div className="flex shrink-0 items-center gap-2.5">
-          <span className="grid size-7 shrink-0 place-items-center rounded-xl bg-emerald-500/20 text-emerald-400">
+          <span className="grid size-7 shrink-0 place-items-center rounded-md bg-[#B8F000]/20 text-[#D0FF38]">
             <Smartphone className="size-4" />
           </span>
           <p className="text-[11px] sm:text-xs font-extrabold text-white whitespace-nowrap">
@@ -100,7 +100,7 @@ export default function PwaTopBanner({ theme = 'dark', onVisibilityChange }) {
           <button
             type="button"
             onClick={handleInstall}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 px-3.5 py-1.5 text-[11px] font-black text-white shadow-md shadow-emerald-500/20 transition-all active:scale-95 cursor-pointer whitespace-nowrap"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-3.5 py-1.5 text-[11px] font-black text-[#111313] shadow-xs transition-all active:scale-95 cursor-pointer whitespace-nowrap"
           >
             <Download className="size-3.5" />
             <span>ثبّت الآن</span>

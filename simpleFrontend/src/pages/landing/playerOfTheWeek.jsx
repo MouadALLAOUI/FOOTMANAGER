@@ -70,7 +70,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
   return (
     <section aria-labelledby="player-of-the-week-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-3 sm:my-4">
       {/* Light Mint / Crisp White Container matching reference mockup */}
-      <article className="relative overflow-hidden rounded-[28px] sm:rounded-[34px] border border-emerald-200/80 bg-[#EDF8F3] p-4 sm:p-6 text-slate-900 shadow-xl transition-all select-none">
+      <article className="relative overflow-hidden rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-6 text-[#111313] dark:text-[#F5F7F2] shadow-sm select-none">
         {/* Subtle Ambient Radial Highlight */}
         <div
           className="pointer-events-none absolute -top-12 -start-12 size-48 rounded-full blur-3xl opacity-35 bg-emerald-300"
@@ -88,7 +88,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             </div>
             <h2
               id="player-of-the-week-heading"
-              className="text-sm sm:text-lg font-black text-[#14221C] tracking-tight"
+              className="text-sm sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2] tracking-tight"
             >
               نجم الأسبوع وهداف البطولة
             </h2>
@@ -98,14 +98,14 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
           </div>
 
           {/* Mint/Emerald First Rank Pill Badge */}
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/90 border border-emerald-300/80 px-3.5 py-1 text-xs font-black text-emerald-800 shadow-2xs shrink-0">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-[#B8F000]/20 dark:bg-[#D0FF38]/20 border border-[#B8F000]/40 px-3 py-1 text-xs font-black text-[#111313] dark:text-[#D0FF38] shrink-0">
             <Flame className="size-3.5 fill-emerald-500 text-emerald-500" />
             <span>المرتبة الأولى</span>
           </span>
         </div>
 
         {/* 2. Middle Player Info Row */}
-        <div className="flex items-center justify-between gap-2 sm:gap-4 py-2.5 border-y border-emerald-900/10">
+        <div className="flex items-center justify-between gap-2 sm:gap-4 py-2.5 border-y border-[#E1E5DF] dark:border-[#303832]">
           <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             {/* Player Avatar with native #1 Golden Badge */}
             <div className="relative size-16 sm:size-20 shrink-0 rounded-2xl bg-[#0F291E] border-2 border-emerald-400 shadow-md overflow-hidden flex items-center justify-center">
@@ -122,7 +122,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
             {/* Name, Position, Team & Venue */}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h3 className="text-xs sm:text-base font-black text-[#14221C] whitespace-nowrap">
+                <h3 className="text-xs sm:text-base font-black text-[#111313] dark:text-[#F5F7F2] whitespace-nowrap">
                   {playerName}
                 </h3>
                 <CheckCircle2 className="size-4 text-emerald-600 fill-emerald-500/20 shrink-0" />
@@ -141,7 +141,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
           <div className="flex flex-col items-end gap-2 shrink-0">
             <Link
               to={playerId ? `/players/${playerId}` : '/matches'}
-              className="size-7 sm:size-8 rounded-full bg-slate-100 border border-slate-200/80 grid place-items-center text-slate-600 hover:bg-slate-200 transition-colors shadow-2xs"
+              className="size-7 sm:size-8 rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] border border-[#E1E5DF] dark:border-[#303832] grid place-items-center text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] transition-colors"
               aria-label="عرض تفاصيل اللاعب"
             >
               <ChevronLeft className="size-4 rtl:rotate-0 ltr:rotate-180" />
@@ -149,7 +149,7 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
 
             <Link
               to={playerId ? `/players/${playerId}` : '/matches'}
-              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/90 hover:bg-emerald-200/90 border border-emerald-300 text-emerald-800 px-3 py-1 text-[11px] sm:text-xs font-black shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 text-[#111313] px-3 py-1 text-[11px] sm:text-xs font-black shadow-xs transition-colors"
             >
               <Trophy className="size-3 sm:size-3.5 text-emerald-700" />
               <span className="whitespace-nowrap">تتبع إحصائيات اللاعبين</span>
@@ -160,8 +160,8 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
         {/* 3. Bottom 4 Stats Cards in Row */}
         <div className="grid grid-cols-4 gap-2 sm:gap-3 mt-3.5 sm:mt-4 text-center">
           {/* Goals */}
-          <div className="rounded-2xl bg-white p-2 sm:p-2.5 border border-slate-200/70 shadow-xs flex flex-col items-center justify-center">
-            <span className="text-base sm:text-xl font-black text-emerald-800 tabular-nums">
+          <div className="rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] p-2 sm:p-2.5 border border-[#E1E5DF] dark:border-[#303832] shadow-xs flex flex-col items-center justify-center">
+            <span className="text-base sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums">
               {goals}
             </span>
             <div className="flex items-center gap-1 mt-0.5 text-slate-600">
@@ -171,8 +171,8 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
           </div>
 
           {/* Assists */}
-          <div className="rounded-2xl bg-white p-2 sm:p-2.5 border border-slate-200/70 shadow-xs flex flex-col items-center justify-center">
-            <span className="text-base sm:text-xl font-black text-emerald-800 tabular-nums">
+          <div className="rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] p-2 sm:p-2.5 border border-[#E1E5DF] dark:border-[#303832] shadow-xs flex flex-col items-center justify-center">
+            <span className="text-base sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums">
               {assists}
             </span>
             <div className="flex items-center gap-1 mt-0.5 text-slate-600">
@@ -182,8 +182,8 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
           </div>
 
           {/* Matches */}
-          <div className="rounded-2xl bg-white p-2 sm:p-2.5 border border-slate-200/70 shadow-xs flex flex-col items-center justify-center">
-            <span className="text-base sm:text-xl font-black text-emerald-800 tabular-nums">
+          <div className="rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] p-2 sm:p-2.5 border border-[#E1E5DF] dark:border-[#303832] shadow-xs flex flex-col items-center justify-center">
+            <span className="text-base sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums">
               {matches}
             </span>
             <div className="flex items-center gap-1 mt-0.5 text-slate-600">
@@ -193,8 +193,8 @@ export default function PlayerOfTheWeek({ theme = 'dark' }) {
           </div>
 
           {/* Rating */}
-          <div className="rounded-2xl bg-white p-2 sm:p-2.5 border border-slate-200/70 shadow-xs flex flex-col items-center justify-center">
-            <span className="text-base sm:text-xl font-black text-emerald-800 tabular-nums">
+          <div className="rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] p-2 sm:p-2.5 border border-[#E1E5DF] dark:border-[#303832] shadow-xs flex flex-col items-center justify-center">
+            <span className="text-base sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums">
               {rating}
             </span>
             <div className="flex items-center gap-1 mt-0.5 text-slate-600">

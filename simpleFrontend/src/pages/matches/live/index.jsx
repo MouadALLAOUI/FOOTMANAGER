@@ -314,7 +314,7 @@ export default function PublicLiveMatchPage() {
     (lineup?.home?.all?.length || 0) + (lineup?.away?.all?.length || 0)
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-16 selection:bg-emerald-500 selection:text-white" dir="rtl">
+    <div className="min-h-screen bg-[#F7F8F5] dark:bg-[#101211] text-[#111313] dark:text-[#F5F7F2] pb-16" dir="rtl">
       <div className="max-w-xl mx-auto px-4 pt-3 sm:pt-6">
 
         {/* Top Header & Branding */}
@@ -333,7 +333,7 @@ export default function PublicLiveMatchPage() {
               ⚽
             </div>
             <div className="flex flex-col text-center">
-              <span className="text-base font-black text-slate-900 leading-none">أجي تقصرو</span>
+              <span className="text-base font-black text-[#111313] dark:text-[#F5F7F2] leading-none">أجي تقصرو</span>
               <span className="text-[10px] font-bold text-emerald-600 tracking-wider">Aji Nqssro</span>
             </div>
           </div>
@@ -357,7 +357,7 @@ export default function PublicLiveMatchPage() {
         )}
 
         {/* Scoreboard Card — Strict Team-to-Score Binding */}
-        <div className="relative overflow-hidden rounded-3xl p-5 text-white shadow-xl bg-gradient-to-br from-[#064E3B] via-[#04382A] to-[#022C22]">
+        <div className="relative overflow-hidden rounded-xl p-5 text-white shadow-xl bg-[#101211] border border-[#303832]">
           <div className="flex items-center justify-between gap-2 mb-3">
             {!match.is_official && (
               <span className="inline-flex items-center gap-1.5 bg-amber-500/30 border border-amber-400/50 text-amber-200 text-[11px] font-black px-3 py-1 rounded-full shadow-xs">
@@ -447,34 +447,34 @@ export default function PublicLiveMatchPage() {
 
         {/* 3-Column Info Cards */}
         <div className="grid grid-cols-3 gap-2 my-3">
-          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col items-center text-center">
+          <div className="bg-white dark:bg-[#1B201D] rounded-xl p-3 border border-[#E1E5DF] dark:border-[#303832] shadow-sm flex flex-col items-center text-center">
             <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
               <MapPin className="size-4" />
             </div>
-            <span className="text-xs font-black text-slate-800 line-clamp-1 leading-tight">{stadium?.name}</span>
+            <span className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] line-clamp-1 leading-tight">{stadium?.name}</span>
             <span className="text-[10px] font-bold text-slate-400 mt-0.5">{stadium?.city}</span>
           </div>
 
-          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col items-center text-center">
+          <div className="bg-white dark:bg-[#1B201D] rounded-xl p-3 border border-[#E1E5DF] dark:border-[#303832] shadow-sm flex flex-col items-center text-center">
             <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
               <Calendar className="size-4" />
             </div>
-            <span className="text-xs font-black text-slate-800 line-clamp-1 leading-tight">{dateFormatted}</span>
+            <span className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] line-clamp-1 leading-tight">{dateFormatted}</span>
             <span className="text-[10px] font-bold text-slate-400 mt-0.5">{timeFormatted}</span>
           </div>
 
-          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col items-center text-center">
+          <div className="bg-white dark:bg-[#1B201D] rounded-xl p-3 border border-[#E1E5DF] dark:border-[#303832] shadow-sm flex flex-col items-center text-center">
             <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
               <Trophy className="size-4" />
             </div>
-            <span className="text-xs font-black text-slate-800 line-clamp-1 leading-tight">{tournament?.name}</span>
+            <span className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] line-clamp-1 leading-tight">{tournament?.name}</span>
             <span className="text-[10px] font-bold text-slate-400 mt-0.5">{tournament?.round}</span>
           </div>
         </div>
 
         {/* Foul Counters Panel (if enabled) */}
         {fouls && fouls.enabled && (
-          <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs mb-3">
+          <div className="bg-white dark:bg-[#1B201D] rounded-xl p-3.5 border border-[#E1E5DF] dark:border-[#303832] shadow-sm mb-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2.5">
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="size-4 text-amber-500" />

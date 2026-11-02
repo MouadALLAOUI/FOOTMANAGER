@@ -543,6 +543,29 @@ class TournamentLeagueController extends Controller
     }
 
     /**
+     * Dismiss and hide a slot from this tournament's Slot Pool.
+     */
+    public function dismissSlot(Request $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'booking_id' => 'required|integer',
+            'date' => 'required|date',
+            'occurrence_id' => 'nullable|integer',
+        ]);
+
+        $result = $this->leagueAssignment->dismissSlot(
+            $tournament,
+            (int) $validated['booking_id'],
+            (string) $validated['date'],
+            ! empty($validated['occurrence_id']) ? (int) $validated['occurrence_id'] : null
+        );
+
+        return response()->json($result);
+    }
+
+    /**
      * Step 3.4: Quick assign nearest available slot to a pending/postponed match.
      */
     public function quickAssign(Request $request, Tournament $tournament, Fixture $fixture): JsonResponse

@@ -66,6 +66,7 @@ use App\Http\Controllers\Admin\PresetController;
 use App\Http\Controllers\Admin\UserSubscriptionController;
 use App\Http\Controllers\Admin\PlayerApprovalController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\TeamController as AdminTeamController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\Committee\CommitteeRefereeController;
@@ -671,6 +672,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/players/{id}', [PlayerApprovalController::class, 'show']);
             Route::get('/committees', [CommitteeApprovalController::class, 'index']);
             Route::get('/committees/{id}', [CommitteeApprovalController::class, 'show']);
+            Route::get('/teams', [AdminTeamController::class, 'index']);
             Route::get('/accounts/{id}/recoveries', [AccountController::class, 'recoveries']);
         });
 
@@ -701,6 +703,9 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::put('/committees/{id}/reject', [CommitteeApprovalController::class, 'reject']);
             Route::put('/committees/{id}/block', [CommitteeApprovalController::class, 'block']);
             Route::put('/committees/{id}/unblock', [CommitteeApprovalController::class, 'unblock']);
+
+            Route::delete('/teams/{id}', [AdminTeamController::class, 'destroy']);
+            Route::post('/teams/bulk-delete', [AdminTeamController::class, 'bulkDelete']);
         });
 
         Route::middleware('permission:users.accounts')->group(function () {
@@ -940,6 +945,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/league/assign', [TournamentLeagueController::class, 'assign']);
                 Route::post('/league/unassign', [TournamentLeagueController::class, 'unassign']);
+                Route::post('/league/unused-slot-pool/dismiss', [TournamentLeagueController::class, 'dismissSlot']);
                 Route::post('/league/auto-schedule', [TournamentLeagueController::class, 'autoSchedule']);
                 Route::put('/league/fixtures/{fixture}/change-opponent', [TournamentLeagueController::class, 'changeOpponent']);
                 Route::post('/league/fixtures/{fixture}/postpone', [TournamentLeagueController::class, 'postpone']);

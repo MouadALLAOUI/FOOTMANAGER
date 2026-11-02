@@ -245,7 +245,8 @@
       "profile": "Profile",
       "plans": "Plans & Pricing",
       "subAdmins": "Sub-Admins",
-      "requests": "Player Requests"
+      "requests": "Player Requests",
+      "teams": "Teams Management"
     }
   },
   "teamRequests": {
@@ -4899,5 +4900,36 @@
       "eventSaved": "Event saved",
       "eventDeleted": "Event deleted"
     }
+  },
+  "adminTeams": {
+    "title": "Teams Management",
+    "subtitle": "View registered teams and permanently delete free teams to prevent them from showing in tournaments",
+    "searchPlaceholder": "Search by team name, city, manager, or phone...",
+    "allTeams": "All Teams",
+    "freeTeams": "Free Teams",
+    "managerTeams": "Manager Teams",
+    "team": "Team",
+    "type": "Type",
+    "freeTeamBadge": "Free Team",
+    "managerTeamBadge": "Manager Team",
+    "manager": "Manager",
+    "noManager": "No manager",
+    "city": "City",
+    "stats": "Statistics",
+    "tournaments": "tournaments",
+    "players": "players",
+    "matches": "matches",
+    "actions": "Actions",
+    "deleteTeam": "Delete Team",
+    "deleteFreeTeam": "Permanently Delete Free Team",
+    "cannotDeleteManagerTeam": "Manager teams are protected and cannot be deleted here",
+    "bulkDelete": "Delete Selected Free Teams",
+    "confirmDeleteTitle": "Confirm Free Team Deletion",
+    "confirmDeleteDesc": "Are you sure you want to permanently delete the free team \"{{name}}\"? It will be completely removed and won't appear in tournament team selection.",
+    "confirmBulkDeleteTitle": "Confirm Bulk Free Teams Deletion",
+    "confirmBulkDeleteDesc": "Are you sure you want to permanently delete {{count}} free teams? Manager teams will be skipped.",
+    "deleteSuccess": "Team successfully deleted",
+    "emptyTitle": "No teams found",
+    "emptyDesc": "No teams matched your search criteria."
   }
 }

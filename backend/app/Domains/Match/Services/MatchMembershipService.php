@@ -122,41 +122,54 @@ class MatchMembershipService
             ->all();
     }
 
-    public static function teamHasMatchConflict(int $teamId, Carbon $datetime, ?int $excludeMatchId = null): bool
-    {
+    public static function teamHasMatchConflict(
+        int $teamId,
+        Carbon $datetime,
+        ?int $excludeMatchId = null,
+        ?int $competitionId = null,
+        ?int $excludeFixtureId = null,
+        bool $checkAmicals = true,
+    ): bool {
         $window = PlayerMatchGuard::MATCH_WINDOW_HOURS;
         $start = $datetime->copy()->subHours($window);
         $end = $datetime->copy()->addHours($window);
 
-        $amical = MatchRequest::query()
-            ->where('id', '!=', $excludeMatchId)
-            ->whereIn('status', ['accepted', 'live'])
-            ->where(function ($q) use ($teamId) {
-                $q->where('host_team_id', $teamId)
-                    ->orWhere('target_team_id', $teamId)
-                    ->orWhere('opponent_team_id', $teamId);
-            })
-            ->where('match_datetime', '>', $start)
-            ->where('match_datetime', '<', $end)
-            ->exists();
+        if ($checkAmicals) {
+            $amical = MatchRequest::query()
+                ->where('id', '!=', $excludeMatchId)
+                ->whereIn('status', ['accepted', 'live'])
+                ->where(function ($q) use ($teamId) {
+                    $q->where('host_team_id', $teamId)
+                        ->orWhere('target_team_id', $teamId)
+                        ->orWhere('opponent_team_id', $teamId);
+                })
+                ->where('match_datetime', '>', $start)
+                ->where('match_datetime', '<', $end)
+                ->exists();
 
-        if ($amical) {
-            return true;
+            if ($amical) {
+                return true;
+            }
         }
 
         // Tournament fixtures carry their schedule on the fixtures table
         // (matches.scheduled_at does not exist), so tournament conflicts are
         // detected against fixtures, ignoring played/cancelled matches.
+        // When $competitionId is passed, conflicts are scoped strictly to the same
+        // tournament/competition, allowing associations to field teams under the same
+        // name across different tournaments/leagues concurrently.
         return Fixture::query()
             ->where(function ($q) use ($teamId) {
                 $q->where('home_team_id', $teamId)
                     ->orWhere('away_team_id', $teamId);
             })
+            ->when($competitionId !== null, fn ($q) => $q->where('competition_id', $competitionId))
             ->where('scheduled_at', '>', $start)
             ->where('scheduled_at', '<', $end)
             ->whereNotIn('status', [FixtureStatus::Postponed->value, FixtureStatus::Cancelled->value])
             ->whereDoesntHave('match', fn ($q) => $q->whereIn('status', [MatchStatus::Finished->value, MatchStatus::Cancelled->value]))
             ->when($excludeMatchId, fn ($q) => $q->where('match_id', '!=', $excludeMatchId))
+            ->when($excludeFixtureId, fn ($q) => $q->where('id', '!=', $excludeFixtureId))
             ->exists();
     }
 

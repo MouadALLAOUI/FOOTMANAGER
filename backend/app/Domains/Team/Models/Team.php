@@ -177,4 +177,14 @@ class Team extends Model
     {
         return $this->belongsTo(City::class, 'city_id');
     }
+
+    public function tournamentTeams(): HasMany
+    {
+        return $this->hasMany(\App\Domains\Tournament\Models\TournamentTeam::class, 'team_id');
+    }
+
+    public function tournaments(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(\App\Domains\Tournament\Models\Tournament::class, 'tournament_teams', 'team_id', 'tournament_id');
+    }
 }

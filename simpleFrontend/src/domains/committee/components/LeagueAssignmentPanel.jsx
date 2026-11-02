@@ -28,10 +28,12 @@ import {
   ArrowRight,
   Check,
   Share2,
+  EyeOff,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Badge, Button, Card } from '../../../components/dashboard/ui'
+import { ConfirmDialog } from '../../../components/ui/ConfirmDialog'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import LeagueMatchCard from './LeagueMatchCard'
@@ -168,6 +170,8 @@ export default function LeagueAssignmentPanel({
   )
 
   const [optimisticFixtureUpdates, setOptimisticFixtureUpdates] = useState({})
+  const [dismissConfirmSlot, setDismissConfirmSlot] = useState(null)
+  const [dismissBusy, setDismissBusy] = useState(false)
 
   useEffect(() => {
     setOptimisticFixtureUpdates({})
@@ -635,6 +639,26 @@ export default function LeagueAssignmentPanel({
       if (onRefresh) onRefresh()
     } catch (err) {
       toastApiError(err)
+    }
+  }
+
+  const handleDismissSlot = async () => {
+    if (!dismissConfirmSlot) return
+    setDismissBusy(true)
+    try {
+      const res = await api.post(`/committee/tournaments/${tournament.id}/league/unused-slot-pool/dismiss`, {
+        booking_id: dismissConfirmSlot.booking_id,
+        date: dismissConfirmSlot.date,
+        occurrence_id: dismissConfirmSlot.occurrence_id || undefined,
+      })
+      toast.success(res.data?.message || 'تم إخفاء وتجاهل الموعد بنجاح')
+      setDismissConfirmSlot(null)
+      refetchSlotPool()
+      if (onRefresh) onRefresh()
+    } catch (err) {
+      toastApiError(err)
+    } finally {
+      setDismissBusy(false)
     }
   }
 
@@ -1423,7 +1447,19 @@ export default function LeagueAssignmentPanel({
                       )}
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-2.5">
+                    <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-xs font-bold text-rose-600 hover:bg-rose-50 hover:text-rose-700 h-8 px-2.5"
+                        onClick={() => setDismissConfirmSlot(slot)}
+                        title="إخفاء وتجاهل هذا الموعد من قائمة المواعيد المتاحة للبطولة"
+                      >
+                        <EyeOff className="size-3.5 me-1" />
+                        إخفاء الموعد
+                      </Button>
+
+                      <div className="flex items-center gap-2">
                       {slot.pool_tag === 'released' && (
                         <Button
                           variant="outline"
@@ -1444,6 +1480,7 @@ export default function LeagueAssignmentPanel({
                       </Button>
                     </div>
                   </div>
+                </div>
                 ))}
               </div>
             )}
@@ -2486,6 +2523,20 @@ export default function LeagueAssignmentPanel({
           </div>
         </div>
       )}
+
+      {/* Confirm Dialog for Dismissing a Slot */}
+      <ConfirmDialog
+        open={Boolean(dismissConfirmSlot)}
+        onClose={() => setDismissConfirmSlot(null)}
+        onConfirm={handleDismissSlot}
+        loading={dismissBusy}
+        title="تأكيد إخفاء وتجاهل الموعد"
+        description={`هل أنت متأكد من رغبتك في إخفاء هذا الموعد (${dismissConfirmSlot?.stadium?.name || dismissConfirmSlot?.stadium_name || 'الملعب'} • ${dismissConfirmSlot?.day_name || ''} ${dismissConfirmSlot?.date || ''}) نهائياً من قائمة المواعيد المتاحة للبطولة؟`}
+        confirmLabel="إخفاء الموعد"
+        cancelLabel="إلغاء"
+        tone="danger"
+        icon={EyeOff}
+      />
     </div>
   )
 }

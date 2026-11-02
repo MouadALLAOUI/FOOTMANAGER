@@ -39,7 +39,17 @@ class LeagueAssignmentService
             return collect();
         }
 
-        $allowedStadiumIds = $tournament->stadiums()->pluck('stadiums.id')->all();
+        $allowedStadiumIds = $tournament->stadiums()->where('is_open', true)->pluck('stadiums.id')->all();
+        if (empty($allowedStadiumIds)) {
+            $allowedStadiumIds = Fixture::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->whereNotNull('stadium_id')
+                ->whereHas('stadium', fn ($sq) => $sq->where('is_open', true))
+                ->distinct()
+                ->pluck('stadium_id')
+                ->all();
+        }
 
         $today = Carbon::today();
         $baseDate = $customFirstDay
@@ -86,6 +96,7 @@ class LeagueAssignmentService
             ->whereIn('status', ['approved', 'confirmed'])
             ->whereNull('archived_at')
             ->whereNull('fixture_id')
+            ->whereHas('terrain', fn ($t) => $t->where('is_open', true))
             ->where(function ($q) {
                 $q->whereNull('reservation_type')
                     ->orWhere('reservation_type', '!=', 'weekly_subscription');
@@ -140,6 +151,7 @@ class LeagueAssignmentService
             ->where('reservation_type', 'weekly_subscription')
             ->whereIn('status', ['approved', 'confirmed'])
             ->whereNull('archived_at')
+            ->whereHas('terrain', fn ($t) => $t->where('is_open', true))
             ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('terrain_id', $allowedStadiumIds))
             ->with(['terrain', 'team'])
             ->get();
@@ -230,11 +242,15 @@ class LeagueAssignmentService
             ])
             ->where(function ($q) use ($tournament, $teamIds) {
                 $q->where('metadata->tournament_id', $tournament->id)
-                    ->orWhereHas('booking', fn ($bq) => $bq->whereIn('team_id', $teamIds));
+                    ->orWhere(function ($sq) use ($teamIds) {
+                        $sq->whereNull('metadata->tournament_id')
+                            ->whereHas('booking', fn ($bq) => $bq->whereIn('team_id', $teamIds)->whereNull('archived_at')->whereIn('status', ['approved', 'confirmed']));
+                    });
             })
             ->whereBetween('occurrence_date', [$effectiveMin->toDateString(), $endDate->toDateString()])
             ->when(! empty($allowedStadiumIds), fn ($q) => $q->whereIn('stadium_id', $allowedStadiumIds))
-            ->with(['booking.terrain', 'booking.team'])
+            ->whereHas('stadium', fn ($sq) => $sq->where('is_open', true))
+            ->with(['booking.terrain', 'booking.team', 'stadium'])
             ->get();
 
         foreach ($freedOrReleased as $occ) {
@@ -275,6 +291,17 @@ class LeagueAssignmentService
                 'occurrence_status' => $occ->status,
                 'occurrence_id' => $occ->id,
             ]);
+        }
+
+        $dismissedSlots = (array) ($tournament->plan['dismissed_slots'] ?? []);
+        if (! empty($dismissedSlots)) {
+            $slots = $slots->filter(function ($s) use ($dismissedSlots) {
+                $bookingId = $s['booking']?->id;
+                $dateStr = $s['date_str'] ?? '';
+                $slotKey = "{$bookingId}_{$dateStr}";
+                $slotId = "pool_slot_{$bookingId}_{$dateStr}";
+                return ! in_array($slotKey, $dismissedSlots, true) && ! in_array($slotId, $dismissedSlots, true);
+            });
         }
 
         return $slots->sortBy('datetime')->values();
@@ -532,12 +559,14 @@ class LeagueAssignmentService
             $targetOcc = $occQuery->first();
 
             if (! $targetOcc && $originalScheduledAt && $fixture->stadium_id) {
-                $weeklySub = TerrainBooking::query()
+                $participatingTeamIds = array_filter([(int) $fixture->home_team_id, (int) $fixture->away_team_id]);
+                $weeklySub = ! empty($participatingTeamIds) ? TerrainBooking::query()
                     ->where('terrain_id', $fixture->stadium_id)
+                    ->whereIn('team_id', $participatingTeamIds)
                     ->where('reservation_type', 'weekly_subscription')
                     ->whereIn('status', ['approved', 'confirmed'])
                     ->whereNull('archived_at')
-                    ->first();
+                    ->first() : null;
 
                 $duration = (int) ($fixture->match?->match_duration_minutes ?? $tournament->match_duration_minutes ?? 60);
 
@@ -2529,14 +2558,26 @@ class LeagueAssignmentService
             $isReleased = ($occStatus === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_RELEASED);
             $isFreed = ($occStatus === \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_FREED);
 
-            $matchingPostponed = $postponedFixtures->first(function ($pf) use ($slot) {
+            $dismissedSlots = (array) ($tournament->plan['dismissed_slots'] ?? []);
+            $slotKey = "{$booking->id}_{$slot['date_str']}";
+            $slotId = "pool_slot_{$booking->id}_{$slot['date_str']}";
+            if (in_array($slotKey, $dismissedSlots, true) || in_array($slotId, $dismissedSlots, true)) {
+                continue;
+            }
+
+            $matchingPostponed = $postponedFixtures->first(function ($pf) use ($slot, $slotOwnerId) {
                 $pfDateStr = $pf->postponed_from_date ? Carbon::parse($pf->postponed_from_date)->toDateString() : null;
-                return $pfDateStr === $slot['date_str'] && (int) $pf->stadium_id === (int) $slot['terrain_id'];
+                $sameDateAndStadium = ($pfDateStr === $slot['date_str'] && (int) $pf->stadium_id === (int) $slot['terrain_id']);
+                if (! $sameDateAndStadium) {
+                    return false;
+                }
+                return ((int) $pf->home_team_id === $slotOwnerId || (int) $pf->away_team_id === $slotOwnerId);
             });
 
             $slotItem = [
                 'id' => "pool_slot_{$booking->id}_{$slot['date_str']}",
                 'booking_id' => $booking->id,
+                'occurrence_id' => $slot['occurrence_id'] ?? null,
                 'date' => $slot['date_str'],
                 'day_name' => $slotDate->translatedFormat('l'),
                 'time' => $slotStart.' - '.$slotEnd,
@@ -2565,7 +2606,7 @@ class LeagueAssignmentService
                 $slotItem['pool_tag'] = 'postpone_freed';
                 $slotItem['source_label'] = $matchingPostponed 
                     ? "موعد تحرر بعد تأجيل مباراة الجولة {$matchingPostponed->matchday} ({$booking->team?->name})"
-                    : "موعد تحرر بعد تأجيل مباراة (حجز {$booking->team?->name})";
+                    : "موعد مفرغ متاح للبطولة (حجز {$booking->team?->name})";
                 $defaultPool[] = $slotItem;
             } elseif ($isReleased) {
                 $slotItem['pool_tag'] = 'released';
@@ -2993,5 +3034,42 @@ class LeagueAssignmentService
         }
 
         return $newlyNotified;
+    }
+
+    /**
+     * Dismiss and permanently hide a slot from this tournament's Slot Pool.
+     */
+    public function dismissSlot(Tournament $tournament, int $bookingId, string $dateStr, ?int $occurrenceId = null): array
+    {
+        return DB::transaction(function () use ($tournament, $bookingId, $dateStr, $occurrenceId) {
+            $slotKey = "{$bookingId}_{$dateStr}";
+            $slotId = "pool_slot_{$bookingId}_{$dateStr}";
+
+            $plan = (array) ($tournament->plan ?? []);
+            $dismissed = (array) ($plan['dismissed_slots'] ?? []);
+
+            if (! in_array($slotKey, $dismissed, true)) {
+                $dismissed[] = $slotKey;
+            }
+            if (! in_array($slotId, $dismissed, true)) {
+                $dismissed[] = $slotId;
+            }
+
+            $plan['dismissed_slots'] = array_values(array_unique($dismissed));
+            $tournament->update(['plan' => $plan]);
+
+            if ($occurrenceId) {
+                \App\Domains\Booking\Models\TerrainBookingOccurrence::where('id', $occurrenceId)
+                    ->update([
+                        'status' => \App\Domains\Booking\Models\TerrainBookingOccurrence::STATUS_CANCELLED,
+                        'notes' => 'تم إخفاؤه وتجاهله من مواعيد بطولة: ' . $tournament->name,
+                    ]);
+            }
+
+            return [
+                'message' => 'تم إخفاء الموعد وتجاهله بنجاح من المواعيد المتاحة للبطولة',
+                'dismissed_slot' => $slotKey,
+            ];
+        });
     }
 }

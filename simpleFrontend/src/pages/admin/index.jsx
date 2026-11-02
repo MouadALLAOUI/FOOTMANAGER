@@ -18,6 +18,7 @@ import {
   UserPlus,
   MapPin,
   Images,
+  Shield,
 } from 'lucide-react'
 import Shell from '../../components/admin/Shell'
 import { PermissionRoute } from '../../components/auth'
@@ -41,6 +42,7 @@ const Plans = lazy(() => import('./plans'))
 const SubAdmins = lazy(() => import('./sub-admins'))
 const Requests = lazy(() => import('./requests'))
 const Presets = lazy(() => import('./presets'))
+const Teams = lazy(() => import('./teams'))
 
 const navConfig = [
   {
@@ -59,6 +61,7 @@ const navConfig = [
       { to: '/admin/players', label: 'nav.admin.players', icon: Users, prefetch: () => import('./players'), permission: 'users.view' },
       { to: '/admin/committees', label: 'nav.admin.committees', icon: Trophy, prefetch: () => import('./committees'), permission: 'users.view' },
       { to: '/admin/requests', label: 'nav.admin.requests', icon: Users, prefetch: () => import('./requests'), permission: 'users.view' },
+      { to: '/admin/teams', label: 'nav.admin.teams', icon: Shield, prefetch: () => import('./teams'), permission: 'users.view' },
     ],
   },
   {
@@ -121,6 +124,7 @@ export default function AdminDashboard() {
           <Route path="/players" element={<PermissionRoute permission="users.view"><Players /></PermissionRoute>} />
           <Route path="/committees" element={<PermissionRoute permission="users.view"><Committees /></PermissionRoute>} />
           <Route path="/requests" element={<PermissionRoute permission="users.view"><Requests /></PermissionRoute>} />
+          <Route path="/teams" element={<PermissionRoute permission="users.view"><Teams /></PermissionRoute>} />
           <Route path="/moderation" element={<PermissionRoute permission="moderation.view"><Moderation /></PermissionRoute>} />
           <Route path="/facilities" element={<PermissionRoute permission="facilities.view"><Facilities /></PermissionRoute>} />
           <Route path="/plans" element={<PermissionRoute permission="plans.view"><Plans /></PermissionRoute>} />

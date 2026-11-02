@@ -108,7 +108,12 @@ class Team extends Model
 
     public function manager(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'manager_id');
+        return $this->belongsTo(User::class, 'manager_id')->withTrashed();
+    }
+
+    public function currentManager(): HasOne
+    {
+        return $this->hasOne(User::class, 'current_team_id')->withTrashed();
     }
 
     public function captain(): BelongsTo

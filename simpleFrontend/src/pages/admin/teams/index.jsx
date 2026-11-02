@@ -151,7 +151,9 @@ export default function AdminTeams() {
       key: 'manager',
       label: t('adminTeams.manager', 'المسير'),
       render: (row) => {
-        if (!row.manager) {
+        const managerName = row.manager?.name || row.manager_name
+        const managerPhone = row.manager?.phone || row.manager_phone
+        if (!managerName) {
           return (
             <span className="text-xs text-slate-400 font-medium">
               {t('adminTeams.noManager', '—')}
@@ -160,11 +162,11 @@ export default function AdminTeams() {
         }
         return (
           <div className="min-w-0">
-            <p className="truncate text-xs font-bold text-slate-800">{row.manager.name}</p>
-            {row.manager.phone && (
+            <p className="truncate text-xs font-bold text-slate-800">{managerName}</p>
+            {managerPhone && (
               <span className="dir-ltr inline-flex items-center gap-1 text-[11px] text-slate-500 font-semibold mt-0.5">
                 <Phone className="size-2.5 text-slate-400" />
-                {row.manager.phone}
+                {managerPhone}
               </span>
             )}
           </div>

@@ -261,7 +261,7 @@ export default function TournamentJoinPage() {
         formData.append(`players[${idx}][position]`, p.position || 'midfielder')
       })
 
-      const key = tournament?.slug || tournament?.id || slug
+      const key = tournament?.id || tournament?.slug || slug
       const res = await api.post(`/v1/tournaments/${key}/join`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })

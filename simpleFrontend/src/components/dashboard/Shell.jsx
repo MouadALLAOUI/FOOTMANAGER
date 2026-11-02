@@ -18,6 +18,8 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { useTheme } from '../../context/ThemeContext'
+import { Sun, Moon } from 'lucide-react'
 import ActivityLockBanner from '../ui/ActivityLockBanner'
 import { PushEnableBanner } from '../notifications/EnablePushNotifications'
 import ProfileAvatar from '../profile/ProfileAvatar'
@@ -51,6 +53,7 @@ export default function Shell({
   headerSlot = null,
 }) {
   const { t, i18n } = useTranslation()
+  const { theme, toggleTheme } = useTheme()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -144,21 +147,21 @@ export default function Shell({
         onClick={onNavigate}
         onMouseEnter={() => item.prefetch?.()}
         title={t(item.label)}
-        className={`group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-200 ${
+        className={`group relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-bold transition-all duration-150 ${
           isActive
-            ? 'bg-[#0F9D58] text-white shadow-sm'
-            : 'text-white/70 hover:bg-white/[0.08] hover:text-white'
+            ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-sm font-extrabold'
+            : 'text-[#B2B9B3] hover:bg-[#252B27] hover:text-white'
         }`}
       >
         <span
           className={`grid size-6 shrink-0 place-items-center transition-colors ${
-            isActive ? 'text-green-400' : 'text-white/40 group-hover:text-white/80'
+            isActive ? 'text-[#111313]' : 'text-[#B2B9B3] group-hover:text-white'
           }`}
         >
           <ItemIcon icon={item.icon} className="size-[19px]" strokeWidth={isActive ? 2.4 : 2} />
         </span>
         <span className="truncate">{t(item.label)}</span>
-        {isActive && <span className="absolute inset-y-3 start-0 w-[3px] rounded-e-full bg-green-500" />}
+        
       </Link>
     )
   }
@@ -167,8 +170,8 @@ export default function Shell({
     <div className="flex h-full flex-col">
       <div className={`flex items-center gap-3 px-5 pb-4 pt-6 ${collapsed ? 'justify-center' : ''}`}>
         <Link to={homeUrl} onClick={() => setMobileOpen(false)} className="flex min-w-0 items-center gap-3">
-          <div className={`grid size-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${brandGradient} shadow-[0_8px_20px_rgba(34,197,94,0.35)]`}>
-            <Command className="size-5 text-white" strokeWidth={2.6} />
+          <div className={`grid size-11 shrink-0 place-items-center rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313]`}>
+            <Command className="size-5 text-[#111313]" strokeWidth={2.6} />
           </div>
           {!collapsed && (
             <div className="min-w-0 leading-tight">
@@ -188,7 +191,7 @@ export default function Shell({
           to={notifPath}
           onClick={() => setMobileOpen(false)}
           title={t('shell.notifications')}
-          className={`relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white ${
+          className={`relative flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-bold text-[#B2B9B3] transition-colors hover:bg-[#252B27] hover:text-white ${
             collapsed ? 'justify-center px-0' : ''
           }`}
         >
@@ -206,7 +209,7 @@ export default function Shell({
           to={settingsPath}
           onClick={() => setMobileOpen(false)}
           title={t('shell.settings')}
-          className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white ${
+          className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-bold text-[#B2B9B3] transition-colors hover:bg-[#252B27] hover:text-white ${
             collapsed ? 'justify-center px-0' : ''
           }`}
         >
@@ -217,7 +220,7 @@ export default function Shell({
           to={profilePath}
           onClick={() => setMobileOpen(false)}
           title={t('shell.profile')}
-          className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-white/50 transition-colors hover:bg-white/[0.05] hover:text-white ${
+          className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-bold text-[#B2B9B3] transition-colors hover:bg-[#252B27] hover:text-white ${
             collapsed ? 'justify-center px-0' : ''
           }`}
         >
@@ -228,7 +231,7 @@ export default function Shell({
           type="button"
           onClick={handleLogout}
           title={t('shell.logout')}
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-bold text-rose-400 transition-colors hover:bg-rose-500/10 ${
+          className={`flex w-full items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-bold text-rose-400 transition-colors hover:bg-rose-500/10 ${
             collapsed ? 'justify-center px-0' : ''
           }`}
         >
@@ -240,14 +243,14 @@ export default function Shell({
   )
 
   return (
-    <div className="min-h-[100dvh] bg-[#F4F7FB]">
+    <div className="min-h-[100dvh] bg-[#F7F8F5] dark:bg-[#101211] text-[#111313] dark:text-[#F5F7F2]">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:z-[var(--z-toast)] focus:rounded-xl focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-bold focus:text-slate-900 focus:shadow-lg focus:ring-2 focus:ring-green-500"
       >
         {t('common.skipToContent')}
       </a>
-      <aside style={{ top: "var(--announce-height, 0px)" }} className={`fixed inset-y-0 start-0 z-[var(--z-drawer)] hidden flex-col bg-[#0F172A] transition-all duration-300 lg:flex ${
+      <aside style={{ top: "var(--announce-height, 0px)" }} className={`fixed inset-y-0 start-0 z-[var(--z-drawer)] hidden flex-col bg-[#101211] border-e border-[#303832] transition-all duration-300 lg:flex ${
           collapsed ? 'w-[84px]' : 'w-[264px]'
         }`}
       >
@@ -274,7 +277,7 @@ export default function Shell({
               role="dialog"
               aria-modal="true"
               aria-label={t(brand)}
-              className="fixed inset-y-0 start-0 z-[var(--z-drawer)] h-[100dvh] w-[290px] max-w-[85vw] bg-[#0F172A] shadow-2xl flex flex-col animate-in slide-in-from-start duration-300 select-none"
+              className="fixed inset-y-0 start-0 z-[var(--z-drawer)] h-[100dvh] w-[290px] max-w-[85vw] bg-[#101211] border-e border-[#303832] shadow-2xl flex flex-col animate-in slide-in-from-start duration-300 select-none"
               style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
             >
               <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-white/10 shrink-0">
@@ -303,7 +306,7 @@ export default function Shell({
         }`}
       >
         <header
-          className="sticky top-0 z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] border-b border-slate-200 bg-white shadow-xs transition-[top] duration-200"
+          className="sticky top-0 z-[var(--z-header)] h-14 min-h-[56px] max-h-[56px] border-b border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-xs transition-[top] duration-200"
           style={{ paddingTop: 'var(--safe-top-offset, 0px)' }}
         >
           <div className="flex h-14 items-center gap-2 sm:gap-3 px-3 sm:px-5 lg:px-8">
@@ -312,13 +315,13 @@ export default function Shell({
               onClick={() => setMobileOpen((v) => !v)}
               aria-label={mobileOpen ? t('shell.closeMenu') : t('shell.openMenu')}
               aria-expanded={mobileOpen}
-              className="grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 lg:hidden cursor-pointer"
+              className="grid size-11 shrink-0 place-items-center rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#65706A] dark:text-[#B2B9B3] hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] lg:hidden cursor-pointer"
             >
               {mobileOpen ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
 
             <div className="min-w-0 flex-1 flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-black text-slate-900 whitespace-nowrap">
+              <h1 className="text-base sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2] whitespace-nowrap">
                 <span className="sm:hidden">
                   {active?.shortLabel ? t(active.shortLabel) : active ? t(active.label) : t(roleLabel)}
                 </span>
@@ -326,17 +329,17 @@ export default function Shell({
                   {active ? t(active.label) : t(roleLabel)}
                 </span>
               </h1>
-              <p className="hidden text-[11px] font-semibold text-slate-500 sm:block">{today}</p>
+              <p className="hidden text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3] sm:block">{today}</p>
             </div>
 
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
-              className="hidden h-10 w-64 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-500 transition-colors hover:border-slate-300 hover:bg-white md:flex"
+              className="hidden h-10 w-64 items-center gap-2 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 text-sm text-[#65706A] dark:text-[#B2B9B3] transition-colors hover:border-[#B8F000] md:flex"
             >
               <Search className="size-4" />
               <span className="flex-1 text-start">{t('shell.searchPlaceholder')}</span>
-              <kbd className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500">
+              <kbd className="rounded-md border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-1.5 py-0.5 text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
                 Ctrl K
               </kbd>
             </button>
@@ -350,9 +353,19 @@ export default function Shell({
               onSelect={(a) => go(a.to)}
               actions={quickActions}
               label="shell.quickAction"
-              triggerClassName="hidden h-10 items-center rounded-xl bg-green-500 px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(22,163,74,0.28)] transition-all hover:bg-green-600 sm:inline-flex"
+              triggerClassName="hidden h-10 items-center rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] px-4 text-sm font-extrabold text-[#111313] transition-all hover:brightness-105 sm:inline-flex rounded-lg"
             />
 
+            
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === 'dark' ? t('common.lightMode', 'وضع النهار') : t('common.darkMode', 'وضع الليل')}
+              className="grid size-10 place-items-center rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#65706A] dark:text-[#B2B9B3] hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] transition-colors"
+            >
+              {theme === 'dark' ? <Sun className="size-4 text-[#D0FF38]" /> : <Moon className="size-4 text-[#111313]" />}
+            </button>
+  
             <div className="relative">
               <button
                 type="button"
@@ -360,7 +373,7 @@ export default function Shell({
                 aria-label={t('shell.notifications')}
                 aria-expanded={notifOpen}
                 aria-haspopup="menu"
-                className="relative grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50"
+                className="relative grid size-10 place-items-center rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#65706A] dark:text-[#B2B9B3] transition-colors hover:bg-[#E9ECE7] dark:hover:bg-[#252B27]"
               >
                 <Bell className="size-[18px]" />
                 {unread > 0 && (
@@ -372,9 +385,9 @@ export default function Shell({
               {notifOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                  <div role="menu" className="absolute end-0 top-12 z-50 w-[calc(100vw-1.5rem)] sm:w-80 max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.16)]">
-                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                      <p className="text-sm font-extrabold text-slate-900">{t('shell.notifications')}</p>
+                  <div role="menu" className="absolute end-0 top-12 z-50 w-[calc(100vw-1.5rem)] sm:w-80 max-w-sm overflow-hidden rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-xl text-[#111313] dark:text-[#F5F7F2]">
+                    <div className="flex items-center justify-between border-b border-[#E1E5DF] dark:border-[#303832] px-4 py-3">
+                      <p className="text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">{t('shell.notifications')}</p>
                       <button
                         type="button"
                         onClick={markAllRead}
@@ -423,20 +436,20 @@ export default function Shell({
                 onClick={() => setProfileOpen((v) => !v)}
                 aria-expanded={profileOpen}
                 aria-haspopup="menu"
-                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white py-1.5 ps-1.5 pe-3 transition-colors hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] py-1.5 ps-1.5 pe-3 transition-colors hover:bg-[#E9ECE7] dark:hover:bg-[#252B27]"
               >
                 <ProfileAvatar user={user} className="size-8 rounded-lg" rounded="rounded-lg" fontSize="text-xs" />
                 <span className="hidden max-w-[90px] truncate text-start sm:block">
-                  <span className="block truncate text-xs font-bold text-slate-800">{user?.name}</span>
-                  <span className="block text-[10px] font-semibold text-slate-500">{t(roleLabel)}</span>
+                  <span className="block truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">{user?.name}</span>
+                  <span className="block text-[10px] font-semibold text-[#65706A] dark:text-[#B2B9B3]">{t(roleLabel)}</span>
                 </span>
                 <ChevronsUpDown className="size-3.5 text-slate-500" />
               </button>
               {profileOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
-                  <div role="menu" className="absolute end-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_16px_40px_rgba(15,23,42,0.16)]">
-                    <div className="border-b border-slate-100 px-3 py-2.5">
+                  <div role="menu" className="absolute end-0 top-12 z-50 w-60 overflow-hidden rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1.5 shadow-xl text-[#111313] dark:text-[#F5F7F2]">
+                    <div className="border-b border-[#E1E5DF] dark:border-[#303832] px-3 py-2.5">
                       <p className="truncate text-sm font-extrabold text-slate-900">{user?.name}</p>
                       <p className="truncate text-[11px] text-slate-500">{user?.email || user?.phone}</p>
                     </div>
@@ -444,7 +457,7 @@ export default function Shell({
                       <Link
                         to={profilePath}
                         onClick={() => setProfileOpen(false)}
-                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                        className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-bold text-[#65706A] dark:text-[#B2B9B3] hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] rounded-lg"
                       >
                         <UserCircle2 className="size-4 text-slate-500" />
                         {t('shell.profile')}

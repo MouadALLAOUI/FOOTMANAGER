@@ -11,7 +11,7 @@ export default function CommunityBanner({ theme = 'dark' }) {
       aria-labelledby="community-banner-heading"
       className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-8 sm:my-12"
     >
-      <div className="relative overflow-hidden rounded-[24px] sm:rounded-[32px] bg-gradient-to-l from-[#134E2E] via-[#0F3D2E] to-[#0A161E] px-6 py-8 sm:px-10 sm:py-12 shadow-[0_20px_50px_rgba(15,61,46,0.35)] ring-1 ring-white/15">
+      <div className="relative overflow-hidden rounded-xl bg-[#101211] border border-[#303832] px-6 py-8 sm:px-10 sm:py-10 shadow-xl">
         {/* Subtle Decorative Soccer Ball Background Shapes */}
         <FontAwesomeIcon
           icon={faFutbol}
@@ -42,7 +42,7 @@ export default function CommunityBanner({ theme = 'dark' }) {
               href="https://facebook.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-12 sm:h-13 w-full sm:w-auto justify-center items-center gap-2.5 rounded-2xl bg-[#1F7A4D] hover:bg-[#1A6841] px-7 text-xs sm:text-sm font-black text-white shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-98"
+              className="flex h-12 sm:h-13 w-full sm:w-auto justify-center items-center gap-2.5 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-7 text-xs sm:text-sm font-black text-[#111313] shadow-md transition-all active:scale-98"
             >
               <FontAwesomeIcon icon={faFacebook} className="size-4" />
               <span>{t('landing.footer.banner.facebook')}</span>
@@ -51,7 +51,7 @@ export default function CommunityBanner({ theme = 'dark' }) {
               href="https://instagram.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-12 sm:h-13 w-full sm:w-auto justify-center items-center gap-2.5 rounded-2xl border-2 border-[#1F7A4D] hover:bg-[#1F7A4D]/20 px-7 text-xs sm:text-sm font-black text-white backdrop-blur-sm transition-all duration-300 hover:scale-[1.02] active:scale-98"
+              className="flex h-12 sm:h-13 w-full sm:w-auto justify-center items-center gap-2.5 rounded-lg border-2 border-white/30 hover:bg-white/10 px-7 text-xs sm:text-sm font-black text-white transition-all active:scale-98"
             >
               <FontAwesomeIcon icon={faInstagram} className="size-4" />
               <span>{t('landing.footer.banner.instagram')}</span>

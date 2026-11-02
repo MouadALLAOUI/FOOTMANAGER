@@ -9,7 +9,7 @@ export default function OpponentTeams({ teams, onEmptyAction, onChallenge }) {
   const { t } = useTranslation()
 
   return (
-    <section id="opponent-teams" className="scroll-mt-24 bg-slate-50 pt-[100px] pb-[110px] lg:pt-[120px] lg:pb-[130px]">
+    <section id="opponent-teams" className="scroll-mt-24 bg-[#F7F8F5] dark:bg-[#101211] text-[#111313] dark:text-[#F5F7F2] pt-[60px] pb-[70px] lg:pt-[80px] lg:pb-[90px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <Reveal>
           <header className="mx-auto max-w-2xl text-center">
@@ -17,10 +17,10 @@ export default function OpponentTeams({ teams, onEmptyAction, onChallenge }) {
               <FontAwesomeIcon icon={faHandshake} className="size-3.5" />
               {t('matchesPage.teams.sendRequest')}
             </span>
-            <h2 className="mt-5 text-3xl font-black text-slate-900 lg:text-4xl">
+            <h2 className="mt-5 text-3xl font-black text-[#111313] dark:text-[#F5F7F2] lg:text-4xl">
               {t('matchesPage.teams.title')}
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-500 lg:text-base">
+            <p className="mt-3 text-sm leading-relaxed text-[#65706A] dark:text-[#B2B9B3] lg:text-base">
               {t('matchesPage.teams.subtitle')}
             </p>
           </header>

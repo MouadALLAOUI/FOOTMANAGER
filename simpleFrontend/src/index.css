@@ -25,10 +25,32 @@
 
   --announce-height: 0px;
   --safe-top-offset: env(safe-area-inset-top, 0px);
-  --bg-main: #F4F6F1;
+  /* Approved Design System v1.0 — Light Mode Tokens */
+  --bg-main: #F7F8F5;
   --bg-card: #FFFFFF;
-  --text-main: #0F172A;
-  --border-card: #E2E8F0;
+  --bg-secondary: #E9ECE7;
+  --text-main: #111313;
+  --text-muted: #65706A;
+  --border-main: #E1E5DF;
+  --border-card: #E1E5DF;
+  --brand-lime: #B8F000;
+  --brand-lime-text: #111313;
+  --btn-secondary-bg: #111313;
+  --btn-secondary-text: #F5F7F2;
+
+  /* Functional Tokens - Light */
+  --color-success: #16834A;
+  --color-warning: #B87500;
+  --color-error: #D93636;
+  --color-info: #2878C7;
+
+  /* Radius Scale */
+  --radius-card: 12px;
+  --radius-card-sm: 8px;
+  --radius-button: 8px;
+  --radius-input: 8px;
+  --radius-image: 8px;
+  --radius-badge: 6px;
 }
 
 /* Explicit z-index utilities */
@@ -43,20 +65,71 @@
 .z-toast { z-index: var(--z-toast) !important; }
 
 .dark {
-  --bg-main: #0F3D2E;
-  --bg-card: #14221C;
-  --text-main: #F8FAFC;
-  --border-card: rgba(255, 255, 255, 0.1);
+  /* Approved Design System v1.0 — Dark Mode Tokens */
+  --bg-main: #101211;
+  --bg-card: #1B201D;
+  --bg-secondary: #252B27;
+  --text-main: #F5F7F2;
+  --text-muted: #B2B9B3;
+  --border-main: #303832;
+  --border-card: #303832;
+  --brand-lime: #D0FF38;
+  --brand-lime-text: #101211;
+  --btn-secondary-bg: #252B27;
+  --btn-secondary-text: #F5F7F2;
+
+  /* Functional Tokens - Dark */
+  --color-success: #42D889;
+  --color-warning: #FFC857;
+  --color-error: #FF6868;
+  --color-info: #65B5FF;
 }
 
 @theme {
   --font-sans: "Cairo", "Segoe UI", system-ui, sans-serif;
-  /* Brand color roles — pitch green, night green #0F3D2E, desert sand #F4F6F1 */
-  --color-pitch: #16a34a;
-  --color-pitch-bright: #22c55e;
-  --color-night: #0F3D2E;
-  --color-sand: #F4F6F1;
-  --color-card-dark: #14221C;
+  --color-lime: var(--brand-lime);
+  --color-pitch: var(--brand-lime);
+  --color-pitch-bright: var(--brand-lime);
+  --color-surface: var(--bg-card);
+  --color-surface-secondary: var(--bg-secondary);
+  --color-card-dark: var(--bg-card);
+  --color-night: var(--bg-main);
+  --color-sand: var(--bg-secondary);
+}
+
+/* Base Semantic Helper Classes for Approved Design System v1.0 */
+.btn-primary-lime {
+  background-color: var(--brand-lime);
+  color: var(--brand-lime-text);
+  border-radius: var(--radius-button);
+  font-weight: 800;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.btn-primary-lime:hover {
+  opacity: 0.92;
+}
+.btn-primary-lime:active {
+  transform: scale(0.98);
+}
+
+.btn-secondary-dark {
+  background-color: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border-radius: var(--radius-button);
+  font-weight: 700;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.btn-secondary-dark:hover {
+  opacity: 0.9;
+}
+.btn-secondary-dark:active {
+  transform: scale(0.98);
+}
+
+.card-v1 {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-card);
 }
 
 /* Pitch-marking ornament for night-navy panels: halfway line + center circle */
@@ -67,7 +140,7 @@
 }
 
 :focus-visible {
-  outline: 2px solid #16a34a;
+  outline: 2px solid var(--brand-lime);
   outline-offset: 2px;
 }
 

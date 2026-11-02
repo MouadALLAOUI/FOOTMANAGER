@@ -525,7 +525,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   if (!liveMatch && upcomingList.length === 0 && !loading) {
     return (
       <section aria-labelledby="live-featured-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-4 sm:my-6">
-        <div className="relative overflow-hidden rounded-[28px] sm:rounded-[34px] border border-emerald-500/30 bg-[#0A161E] p-6 sm:p-8 text-center text-white shadow-xl">
+        <div className="relative overflow-hidden rounded-xl border border-[#303832] bg-[#101211] p-6 sm:p-8 text-center text-white shadow-sm">
           <div className="mx-auto size-12 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 grid place-items-center mb-3">
             <CalendarDays className="size-6 text-emerald-400" />
           </div>
@@ -541,7 +541,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
           <div className="mt-4 flex items-center justify-center gap-3 flex-wrap">
             <Link
               to="/tournaments"
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-600 transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] px-4 py-2 text-xs font-black text-[#111313] hover:brightness-105 transition-colors"
             >
               <span>تصفح البطولات المتاحة</span>
               <ArrowLeft className="size-3.5 rtl:rotate-0" />
@@ -556,7 +556,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     <section aria-labelledby="live-featured-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-4 sm:my-6">
       {/* 1. Live Match Card (عند وجود مباراة جارية مباشرة) */}
       {liveMatch && (
-        <div className="mb-6 overflow-hidden rounded-3xl border border-rose-500/50 bg-[#160B12] p-5 sm:p-6 text-white shadow-2xl ring-1 ring-rose-500/30">
+        <div className="mb-6 overflow-hidden rounded-xl border border-[#D93636]/40 bg-[#101211] p-5 sm:p-6 text-white shadow-md">
           <div className="flex items-center justify-between gap-3 border-b border-rose-500/20 pb-3 mb-4">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-full bg-rose-500/20 px-3 py-1 text-xs font-black text-rose-400 border border-rose-500/40 animate-pulse">
@@ -637,7 +637,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
             {/* Central Main Cinematic Card */}
             <article
               ref={cardRef}
-              className={`relative z-10 w-full max-w-3xl overflow-hidden rounded-[28px] sm:rounded-[36px] border ${colorTheme.border} ${colorTheme.outerGlow} p-4 sm:p-7 text-white shadow-[0_24px_60px_-12px_rgba(0,0,0,0.85)] transition-all duration-500`}
+              className={`relative z-10 w-full max-w-3xl overflow-hidden rounded-xl border border-[#303832] p-4 sm:p-6 text-white shadow-xl transition-all duration-300`}
             >
               {/* Layer 1: Stadium Background Asset */}
               <div
@@ -765,7 +765,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                 </div>
 
                 {/* 3. Lower Zone: Glassmorphism Match Details Panel (التاريخ، الساعة، الملعب) */}
-                <div className="mt-3.5 sm:mt-6 rounded-2xl sm:rounded-3xl border border-white/10 bg-slate-950/70 p-2.5 sm:p-4 shadow-xl backdrop-blur-md">
+                <div className="mt-3.5 sm:mt-6 rounded-xl border border-white/10 bg-black/60 p-2.5 sm:p-4 shadow-md backdrop-blur-md">
                   <div className="grid grid-cols-3 divide-x divide-slate-700/40 rtl:divide-x-reverse text-center">
                     {/* التاريخ (Date) */}
                     <div className="flex flex-col items-center justify-center px-1 sm:px-3">
@@ -809,10 +809,10 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                     type="button"
                     onClick={handleShare}
                     disabled={sharing}
-                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border-2 border-[#1F7A4D] bg-[#14221C]/80 hover:bg-[#1F7A4D]/25 py-2.5 sm:py-3.5 px-3 sm:px-6 text-xs sm:text-sm font-black text-white shadow-md transition-all duration-300 hover:scale-[1.02] active:scale-98 disabled:opacity-75 cursor-pointer"
+                    className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 py-2.5 sm:py-3 px-3 sm:px-6 text-xs sm:text-sm font-black text-[#111313] shadow-md transition-all active:scale-98 disabled:opacity-75 cursor-pointer"
                   >
                     <span className="truncate">{sharing ? 'جاري التجهيز...' : 'مشاركة بطاقة المباراة'}</span>
-                    <Share2 className="size-3.5 sm:size-4 shrink-0 text-[#1F7A4D]" />
+                    <Share2 className="size-3.5 sm:size-4 shrink-0 text-[#111313]" />
                   </button>
 
                   {/* Real 12-Hour Kickoff Remind Me Button */}
@@ -820,7 +820,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                     type="button"
                     onClick={() => handleToggleReminder(currentMatch.id)}
                     disabled={remindLoadingId === currentMatch.id}
-                    className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 rounded-full border py-2.5 sm:py-3.5 px-3.5 sm:px-5 text-xs sm:text-sm font-bold backdrop-blur-md shadow-md transition-all duration-300 hover:scale-[1.02] active:scale-98 cursor-pointer disabled:opacity-75 ${
+                    className={`shrink-0 flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg border py-2.5 sm:py-3 px-3.5 sm:px-5 text-xs sm:text-sm font-bold backdrop-blur-md shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-75 ${
                       activeReminders.has(currentMatch.id)
                         ? 'border-emerald-500/80 bg-emerald-950/80 text-emerald-300 hover:bg-rose-950/70 hover:border-rose-500/80 hover:text-rose-300 group'
                         : `bg-slate-950/75 hover:bg-slate-900/90 ${colorTheme.remindBtn}`

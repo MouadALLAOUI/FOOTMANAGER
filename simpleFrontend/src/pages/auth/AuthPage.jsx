@@ -18,11 +18,11 @@ export default function AuthPage() {
   })
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-5">
+    <div className="min-h-screen bg-[#F7F8F5] dark:bg-[#101211] text-[#111313] dark:text-[#F5F7F2] lg:grid lg:grid-cols-5">
       {/* Desktop Promo Panel */}
       <PromoPanel />
 
-      <main id="main-content" className="relative flex flex-col overflow-hidden bg-slate-50 lg:order-1 lg:col-span-3 min-h-screen">
+      <main id="main-content" className="relative flex flex-col overflow-hidden bg-[#F7F8F5] dark:bg-[#101211] lg:order-1 lg:col-span-3 min-h-screen">
         {/* Subtle Decorative Background Blurs */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div className="absolute -top-28 end-[-140px] size-[460px] rounded-full bg-emerald-500/10 blur-[130px]" />
@@ -45,7 +45,7 @@ export default function AuthPage() {
                 alt="Aji Nqssro"
                 className="size-11 rounded-2xl object-cover shadow-sm ring-1 ring-slate-200"
               />
-              <span className="text-base font-black text-slate-900">أجي نقصرو</span>
+              <span className="text-base font-black text-[#111313] dark:text-[#F5F7F2]">أجي نقصرو</span>
             </div>
 
             <div className="ms-auto">

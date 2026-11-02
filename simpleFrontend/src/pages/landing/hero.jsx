@@ -190,7 +190,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
 
       {/* 2. Lightened Linear Gradient Overlay: 20% at top to 85% at bottom */}
       <div
-        className="absolute inset-0 pointer-events-none z-1 bg-gradient-to-b from-[#0F3D2E]/20 via-[#0F3D2E]/50 to-[#0F3D2E]/85 rounded-b-[24px]"
+        className="absolute inset-0 pointer-events-none z-1 bg-gradient-to-b from-black/25 via-black/55 to-black/85 dark:from-[#101211]/45 dark:via-[#101211]/75 dark:to-[#101211]/95 rounded-b-[24px]"
         aria-hidden="true"
       />
 
@@ -245,14 +245,14 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
         <div className="mt-4 sm:mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 w-full max-w-md">
           <Link
             to="/stadiums"
-            className="flex-1 min-w-[130px] h-11 sm:h-13 flex items-center justify-center rounded-full bg-[#1F7A4D] hover:bg-[#1A6841] px-5 sm:px-6 text-xs sm:text-base font-black text-white shadow-xl shadow-black/25 transition-all hover:scale-[1.02] active:scale-98"
+            className="flex-1 min-w-[130px] h-11 sm:h-12 flex items-center justify-center rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-5 sm:px-6 text-xs sm:text-base font-black text-[#111313] shadow-md transition-all active:scale-98"
           >
             احجز ملعبك
           </Link>
 
           <Link
             to={organizeTournamentLink}
-            className="flex-1 min-w-[130px] h-11 sm:h-13 flex items-center justify-center rounded-full border-2 border-white text-white bg-transparent hover:bg-white/15 active:bg-white/20 font-black text-xs sm:text-base transition-all hover:scale-[1.02] active:scale-98 shadow-md shadow-black/20"
+            className="flex-1 min-w-[130px] h-11 sm:h-12 flex items-center justify-center rounded-lg border-2 border-white text-white bg-transparent hover:bg-white/15 active:bg-white/20 font-black text-xs sm:text-base transition-all active:scale-98 shadow-md shadow-black/20"
           >
             نظّم بطولة
           </Link>
@@ -261,7 +261,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
         {/* 4. Smart Search Bar with Flexible Responsive Sizing & Subtle Focus */}
         <div ref={searchContainerRef} className="relative z-30 mt-3.5 sm:mt-6 w-full max-w-lg mx-auto">
           <form onSubmit={handleSearch} role="search">
-            <div className="relative flex h-12 sm:h-13 w-full items-center rounded-2xl bg-white ps-3.5 sm:ps-4 pe-20 sm:pe-24 border border-slate-200/90 shadow-md shadow-black/10 transition-all duration-200 focus-within:border-emerald-500/70 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:shadow-[0_4px_24px_rgba(16,185,129,0.18)]">
+            <div className="relative flex h-12 sm:h-13 w-full items-center rounded-xl bg-white dark:bg-[#1B201D] ps-3.5 sm:ps-4 pe-20 sm:pe-24 border border-[#E1E5DF] dark:border-[#303832] shadow-sm transition-all focus-within:border-[#B8F000] focus-within:ring-2 focus-within:ring-[#B8F000]/30">
               {/* Text Input with RTL Alignment & iOS zoom prevention (16px) */}
               <input
                 ref={inputRef}
@@ -285,7 +285,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                 autoComplete="off"
                 autoCorrect="off"
                 spellCheck="false"
-                className="h-full w-full bg-transparent text-[16px] sm:text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none text-start"
+                className="h-full w-full bg-transparent text-[16px] sm:text-sm font-bold text-[#111313] dark:text-[#F5F7F2] placeholder:text-[#65706A] dark:placeholder:text-[#B2B9B3] outline-none text-start"
               />
 
               {/* Action Buttons on Left in RTL (end-*) */}
@@ -312,7 +312,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
               <button
                 type="submit"
                 aria-label="بدء البحث"
-                className="absolute end-1.5 sm:end-2 grid size-9 sm:size-10 place-items-center rounded-xl bg-[#1F7A4D] hover:bg-[#1A6841] text-white shadow-xs transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                className="absolute end-1.5 sm:end-2 grid size-9 sm:size-10 place-items-center rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 text-[#111313] shadow-xs transition-transform active:scale-95 cursor-pointer"
               >
                 <Search className="size-4 sm:size-4.5" />
               </button>
@@ -324,7 +324,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
             <div
               id="search-suggestions-popover"
               role="listbox"
-              className="absolute top-full inset-x-0 mt-2 z-40 rounded-2xl sm:rounded-3xl border border-slate-200/90 bg-white text-slate-900 shadow-2xl overflow-hidden text-start animate-in fade-in duration-150"
+              className="absolute top-full inset-x-0 mt-2 z-40 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] shadow-xl overflow-hidden text-start animate-in fade-in duration-150"
             >
               {suggestLoading && !hasSuggestions ? (
                 <div className="flex items-center justify-center gap-2 py-6 text-xs font-bold text-slate-500">
@@ -336,7 +336,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                   لا توجد نتائج مطابقة لـ "{searchTerm}"
                 </div>
               ) : (
-                <div className="max-h-[min(52dvh,340px)] overflow-y-auto overscroll-contain divide-y divide-slate-100 p-2 text-start">
+                <div className="max-h-[min(52dvh,340px)] overflow-y-auto overscroll-contain divide-y divide-[#E1E5DF] dark:divide-[#303832] p-2 text-start">
                   {/* قسم اللاعبين (Matching Reference Image) */}
                   {suggestions.players && suggestions.players.length > 0 && (
                     <div className="py-1.5">
@@ -349,7 +349,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                           key={`pl-${pl.id}`}
                           type="button"
                           onClick={() => handleSelectSuggestion('player', pl)}
-                          className="group flex w-full items-center justify-between gap-3 rounded-2xl p-2.5 sm:p-3 text-start hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
+                          className="group flex w-full items-center justify-between gap-3 rounded-lg p-2.5 sm:p-3 text-start hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             {/* Player Avatar with Fallback Monogram */}
@@ -376,7 +376,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
 
                             {/* Player Info Column */}
                             <div className="min-w-0 flex flex-col">
-                              <span className="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors truncate">
+                              <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] group-hover:text-[#16834A] dark:group-hover:text-[#42D889] transition-colors truncate">
                                 {pl.name}
                               </span>
                               <span className="text-xs font-semibold text-slate-500 truncate mt-0.5">
@@ -408,7 +408,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                           key={`tm-${tm.id}`}
                           type="button"
                           onClick={() => handleSelectSuggestion('team', tm)}
-                          className="group flex w-full items-center justify-between gap-3 rounded-2xl p-2.5 sm:p-3 text-start hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
+                          className="group flex w-full items-center justify-between gap-3 rounded-lg p-2.5 sm:p-3 text-start hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-700 border border-sky-100 shadow-xs">
@@ -424,7 +424,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                               )}
                             </div>
                             <div className="min-w-0 flex flex-col">
-                              <span className="text-sm font-black text-slate-900 group-hover:text-sky-700 transition-colors truncate">
+                              <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] transition-colors truncate">
                                 {tm.name}
                               </span>
                               <span className="text-xs font-semibold text-slate-500 truncate mt-0.5">
@@ -450,14 +450,14 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                           key={`tour-${tour.id}`}
                           type="button"
                           onClick={() => handleSelectSuggestion('tournament', tour)}
-                          className="group flex w-full items-center justify-between gap-3 rounded-2xl p-2.5 sm:p-3 text-start hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
+                          className="group flex w-full items-center justify-between gap-3 rounded-lg p-2.5 sm:p-3 text-start hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-amber-50 text-amber-700 border border-amber-100 shadow-xs">
                               <Trophy className="size-5 text-amber-600" />
                             </div>
                             <div className="min-w-0 flex flex-col">
-                              <span className="text-sm font-black text-slate-900 group-hover:text-amber-700 transition-colors truncate">
+                              <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] transition-colors truncate">
                                 {tour.name}
                               </span>
                               <span className="text-xs font-semibold text-slate-500 truncate mt-0.5">
@@ -483,14 +483,14 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                           key={`std-${std.id}`}
                           type="button"
                           onClick={() => handleSelectSuggestion('stadium', std)}
-                          className="group flex w-full items-center justify-between gap-3 rounded-2xl p-2.5 sm:p-3 text-start hover:bg-slate-50 active:bg-slate-100 transition-colors cursor-pointer"
+                          className="group flex w-full items-center justify-between gap-3 rounded-lg p-2.5 sm:p-3 text-start hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-teal-50 text-teal-700 border border-teal-100 shadow-xs">
                               <Landmark className="size-5 text-teal-600" />
                             </div>
                             <div className="min-w-0 flex flex-col">
-                              <span className="text-sm font-black text-slate-900 group-hover:text-teal-700 transition-colors truncate">
+                              <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] transition-colors truncate">
                                 {std.name}
                               </span>
                               <span className="text-xs font-semibold text-slate-500 truncate mt-0.5">
@@ -505,11 +505,11 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                   )}
 
                   {/* تذييل زر البحث الكامل */}
-                  <div className="pt-2 pb-1 px-2 border-t border-slate-100">
+                  <div className="pt-2 pb-1 px-2 border-t border-[#E1E5DF] dark:border-[#303832]">
                     <button
                       type="button"
                       onClick={handleSearch}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white py-2.5 text-xs font-black transition-colors cursor-pointer"
+                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#111313] dark:bg-[#252B27] hover:brightness-110 text-white py-2.5 text-xs font-black transition-colors cursor-pointer"
                     >
                       <Search className="size-3.5" />
                       <span>عرض جميع النتائج لـ "{searchTerm}"</span>

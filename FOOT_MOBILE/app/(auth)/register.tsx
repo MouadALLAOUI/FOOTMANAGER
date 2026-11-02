@@ -202,6 +202,8 @@ export default function RegisterWizard(): React.JSX.Element {
   useEffect(() => {
     if (!params.role) {
       router.replace('/(auth)/account-type');
+    } else if (params.role === 'manager') {
+      router.replace('/(auth)/manager-auth');
     }
   }, [params.role, router]);
 

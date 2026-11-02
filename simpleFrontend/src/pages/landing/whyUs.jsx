@@ -114,11 +114,11 @@ export default function WhyUs() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         {/* القسم الأول: لماذا أجي نقصرو */}
         <header className="mx-auto max-w-2xl text-center mb-8 sm:mb-12">
-          <span className="mx-auto mb-2.5 block h-1 w-10 rounded-full bg-[#1F7A4D]" aria-hidden="true" />
-          <h2 id="why-us-heading" className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#14221C] tracking-tight">
+          <span className="mx-auto mb-2.5 block h-1 w-10 rounded-full bg-[#B8F000] dark:bg-[#D0FF38]" aria-hidden="true" />
+          <h2 id="why-us-heading" className="text-2xl sm:text-3xl lg:text-4xl font-black text-[#111313] dark:text-[#F5F7F2] tracking-tight">
             {t('landing.why.title')}
           </h2>
-          <p className="mt-2 text-xs sm:text-sm lg:text-base leading-relaxed text-slate-600 font-medium">
+          <p className="mt-2 text-xs sm:text-sm lg:text-base leading-relaxed text-[#65706A] dark:text-[#B2B9B3] font-medium">
             {t('landing.why.subtitle')}
           </p>
         </header>
@@ -128,13 +128,13 @@ export default function WhyUs() {
           {features.map(({ key, icon: Icon }) => (
             <article
               key={key}
-              className="group rounded-2xl sm:rounded-3xl bg-white p-4 sm:p-7 text-center shadow-sm border border-slate-200/80 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-[#1F7A4D]"
+              className="group rounded-xl bg-white dark:bg-[#1B201D] p-4 sm:p-7 text-center shadow-sm border border-[#E1E5DF] dark:border-[#303832] transition-all"
             >
-              <div className="mx-auto grid size-12 sm:size-16 place-items-center rounded-2xl bg-emerald-50 text-[#1F7A4D] transition-colors duration-300 group-hover:bg-[#1F7A4D] group-hover:text-white">
+              <div className="mx-auto grid size-12 sm:size-16 place-items-center rounded-lg bg-[#B8F000]/20 dark:bg-[#D0FF38]/20 text-[#111313] dark:text-[#D0FF38] transition-colors duration-200">
                 <FontAwesomeIcon icon={Icon} className="size-5 sm:size-7" />
               </div>
 
-              <h3 className="mt-3 sm:mt-5 text-xs sm:text-base font-black text-[#14221C]">
+              <h3 className="mt-3 sm:mt-5 text-xs sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
                 {t(`landing.why.features.${key}.title`)}
               </h3>
               <p className="mx-auto mt-1 line-clamp-2 text-[11px] sm:text-xs leading-relaxed text-slate-600 font-medium">
@@ -145,7 +145,7 @@ export default function WhyUs() {
         </div>
 
         {/* القسم الثاني: هل تملك ملعباً؟ (قسم داكن مخصص) */}
-        <div className="relative mt-10 sm:mt-14 overflow-hidden rounded-[24px] sm:rounded-[32px] bg-[#0F172A] border border-slate-700/60 p-6 sm:p-12 shadow-2xl">
+        <div className="relative mt-10 sm:mt-14 overflow-hidden rounded-xl bg-[#101211] border border-[#303832] p-6 sm:p-10 shadow-xl">
           <div
             className="pointer-events-none absolute -inset-24 bg-[radial-gradient(60%_80%_at_18%_15%,rgba(31,122,77,0.22),transparent_60%),radial-gradient(50%_70%_at_92%_100%,rgba(16,185,129,0.15),transparent_60%)]"
             aria-hidden="true"
@@ -155,14 +155,14 @@ export default function WhyUs() {
             <div className="w-full text-center lg:w-1/2 lg:text-start">
               <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-[1.25] text-white">
                 {t('landing.why.cta.title1')}{' '}
-                <span className="text-emerald-400">{t('landing.why.cta.title2')}</span>
+                <span className="text-[#B8F000] dark:text-[#D0FF38]">{t('landing.why.cta.title2')}</span>
               </h3>
               <p className="mt-3 text-xs sm:text-sm lg:text-base leading-relaxed text-slate-300 font-medium">
                 {t('landing.why.cta.description')}
               </p>
               <Link
                 to="/stadiums"
-                className="mt-6 sm:mt-8 inline-flex items-center gap-2 rounded-2xl bg-[#1F7A4D] hover:bg-[#1A6841] px-7 py-3 sm:py-3.5 text-xs sm:text-sm font-black text-white shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-98"
+                className="mt-6 sm:mt-8 inline-flex items-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-7 py-3 sm:py-3.5 text-xs sm:text-sm font-black text-[#111313] shadow-md transition-all active:scale-98"
               >
                 <FontAwesomeIcon icon={faPlus} className="size-4" />
                 <span>{t('landing.why.cta.button')}</span>

@@ -46,12 +46,12 @@ export function useDialogA11y(open, panelRef) {
 export function Card({ title, subtitle, action, children, className = '', bodyClassName = '', noPadding = false, pad = true }) {
   const noPad = noPadding || pad === false
   return (
-    <div className={`rounded-3xl border border-slate-200/70 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.04)] ${className}`}>
+    <div className={`rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] shadow-xs transition-colors ${className}`}>
       {(title || action) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E1E5DF] dark:border-[#303832] px-4 py-3 sm:px-5 sm:py-3.5">
           <div className="min-w-0 flex-1">
-            {title && <h3 className="break-words text-sm font-extrabold text-slate-900">{title}</h3>}
-            {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
+            {title && <h3 className="break-words text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">{title}</h3>}
+            {subtitle && <p className="mt-0.5 break-words text-xs text-[#65706A] dark:text-[#B2B9B3]">{subtitle}</p>}
           </div>
           {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
         </div>
@@ -81,22 +81,22 @@ export function useCountUp(target, duration = 700) {
 }
 
 const accentChips = {
-  green: 'bg-emerald-500/15 text-emerald-600',
-  amber: 'bg-amber-500/15 text-amber-600',
-  sky: 'bg-sky-500/15 text-sky-600',
-  violet: 'bg-violet-500/15 text-violet-600',
-  rose: 'bg-rose-500/15 text-rose-600',
-  orange: 'bg-orange-500/15 text-orange-600',
+  green: 'bg-[#B8F000]/20 dark:bg-[#D0FF38]/20 text-[#111313] dark:text-[#D0FF38]',
+  amber: 'bg-amber-500/15 dark:bg-amber-500/20 text-[#B87500] dark:text-[#FFC857]',
+  sky: 'bg-sky-500/15 dark:bg-sky-500/20 text-[#2878C7] dark:text-[#65B5FF]',
+  violet: 'bg-purple-500/15 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300',
+  rose: 'bg-rose-500/15 dark:bg-rose-500/20 text-[#D93636] dark:text-[#FF6868]',
+  orange: 'bg-orange-500/15 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300',
 }
 
 export function Stat({ icon: Icon, label, value, delta, accent = 'green', suffix }) {
   const count = useCountUp(typeof value === 'number' ? value : 0)
   const chip = accentChips[accent] || accentChips.green
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-4 sm:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)]">
+    <div className="group relative overflow-hidden rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-5 shadow-xs transition-colors hover:border-[#B8F000] dark:hover:border-[#D0FF38]">
       <div className={`pointer-events-none absolute -end-8 -top-8 size-28 rounded-full ${chip} opacity-[0.06] blur-2xl`} />
       <div className="flex items-center justify-between">
-        <div className={`grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl ${chip}`}>
+        <div className={`grid size-10 sm:size-11 shrink-0 place-items-center rounded-lg ${chip}`}>
           <ItemIcon icon={Icon} className="size-4 sm:size-5" strokeWidth={2.2} />
         </div>
         {typeof delta === 'number' && (
@@ -121,19 +121,25 @@ export function Stat({ icon: Icon, label, value, delta, accent = 'green', suffix
 
 const buttonVariants = {
   primary:
-    'bg-green-500 text-white shadow-[0_8px_20px_rgba(22,163,74,0.28)] hover:bg-green-600 hover:shadow-[0_10px_24px_rgba(22,163,74,0.34)] active:scale-[0.98]',
+    'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] dark:text-[#101211] font-black hover:opacity-90 active:scale-[0.98] shadow-xs',
+  secondary:
+    'bg-[#111313] dark:bg-[#252B27] text-[#F5F7F2] hover:bg-[#252B27] dark:hover:bg-[#303832] font-bold active:scale-[0.98]',
   outline:
-    'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50',
-  ghost: 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
-  soft: 'bg-green-50 text-green-700 hover:bg-green-100',
-  danger: 'bg-rose-500 text-white shadow-[0_8px_20px_rgba(244,63,94,0.28)] hover:bg-rose-600',
-  dangerSoft: 'bg-rose-50 text-rose-600 hover:bg-rose-100',
+    'border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#252B27]',
+  ghost:
+    'text-[#65706A] dark:text-[#B2B9B3] hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] hover:text-[#111313] dark:hover:text-[#F5F7F2]',
+  soft:
+    'bg-[#B8F000]/20 dark:bg-[#D0FF38]/15 text-[#111313] dark:text-[#D0FF38] hover:bg-[#B8F000]/30',
+  danger:
+    'bg-[#D93636] dark:bg-[#FF6868] text-white hover:opacity-90 active:scale-[0.98]',
+  dangerSoft:
+    'bg-rose-50 dark:bg-rose-950/20 text-[#D93636] dark:text-[#FF6868] hover:bg-rose-100',
 }
 
 const buttonSizes = {
-  sm: 'h-9 gap-1.5 rounded-xl px-3.5 text-xs',
-  md: 'h-11 gap-2 rounded-xl px-5 text-sm',
-  lg: 'h-12 gap-2 rounded-2xl px-6 text-sm',
+  sm: 'h-9 gap-1.5 rounded-lg px-3.5 text-xs',
+  md: 'h-10 gap-2 rounded-lg px-4 text-sm',
+  lg: 'h-11 gap-2 rounded-lg px-5 text-sm',
 }
 
 export function Button({ children, variant = 'primary', size = 'md', className = '', type = 'button', loading = false, disabled = false, ...props }) {
@@ -157,7 +163,7 @@ export function IconButton({ icon: Icon, label, className = '', ...props }) {
       type="button"
       aria-label={label}
       title={label}
-      className={`grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-800 ${className}`}
+      className={`grid size-10 place-items-center rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#65706A] dark:text-[#B2B9B3] transition-colors hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] hover:text-[#111313] dark:hover:text-[#F5F7F2] ${className}`}
       {...props}
     >
       <ItemIcon icon={Icon} className="size-[18px]" />
@@ -181,10 +187,10 @@ export function Field({ label, hint, required, children }) {
 }
 
 export const inputClass =
-  'h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10'
+  'h-10 w-full rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3.5 text-sm text-[#111313] dark:text-[#F5F7F2] outline-none transition-all placeholder:text-[#65706A] dark:placeholder:text-[#B2B9B3]/60 focus:border-[#B8F000] dark:focus:border-[#D0FF38] focus:ring-2 focus:ring-[#B8F000]/25'
 
 export const selectClass =
-  'h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pe-9 text-sm text-slate-900 outline-none transition-all focus:border-green-500 focus:ring-4 focus:ring-green-500/10'
+  'h-10 w-full appearance-none rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3.5 pe-9 text-sm text-[#111313] dark:text-[#F5F7F2] outline-none transition-all focus:border-[#B8F000] dark:focus:border-[#D0FF38] focus:ring-2 focus:ring-[#B8F000]/25'
 
 export function Toggle({ checked, onChange, disabled, label, title }) {
   return (
@@ -197,11 +203,11 @@ export function Toggle({ checked, onChange, disabled, label, title }) {
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300 disabled:opacity-50 ${
-        checked ? 'bg-green-500' : 'bg-slate-200'
+        checked ? 'bg-[#B8F000] dark:bg-[#D0FF38]' : 'bg-[#E9ECE7] dark:bg-[#303832]'
       }`}
     >
       <span
-        className={`absolute top-1 start-1 size-5 rounded-full bg-white shadow transition-transform duration-300 ${
+        className={`absolute top-1 start-1 size-5 rounded-full bg-[#111313] dark:bg-[#101211] shadow-xs transition-transform duration-150 ${
           checked ? 'translate-x-5 rtl:-translate-x-5' : 'translate-x-0'
         }`}
       />
@@ -250,9 +256,9 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`${closing ? 'pop-out' : 'pop-in'} relative z-[var(--z-modal)] flex flex-col w-full ${widths[size]} max-h-[calc(100dvh-32px)] sm:max-h-[calc(100dvh-48px)] overflow-hidden rounded-t-3xl bg-white shadow-2xl outline-none sm:rounded-3xl`}
+        className={`${closing ? 'pop-out' : 'pop-in'} relative z-[var(--z-modal)] flex flex-col w-full ${widths[size]} max-h-[calc(100dvh-32px)] sm:max-h-[calc(100dvh-48px)] overflow-hidden rounded-t-xl sm:rounded-xl bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] shadow-xl outline-none`}
       >
-        <div className="shrink-0 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
+        <div className="shrink-0 flex items-center justify-between gap-3 border-b border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-4 py-3 sm:px-5">
           <div className="min-w-0 flex-1">
             <h3 id={titleId} className="break-words text-base font-extrabold text-slate-900">{title}</h3>
             {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
@@ -261,14 +267,14 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
             type="button"
             onClick={requestClose}
             aria-label={t('common.close')}
-            className="grid size-11 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 cursor-pointer"
+            className="grid size-11 place-items-center rounded-lg text-[#65706A] dark:text-[#B2B9B3] transition-colors hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] hover:text-[#111313] dark:hover:text-[#F5F7F2] cursor-pointer"
           >
             <X className="size-5" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">{children}</div>
         {footer && (
-          <div className="shrink-0 flex flex-wrap justify-end gap-2 border-t border-slate-100 bg-slate-50 px-4 py-3 sm:px-6 sm:rounded-b-3xl">
+          <div className="shrink-0 flex flex-wrap justify-end gap-2 border-t border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-4 py-3 sm:px-5 sm:rounded-b-xl">
             {footer}
           </div>
         )}

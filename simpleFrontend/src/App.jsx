@@ -9,6 +9,7 @@ import MaintenanceGate from './components/system/MaintenanceGate'
 import PageMaintenanceGate from './components/system/PageMaintenanceGate'
 import ActivityLockBanner from './components/system/ActivityLockBanner'
 import PageSkeleton from './components/system/PageSkeleton'
+import { ThemeProvider } from './context/ThemeContext'
 import { ProfileModalProvider } from './components/profile/ProfileModalContext'
 import { useRealtimeNotifications } from './hooks/useRealtimeNotifications'
 import PwaUpdatePrompt from './components/pwa/PwaUpdatePrompt'
@@ -64,7 +65,8 @@ function App() {
   }, [i18n.language])
 
   return (
-    <BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
       <Suspense fallback={<RouteFallback />}>
         <ErrorBoundary>
           <ActivityLockBanner />
@@ -172,6 +174,7 @@ function App() {
       <PwaUpdatePrompt />
       <ToastContainer />
     </BrowserRouter>
+  </ThemeProvider>
   )
 }
 

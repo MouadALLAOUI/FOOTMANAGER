@@ -71,11 +71,9 @@ export default function PlayerHeader({ player, onShareClick }) {
   const statusMeta = formatStatusArabic(player.status)
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-slate-800/90 bg-gradient-to-b from-[#0F172A] via-[#0B132B] to-[#070B14] p-5 sm:p-8 text-white shadow-2xl">
+    <div className="relative overflow-hidden rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 sm:p-7 text-[#111313] dark:text-[#F5F7F2] shadow-sm">
       {/* Background Stadium Glow & Atmospheric Lines */}
-      <div className="pointer-events-none absolute -start-24 -top-24 size-80 rounded-full bg-emerald-500/15 blur-3xl" />
-      <div className="pointer-events-none absolute -end-24 -bottom-24 size-80 rounded-full bg-amber-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-950/20 via-transparent to-transparent" />
+      
 
       <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
         {/* Avatar Frame with Glowing Shield/Circle Effect */}
@@ -143,7 +141,7 @@ export default function PlayerHeader({ player, onShareClick }) {
 
           {/* Player Name */}
           <div className="flex items-center justify-center md:justify-start gap-2">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-[#111313] dark:text-[#F5F7F2] tracking-tight">
               {player.name}
             </h1>
             <CheckCircle2 className="size-5 sm:size-6 text-emerald-400 fill-emerald-500/20 shrink-0" title="لاعب موثق رسمياً" />
@@ -175,29 +173,29 @@ export default function PlayerHeader({ player, onShareClick }) {
           </div>
 
           {/* Secondary Physical Attributes (Foot, Height, Weight, Age) */}
-          <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-3 text-xs font-semibold text-slate-400 border-t border-slate-800/80 pt-3">
+          <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-3 text-xs font-semibold text-slate-400 border-t border-[#E1E5DF] dark:border-[#303832] pt-3">
             {player.preferred_foot && (
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 px-2.5 py-1">
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] px-2.5 py-1">
                 <Footprints className="size-3.5 text-emerald-400" />
-                <span>القدم: <strong className="text-slate-200">{formatFootArabic(player.preferred_foot)}</strong></span>
+                <span>القدم: <strong className="text-[#111313] dark:text-[#F5F7F2]">{formatFootArabic(player.preferred_foot)}</strong></span>
               </div>
             )}
             {player.height_cm && (
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 px-2.5 py-1">
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] px-2.5 py-1">
                 <Ruler className="size-3.5 text-amber-400" />
-                <span>الطول: <strong className="text-slate-200">{player.height_cm} سم</strong></span>
+                <span>الطول: <strong className="text-[#111313] dark:text-[#F5F7F2]">{player.height_cm} سم</strong></span>
               </div>
             )}
             {player.weight_kg && (
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 px-2.5 py-1">
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] px-2.5 py-1">
                 <Weight className="size-3.5 text-sky-400" />
-                <span>الوزن: <strong className="text-slate-200">{player.weight_kg} كغ</strong></span>
+                <span>الوزن: <strong className="text-[#111313] dark:text-[#F5F7F2]">{player.weight_kg} كغ</strong></span>
               </div>
             )}
             {player.age && (
-              <div className="inline-flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/60 px-2.5 py-1">
+              <div className="inline-flex items-center gap-1.5 rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] px-2.5 py-1">
                 <Calendar className="size-3.5 text-teal-400" />
-                <span>العمر: <strong className="text-slate-200">{player.age} سنة</strong></span>
+                <span>العمر: <strong className="text-[#111313] dark:text-[#F5F7F2]">{player.age} سنة</strong></span>
               </div>
             )}
           </div>
@@ -209,7 +207,7 @@ export default function PlayerHeader({ player, onShareClick }) {
             type="button"
             onClick={onShareClick}
             aria-label="مشاركة بطاقة اللاعب"
-            className="flex w-full md:w-auto items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:to-emerald-400 px-5 py-3 text-sm font-black text-white shadow-xl shadow-emerald-950/60 ring-1 ring-emerald-400/30 transition-all hover:scale-[1.03] active:scale-[0.98] cursor-pointer"
+            className="flex w-full md:w-auto items-center justify-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-5 py-2.5 text-sm font-black text-[#111313] shadow-sm transition-all active:scale-[0.98] cursor-pointer"
           >
             <Share2 className="size-4" />
             <span>مشاركة بطاقة اللاعب</span>

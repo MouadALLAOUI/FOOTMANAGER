@@ -370,7 +370,7 @@ export default function UnifiedAuth() {
             <span>{isRtl ? 'بوابة الدخول الموحدة' : 'Unified Access Portal'}</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-[#111313] dark:text-[#F5F7F2] tracking-tight">
             {isRtl ? 'مرحباً بك في أجي نقصرو 👋' : 'Welcome to Aji Nqssro 👋'}
           </h1>
 
@@ -392,7 +392,7 @@ export default function UnifiedAuth() {
                 key={r.id}
                 type="button"
                 onClick={() => handleSelectRole(r.id)}
-                className={`group relative flex flex-col items-center sm:items-start text-center sm:text-start p-5 rounded-3xl border border-slate-200/90 bg-white shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 ${r.cardBorder} active:translate-y-0 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-emerald-500/20 cursor-pointer`}
+                className={`group relative flex flex-col items-center sm:items-start text-center sm:text-start p-5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-sm transition-all ${r.cardBorder} active:translate-y-0 active:scale-[0.99] focus:outline-none focus:ring-4 focus:ring-emerald-500/20 cursor-pointer`}
               >
                 {/* Visual Sports Icon Component */}
                 <div className="mb-4">
@@ -400,12 +400,12 @@ export default function UnifiedAuth() {
                 </div>
 
                 {/* Role Title */}
-                <h2 className="text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
+                <h2 className="text-lg font-black text-[#111313] dark:text-[#F5F7F2] transition-colors">
                   {title}
                 </h2>
 
                 {/* Short Description */}
-                <p className="mt-1 text-xs font-semibold leading-relaxed text-slate-500">
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-[#65706A] dark:text-[#B2B9B3]">
                   {desc}
                 </p>
 
@@ -436,13 +436,13 @@ export default function UnifiedAuth() {
         </div>
 
         {/* Direct Login Card */}
-        <div className="rounded-3xl border border-slate-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-4">
+        <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 sm:p-7 shadow-sm space-y-4 text-[#111313] dark:text-[#F5F7F2]">
           <div className="text-center sm:text-start">
             <div className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-700 mb-2">
               <FontAwesomeIcon icon={faLock} className="size-3 text-emerald-600" />
               <span>{isRtl ? 'لديك حساب بالفعل؟' : 'Already have an account?'}</span>
             </div>
-            <h3 className="text-lg font-black text-slate-900">
+            <h3 className="text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
               {isRtl ? 'تسجيل الدخول الفوري' : 'Instant Sign In'}
             </h3>
             <p className="mt-0.5 text-xs font-semibold text-slate-500">
@@ -503,7 +503,7 @@ export default function UnifiedAuth() {
             <button
               type="submit"
               disabled={busy}
-              className="btn-ripple flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+              className="btn-ripple flex h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] text-sm font-black text-[#111313] hover:brightness-105 shadow-sm transition-all active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {busy ? (
                 <>
@@ -718,7 +718,7 @@ export default function UnifiedAuth() {
             <button
               type="submit"
               disabled={busy}
-              className="btn-ripple flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+              className="btn-ripple flex h-[52px] w-full items-center justify-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] text-sm font-black text-[#111313] hover:brightness-105 shadow-sm transition-all active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
               {busy ? (
                 <>
@@ -767,7 +767,7 @@ export default function UnifiedAuth() {
           <button
             type="submit"
             disabled={busy}
-            className="btn-ripple flex h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            className="btn-ripple flex h-[54px] w-full items-center justify-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] text-sm font-black text-[#111313] hover:brightness-105 shadow-sm transition-all active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
           >
             {busy ? (
               <>
@@ -875,7 +875,7 @@ export default function UnifiedAuth() {
           <button
             type="submit"
             disabled={busy}
-            className="btn-ripple flex h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            className="btn-ripple flex h-[54px] w-full items-center justify-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] text-sm font-black text-[#111313] hover:brightness-105 shadow-sm transition-all active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
           >
             {busy ? (
               <>
@@ -1059,7 +1059,7 @@ export default function UnifiedAuth() {
           <button
             type="submit"
             disabled={busy}
-            className="btn-ripple flex h-[54px] w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-black text-white shadow-md shadow-emerald-600/25 transition-all duration-300 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+            className="btn-ripple flex h-[54px] w-full items-center justify-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] text-sm font-black text-[#111313] hover:brightness-105 shadow-sm transition-all active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
           >
             {busy ? (
               <>

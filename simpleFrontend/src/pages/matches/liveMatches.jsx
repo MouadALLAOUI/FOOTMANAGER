@@ -8,7 +8,7 @@ export default function LiveMatches({ matches, onEmptyAction }) {
   const { t } = useTranslation()
 
   return (
-    <section id="live-matches" className="scroll-mt-24 bg-white pt-[100px] lg:pt-[120px]">
+    <section id="live-matches" className="scroll-mt-24 bg-[#F7F8F5] dark:bg-[#101211] text-[#111313] dark:text-[#F5F7F2] pt-[60px] lg:pt-[80px]">
       <div className="mx-auto max-w-[1400px] px-6">
         <Reveal>
           <header className="mx-auto max-w-2xl text-center">
@@ -19,10 +19,10 @@ export default function LiveMatches({ matches, onEmptyAction }) {
               </span>
               {t('matchesPage.live.badge')}
             </span>
-            <h2 className="mt-5 text-3xl font-black text-slate-900 lg:text-4xl">
+            <h2 className="mt-5 text-3xl font-black text-[#111313] dark:text-[#F5F7F2] lg:text-4xl">
               {t('matchesPage.live.title')}
             </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-500 lg:text-base">
+            <p className="mt-3 text-sm leading-relaxed text-[#65706A] dark:text-[#B2B9B3] lg:text-base">
               {t('matchesPage.live.subtitle')}
             </p>
           </header>

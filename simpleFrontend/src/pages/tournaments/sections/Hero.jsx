@@ -19,7 +19,7 @@ const REGISTRATION_PILL = {
 
 function Chip({ icon: Icon, children }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/90 ring-1 ring-white/15 backdrop-blur-sm">
+    <span className="inline-flex items-center gap-2 rounded-md bg-white/10 px-3 py-1 text-xs font-bold text-white/90 border border-white/15">
       <Icon className="size-3.5 text-white/60" />
       {children}
     </span>
@@ -79,9 +79,9 @@ export default function Hero({ tour }) {
   return (
     <section
       aria-label={tour.name}
-      className="relative overflow-visible rounded-[2rem] bg-slate-950 text-white shadow-[0_32px_80px_-32px_rgba(15,23,42,0.7)] ring-1 ring-white/10"
+      className="relative overflow-visible rounded-xl bg-[#101211] text-white border border-[#303832] shadow-xl"
     >
-      <div className="absolute inset-0 overflow-hidden rounded-[2rem] pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
         {hasCover && <img src={tour.cover_url} alt="" className="h-full w-full object-cover" loading="eager" />}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/85 to-slate-950/45" />
         <div
@@ -108,14 +108,14 @@ export default function Hero({ tour }) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ring-1 ${
+              className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-black border ${
                 STATUS_PILL[tour.status] || 'bg-white/10 text-white/80 ring-white/20'
               }`}
             >
               {t(`status.${tour.status}`)}
             </span>
             {registrationPill && (
-              <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black ${registrationPill.cls}`}>
+              <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-[11px] font-black border border-transparent ${registrationPill.cls}`}>
                 {registrationPill.label}
               </span>
             )}
@@ -126,7 +126,7 @@ export default function Hero({ tour }) {
             <button
               type="button"
               onClick={handleCopyLink}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all backdrop-blur-md cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
                 copiedLink
                   ? 'bg-emerald-500 text-white ring-1 ring-emerald-400'
                   : 'bg-white/10 hover:bg-white/20 text-white ring-1 ring-white/20'
@@ -140,7 +140,7 @@ export default function Hero({ tour }) {
             <button
               type="button"
               onClick={handleWhatsAppShare}
-              className="inline-flex items-center gap-1.5 rounded-full bg-[#10B981] hover:bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-md transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#B8F000] hover:brightness-105 px-3.5 py-1.5 text-xs font-black text-[#111313] shadow-sm transition-all active:scale-95 cursor-pointer"
               title="مشاركة رابط البطولة عبر واتساب"
             >
               <MessageCircle className="size-3.5" />
@@ -157,7 +157,7 @@ export default function Hero({ tour }) {
                 style={{ background: `radial-gradient(60% 60% at 50% 50%, ${primary}, transparent 70%)` }}
               />
               <div
-                className="relative grid size-20 sm:size-28 place-items-center overflow-hidden rounded-[1.5rem] sm:rounded-[1.75rem] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.65)] ring-1 ring-white/20"
+                className="relative grid size-20 sm:size-28 place-items-center overflow-hidden rounded-xl shadow-[0_24px_50px_-12px_rgba(0,0,0,0.65)] ring-1 ring-white/20"
                 style={{ backgroundImage: `linear-gradient(135deg, ${primary}22, ${secondary}55)` }}
               >
                 {tour.logo_url ? (
@@ -186,7 +186,7 @@ export default function Hero({ tour }) {
           </div>
         </div>
 
-        <div className="mt-9 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-white/15 backdrop-blur-md sm:grid-cols-4 lg:grid-cols-4">
+        <div className="mt-9 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-white/[0.05] border border-white/10 backdrop-blur-md sm:grid-cols-4 lg:grid-cols-4">
           <StatCell icon={Users} value={tour.stats?.registered_teams ?? 0} label={t('public.tournamentPage.teams')} />
           <StatCell icon={Ticket} value={tour.stats?.remaining_teams ?? 0} label={t('public.registration.slots')} />
           <StatCell icon={Swords} value={tour.stats?.fixtures ?? 0} label={t('public.detail.matches')} />

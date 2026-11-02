@@ -53,17 +53,17 @@ export default function MascotFaq({ theme = 'dark' }) {
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-6 border-b border-slate-700/25 text-center sm:text-start">
           <div className="relative">
             <GenieMascot size={64} animated />
-            <span className="absolute bottom-0 end-0 size-3 rounded-full bg-emerald-500 ring-2 ring-[#14221C]" />
+            <span className="absolute bottom-0 end-0 size-3 rounded-full bg-[#B8F000] dark:bg-[#D0FF38] ring-2 ring-[#111313]" />
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-black text-emerald-400 border border-emerald-500/30 mb-1.5">
+            <div className="inline-flex items-center gap-1.5 rounded-md bg-[#B8F000]/20 dark:bg-[#D0FF38]/20 px-3 py-1 text-[11px] font-black text-[#111313] dark:text-[#D0FF38] border border-[#B8F000]/40 mb-1.5">
               <Sparkles className="size-3 text-amber-400" />
               <span>إجابات فورية وتوجيه ذكي</span>
             </div>
             <h2
               id="faq-heading"
-              className={`text-xl sm:text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}
+              className={`text-xl sm:text-2xl font-black ${isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'}`}
             >
               الأسئلة الشائعة وإرشادات المنصة
             </h2>
@@ -96,7 +96,7 @@ export default function MascotFaq({ theme = 'dark' }) {
                   aria-expanded={isOpen}
                   className="flex w-full items-center justify-between gap-3 p-4 text-start font-black text-xs sm:text-sm transition-colors cursor-pointer"
                 >
-                  <span className={isOpen ? 'text-emerald-400 font-black' : isDark ? 'text-slate-200' : 'text-slate-800'}>
+                  <span className={isOpen ? 'text-[#16834A] dark:text-[#D0FF38] font-black' : isDark ? 'text-[#F5F7F2]' : 'text-[#111313]'}>
                     {item.question}
                   </span>
                   <span

@@ -202,7 +202,7 @@ function MobileSearchSheet({ open, onClose, values, onChange, cities, onSearch }
     <>
       <div className="fixed inset-0 z-[var(--z-overlay)] bg-black/60 backdrop-blur-xs" onClick={onClose} />
       <div
-        className={`fixed inset-x-0 bottom-0 z-[var(--z-drawer)] mx-auto flex max-h-[calc(100dvh-32px)] w-full max-w-[1100px] flex-col rounded-t-[28px] bg-white p-4 pb-6 shadow-2xl transition-transform duration-[350ms] ease-out ${
+        className={`fixed inset-x-0 bottom-0 z-[var(--z-drawer)] mx-auto flex max-h-[calc(100dvh-32px)] w-full max-w-[1100px] flex-col rounded-t-xl bg-white dark:bg-[#1B201D] border-t border-[#E1E5DF] dark:border-[#303832] p-4 pb-6 shadow-2xl text-[#111313] dark:text-[#F5F7F2] transition-transform duration-[350ms] ease-out ${
           dragging ? '!transition-none' : ''
         }`}
         style={dragging ? { transform: `translateY(${dragY}px)` } : undefined}
@@ -259,7 +259,7 @@ function MobileSearchSheet({ open, onClose, values, onChange, cities, onSearch }
         <button
           type="button"
           onClick={submit}
-          className="btn-ripple flex h-14 w-full shrink-0 items-center justify-center gap-2.5 rounded-2xl bg-green-500 text-base font-extrabold text-white shadow-lg shadow-green-500/30 transition hover:bg-green-600 active:scale-[0.98]"
+          className="btn-ripple flex h-14 w-full shrink-0 items-center justify-center gap-2.5 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] text-base font-black text-[#111313] hover:brightness-105 shadow-sm transition active:scale-[0.98]"
         >
           <FontAwesomeIcon icon={faMagnifyingGlass} className="size-5" />
           {t('fieldsPage.search.button')}
@@ -283,7 +283,7 @@ export default function FieldsSearchPanel({ values, onChange, onSearch, cities }
       <div className="mx-auto w-[90%] max-w-[1400px]">
         <MobileSummaryBar values={values} cities={cities} onOpen={() => setMobileOpen(true)} />
 
-        <div className="hidden grid-cols-1 gap-2 rounded-[26px] bg-white p-2 shadow-[0_30px_80px_-12px_rgba(0,0,0,0.35)] ring-1 ring-black/5 md:grid md:grid-cols-5 md:gap-0 md:divide-x md:divide-slate-100">
+        <div className="hidden grid-cols-1 gap-2 rounded-xl bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] p-2 shadow-sm text-[#111313] dark:text-[#F5F7F2] md:grid md:grid-cols-5 md:gap-0 md:divide-x md:divide-[#E1E5DF] dark:md:divide-[#303832]">
           <SelectColumn
             label={t('fieldsPage.search.location')}
             icon={faLocationDot}
@@ -310,7 +310,7 @@ export default function FieldsSearchPanel({ values, onChange, onSearch, cities }
             <button
               type="button"
               onClick={onSearch}
-              className="btn-ripple group flex h-full w-full items-center justify-center gap-2 rounded-[22px] bg-green-500 px-6 py-4 text-lg font-extrabold text-white shadow-lg shadow-green-500/30 transition hover:bg-green-600 active:scale-[0.98]"
+              className="btn-ripple group flex h-full w-full items-center justify-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] px-6 py-3 text-base font-black text-[#111313] hover:brightness-105 shadow-sm transition active:scale-[0.98]"
             >
               <FontAwesomeIcon icon={faMagnifyingGlass} className="size-5 transition-transform group-hover:scale-110" />
               {t('fieldsPage.search.button')}

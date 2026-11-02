@@ -52,7 +52,7 @@ function ShareButton({ cardRef, title, text, t }) {
       type="button"
       onClick={handleShare}
       disabled={sharing}
-      className="no-share-capture mx-auto inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-green-600 px-6 py-2 text-xs font-black uppercase tracking-wider text-white shadow-[0_0_20px_rgba(16,185,129,0.5)] ring-1 ring-emerald-300/30 transition-all duration-300 hover:scale-105 hover:from-emerald-400 hover:to-green-500 hover:shadow-[0_0_25px_rgba(16,185,129,0.75)] active:scale-95 disabled:opacity-75 cursor-pointer"
+      className="no-share-capture mx-auto inline-flex items-center justify-center gap-2 rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] px-5 py-2 text-xs font-black uppercase tracking-wider text-[#111313] hover:brightness-105 shadow-sm transition-all active:scale-95 disabled:opacity-75 cursor-pointer"
     >
       <FontAwesomeIcon
         icon={sharing ? faSpinner : faShareNodes}
@@ -73,7 +73,7 @@ function TournamentMatchCard({ fixture }) {
   return (
     <article
       ref={cardRef}
-      className="group relative flex w-[88%] max-w-[360px] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-[32px] border border-emerald-500/30 bg-[#0c1815] p-6 text-white shadow-[0_24px_60px_rgba(0,0,0,0.45)] ring-1 ring-emerald-500/20 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-emerald-400/50 hover:shadow-[0_30px_70px_rgba(16,185,129,0.22)]"
+      className="group relative flex w-[88%] max-w-[360px] shrink-0 snap-start flex-col justify-between overflow-hidden rounded-xl border border-[#303832] bg-[#101211] p-5 text-white shadow-xl transition-all"
     >
       <div>
         {/* Top Header */}
@@ -136,7 +136,7 @@ function TournamentMatchCard({ fixture }) {
 
       {/* Match Details Box */}
       <div className="mt-5">
-        <div className="rounded-2xl border border-white/10 bg-black/40 p-3.5 backdrop-blur-sm">
+        <div className="rounded-xl border border-white/10 bg-black/50 p-3">
           <p className="mb-2 text-center text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
             {t('landing.liveNext.matchDetails')}
           </p>
@@ -199,7 +199,7 @@ export default function TournamentMatches() {
               <FontAwesomeIcon icon={faTrophy} className="size-3.5 text-amber-400" />
               {t('matchesPage.tournamentMatches.badge')}
             </span>
-            <h2 className="mt-5 text-3xl font-black text-white lg:text-4xl">
+            <h2 className="mt-5 text-3xl font-black text-[#111313] dark:text-[#F5F7F2] lg:text-4xl">
               {t('matchesPage.tournamentMatches.title')}
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-slate-400 lg:text-base">

@@ -23,9 +23,9 @@ export function Button({
   ...props
 }) {
   const styles = {
-    primary: 'bg-green-500 text-white shadow-[0_8px_20px_rgba(22,163,74,0.28)] hover:bg-green-600 hover:shadow-[0_10px_24px_rgba(22,163,74,0.34)]',
-    outline: 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50',
-    ghost: 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
+    primary: 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] dark:text-[#101211] font-black hover:opacity-90 active:scale-[0.98] shadow-xs', secondary: 'bg-[#111313] dark:bg-[#252B27] text-[#F5F7F2] hover:bg-[#252B27] dark:hover:bg-[#303832] font-bold active:scale-[0.98]',
+    outline: 'border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#252B27]',
+    ghost: 'text-[#65706A] dark:text-[#B2B9B3] hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] hover:text-[#111313] dark:hover:text-[#F5F7F2]',
     soft: 'bg-green-50 text-green-700 hover:bg-green-100',
     danger: 'bg-rose-500 text-white shadow-[0_8px_20px_rgba(244,63,94,0.28)] hover:bg-rose-600',
     dangerSoft: 'bg-rose-50 text-rose-600 hover:bg-rose-100',
@@ -35,9 +35,9 @@ export function Button({
     red: 'bg-rose-500 text-white shadow-[0_8px_20px_rgba(244,63,94,0.28)] hover:bg-rose-600',
   }
   const sizes = {
-    sm: 'h-9 gap-1.5 rounded-xl px-3.5 text-xs',
-    md: 'h-11 gap-2 rounded-xl px-5 text-sm',
-    lg: 'h-12 gap-2 rounded-2xl px-6 text-sm',
+    sm: 'h-9 gap-1.5 rounded-lg px-3.5 text-xs',
+    md: 'h-10 gap-2 rounded-lg px-4 text-sm',
+    lg: 'h-11 gap-2 rounded-lg px-5 text-sm',
   }
   return (
     <button
@@ -76,7 +76,7 @@ const toneMap = {
 export function Badge({ tone = 'slate', variant, children, className = '' }) {
   const toneClass = toneMap[tone] || toneMap[variant] || toneMap.slate
   return (
-    <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ring-1', toneClass, className)}>
+    <span className={cn('inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold ring-1', toneClass, className)}>
       {children}
     </span>
   )
@@ -128,7 +128,7 @@ export function PageHeader({ title, subtitle, actions }) {
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-sm text-[#65706A] dark:text-[#B2B9B3]">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-3">{actions}</div>}
     </div>
@@ -268,10 +268,10 @@ export function TableSkeleton({ rows = 5, columns = 4 }) {
 export function EmptyState({ icon: Icon = Inbox, title, description, action }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <div className="grid size-16 place-items-center rounded-3xl bg-slate-100 text-slate-400">
+      <div className="grid size-16 place-items-center rounded-xl bg-[#E9ECE7] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3]">
         <Icon className="size-8" strokeWidth={1.6} />
       </div>
-      <p className="text-sm font-bold text-slate-700">{title}</p>
+      <p className="text-sm font-black text-[#111313] dark:text-[#F5F7F2]">{title}</p>
       {description && <p className="max-w-sm text-xs leading-relaxed text-slate-500">{description}</p>}
       {action}
     </div>
@@ -296,17 +296,17 @@ export function Avatar({ name, src, className = 'size-10' }) {
 
 export function Tabs({ items, value, onChange }) {
   return (
-    <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-slate-100 p-1">
+    <div className="inline-flex flex-wrap gap-1 rounded-lg bg-[#E9ECE7] dark:bg-[#252B27] p-1">
       {items.map((item) => (
         <button
           key={item.value}
           type="button"
           onClick={() => onChange(item.value)}
           className={cn(
-            'flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-bold transition-all duration-200',
+            'flex items-center gap-2 rounded-md px-3.5 py-1.5 text-xs font-bold transition-all duration-150',
             value === item.value
-              ? 'bg-white text-slate-900 shadow-sm'
-              : 'text-slate-500 hover:text-slate-800',
+              ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] dark:text-[#101211] font-black shadow-xs'
+              : 'text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2]',
           )}
         >
           {item.icon && <item.icon className={cn('size-4', value === item.value ? 'text-green-600' : 'text-slate-400')} />}

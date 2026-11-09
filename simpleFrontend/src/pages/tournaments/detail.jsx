@@ -1,7 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowRight, Flag, Images, LayoutGrid, Network, Newspaper, Swords, Target, Trophy, Users } from 'lucide-react'
+import {
+  ArrowRight,
+  BarChart3,
+  Calendar,
+  Flag,
+  Images,
+  Info,
+  Network,
+  Newspaper,
+  Target,
+  Trophy,
+  Users,
+} from 'lucide-react'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
 import useSeo from '../../hooks/useSeo'
@@ -22,14 +34,16 @@ import ContactSection from './sections/ContactSection'
 import MatchDetailModal from './components/MatchDetailModal'
 import LiveMatchActivity from '../../components/LiveMatchActivity'
 
-const SECTION_ICONS = {
-  overview: LayoutGrid,
-  teams: Users,
-  matches: Swords,
-  results: Flag,
-  standings: Trophy,
-  scorers: Target,
+const PRIMARY_TABS = [
+  { key: 'overview', icon: Info, label: 'معلومات' },
+  { key: 'teams', icon: Users, label: 'المجموعات' },
+  { key: 'matches', icon: Calendar, label: 'المباريات' },
+  { key: 'standings', icon: BarChart3, label: 'الترتيب' },
+]
+
+const SECONDARY_SECTION_ICONS = {
   bracket: Network,
+  scorers: Target,
   news: Newspaper,
   gallery: Images,
 }
@@ -121,32 +135,29 @@ export default function PublicTournamentDetail() {
     image: tour?.cover_url || tour?.logo_url,
   })
 
-  const sections = useMemo(() => {
+  const secondarySections = useMemo(() => {
     if (!tour) return []
-    const fixturesCount = tour.stats?.fixtures ?? 0
     const finishedCount = tour.stats?.finished_matches ?? 0
     const hasKnockout = ['groups_knockout', 'knockout_only'].includes(tour.tournament_format)
-    const hasStandings = ['groups_knockout', 'groups_only', 'league'].includes(tour.tournament_format)
     const visible = {
-      overview: true,
-      teams: true,
-      matches: fixturesCount > finishedCount,
-      results: finishedCount > 0,
-      standings: hasStandings,
-      scorers: finishedCount > 0,
       bracket: hasKnockout,
+      scorers: finishedCount > 0,
       news: true,
       gallery: true,
     }
-    return Object.entries(SECTION_ICONS)
+    return Object.entries(SECONDARY_SECTION_ICONS)
       .filter(([key]) => visible[key])
-      .map(([key, icon]) => ({ key, icon, label: key === 'scorers' ? 'public.detail.statistics' : `public.detail.${key}` }))
+      .map(([key, icon]) => ({
+        key,
+        icon,
+        label: key === 'scorers' ? 'public.detail.statistics' : `public.detail.${key}`,
+      }))
   }, [tour])
 
   if (detailQuery.loading) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 pb-24 sm:px-6 lg:px-8">
-        <Skeleton className="h-[26rem] rounded-[2rem]" />
+      <div className="mx-auto w-full max-w-[1400px] space-y-6 px-4 pb-24 sm:px-6 lg:px-8">
+        <Skeleton className="h-[18rem] rounded-3xl" />
         <Skeleton className="h-16 rounded-2xl" />
         <div className="grid gap-5 lg:grid-cols-2">
           <div className="space-y-5">
@@ -165,19 +176,21 @@ export default function PublicTournamentDetail() {
   if (!tour) {
     return (
       <div className="mx-auto w-full max-w-[1400px] px-4 pb-24 pt-24 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center gap-5 rounded-[2rem] border border-dashed border-slate-200 bg-white px-6 py-20 text-center">
-        <span className="grid size-16 place-items-center rounded-3xl bg-slate-50 text-slate-300"><Trophy className="size-7" /></span>
-        <div>
-          <p className="text-base font-extrabold text-slate-900">{t('public.detail.notFound')}</p>
-          <p className="mt-1 text-xs text-slate-400">{t('public.tournamentPage.notFoundDesc')}</p>
-        </div>
-        <Link
-          to="/tournaments"
-          className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-900 px-5 text-sm font-bold text-white transition-colors hover:bg-slate-800"
-        >
-          <ArrowRight className="size-4 rtl:rotate-180" />
-          {t('public.detail.back')}
-        </Link>
+        <div className="flex flex-col items-center gap-5 rounded-3xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-6 py-20 text-center">
+          <span className="grid size-16 place-items-center rounded-3xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A]">
+            <Trophy className="size-7" />
+          </span>
+          <div>
+            <p className="text-base font-extrabold text-[#111313] dark:text-[#F5F7F2]">{t('public.detail.notFound')}</p>
+            <p className="mt-1 text-xs text-[#65706A] dark:text-[#B2B9B3]">{t('public.tournamentPage.notFoundDesc')}</p>
+          </div>
+          <Link
+            to="/tournaments"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#111313] dark:bg-[#D0FF38] px-5 text-sm font-black text-white dark:text-[#111313] transition-opacity hover:opacity-90"
+          >
+            <ArrowRight className="size-4 rtl:rotate-180" />
+            {t('public.detail.back')}
+          </Link>
         </div>
       </div>
     )
@@ -188,38 +201,65 @@ export default function PublicTournamentDetail() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-8 px-4 pb-24 sm:px-6 lg:px-8 lg:pb-32">
-      <Hero tour={tour} />
+    <div className="mx-auto w-full max-w-[1400px] space-y-5 px-4 pb-24 sm:px-6 lg:px-8 lg:pb-32">
+      {/* Unified Hero Header + 4-Segment Primary Navigation Bar (Matches Screens 2, 3, 4, 5) */}
+      <div className="overflow-hidden rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-sm">
+        <Hero tour={tour} embedded />
+
+        <nav aria-label={t('public.detail.ariaTabs')} className="p-2 sm:p-2.5 bg-white dark:bg-[#1B201D]">
+          <div role="tablist" className="grid grid-cols-4 gap-1.5">
+            {PRIMARY_TABS.map(({ key, icon: Icon, label }) => {
+              const isActive = active === key || (key === 'matches' && active === 'results')
+              const displayLabel =
+                key === 'teams' && tour.tournament_format === 'league' ? 'الفرق' : label
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => handleSection(key)}
+                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2.5 px-1.5 text-center transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                      : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#303832]'
+                  }`}
+                >
+                  <Icon className="size-4.5 stroke-[2.3]" />
+                  <span className="text-[11px] sm:text-xs font-black leading-tight truncate max-w-full">
+                    {displayLabel}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {secondarySections.length > 0 && (
+            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar border-t border-[#E1E5DF]/70 dark:border-[#303832]/70 pt-2">
+              {secondarySections.map(({ key, icon: Icon, label }) => {
+                const isActive = active === key
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleSection(key)}
+                    className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+                      isActive
+                        ? 'bg-[#111313] dark:bg-[#D0FF38] text-white dark:text-[#111313]'
+                        : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2]'
+                    }`}
+                  >
+                    <Icon className="size-3.5" />
+                    <span>{t(label)}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </nav>
+      </div>
 
       <RegistrationSection tour={tour} />
-
-      <nav aria-label={t('public.detail.ariaTabs')} className="sticky top-[106px] z-30 -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div
-          role="tablist"
-          className="flex snap-x items-center gap-1 overflow-x-auto no-scrollbar rounded-2xl bg-slate-950/95 p-1.5 shadow-[0_20px_50px_-20px_rgba(15,23,42,0.65)] ring-1 ring-white/10 backdrop-blur-xl"
-        >
-          {sections.map(({ key, icon: Icon, label }) => {
-            const isActive = active === key
-            return (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => handleSection(key)}
-                className={`inline-flex shrink-0 snap-start items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-black transition-all ${
-                  isActive
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-[0_10px_24px_-8px_rgba(16,185,129,0.7)]'
-                    : 'text-slate-400 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <Icon className="size-3.5" />
-                {t(label)}
-              </button>
-            )
-          })}
-        </div>
-      </nav>
 
       <section id={`section-${active}`} className="scroll-mt-32">
         {active === 'overview' && (
@@ -248,20 +288,22 @@ export default function PublicTournamentDetail() {
 
         {active === 'teams' && <TeamsSection teams={teamsQuery.data} standings={standingsQuery.data} />}
 
-        {active === 'matches' && (
+        {(active === 'matches' || active === 'results') && (
           <>
-            <div className="mb-5">
+            <div className="mb-4">
               <LiveMatchActivity
                 load={() => api.get(`/v1/tournaments/${slug}/live`).then((r) => r.data.data)}
                 deps={[slug]}
                 enabled={Boolean(tour)}
               />
             </div>
-            <FixturesSection fixtures={fixturesQuery.data} mode="upcoming" onOpen={setOpenMatch} />
+            <FixturesSection
+              fixtures={fixturesQuery.data}
+              mode={active === 'results' ? 'finished' : 'all'}
+              onOpen={setOpenMatch}
+            />
           </>
         )}
-
-        {active === 'results' && <FixturesSection fixtures={fixturesQuery.data} mode="finished" onOpen={setOpenMatch} />}
 
         {active === 'news' && <NewsSection news={newsQuery.data} tournamentKey={slug} />}
 

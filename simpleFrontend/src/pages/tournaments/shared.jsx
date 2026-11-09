@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
+  BarChart3,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   Crown,
   Flame,
@@ -24,6 +27,8 @@ export function TeamAvatar({ team, className = 'size-8', onClick }) {
 export function DrawGroups({ teams }) {
   const { t } = useTranslation()
   const { openTeam } = useProfileModal()
+  const [collapsedMap, setCollapsedMap] = useState({})
+
   const groups = []
   const map = new Map()
   for (const p of teams || []) {
@@ -35,34 +40,75 @@ export function DrawGroups({ teams }) {
     map.get(key).push(p.team)
   }
   if (groups.length === 0) return null
+
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {groups.map((g) => (
-        <div key={g.key} className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-          <div className="flex items-center justify-between gap-3">
-            <h4 className="text-sm font-extrabold text-slate-900">{g.name}</h4>
-            <Badge variant="info">{t('committee.detail.teamsCount', { count: g.list.length })}</Badge>
-          </div>
-          <div className="mt-3 space-y-2">
-            {g.list.map((team) => (
-              <div key={team?.id || Math.random()} className="flex items-center gap-2.5 rounded-xl bg-slate-50 px-3 py-2">
-                <TeamAvatar
-                  team={team}
-                  className="size-7"
-                  onClick={team?.id != null ? () => openTeam(team) : undefined}
-                />
-                <button
-                  type="button"
-                  onClick={team?.id != null ? () => openTeam(team) : undefined}
-                  className="min-w-0 truncate text-start text-xs font-bold text-slate-700 transition-colors hover:text-green-700"
-                >
-                  {team?.name || '—'}
-                </button>
+    <div className="space-y-3">
+      {groups.map((g, idx) => {
+        const isCollapsed = collapsedMap[g.key] ?? false
+        const rawName = String(g.name || '')
+        const groupTitle =
+          rawName.startsWith('المجموعة') || rawName.toLowerCase().startsWith('group')
+            ? rawName
+            : g.key === 'unassigned'
+              ? rawName
+              : `المجموعة ${rawName}`
+
+        return (
+          <div
+            key={g.key || idx}
+            className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs"
+          >
+            <button
+              type="button"
+              onClick={() => setCollapsedMap((prev) => ({ ...prev, [g.key]: !isCollapsed }))}
+              className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-start transition-colors hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38]">
+                  <Users className="size-4" />
+                </span>
+                <h4 className="truncate text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+                  {groupTitle}
+                </h4>
               </div>
-            ))}
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="rounded-full bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 px-2.5 py-0.5 text-[11px] font-black text-[#111313] dark:text-[#D0FF38]">
+                  {t('committee.detail.teamsCount', { count: g.list.length })}
+                </span>
+                <ChevronDown
+                  className={`size-4 text-[#65706A] dark:text-[#B2B9B3] transition-transform ${
+                    isCollapsed ? '' : 'rotate-180'
+                  }`}
+                />
+              </div>
+            </button>
+
+            {!isCollapsed && (
+              <div className="divide-y divide-[#E1E5DF]/70 dark:divide-[#303832]/70 border-t border-[#E1E5DF] dark:border-[#303832] px-3 py-1.5">
+                {g.list.map((team, tIdx) => (
+                  <div
+                    key={team?.id || tIdx}
+                    onClick={team?.id != null ? () => openTeam(team) : undefined}
+                    className="flex items-center justify-between gap-3 py-2.5 px-1 rounded-xl transition-colors hover:bg-[#F7F8F5]/70 dark:hover:bg-[#252B27]/60 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <TeamAvatar team={team} className="size-8 shrink-0" />
+                      <span className="min-w-0 truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {team?.name || '—'}
+                      </span>
+                    </div>
+                    {team?.city && (
+                      <span className="shrink-0 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                        {team.city}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -70,96 +116,201 @@ export function DrawGroups({ teams }) {
 export function StandingsTable({ groups }) {
   const { t } = useTranslation()
   const { openTeam } = useProfileModal()
-  const cols = ['#', 'team', 'played', 'wins', 'draws', 'losses', 'gf', 'ga', 'gd', 'points', 'form']
+  const [collapsedGroups, setCollapsedGroups] = useState({})
+
   return (
-    <div className="space-y-6">
-      {(groups || []).map((group) => (
-        <Card
-          key={group.group_id ?? 'unassigned'}
-          title={group.name}
-          subtitle={group.rows?.length ? t('committee.detail.teamsCount', { count: group.rows.length }) : undefined}
-        >
-          <div className="-mx-4 overflow-x-auto px-4 sm:-mx-6 sm:px-6">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/60 text-[10px] font-black uppercase tracking-wide text-slate-400">
-                  {cols.map((c) => (
-                    <th key={c} className="px-2 py-2.5 text-center first:text-start last:text-center">
-                      {c === '#'
-                        ? '#'
-                        : c === 'team'
-                          ? t('committee.detail.team')
-                          : t(`committee.detail.col.${c}`)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(group.rows || []).map((row, i) => (
-                  <tr
-                    key={row.team_id}
-                    className={`border-b border-slate-50 transition-colors last:border-0 hover:bg-slate-50/70 ${
-                      i === 0 && row.points > 0 ? 'bg-emerald-50/50' : ''
-                    }`}
-                  >
-                    <td className="px-2 py-3 text-center text-xs font-black text-slate-400">
-                      {i + 1 <= 2 ? <Crown className={`mx-auto size-4 ${i === 0 ? 'text-amber-500' : 'text-slate-400'}`} /> : i + 1}
-                    </td>
-                    <td className="px-2 py-3">
-                      <button
-                        type="button"
-                        onClick={row.team?.id != null ? () => openTeam(row.team) : undefined}
-                        className="flex items-center gap-2.5 text-start"
-                      >
-                        <TeamAvatar team={row.team} className="size-7" />
-                        <span className="truncate font-bold text-slate-800 dark:text-[#F5F7F2] transition-colors hover:text-green-700">{row.team?.name || '—'}</span>
-                        {(row.status === 'withdrawn' || row.team?.status === 'withdrawn') && (
-                          <span className="ms-1.5 inline-block shrink-0 rounded-md bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 text-[10px] font-black text-amber-700 dark:text-amber-400 ring-1 ring-amber-200 dark:ring-amber-500/30">
-                            منسحب
-                          </span>
-                        )}
-                        {(row.status === 'disqualified' || row.team?.status === 'disqualified') && (
-                          <span className="ms-1.5 inline-block shrink-0 rounded-md bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 text-[10px] font-black text-rose-700 dark:text-rose-400 ring-1 ring-rose-200 dark:ring-rose-500/30">
-                            مُقصى
-                          </span>
-                        )}
-                      </button>
-                    </td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.played}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.wins}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.draws}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.losses}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.goals_for}</td>
-                    <td className="px-2 py-3 text-center font-semibold text-slate-600 dark:text-[#B2B9B3]">{row.goals_against}</td>
-                    <td className={`px-2 py-3 text-center font-bold ${row.goal_difference >= 0 ? 'text-emerald-600 dark:text-[#42D889]' : 'text-rose-500 dark:text-[#FF6868]'}`}>
-                      {row.goal_difference >= 0 ? '+' : ''}{row.goal_difference}
-                    </td>
-                    <td className="px-2 py-3 text-center text-base font-black text-slate-900 dark:text-[#D0FF38]">{row.points}</td>
-                    <td className="px-2 py-3 text-center">
-                      {(row.form || []).length ? (
-                        <div className="flex items-center justify-center gap-1">
-                          {(row.form || []).slice(-5).map((mark, k) => (
+    <div className="space-y-4">
+      {(groups || []).map((group, gIdx) => {
+        const gKey = group.group_id ?? group.name ?? gIdx
+        const isCollapsed = Boolean(collapsedGroups[gKey])
+        const rawGroupName = String(group.name || '')
+        const displayGroupTitle =
+          !rawGroupName
+            ? 'جدول الترتيب'
+            : rawGroupName.startsWith('المجموعة') ||
+                rawGroupName.startsWith('جدول') ||
+                rawGroupName.toLowerCase().startsWith('group')
+              ? rawGroupName
+              : `المجموعة ${rawGroupName}`
+
+        return (
+          <div
+            key={gKey}
+            className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs"
+          >
+            {/* Group Header (Matches Master Reference Screen 5) */}
+            <button
+              type="button"
+              onClick={() => setCollapsedGroups((prev) => ({ ...prev, [gKey]: !prev[gKey] }))}
+              className="flex w-full items-center justify-between gap-2 px-3.5 py-3 sm:px-5 sm:py-3.5 text-start transition-colors hover:bg-[#F7F8F5]/70 dark:hover:bg-[#252B27]/60 cursor-pointer"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <BarChart3 className="size-4 shrink-0 text-[#111313] dark:text-[#D0FF38]" />
+                <h3 className="truncate text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+                  {displayGroupTitle}
+                </h3>
+                {group.rows?.length ? (
+                  <span className="rounded-full bg-[#F7F8F5] dark:bg-[#252B27] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
+                    {t('committee.detail.teamsCount', { count: group.rows.length })}
+                  </span>
+                ) : null}
+              </div>
+
+              <ChevronDown
+                className={`size-4 shrink-0 text-[#65706A] dark:text-[#B2B9B3] transition-transform ${
+                  isCollapsed ? '' : 'rotate-180'
+                }`}
+              />
+            </button>
+
+            {/* Complete Standings Table — ZERO Horizontal Scroll on Mobile */}
+            {!isCollapsed && (
+              <div className="w-full overflow-x-hidden border-t border-[#E1E5DF] dark:border-[#303832]">
+                <table className="w-full table-fixed border-collapse text-center">
+                  <colgroup>
+                    <col className="w-[26px] sm:w-[38px]" />
+                    <col className="w-auto" />
+                    <col className="w-[22px] sm:w-[36px]" />
+                    <col className="w-[22px] sm:w-[36px]" />
+                    <col className="w-[22px] sm:w-[36px]" />
+                    <col className="w-[22px] sm:w-[36px]" />
+                    <col className="w-[24px] sm:w-[40px]" />
+                    <col className="w-[24px] sm:w-[40px]" />
+                    <col className="w-[28px] sm:w-[44px]" />
+                    <col className="w-[34px] sm:w-[52px]" />
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[10px] sm:text-xs font-black text-[#65706A] dark:text-[#B2B9B3]">
+                      <th className="py-2 px-0.5 text-center">#</th>
+                      <th className="py-2 px-1 text-start">{t('committee.detail.team', 'الفريق')}</th>
+                      <th className="py-2 px-0.5 text-center" title="لعب">{t('committee.detail.col.played', 'ل')}</th>
+                      <th className="py-2 px-0.5 text-center" title="فوز">{t('committee.detail.col.wins', 'ف')}</th>
+                      <th className="py-2 px-0.5 text-center" title="تعادل">{t('committee.detail.col.draws', 'ت')}</th>
+                      <th className="py-2 px-0.5 text-center" title="خسارة">{t('committee.detail.col.losses', 'خ')}</th>
+                      <th className="py-2 px-0.5 text-center" title="له">{t('committee.detail.col.gf', 'له')}</th>
+                      <th className="py-2 px-0.5 text-center" title="عليه">{t('committee.detail.col.ga', 'عليه')}</th>
+                      <th className="py-2 px-0.5 text-center" title="فارق الأهداف">+/-</th>
+                      <th className="py-2 px-0.5 text-center" title="النقاط">{t('committee.detail.col.points', 'نقاط')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E1E5DF]/70 dark:divide-[#303832]/70">
+                    {(group.rows || []).map((row, i) => {
+                      const isFirst = i === 0
+                      const gd = row.goal_difference ?? 0
+                      const isWithdrawn = row.status === 'withdrawn' || row.team?.status === 'withdrawn'
+                      const isDisqualified = row.status === 'disqualified' || row.team?.status === 'disqualified'
+
+                      return (
+                        <tr
+                          key={row.team_id ?? i}
+                          className={`transition-colors hover:bg-[#F7F8F5]/70 dark:hover:bg-[#252B27]/50 ${
+                            isFirst ? 'bg-[#B8F000]/10 dark:bg-[#D0FF38]/8' : ''
+                          }`}
+                        >
+                          {/* Rank # */}
+                          <td className="py-2.5 px-0.5 text-center align-middle">
                             <span
-                              key={k}
-                              className={`grid size-5 place-items-center rounded-full text-[9px] font-black ${
-                                mark === 'W' ? 'bg-emerald-100 text-emerald-700' : mark === 'D' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-600'
+                              className={`mx-auto inline-flex size-5 sm:size-6 items-center justify-center rounded-md text-[10px] sm:text-xs font-black tabular-nums ${
+                                isFirst
+                                  ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                                  : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
                               }`}
                             >
-                              {mark}
+                              {i + 1}
                             </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-300">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          </td>
+
+                          {/* Team Logo + Name */}
+                          <td className="py-2.5 px-1 text-start align-middle min-w-0">
+                            <button
+                              type="button"
+                              onClick={row.team?.id != null ? () => openTeam(row.team) : undefined}
+                              className="flex w-full items-center gap-1.5 sm:gap-2 min-w-0 text-start cursor-pointer"
+                              title={row.team?.name || ''}
+                            >
+                              <TeamAvatar team={row.team} className="size-5 sm:size-6 shrink-0" />
+                              <span className="min-w-0 flex-1 truncate text-[11px] sm:text-xs md:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                                {row.team?.name || '—'}
+                              </span>
+                              {isWithdrawn && (
+                                <span className="shrink-0 rounded bg-[#D97706]/15 px-1 py-0.5 text-[8px] sm:text-[10px] font-black text-[#D97706] dark:text-[#FFC857]">
+                                  منسحب
+                                </span>
+                              )}
+                              {isDisqualified && (
+                                <span className="shrink-0 rounded bg-[#D92D20]/15 px-1 py-0.5 text-[8px] sm:text-[10px] font-black text-[#D92D20] dark:text-[#FF6868]">
+                                  مُقصى
+                                </span>
+                              )}
+                            </button>
+                          </td>
+
+                          {/* Played (ل) */}
+                          <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+                            {row.played ?? 0}
+                          </td>
+
+                          {/* Wins (ف) */}
+                          <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+                            {row.wins ?? 0}
+                          </td>
+
+                          {/* Draws (ت) */}
+                          <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+                            {row.draws ?? 0}
+                          </td>
+
+                          {/* Losses (خ) */}
+                          <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+                            {row.losses ?? 0}
+                          </td>
+
+                          {/* Goals For (له) */}
+                          <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+                            {row.goals_for ?? 0}
+                          </td>
+
+                          {/* Goals Against (عليه) */}
+                          <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+                            {row.goals_against ?? 0}
+                          </td>
+
+                          {/* Goal Difference (+/-) */}
+                          <td
+                            dir="ltr"
+                            className={`py-2.5 px-0.5 text-[10px] sm:text-xs font-black tabular-nums ${
+                              gd > 0
+                                ? 'text-[#16834A] dark:text-[#42D889]'
+                                : gd < 0
+                                  ? 'text-[#D93636] dark:text-[#FF6868]'
+                                  : 'text-[#65706A] dark:text-[#B2B9B3]'
+                            }`}
+                          >
+                            {gd > 0 ? `+${gd}` : gd}
+                          </td>
+
+                          {/* Points (نقاط) */}
+                          <td className="py-2.5 px-0.5 text-center align-middle">
+                            <span
+                              className={`mx-auto inline-flex min-w-[24px] sm:min-w-[30px] items-center justify-center rounded-md px-1 py-0.5 text-[11px] sm:text-xs font-black tabular-nums ${
+                                isFirst
+                                  ? 'bg-[#B8F000]/35 dark:bg-[#D0FF38] text-[#111313]'
+                                  : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38]'
+                              }`}
+                            >
+                              {row.points ?? 0}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </Card>
-      ))}
+        )
+      })}
     </div>
   )
 }

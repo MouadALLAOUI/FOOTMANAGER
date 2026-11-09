@@ -38,7 +38,7 @@ function StatCell({ icon: Icon, value, label }) {
   )
 }
 
-export default function Hero({ tour }) {
+export default function Hero({ tour, embedded = false }) {
   const { t, i18n } = useTranslation()
   const { toast } = useToast()
   const [copiedLink, setCopiedLink] = useState(false)
@@ -79,7 +79,9 @@ export default function Hero({ tour }) {
   return (
     <section
       aria-label={tour.name}
-      className="relative overflow-visible rounded-xl bg-[#101211] text-white border border-[#303832] shadow-xl"
+      className={`relative overflow-hidden bg-[#101211] text-white ${
+        embedded ? '' : 'rounded-xl border border-[#303832] shadow-xl'
+      }`}
     >
       <div className="absolute inset-0 overflow-hidden rounded-xl pointer-events-none">
         {hasCover && <img src={tour.cover_url} alt="" className="h-full w-full object-cover" loading="eager" />}

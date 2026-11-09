@@ -34,16 +34,16 @@ export default function StandingsTab({ tournament, refreshKey }) {
   return (
     <div className="space-y-4">
       {isLeague && (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white dark:bg-[#1B201D] p-4 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38] border border-[#E1E5DF] dark:border-[#303832]">
               <Grid3X3 className="size-5" />
             </div>
             <div>
-              <h3 className="text-sm font-black text-slate-800">
+              <h3 className="text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
                 مصفوفة نتائج مواجهات الدوري
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[#65706A] dark:text-[#B2B9B3] mt-0.5">
                 تصدير ومشاركة صورة شاملة لشبكة نتائج المباريات المباشرة بين كافة الأندية
               </p>
             </div>
@@ -51,7 +51,7 @@ export default function StandingsTab({ tournament, refreshKey }) {
           <button
             type="button"
             onClick={() => setMatrixModalOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold shadow-sm transition-all shrink-0 self-end sm:self-auto"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] hover:opacity-95 active:scale-95 text-[#111313] text-xs font-black shadow-2xs transition-all shrink-0 self-end sm:self-auto cursor-pointer"
           >
             <ImageIcon className="size-4" />
             <span>تصدير صورة المصفوفة</span>

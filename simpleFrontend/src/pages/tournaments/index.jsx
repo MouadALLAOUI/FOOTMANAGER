@@ -110,7 +110,13 @@ export default function TournamentsIndex() {
     if (search.trim()) {
       list = list.filter((x) => matchesArabicSearch(`${x.name} ${x.location || ''} ${x.description || ''}`, search))
     }
-    if (filters.status !== 'all') list = list.filter((x) => x.status === filters.status)
+    if (filters.status !== 'all') {
+      if (filters.status === 'upcoming') {
+        list = list.filter((x) => x.status === 'open_for_registration' || x.status === 'registration_closed')
+      } else {
+        list = list.filter((x) => x.status === filters.status)
+      }
+    }
     if (filters.format !== 'all') list = list.filter((x) => x.tournament_format === filters.format)
     if (filters.location !== 'all') list = list.filter((x) => x.location === filters.location)
     return sortTournaments(list)

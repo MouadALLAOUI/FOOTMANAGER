@@ -108,333 +108,139 @@ export default function LeagueMatchCard({
   return (
     <>
       {/* ======================================================== */}
-      {/* DESKTOP / TABLET CARD (screens >= sm): HORIZONTAL LAYOUT   */}
+      {/* UNIFIED COMPACT MATCH CARD (Matches Master Reference)    */}
       {/* ======================================================== */}
-      <div className="hidden sm:flex group rounded-2xl border border-slate-200/90 bg-white shadow-xs hover:shadow-md transition-all overflow-hidden flex-row items-stretch min-h-[92px]">
-        {/* SECTION 1: FAR RIGHT — MATCH TIME AND VENUE PANEL */}
-        <div
-          className="shrink-0 w-[155px] md:w-[175px] p-3 flex flex-col justify-center items-center text-center relative border-s-0 border-e border-slate-100"
-          style={{ backgroundColor: dayConfig?.cardTint || '#EBF3FF' }}
-        >
-          {/* Stadium Arena Icon */}
-          <div className="flex items-center justify-center mb-1">
-            <StadiumIcon className="size-6" color={dayConfig?.accentColor || '#1769FF'} />
-          </div>
-
-          {/* Kickoff Time */}
-          {isPlayed ? (
-            <div className="flex items-center justify-center gap-1.5 text-2xl font-black text-slate-900 tabular-nums leading-none">
-              <span>{fixture.match?.home_score ?? 0}</span>
-              <span className="text-slate-400 font-light">-</span>
-              <span>{fixture.match?.away_score ?? 0}</span>
-            </div>
-          ) : timeStr ? (
-            <span className="text-2xl font-black text-slate-900 tracking-tight tabular-nums leading-none">
-              {timeStr}
-            </span>
-          ) : (
-            <span className="text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
-              غير محدد
-            </span>
-          )}
-
-          {/* Stadium / Venue Name */}
-          <div
-            className="mt-1 flex items-center justify-center gap-1 text-xs font-bold text-slate-700 max-w-full truncate px-0.5"
-            title={venueName}
-          >
-            <MapPin className="size-3.5 shrink-0" style={{ color: dayConfig?.accentColor || '#1769FF' }} />
-            <span className="truncate">{venueName}</span>
-          </div>
-        </div>
-
-        {/* SECTIONS 2, 3, 4: TEAMS & CENTER MATCH INFORMATION */}
-        <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-2">
-          {/* SECTION 2: AWAY TEAM (Right side in RTL, beside time panel) */}
-          <div
-            onClick={() => fixture.away_team?.id != null && openTeam(fixture.away_team)}
-            className="flex items-center justify-end gap-2.5 min-w-0 cursor-pointer group/team"
-            title={`عرض الملف والحجوزات الأسبوعية لـ ${fixture.away_team?.name || ''}`}
-          >
-            <span
-              className="flex-1 text-end text-xs sm:text-sm font-extrabold text-[#102A43] group-hover/team:text-emerald-700 leading-snug line-clamp-2 break-words transition-colors"
-              title={fixture.away_team?.name}
-            >
-              {fixture.away_team?.name || 'فريق غير محدد'}
-            </span>
-            <div className="shrink-0 transition-transform group-hover/team:scale-105">
-              <TeamLogo
-                team={fixture.away_team}
-                size="md"
-                className="size-11 rounded-xl border border-slate-200/80 shadow-2xs"
-              />
-            </div>
-          </div>
-
-          {/* SECTION 3: CENTER — MATCH INFO (Week & ضد) */}
-          <div className="flex flex-col items-center justify-center shrink-0 px-2 text-center">
-            {roundLabel ? (
-              <span className="rounded-lg bg-slate-100 px-2.5 py-0.5 text-xs font-extrabold text-slate-700 border border-slate-200/60 whitespace-nowrap">
-                {roundLabel}
-              </span>
-            ) : (
-              <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 whitespace-nowrap">
-                مباراة
-              </span>
-            )}
-            <span className="text-xs font-bold text-slate-400 mt-0.5">ضد</span>
-          </div>
-
-          {/* SECTION 4: HOME TEAM (Left side in RTL, with Home Icon) */}
-          <div
-            onClick={() => fixture.home_team?.id != null && openTeam(fixture.home_team)}
-            className="flex items-center justify-start gap-2.5 min-w-0 cursor-pointer group/team"
-            title={`عرض الملف والحجوزات الأسبوعية لـ ${fixture.home_team?.name || ''}`}
-          >
-            <div className="relative shrink-0 transition-transform group-hover/team:scale-105">
-              <TeamLogo
-                team={fixture.home_team}
-                size="md"
-                className="size-11 rounded-xl border border-slate-200/80 shadow-2xs"
-              />
-              <span
-                className="absolute -bottom-1 -end-1 flex size-4 items-center justify-center rounded-full bg-[#102A43] text-white shadow-xs"
-                title="المستضيف (صاحب الأرض)"
-              >
-                <Home className="size-2.5 stroke-[2.5]" />
-              </span>
-            </div>
-            <span
-              className="flex-1 text-start text-xs sm:text-sm font-extrabold text-[#102A43] group-hover/team:text-emerald-700 leading-snug line-clamp-2 break-words transition-colors"
-              title={fixture.home_team?.name}
-            >
-              {fixture.home_team?.name || 'فريق غير محدد'}
-            </span>
-          </div>
-        </div>
-
-        {/* SECTION 5: FAR LEFT — STATUS AND ACTIONS */}
-        <div className="shrink-0 flex items-center gap-2 px-3 border-s border-slate-100 bg-slate-50/40">
-          <div className="flex flex-col items-center justify-center gap-1 min-w-[105px]">
-            {/* Status Chip */}
-            <div className="w-full text-center">
-              {isPlayed ? (
-                <span className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-[#E6F7ED] px-2 py-0.5 text-[11px] font-extrabold text-[#00A84F] border border-[#A7F3D0]">
-                  <CheckCircle2 className="size-3" />
-                  <span>منتهية</span>
-                </span>
-              ) : isLive ? (
-                <span className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-emerald-50 px-2 py-0.5 text-[11px] font-black text-[#008F46] border border-emerald-300 animate-pulse">
-                  <span className="size-1.5 rounded-full bg-[#00C853]" />
-                  <span>مباشر</span>
-                </span>
-              ) : isPostponed ? (
-                <span className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-[#FFEAEB] px-2 py-0.5 text-[11px] font-extrabold text-[#E53935] border border-[#FFCDD2]">
-                  <Hourglass className="size-3" />
-                  <span>مؤجلة</span>
-                </span>
-              ) : pendingSubmission ? (
-                <span className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-[#FFF4E5] px-2 py-0.5 text-[11px] font-extrabold text-[#FF9800] border border-[#FFE0B2]">
-                  <AlertCircle className="size-3" />
-                  <span>بانتظار المصادقة</span>
-                </span>
-              ) : isScheduled ? (
-                <span className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-[#E8F1FF] px-2 py-0.5 text-[11px] font-extrabold text-[#1769FF] border border-[#C7DCFE]">
-                  <Clock className="size-3" />
-                  <span>قادمة</span>
-                </span>
-              ) : (
-                <span className="inline-flex w-full items-center justify-center gap-1 rounded-lg bg-amber-50 px-2 py-0.5 text-[11px] font-extrabold text-amber-800 border border-amber-200">
-                  <AlertCircle className="size-3" />
-                  <span>بانتظار الموعد</span>
-                </span>
-              )}
-            </div>
-
-            {/* Primary Action Button: تسجيل مباراة */}
-            <button
-              type="button"
-              onClick={() => onResult?.(fixture)}
-              className="w-full flex h-8 items-center justify-center gap-1 rounded-xl bg-[#1769FF] hover:bg-blue-700 px-2 text-xs font-extrabold text-white shadow-2xs transition active:scale-95 whitespace-nowrap"
-            >
-              <Trophy className="size-3" />
-              <span>تسجيل مباراة</span>
-            </button>
-          </div>
-
-          {/* Secondary ⋯ Overflow Button (Far Left) */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            aria-label="خيارات إضافية للمباراة"
-            className="flex h-11 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition active:scale-95"
-          >
-            <MoreVertical className="size-4 stroke-[2.2]" />
-          </button>
-        </div>
-      </div>
-
-      {/* ======================================================== */}
-      {/* MOBILE CARD (< sm): SMART MOBILE STACKED LAYOUT          */}
-      {/* ======================================================== */}
-      <div className="sm:hidden flex flex-col rounded-2xl border border-slate-200/90 bg-white shadow-xs hover:shadow-md transition-all overflow-hidden">
-        {/* TOP BAR: Tinted with dayConfig.cardTint */}
-        <div
-          className="px-3 py-2 flex items-center justify-between gap-2 border-b border-slate-100"
-          style={{ backgroundColor: dayConfig?.cardTint || '#EBF3FF' }}
-        >
-          {/* Match Time & Venue */}
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <StadiumIcon className="size-4 shrink-0" color={dayConfig?.accentColor || '#1769FF'} />
-            {isPlayed ? (
-              <span className="text-sm font-black text-slate-900 tabular-nums">
-                {fixture.match?.home_score ?? 0} - {fixture.match?.away_score ?? 0}
-              </span>
-            ) : timeStr ? (
-              <span className="text-sm font-black text-slate-900 tracking-tight tabular-nums">
-                {timeStr}
-              </span>
-            ) : (
-              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                غير محدد
-              </span>
-            )}
-            <span className="text-slate-300">·</span>
-            <div className="flex items-center gap-1 min-w-0 text-[11px] font-bold text-slate-700 truncate" title={venueName}>
-              <MapPin className="size-3 shrink-0" style={{ color: dayConfig?.accentColor || '#1769FF' }} />
-              <span className="truncate">{venueName}</span>
-            </div>
-          </div>
-
-          {/* Round & Status Badges */}
-          <div className="flex items-center gap-1.5 shrink-0">
+      <div
+        onClick={() => onManageMatch?.(fixture)}
+        className="group rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 sm:p-3.5 shadow-2xs transition-all hover:border-[#B8F000] dark:hover:border-[#D0FF38]/60 cursor-pointer"
+      >
+        {/* Top Row: Round / Venue / Status Badges + Kickoff Time & Compact Actions */}
+        <div className="flex items-center justify-between gap-2 mb-2.5">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             {roundLabel && (
-              <span className="rounded-md bg-white/80 px-1.5 py-0.5 text-[10px] font-extrabold text-slate-700 border border-slate-200/60 whitespace-nowrap">
+              <span className="inline-flex items-center rounded-md bg-[#F7F8F5] dark:bg-[#252B27] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#111313] dark:text-[#F5F7F2]">
                 {roundLabel}
               </span>
             )}
-            {/* Status Chip (Independent of Day Color) */}
+
+            {venueName && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3] truncate max-w-[140px] sm:max-w-[200px]">
+                <MapPin className="size-3 shrink-0 text-[#16834A] dark:text-[#D0FF38]" />
+                <span className="truncate">{venueName}</span>
+              </span>
+            )}
+
             {isPlayed ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#E6F7ED] px-1.5 py-0.5 text-[10px] font-extrabold text-[#00A84F] border border-[#A7F3D0]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#16834A]/15 px-2 py-0.5 text-[10px] font-black text-[#16834A] dark:text-[#42D889]">
                 <CheckCircle2 className="size-2.5" />
-                <span>منتهية</span>
+                <span>منجزة</span>
               </span>
             ) : isLive ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-black text-[#008F46] border border-emerald-300 animate-pulse">
-                <span className="size-1.5 rounded-full bg-[#00C853]" />
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#D93636]/15 px-2 py-0.5 text-[10px] font-black text-[#D93636] dark:text-[#FF6868] animate-pulse">
+                <span className="size-1.5 rounded-full bg-current" />
                 <span>مباشر</span>
               </span>
             ) : isPostponed ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#FFEAEB] px-1.5 py-0.5 text-[10px] font-extrabold text-[#E53935] border border-[#FFCDD2]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#B87500]/15 px-2 py-0.5 text-[10px] font-black text-[#B87500] dark:text-[#FFC857]">
                 <Hourglass className="size-2.5" />
                 <span>مؤجلة</span>
               </span>
             ) : pendingSubmission ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#FFF4E5] px-1.5 py-0.5 text-[10px] font-extrabold text-[#FF9800] border border-[#FFE0B2]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#B87500]/15 px-2 py-0.5 text-[10px] font-black text-[#B87500] dark:text-[#FFC857]">
                 <AlertCircle className="size-2.5" />
                 <span>بانتظار المصادقة</span>
               </span>
-            ) : isScheduled ? (
-              <span className="inline-flex items-center gap-1 rounded-md bg-[#E8F1FF] px-1.5 py-0.5 text-[10px] font-extrabold text-[#1769FF] border border-[#C7DCFE]">
-                <Clock className="size-2.5" />
-                <span>قادمة</span>
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-800 border border-amber-200">
+            ) : !isScheduled ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#B87500]/15 px-2 py-0.5 text-[10px] font-black text-[#B87500] dark:text-[#FFC857]">
                 <AlertCircle className="size-2.5" />
                 <span>بانتظار الموعد</span>
               </span>
-            )}
+            ) : null}
+          </div>
+
+          {/* Kickoff Time + Quick Result CTA + ⋮ Menu */}
+          <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <span className="inline-flex items-center gap-1 text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
+              <span>{timeStr || '—:—'}</span>
+              <Clock className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
+            </span>
+
+            <button
+              type="button"
+              onClick={() => onResult?.(fixture)}
+              className="rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] px-2.5 py-1 text-[10px] font-black text-[#111313] hover:opacity-90 transition cursor-pointer"
+              title="تسجيل النتيجة والأحداث"
+            >
+              {isPlayed ? 'النتيجة ✓' : 'النتيجة'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              aria-label="خيارات إضافية للمباراة"
+              className="flex size-7 items-center justify-center rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:opacity-80 transition cursor-pointer"
+            >
+              <MoreVertical className="size-3.5" />
+            </button>
           </div>
         </div>
 
-        {/* MIDDLE SECTION: TEAMS SHOWCASE (Full width, 2-line names, clear logos) */}
-        <div className="p-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 bg-white">
-          {/* Away Team (Right side in RTL) */}
+        {/* Center Teams Row */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+          {/* Home Team (Right in RTL) */}
           <div
-            onClick={() => fixture.away_team?.id != null && openTeam(fixture.away_team)}
-            className="flex flex-col items-center justify-center text-center min-w-0 cursor-pointer active:scale-95 transition-transform"
-            title={`عرض الملف والحجوزات الأسبوعية لـ ${fixture.away_team?.name || ''}`}
-          >
-            <TeamLogo
-              team={fixture.away_team}
-              size="md"
-              className="size-11 rounded-xl border border-slate-200/80 shadow-2xs shrink-0"
-            />
-            <span
-              className="mt-1.5 text-xs font-black text-[#102A43] leading-snug line-clamp-2 break-words w-full px-1 hover:text-emerald-700"
-              title={fixture.away_team?.name}
-            >
-              {fixture.away_team?.name || 'فريق غير محدد'}
-            </span>
-          </div>
-
-          {/* Center VS Badge */}
-          <div className="flex flex-col items-center justify-center px-1 shrink-0">
-            <span className="flex size-7 items-center justify-center rounded-full bg-slate-100 text-[11px] font-black text-slate-500 border border-slate-200">
-              ضد
-            </span>
-          </div>
-
-          {/* Home Team (Left side in RTL) */}
-          <div
-            onClick={() => fixture.home_team?.id != null && openTeam(fixture.home_team)}
-            className="flex flex-col items-center justify-center text-center min-w-0 cursor-pointer active:scale-95 transition-transform"
-            title={`عرض الملف والحجوزات الأسبوعية لـ ${fixture.home_team?.name || ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (fixture.home_team?.id != null) openTeam(fixture.home_team)
+            }}
+            className="flex items-center gap-2 min-w-0 cursor-pointer"
           >
             <div className="relative shrink-0">
               <TeamLogo
                 team={fixture.home_team}
-                size="md"
-                className="size-11 rounded-xl border border-slate-200/80 shadow-2xs"
+                size="sm"
+                className="size-8 rounded-xl border border-[#E1E5DF] dark:border-[#303832]"
               />
               <span
-                className="absolute -bottom-1 -end-1 flex size-4 items-center justify-center rounded-full bg-[#102A43] text-white shadow-xs"
+                className="absolute -bottom-1 -end-1 flex size-3.5 items-center justify-center rounded-full bg-[#111313] dark:bg-[#D0FF38] text-white dark:text-[#111313]"
                 title="المستضيف (صاحب الأرض)"
               >
-                <Home className="size-2.5 stroke-[2.5]" />
+                <Home className="size-2 stroke-[2.5]" />
               </span>
             </div>
-            <span
-              className="mt-1.5 text-xs font-black text-[#102A43] leading-snug line-clamp-2 break-words w-full px-1 hover:text-emerald-700"
-              title={fixture.home_team?.name}
-            >
+            <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
               {fixture.home_team?.name || 'فريق غير محدد'}
             </span>
           </div>
-        </div>
 
-        {/* BOTTOM ACTION BAR: تسجيل مباراة + خيارات */}
-        <div className="px-3 pb-3 pt-1 flex items-center gap-2 border-t border-slate-100/80 bg-slate-50/40">
-          <button
-            type="button"
-            onClick={() => onResult?.(fixture)}
-            className="flex-1 flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#1769FF] hover:bg-blue-700 text-xs font-extrabold text-white shadow-2xs transition active:scale-95"
-          >
-            <Trophy className="size-3.5" />
-            <span>تسجيل مباراة</span>
-          </button>
+          {/* Score or VS */}
+          <div className="shrink-0 px-2 text-center">
+            {isPlayed || isLive ? (
+              <span className="inline-flex items-center rounded-lg bg-[#111313] dark:bg-[#D0FF38] px-2.5 py-0.5 text-xs font-black text-white dark:text-[#111313] font-mono tabular-nums">
+                {fixture.match?.home_score ?? 0} : {fixture.match?.away_score ?? 0}
+              </span>
+            ) : (
+              <span className="text-xs font-black text-[#65706A] dark:text-[#B2B9B3]">VS</span>
+            )}
+          </div>
 
-          {/* Share Button */}
-          <button
-            type="button"
-            onClick={handleShare}
-            disabled={sharing}
-            aria-label="مشاركة بطاقة المباراة"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 transition active:scale-95"
+          {/* Away Team (Left in RTL) */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation()
+              if (fixture.away_team?.id != null) openTeam(fixture.away_team)
+            }}
+            className="flex items-center justify-end gap-2 min-w-0 cursor-pointer"
           >
-            <Share2 className="size-4" />
-          </button>
-
-          {/* More Options Button */}
-          <button
-            type="button"
-            onClick={() => setMenuOpen(true)}
-            aria-label="خيارات إضافية للمباراة"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 transition active:scale-95"
-          >
-            <MoreVertical className="size-4 stroke-[2.2]" />
-          </button>
+            <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+              {fixture.away_team?.name || 'فريق غير محدد'}
+            </span>
+            <TeamLogo
+              team={fixture.away_team}
+              size="sm"
+              className="size-8 shrink-0 rounded-xl border border-[#E1E5DF] dark:border-[#303832]"
+            />
+          </div>
         </div>
       </div>
 

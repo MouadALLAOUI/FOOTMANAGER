@@ -1595,27 +1595,6 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     </>
   )
 
-  if (tournament.tournament_format === 'league') {
-    return (
-      <>
-        <LeagueAssignmentPanel
-          tournament={tournament}
-          onReschedule={(fixture) => setRescheduleFixture(fixture)}
-          onResult={(fixture) => setResultFixture(fixture)}
-          onDetails={(fixture) => setDetailsFixture(fixture)}
-          onRefresh={() => {
-            refresh()
-            refetchStructure()
-            refetchFixtures()
-            refetchAllFixtures()
-          }}
-          refreshKey={refreshKey}
-        />
-        {overlays}
-      </>
-    )
-  }
-
   const options = roundOptions(structure)
 
   const poolPanel = layoutMode ? (
@@ -1726,128 +1705,144 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       {/* VIEW 3: الإعدادات / برمجة المباريات (Matches Reference Image 3 Right) */}
       {/* ================================================================= */}
       {subView === 'settings' && (
-        <div className="space-y-4">
-          {/* Smart vs Manual Programming Toggle */}
-          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1.5 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setProgMode('smart')}
-              className={`flex h-11 items-center justify-center gap-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
-                progMode === 'smart'
-                  ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
-                  : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
-              }`}
-            >
-              <Sparkles className="size-4" />
-              <span>التنظيم الذكي</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setProgMode('manual')}
-              className={`flex h-11 items-center justify-center gap-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
-                progMode === 'manual'
-                  ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
-                  : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
-              }`}
-            >
-              <Edit3 className="size-4" />
-              <span>التنظيم اليدوي</span>
-            </button>
-          </div>
-
-          {/* إعدادات البرنامج Summary Card */}
-          <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 space-y-3.5 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="size-4 text-[#111313] dark:text-[#D0FF38]" />
-                <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
-                  إعدادات البرنامج
-                </h3>
-              </div>
+        isLeague ? (
+          <LeagueAssignmentPanel
+            tournament={tournament}
+            onReschedule={(fixture) => setRescheduleFixture(fixture)}
+            onResult={(fixture) => setResultFixture(fixture)}
+            onDetails={(fixture) => setDetailsFixture(fixture)}
+            onRefresh={() => {
+              refresh()
+              refetchStructure()
+              refetchFixtures()
+              refetchAllFixtures()
+            }}
+            refreshKey={refreshKey}
+          />
+        ) : (
+          <div className="space-y-4">
+            {/* Smart vs Manual Programming Toggle */}
+            <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1.5 shadow-2xs">
               <button
                 type="button"
-                onClick={() => openDrawer('group', progMode === 'manual')}
-                className="inline-flex items-center gap-1 text-xs font-black text-[#1F9D55] dark:text-[#D0FF38] hover:underline cursor-pointer"
-              >
-                <Edit3 className="size-3.5" />
-                <span>تعديل</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] text-center pt-1">
-              <div className="px-2">
-                <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
-                  مباراة افتتاحية
-                </span>
-                <span className="inline-flex items-center rounded-full bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 px-2.5 py-0.5 text-xs font-black text-[#111313] dark:text-[#D0FF38]">
-                  مفعلة
-                </span>
-              </div>
-
-              <div className="px-2">
-                <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
-                  عدد الجولات
-                </span>
-                <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] font-mono">
-                  {(structure?.group_stage?.length || 0) + (structure?.knockout?.length || 0) || 'تلقائي'}
-                </span>
-              </div>
-
-              <div className="px-2">
-                <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
-                  توقيتات المباريات
-                </span>
-                <span className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono">
-                  {form.default_time || '18:00'}
-                </span>
-              </div>
-            </div>
-
-            {/* Action Buttons inside Settings */}
-            <div className="pt-2 border-t border-[#E1E5DF] dark:border-[#303832] flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => openDrawer('group', progMode === 'manual')}
-                className="flex-1 flex h-11 items-center justify-center gap-2 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] text-xs sm:text-sm font-black text-[#111313] shadow-2xs transition active:scale-98 cursor-pointer"
+                onClick={() => setProgMode('smart')}
+                className={`flex h-11 items-center justify-center gap-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
+                  progMode === 'smart'
+                    ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                    : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
+                }`}
               >
                 <Sparkles className="size-4" />
-                <span>
-                  {progMode === 'manual' ? 'إنشاء قوالب التوزيع اليدوي' : 'إنشاء البرنامج تلقائياً'}
-                </span>
+                <span>التنظيم الذكي</span>
               </button>
 
-              {hasKnockoutStage && (
-                <button
-                  type="button"
-                  onClick={() => openDrawer('knockout', false)}
-                  className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] cursor-pointer"
-                >
-                  <Trophy className="size-3.5" />
-                  <span>برمجة الأدوار الإقصائية</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setProgMode('manual')}
+                className={`flex h-11 items-center justify-center gap-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
+                  progMode === 'manual'
+                    ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                    : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
+                }`}
+              >
+                <Edit3 className="size-4" />
+                <span>التنظيم اليدوي</span>
+              </button>
+            </div>
 
-              {hasAnyFixtures && (
+            {/* إعدادات البرنامج Summary Card */}
+            <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 space-y-3.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="size-4 text-[#111313] dark:text-[#D0FF38]" />
+                  <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+                    إعدادات البرنامج
+                  </h3>
+                </div>
                 <button
                   type="button"
-                  onClick={removeAll}
-                  disabled={busy === 'del'}
-                  className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#D92D20]/30 bg-[#D92D20]/10 px-3.5 text-xs font-black text-[#D92D20] dark:text-[#FF453A] cursor-pointer"
+                  onClick={() => openDrawer('group', progMode === 'manual')}
+                  className="inline-flex items-center gap-1 text-xs font-black text-[#1F9D55] dark:text-[#D0FF38] hover:underline cursor-pointer"
                 >
-                  <Trash2 className="size-3.5" />
-                  <span>حذف الجدول</span>
+                  <Edit3 className="size-3.5" />
+                  <span>تعديل</span>
                 </button>
-              )}
+              </div>
+
+              <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] text-center pt-1">
+                <div className="px-2">
+                  <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+                    مباراة افتتاحية
+                  </span>
+                  <span className="inline-flex items-center rounded-full bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 px-2.5 py-0.5 text-xs font-black text-[#111313] dark:text-[#D0FF38]">
+                    مفعلة
+                  </span>
+                </div>
+
+                <div className="px-2">
+                  <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+                    عدد الجولات
+                  </span>
+                  <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] font-mono">
+                    {(structure?.group_stage?.length || 0) + (structure?.knockout?.length || 0) || 'تلقائي'}
+                  </span>
+                </div>
+
+                <div className="px-2">
+                  <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+                    توقيتات المباريات
+                  </span>
+                  <span className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono">
+                    {form.default_time || '18:00'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons inside Settings */}
+              <div className="pt-2 border-t border-[#E1E5DF] dark:border-[#303832] flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => openDrawer('group', progMode === 'manual')}
+                  className="flex-1 flex h-11 items-center justify-center gap-2 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] text-xs sm:text-sm font-black text-[#111313] shadow-2xs transition active:scale-98 cursor-pointer"
+                >
+                  <Sparkles className="size-4" />
+                  <span>
+                    {progMode === 'manual' ? 'إنشاء قوالب التوزيع اليدوي' : 'إنشاء البرنامج تلقائياً'}
+                  </span>
+                </button>
+
+                {hasKnockoutStage && (
+                  <button
+                    type="button"
+                    onClick={() => openDrawer('knockout', false)}
+                    className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] cursor-pointer"
+                  >
+                    <Trophy className="size-3.5" />
+                    <span>برمجة الأدوار الإقصائية</span>
+                  </button>
+                )}
+
+                {hasAnyFixtures && (
+                  <button
+                    type="button"
+                    onClick={removeAll}
+                    disabled={busy === 'del'}
+                    className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#D92D20]/30 bg-[#D92D20]/10 px-3.5 text-xs font-black text-[#D92D20] dark:text-[#FF453A] cursor-pointer"
+                  >
+                    <Trash2 className="size-3.5" />
+                    <span>حذف الجدول</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )
       )}
 
       {/* ================================================================= */}
       {/* VIEW 1: البرنامج (Chronological Collapsible Day Sections — Ref 1 & 3) */}
       {/* ================================================================= */}
-      {(subView === 'program' || (subView === 'settings' && hasAnyFixtures)) && (
+      {(subView === 'program' || (!isLeague && subView === 'settings' && hasAnyFixtures)) && (
         <div className="space-y-3">
           {!hasAnyFixtures ? (
             <Empty
@@ -1856,14 +1851,22 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
               description={t('committee.detail.noFixturesDesc')}
               action={
                 <div className="flex flex-wrap justify-center gap-2">
-                  <Button size="sm" onClick={() => openDrawer()}>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (isLeague) setSubView('settings')
+                      else openDrawer()
+                    }}
+                  >
                     <CalendarPlus className="size-4" />
                     {t('committee.detail.generateFixtures')}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => openDrawer('group', true)}>
-                    <LayoutTemplate className="size-4" />
-                    {t('committee.detail.generateLayout')}
-                  </Button>
+                  {!isLeague && (
+                    <Button size="sm" variant="outline" onClick={() => openDrawer('group', true)}>
+                      <LayoutTemplate className="size-4" />
+                      {t('committee.detail.generateLayout')}
+                    </Button>
+                  )}
                 </div>
               }
             />
@@ -2014,7 +2017,10 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => openDrawer('group', progMode === 'manual')}
+              onClick={() => {
+                if (isLeague) setSubView('settings')
+                else openDrawer('group', progMode === 'manual')
+              }}
               className="w-full flex h-12 sm:h-13 items-center justify-center gap-2 rounded-2xl bg-[#B8F000] dark:bg-[#D0FF38] hover:opacity-95 text-sm sm:text-base font-black text-[#111313] shadow-sm transition active:scale-[0.99] cursor-pointer"
             >
               {subView === 'settings' ? (
@@ -2025,7 +2031,13 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
               ) : (
                 <>
                   <Plus className="size-5 stroke-[2.8]" />
-                  <span>{hasAnyFixtures ? 'إضافة / برمجة مباريات' : 'إنشاء برنامج المباريات'}</span>
+                  <span>
+                    {isLeague
+                      ? 'إدارة وبرمجة مواعيد الدوري'
+                      : hasAnyFixtures
+                        ? 'إضافة / برمجة مباريات'
+                        : 'إنشاء برنامج المباريات'}
+                  </span>
                 </>
               )}
             </button>

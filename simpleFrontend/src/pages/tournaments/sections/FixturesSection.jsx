@@ -4,14 +4,13 @@ import {
   Calendar,
   ChevronDown,
   Clock,
-  Filter,
-  Flag,
   MapPin,
   Swords,
   Trophy,
   Users,
 } from 'lucide-react'
 import { TeamAvatar } from '../shared'
+import { formatGroupName } from '../../../lib/groupNames'
 import { selectClass } from '../../../components/dashboard/ui'
 
 const LIVE_STATUSES = ['warmup', 'kickoff', 'first_half', 'halftime', 'second_half', 'extra_time', 'penalties']
@@ -114,8 +113,15 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
 
   const groupOptions = useMemo(() => {
     const seen = new Map()
-    for (const f of validFixtures) if (f.group?.name && !seen.has(f.group.name)) seen.set(f.group.name, f.group.name)
-    return [...seen.values()].map((name) => ({ value: name, label: name }))
+    for (const f of validFixtures) {
+      if (f.group?.name && !seen.has(f.group.name)) {
+        seen.set(f.group.name, {
+          value: f.group.name,
+          label: formatGroupName(f.group.name, { groupId: f.group.id }),
+        })
+      }
+    }
+    return [...seen.values()]
   }, [validFixtures])
 
   const filtered = list.filter((f) => {
@@ -282,7 +288,7 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
                                 </span>
                               ) : f.group?.name ? (
                                 <span className="inline-flex items-center rounded-md bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
-                                  {f.group.name.startsWith('المجموعة') ? f.group.name : `المجموعة ${f.group.name}`}
+                                  {formatGroupName(f.group.name, { groupId: f.group.id })}
                                 </span>
                               ) : f.round?.name ? (
                                 <span className="inline-flex items-center rounded-md bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
@@ -325,7 +331,10 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
                             <div className="shrink-0 px-2 text-center">
                               {played || live ? (
                                 <div className="flex flex-col items-center">
-                                  <span className="inline-flex items-center rounded-lg bg-[#111313] dark:bg-[#D0FF38] px-2.5 py-0.5 text-xs font-black text-white dark:text-[#111313] font-mono tabular-nums">
+                                  <span
+                                    dir="ltr"
+                                    className="inline-flex items-center rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-2.5 py-0.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums shadow-2xs"
+                                  >
                                     {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
                                   </span>
                                   {pens && <span className="text-[9px] font-bold text-[#65706A] mt-0.5">{pens}</span>}

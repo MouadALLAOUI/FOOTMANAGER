@@ -5,11 +5,11 @@ import {
   ArrowRight,
   BarChart3,
   Calendar,
-  Flag,
   Images,
   Info,
   Network,
   Newspaper,
+  Radio,
   Target,
   Trophy,
   Users,
@@ -156,17 +156,17 @@ export default function PublicTournamentDetail() {
 
   if (detailQuery.loading) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] space-y-6 px-4 pb-24 sm:px-6 lg:px-8">
-        <Skeleton className="h-[18rem] rounded-3xl" />
+      <div className="mx-auto w-full max-w-[1400px] space-y-5 px-3 sm:px-6 lg:px-8 pb-24">
+        <Skeleton className="h-44 rounded-2xl" />
         <Skeleton className="h-16 rounded-2xl" />
-        <div className="grid gap-5 lg:grid-cols-2">
-          <div className="space-y-5">
-            <Skeleton className="h-64 rounded-3xl" />
-            <Skeleton className="h-32 rounded-3xl" />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-4">
+            <Skeleton className="h-44 rounded-2xl" />
+            <Skeleton className="h-44 rounded-2xl" />
           </div>
-          <div className="space-y-5">
-            <Skeleton className="h-40 rounded-3xl" />
-            <Skeleton className="h-40 rounded-3xl" />
+          <div className="space-y-4">
+            <Skeleton className="h-44 rounded-2xl" />
+            <Skeleton className="h-36 rounded-2xl" />
           </div>
         </div>
       </div>
@@ -176,8 +176,8 @@ export default function PublicTournamentDetail() {
   if (!tour) {
     return (
       <div className="mx-auto w-full max-w-[1400px] px-4 pb-24 pt-24 sm:px-6 lg:px-8">
-        <div className="flex flex-col items-center gap-5 rounded-3xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-6 py-20 text-center">
-          <span className="grid size-16 place-items-center rounded-3xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A]">
+        <div className="flex flex-col items-center gap-5 rounded-2xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-6 py-20 text-center">
+          <span className="grid size-16 place-items-center rounded-2xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A]">
             <Trophy className="size-7" />
           </span>
           <div>
@@ -200,10 +200,19 @@ export default function PublicTournamentDetail() {
     setActive(key)
   }
 
+  const handleLiveMatchesJump = () => {
+    const liveEl = typeof document !== 'undefined' ? document.getElementById('live-matches-section') : null
+    if (liveEl) {
+      liveEl.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    setActive('matches')
+  }
+
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-5 px-4 pb-24 sm:px-6 lg:px-8 lg:pb-32">
-      {/* Unified Hero Header + 4-Segment Primary Navigation Bar (Matches Screens 2, 3, 4, 5) */}
-      <div className="overflow-hidden rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-sm">
+    <div className="mx-auto w-full max-w-[1400px] space-y-4 px-3 sm:px-6 lg:px-8 pb-24 lg:pb-32">
+      {/* Unified Hero Header + 4-Segment Primary Navigation Bar */}
+      <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs">
         <Hero tour={tour} embedded />
 
         <nav aria-label={t('public.detail.ariaTabs')} className="p-2 sm:p-2.5 bg-white dark:bg-[#1B201D]">
@@ -273,7 +282,7 @@ export default function PublicTournamentDetail() {
               onOpen={setOpenMatch}
               onShowTab={handleSection}
             />
-            <div className="mt-5 space-y-4">
+            <div className="mt-4 space-y-4">
               <LiveMatchActivity
                 load={() => api.get(`/v1/tournaments/${slug}/live`).then((r) => r.data.data)}
                 deps={[slug]}
@@ -282,6 +291,18 @@ export default function PublicTournamentDetail() {
               <SponsorsSection sponsors={sponsorsQuery.data} />
               <PartnersSection partners={partnersQuery.data} />
               <ContactSection contact={contactQuery.data} tournamentKey={slug} />
+            </div>
+
+            {/* Live Matches Quick Action Pill (Matches Reference Screenshot Bottom-Left Pill) */}
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={handleLiveMatchesJump}
+                className="inline-flex items-center gap-2 rounded-full bg-[#E11D48] hover:bg-[#BE123C] px-4 py-2.5 text-xs font-black text-white shadow-md transition-transform active:scale-95 cursor-pointer"
+              >
+                <Radio className="size-4 animate-pulse" />
+                <span>{t('committee.detail.live.badge', 'مباريات مباشرة')}</span>
+              </button>
             </div>
           </>
         )}
@@ -310,9 +331,11 @@ export default function PublicTournamentDetail() {
         {active === 'gallery' && <GallerySection gallery={galleryQuery.data} />}
 
         {active === 'standings' && (standingsQuery.data?.groups?.length ?? 0) === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-slate-200 bg-slate-50/60 py-16 text-center">
-            <span className="grid size-14 place-items-center rounded-2xl bg-white text-slate-300"><Trophy className="size-6" /></span>
-            <p className="text-sm font-bold text-slate-600">{t('public.tournamentPage.noStandings')}</p>
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] py-16 text-center">
+            <span className="grid size-14 place-items-center rounded-2xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A]">
+              <Trophy className="size-6" />
+            </span>
+            <p className="text-sm font-bold text-[#65706A] dark:text-[#B2B9B3]">{t('public.tournamentPage.noStandings')}</p>
           </div>
         ) : (
           active === 'standings' && <StandingsTable groups={standingsQuery.data?.groups || []} />
@@ -321,9 +344,11 @@ export default function PublicTournamentDetail() {
         {active === 'scorers' && <ScorersSection stats={statsQuery.data} />}
 
         {active === 'bracket' && (bracketQuery.data?.length ?? 0) === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-slate-200 bg-slate-50/60 py-16 text-center">
-            <span className="grid size-14 place-items-center rounded-2xl bg-white text-slate-300"><Network className="size-6" /></span>
-            <p className="text-sm font-bold text-slate-600">{t('public.tournamentPage.noBracket')}</p>
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] py-16 text-center">
+            <span className="grid size-14 place-items-center rounded-2xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A]">
+              <Network className="size-6" />
+            </span>
+            <p className="text-sm font-bold text-[#65706A] dark:text-[#B2B9B3]">{t('public.tournamentPage.noBracket')}</p>
           </div>
         ) : (
           active === 'bracket' && (

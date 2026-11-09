@@ -220,6 +220,31 @@ export function useChangePosition() {
   });
 }
 
+export function updatePlayer(
+  id: number | string,
+  data: { number?: number; position?: string; name?: string; phone?: string; notes?: string }
+): Promise<SquadPlayerResponse> {
+  return put<SquadPlayerResponse>(`/manager/players/${id}`, data);
+}
+
+export function useUpdatePlayer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: number | string;
+      data: { number?: number; position?: string; name?: string; phone?: string; notes?: string };
+    }) => updatePlayer(id, data),
+    onSuccess: (_data, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: ['manager', 'team-members'] });
+      void queryClient.invalidateQueries({ queryKey: q.squadMemberDetail(id) });
+      void queryClient.invalidateQueries({ queryKey: q.teamMembers({ scope: 'roster' }) });
+    },
+  });
+}
+
 export function useAssignCaptain() {
   const queryClient = useQueryClient();
   return useMutation({

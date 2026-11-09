@@ -104,18 +104,10 @@ export function nextGroupLabel(groups) {
  * @param seqRef   useRef counter used to mint stable placeholder ids
  * @returns next displayed group list
  */
-export function deriveDisplayGroups(teams, groups, seqRef) {
+export function deriveDisplayGroups(teams, groups) {
   const memberIds = new Set((teams || []).filter((p) => p?.group).map((p) => p?.group?.id))
-  const withMembers = (groups || []).filter((g) => memberIds.has(g.id))
-  const empties = (groups || []).filter((g) => !memberIds.has(g.id))
-  const out = [...withMembers]
-  if (empties.length >= 1) {
-    out.push(empties[0])
-  } else {
-    seqRef.current += 1
-    out.push({ id: `__new__${seqRef.current}`, name: nextGroupLabel(groups || []), isNew: true })
-  }
-  return out
+  // Requirement 3: HIDE EMPTY GROUPS — only return groups that have members
+  return (groups || []).filter((g) => memberIds.has(g.id))
 }
 
 /** New (not yet persisted) placeholder groups are identified by a string id. */

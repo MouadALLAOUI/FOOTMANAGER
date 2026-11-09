@@ -1,101 +1,299 @@
-import { StyleSheet, View } from 'react-native';
-import { Calendar, MapPin, Swords, Users } from 'lucide-react-native';
+import React from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Calendar, Clock, Flame, MapPin, Shield, Swords, Users } from 'lucide-react-native';
 
 import type { FeedMatch } from '@/api/matches';
-import { AppText } from '@/components/ui/AppText';
-import { Card } from '@/components/ui/Card';
 import { useI18n } from '@/i18n/I18nProvider';
-import { useTheme } from '@/theme/ThemeProvider';
-import { palette, type ThemeColors } from '@/theme/colors';
-import { radius, sizes, spacing } from '@/theme/spacing';
 import { formatTime } from '@/utils/format';
+import { resolveImageUrl } from '@/utils/image';
 
-const toneByFormat: Record<string, string> = {
-  '5': palette.blue,
-  '7': palette.green,
-  '11': palette.amber,
-};
-
-function playerFormatTone(playerFormat: string | null | undefined, colors: ThemeColors, isDark: boolean): string {
-  const base = toneByFormat[playerFormat?.replace('v', '') ?? ''] ?? palette.blue;
-  return isDark ? `${base}33` : `${base}1A`;
-}
-
-export function MatchCard({ match, onPress }: { match: FeedMatch; onPress: () => void }): React.JSX.Element {
+export function MatchCard({
+  match,
+  onPress,
+}: {
+  match: FeedMatch;
+  onPress: () => void;
+}): React.JSX.Element {
   const { t, formatDate, locale } = useI18n();
-  const { colors, isDark } = useTheme();
 
-  const teamName = match.host_team?.name ?? t('match.unknownTeam', 'فريق');
-  const terrainName = match.stadium?.name ?? match.custom_terrain_name ?? '';
+  const hostTeamName = match.host_team?.name ?? t('match.unknownTeam', 'فريق مستضيف');
+  const opponentTeam = (match as FeedMatch & { opponent_team?: { name?: string | null; logo_url?: string | null } | null }).opponent_team;
+  const opponentTeamName = opponentTeam?.name ?? null;
+  const hostLogo = resolveImageUrl(match.host_team?.logo_url);
+  const opponentLogo = resolveImageUrl(opponentTeam?.logo_url);
+  const terrainName = match.stadium?.name ?? match.custom_terrain_name ?? t('match.noTerrain', 'ملعب محلي');
   const city = match.stadium?.city ?? match.host_team?.city ?? '';
-  const playerFormat = match.player_format ? `${match.player_format.toUpperCase()}` : '';
-  const spots = match.players_remaining ?? 0;
+  const playerFormat = match.player_format ? match.player_format.toUpperCase() : '7V7';
+  const spots = match.players_remaining ?? match.players_needed ?? 0;
   const isFull = Boolean(match.players_full);
   const needsPlayers = Boolean(match.needs_players);
+
   const spotsLabel = isFull
     ? t('match.full', 'مكتمل')
-    : t('match.spotsLeft', '{{count}} spots left').replace('{{count}}', String(spots));
+    : `${spots} ${t('match.spotsLeftShort', 'أماكن متاحة')}`;
 
   return (
-    <Card onPress={onPress} padded={false}>
-      <View style={[styles.topRow, { backgroundColor: playerFormatTone(match.player_format, colors, isDark) }]}>
-        <View style={styles.formatBadge}>
-          <Swords size={sizes.iconSm} color={colors.primary} />
-          {playerFormat ? (
-            <AppText variant="label" style={{ color: colors.primary }}>
-              {playerFormat}
-            </AppText>
-          ) : null}
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.9}
+      accessibilityRole="button"
+    >
+      {/* Top Status Banner */}
+      <View style={styles.topBanner}>
+        <View style={styles.formatPill}>
+          <Swords size={14} color="#00875A" />
+          <Text style={styles.formatPillText}>{playerFormat}</Text>
         </View>
+
         {needsPlayers ? (
-          <View style={styles.availability}>
-            <Users size={sizes.iconSm} color={isFull ? colors.danger : colors.success} />
-            <AppText
-              variant="captionBold"
-              style={{ color: isFull ? colors.danger : colors.success }}
-            >
+          <View style={[styles.spotsPill, isFull ? styles.spotsPillFull : styles.spotsPillOpen]}>
+            <Users size={14} color={isFull ? '#DC2626' : '#00875A'} />
+            <Text style={[styles.spotsPillText, isFull ? styles.spotsTextFull : styles.spotsTextOpen]}>
               {spotsLabel}
-            </AppText>
+            </Text>
           </View>
-        ) : null}
+        ) : (
+          <View style={styles.challengePill}>
+            <Flame size={14} color="#EA580C" />
+            <Text style={styles.challengePillText}>مباراة ودية</Text>
+          </View>
+        )}
       </View>
 
-      <View style={styles.body}>
-        <AppText variant="bodyBold" numberOfLines={1}>
-          {teamName}
-        </AppText>
-
-        <View style={styles.row}>
-          <Calendar size={sizes.iconSm} color={colors.textMuted} />
-          <AppText variant="caption" muted>
-            {`${formatDate(match.match_datetime)} · ${formatTime(match.match_datetime, locale)}`}
-          </AppText>
+      {/* Teams VS Row */}
+      <View style={styles.teamsRow}>
+        {/* Host Team (Right in RTL) */}
+        <View style={styles.teamCol}>
+          {hostLogo ? (
+            <Image source={{ uri: hostLogo }} style={styles.teamLogo} resizeMode="cover" />
+          ) : (
+            <View style={[styles.teamShield, { backgroundColor: '#00875A' }]}>
+              <Shield size={20} color="#FFFFFF" />
+            </View>
+          )}
+          <Text style={styles.teamName} numberOfLines={1}>
+            {hostTeamName}
+          </Text>
+          <Text style={styles.teamRoleLabel}>المنظم</Text>
         </View>
 
-        <View style={styles.row}>
-          <MapPin size={sizes.iconSm} color={colors.textMuted} />
-          <AppText variant="caption" muted numberOfLines={1} style={styles.rowText}>
-            {[terrainName, city].filter(Boolean).join(' · ') || t('match.noTerrain', 'بدون ملعب')}
-          </AppText>
+        {/* VS Badge */}
+        <View style={styles.vsBadge}>
+          <Text style={styles.vsText}>VS</Text>
+        </View>
+
+        {/* Opponent Team (Left in RTL) */}
+        <View style={styles.teamCol}>
+          {opponentLogo ? (
+            <Image source={{ uri: opponentLogo }} style={styles.teamLogo} resizeMode="cover" />
+          ) : (
+            <View
+              style={[
+                styles.teamShield,
+                { backgroundColor: opponentTeamName ? '#0284C7' : '#E2E8F0' },
+              ]}
+            >
+              <Shield size={20} color={opponentTeamName ? '#FFFFFF' : '#64748B'} />
+            </View>
+          )}
+          <Text
+            style={[styles.teamName, !opponentTeamName && styles.waitingTeamText]}
+            numberOfLines={1}
+          >
+            {opponentTeamName ?? 'في انتظار المنافس'}
+          </Text>
+          <Text style={styles.teamRoleLabel}>المنافس</Text>
         </View>
       </View>
-    </Card>
+
+      {/* Metadata Chips Footer */}
+      <View style={styles.metaFooter}>
+        <View style={styles.metaChip}>
+          <Text style={styles.metaChipText} numberOfLines={1}>
+            {[terrainName, city].filter(Boolean).join(' • ')}
+          </Text>
+          <MapPin size={14} color="#00875A" />
+        </View>
+
+        <View style={styles.metaDateTimeRow}>
+          <View style={styles.metaChipSmall}>
+            <Text style={styles.metaChipText}>
+              {formatTime(match.match_datetime, locale)}
+            </Text>
+            <Clock size={13} color="#00875A" />
+          </View>
+          <View style={styles.metaChipSmall}>
+            <Text style={styles.metaChipText}>{formatDate(match.match_datetime)}</Text>
+            <Calendar size={13} color="#00875A" />
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  topRow: {
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  topBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DCFCE7',
   },
-  formatBadge: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  availability: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  body: { padding: spacing.lg, gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  rowText: { flex: 1 },
+  formatPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  formatPillText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#00875A',
+  },
+  spotsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  spotsPillOpen: {
+    backgroundColor: '#DCFCE7',
+  },
+  spotsPillFull: {
+    backgroundColor: '#FEE2E2',
+  },
+  spotsPillText: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  spotsTextOpen: {
+    color: '#00875A',
+  },
+  spotsTextFull: {
+    color: '#DC2626',
+  },
+  challengePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  challengePillText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#EA580C',
+  },
+  teamsRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  teamCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  teamLogo: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    borderColor: '#00875A',
+  },
+  teamShield: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  teamName: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#062F36',
+    textAlign: 'center',
+  },
+  waitingTeamText: {
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  teamRoleLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  vsBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#EAF7FF',
+    borderWidth: 1.5,
+    borderColor: '#38BDF8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 8,
+  },
+  vsText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#0284C7',
+  },
+  metaFooter: {
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    gap: 6,
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  metaDateTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  metaChipSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  metaChipText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#334155',
+  },
 });

@@ -1,7 +1,10 @@
 import { GripVertical } from 'lucide-react'
 import { TeamAvatar } from '../../../tournaments/shared'
+import { useProfileModal } from '../../../../components/profile/ProfileModalContext'
 
 export default function TeamChip({ entry, onDragStart, locked, onClick }) {
+  const { openTeam } = useProfileModal()
+
   return (
     <div
       draggable={!locked}
@@ -14,7 +17,17 @@ export default function TeamChip({ entry, onDragStart, locked, onClick }) {
       }`}
     >
       {!locked && <GripVertical className="size-3.5 shrink-0 text-[#65706A] dark:text-[#B2B9B3]" />}
-      <TeamAvatar team={entry.team} className="size-6" />
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          if (entry?.team) openTeam(entry.team)
+        }}
+        className="shrink-0 cursor-pointer hover:opacity-80 active:scale-90 transition-transform"
+        title="عرض معلومات الفريق"
+      >
+        <TeamAvatar team={entry.team} className="size-6 pointer-events-none" />
+      </button>
       <span className="truncate">{entry.team?.name}</span>
     </div>
   )

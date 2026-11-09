@@ -270,6 +270,14 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       if (error.status === 401) {
         return 'بيانات الدخول غير صحيحة';
       }
+      if (error.status === 404) {
+        const data = error.data as { message?: string } | null;
+        if (data?.message) return data.message;
+        if (error.message && error.message !== 'Not Found' && error.message !== 'المورد غير موجود') {
+          return error.message;
+        }
+        return 'الحساب غير مسجل لدينا، يرجى التأكد من البيانات المدخلة';
+      }
       if (error.status === 403) {
         const data = error.data as { status?: string; message?: string } | null;
         if (data?.status === 'pending') return 'حسابك قيد المراجعة من قبل الإدارة';

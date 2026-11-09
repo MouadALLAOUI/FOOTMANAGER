@@ -1,12 +1,12 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
+import { useAuth } from '@/auth/AuthProvider';
 import {
-  Calendar,
+  CircleDot,
   Flame,
   Home,
   Landmark,
-  Shield,
   Trophy,
   User,
   Users,
@@ -30,6 +30,7 @@ export function AjiNqssroTabBar({
 }: AjiNqssroTabBarProps): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
+  const { sessionState } = useAuth();
 
   const publicTabs: TabItem[] = [
     {
@@ -72,16 +73,22 @@ export function AjiNqssroTabBar({
       route: '/(manager)',
     },
     {
-      key: 'matches',
-      label: 'مبارياتي',
-      icon: (color, size) => <Calendar size={size} color={color} />,
-      route: '/(manager)/matches',
-    },
-    {
       key: 'team',
       label: 'الفريق',
       icon: (color, size) => <Users size={size} color={color} />,
       route: '/(manager)/team',
+    },
+    {
+      key: 'matches',
+      label: 'المباريات',
+      icon: (color, size) => <CircleDot size={size} color={color} />,
+      route: '/(manager)/matches',
+    },
+    {
+      key: 'tournaments',
+      label: 'البطولات',
+      icon: (color, size) => <Trophy size={size} color={color} />,
+      route: '/(public)/tournaments',
     },
     {
       key: 'profile',
@@ -100,15 +107,45 @@ export function AjiNqssroTabBar({
           const isActive =
             activeTab === tab.key ||
             pathname === tab.route ||
-            (tab.key === 'home' && (pathname === '/(public)' || pathname === '/(public)/' || pathname === '/'));
+            (tab.key === 'team' && (pathname.startsWith('/(manager)/team') || pathname === '/(manager)/team')) ||
+            (tab.key === 'home' && (pathname === '/(public)' || pathname === '/(public)/' || pathname === '/' || pathname === '/(manager)' || pathname === '/(manager)/'));
 
           const iconColor = isActive ? '#00875A' : '#94A3B8';
+
+          const handlePress = () => {
+            if (mode === 'manager' && sessionState === 'pending') {
+              if (tab.key === 'team' || tab.key === 'matches' || tab.key === 'tournaments') {
+                Alert.alert(
+                  'الخدمة مقفلة مؤقتًا',
+                  'فريقك ما زال في انتظار موافقة الإدارة. ستتمكن من استخدام هذه الخدمة بعد قبول الطلب.'
+                );
+                return;
+              }
+            }
+            router.push(tab.route as any);
+          };
+
+          if (mode === 'manager' && isActive) {
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={styles.activePill}
+                onPress={handlePress}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityState={{ selected: true }}
+              >
+                {tab.icon('#FFFFFF', 18)}
+                <Text style={styles.activePillText}>{tab.label}</Text>
+              </TouchableOpacity>
+            );
+          }
 
           return (
             <TouchableOpacity
               key={tab.key}
               style={styles.tabItem}
-              onPress={() => router.push(tab.route as any)}
+              onPress={handlePress}
               activeOpacity={0.8}
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
@@ -165,6 +202,20 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: '#00875A',
+    fontWeight: '800',
+  },
+  activePill: {
+    backgroundColor: '#00875A',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  activePillText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '800',
   },
   activeIndicator: {

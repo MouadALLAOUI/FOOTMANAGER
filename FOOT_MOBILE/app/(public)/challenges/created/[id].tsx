@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import {
   Image,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import {
@@ -20,7 +21,6 @@ import {
   Link2,
   MapPin,
   MessageCircle,
-  Share2,
   Trophy,
   Users,
 } from 'lucide-react-native';
@@ -29,7 +29,6 @@ import { AjiNqssroHeader } from '@/components/ui/AjiNqssroHeader';
 import { useToast } from '@/components/ui/Toast';
 
 export default function ChallengeCreatedScreen(): React.JSX.Element {
-  const router = useRouter();
   const params = useLocalSearchParams<{
     id?: string;
     stadiumName?: string;
@@ -55,9 +54,17 @@ export default function ChallengeCreatedScreen(): React.JSX.Element {
 
   const challengeUrl = `https://ajn9essro.com/challenge/${id || 'AB7X3'}`;
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     setCopied(true);
-    toast.show('تم نسخ رابط التحدي بنجاح!', 'success');
+    try {
+      await Share.share({
+        message: challengeUrl,
+        url: challengeUrl,
+      });
+    } catch {
+      // Share sheet dismissed or unsupported
+    }
+    toast.show('تم تجهيز رابط التحدي للمشاركة!', 'success');
     setTimeout(() => setCopied(false), 2500);
   };
 
@@ -65,7 +72,7 @@ export default function ChallengeCreatedScreen(): React.JSX.Element {
     const text = `تحدي كروي جديد على منصة أجي نقصرو! ⚽🔥\nقبل التحدي من هنا:\n${challengeUrl}`;
     const url = `whatsapp://send?text=${encodeURIComponent(text)}`;
     Linking.openURL(url).catch(() => {
-      toast.show('تعذر فتح تطبيق واتساب', 'error');
+      void Share.share({ message: text });
     });
   };
 
@@ -159,7 +166,7 @@ export default function ChallengeCreatedScreen(): React.JSX.Element {
 
           <View style={styles.urlBox}>
             <TouchableOpacity
-              onPress={handleCopy}
+              onPress={() => void handleCopy()}
               style={styles.copyIconButton}
               accessibilityRole="button"
             >
@@ -169,7 +176,7 @@ export default function ChallengeCreatedScreen(): React.JSX.Element {
                 <Copy size={18} color="#64748B" />
               )}
             </TouchableOpacity>
-            <Text style={styles.urlText} numberOfLines={1}>
+            <Text style={styles.urlText} numberOfLines={1} selectable>
               {challengeUrl}
             </Text>
           </View>
@@ -194,12 +201,12 @@ export default function ChallengeCreatedScreen(): React.JSX.Element {
           {/* Copy Link Secondary Button */}
           <TouchableOpacity
             style={styles.copySecondaryBtn}
-            onPress={handleCopy}
+            onPress={() => void handleCopy()}
             activeOpacity={0.85}
           >
             <Copy size={16} color="#00875A" />
             <Text style={styles.copySecondaryText}>
-              {copied ? 'تم النسخ!' : 'نسخ الرابط'}
+              {copied ? 'تم النسخ / المشاركة!' : 'نسخ ومشاركة الرابط'}
             </Text>
           </TouchableOpacity>
         </View>

@@ -1,8 +1,8 @@
 /**
- * Deep linking configuration for FOOT_MOBILE.
+ * Deep linking configuration for FOOT_MOBILE (AJI NQSSRO).
  *
  * Expo Router handles deep linking automatically via:
- * - app.json `scheme: "footmanager"`
+ * - app.json `scheme: ["ajinqssro", "footmanager"]`
  * - File-based route structure
  * - typedRoutes: true
  *
@@ -13,28 +13,34 @@
  *
  * Supported deep links (all require auth + role). Plural forms are the
  * canonical URLs; singular forms stay accepted for backwards compatibility:
- *  footmanager://matches/{id}       → (manager|player)/matches/[id]
- *  footmanager://tournaments/{id}   → (committee)/tournaments/[id]
- *  footmanager://fields/{id}        → (terrain)/fields/[id] (owner) or manager terrain
- *  footmanager://bookings/{id}      → role-aware bookings detail
- *  footmanager://notifications      → Notifications inbox
+ *  ajinqssro://matches/{id}       → (manager|player)/matches/[id]
+ *  ajinqssro://tournaments/{id}   → (committee)/tournaments/[id]
+ *  ajinqssro://fields/{id}        → (terrain)/fields/[id] (owner) or manager terrain
+ *  ajinqssro://bookings/{id}      → role-aware bookings detail
+ *  ajinqssro://notifications      → Notifications inbox
+ *  (Also accepts legacy footmanager:// links seamlessly.)
  */
 import type { Href } from 'expo-router';
 
 import type { Role } from '@/auth/roles';
 
-export const LINKING_PREFIXES = ['footmanager://', 'https://footmanager.com'] as const;
+export const LINKING_PREFIXES = [
+  'ajinqssro://',
+  'footmanager://',
+  'https://ajn9essro.com',
+  'https://footmanager.com',
+] as const;
 
 export const DEEP_LINK_PATHS = {
-  match: (id: string | number) => `footmanager://match/${id}`,
-  matches: (id: string | number) => `footmanager://matches/${id}`,
-  booking: (id: string | number) => `footmanager://booking/${id}`,
-  bookings: (id: string | number) => `footmanager://bookings/${id}`,
-  field: (id: string | number) => `footmanager://field/${id}`,
-  fields: (id: string | number) => `footmanager://fields/${id}`,
-  tournament: (id: string | number) => `footmanager://tournament/${id}`,
-  tournaments: (id: string | number) => `footmanager://tournaments/${id}`,
-  notifications: () => 'footmanager://notifications',
+  match: (id: string | number) => `ajinqssro://match/${id}`,
+  matches: (id: string | number) => `ajinqssro://matches/${id}`,
+  booking: (id: string | number) => `ajinqssro://booking/${id}`,
+  bookings: (id: string | number) => `ajinqssro://bookings/${id}`,
+  field: (id: string | number) => `ajinqssro://field/${id}`,
+  fields: (id: string | number) => `ajinqssro://fields/${id}`,
+  tournament: (id: string | number) => `ajinqssro://tournament/${id}`,
+  tournaments: (id: string | number) => `ajinqssro://tournaments/${id}`,
+  notifications: () => 'ajinqssro://notifications',
 } as const;
 
 export interface DeepLinkTarget {
@@ -68,7 +74,7 @@ const NEEDS_ID: DeepLinkKind[] = ['match', 'booking', 'field', 'tournament'];
 /**
  * Parse a deep link URL into its kind + identifier.
  *
- * Accepts `footmanager://matches/12`, `footmanager:///matches/12` and the old
+ * Accepts `ajinqssro://matches/12`, `footmanager://matches/12`, and the old
  * singular `footmanager://match/12` spelling. Query strings are ignored.
  */
 export function parseDeepLink(url: string): ParsedDeepLink | null {
@@ -92,7 +98,7 @@ export function parseDeepLink(url: string): ParsedDeepLink | null {
   if (kind === 'notifications') return { kind: 'notifications' };
 
   const idSeg = segments[1];
-  if (!idSeg || NEEDS_ID.includes(kind) && !idSeg) return null;
+  if (!idSeg || (NEEDS_ID.includes(kind) && !idSeg)) return null;
 
   return { kind, id: idSeg };
 }

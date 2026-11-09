@@ -58,7 +58,7 @@
   "auth.orContinueWith": "أو تابع عبر",
   "auth.roleAdminTitle": "مشرف المنصة (Admin)",
   "auth.roleAdminDesc": "إدارة وتنسيق الفرق والملاعب في المنصة",
-  "home.upcomingMatches": "المباراة القادمة",
+  "home.upcomingMatches": "المباريات القادمة",
   "home.noUpcomingMatchTitle": "لا توجد مباريات قادمة",
   "home.noUpcomingMatchDesc": "انضم لفريق أو تصفح المباريات المفتوحة للمشاركة.",
   "home.noUpcomingTitle": "لا توجد أنشطة مجدولة",
@@ -307,7 +307,6 @@
   "users.empty": "لا يوجد مستخدمون.",
   "approvals.title": "طلبات التسجيل",
   "approvals.empty": "لا توجد طلبات تسجيل معلقة حالياً.",
-  "home.upcomingMatches": "المباريات القادمة",
   "player.bookingsEmpty": "لا توجد حجوزات بعد",
   "player.bookings.unknownBooking": "حجز",
   "player.bookings.booking": "حجز",
@@ -868,5 +867,9 @@
   "events.type.penalty_goal": "ركلة جزاء",
   "events.type.own_goal": "هدف عكسي",
   "events.type.yellow_card": "بطاقة صفراء",
-  "events.type.red_card": "بطاقة حمراء"
+  "events.type.red_card": "بطاقة حمراء",
+  "auth.switchAccount": "تبديل الحساب",
+  "settings.switchAccountConfirm": "هل تريد تسجيل الخروج والتبديل إلى حساب آخر؟",
+  "settings.sessionManagement": "إدارة الجلسة",
+  "settings.sessionHint": "تبديل الحساب أو تسجيل الخروج من هذا الجهاز"
 }

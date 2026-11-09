@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Button } from '@/components/ui/Button';
@@ -8,9 +10,16 @@ import { useTheme } from '@/theme/ThemeProvider';
 import { spacing } from '@/theme/spacing';
 
 export default function AccountPendingScreen(): React.JSX.Element {
-  const { logout, refreshUser } = useAuth();
+  const router = useRouter();
+  const { logout, refreshUser, role } = useAuth();
   const { t } = useI18n();
   const { colors } = useTheme();
+
+  useEffect(() => {
+    if (role === 'manager') {
+      router.replace('/(manager)');
+    }
+  }, [role, router]);
 
   return (
     <Screen>
@@ -30,6 +39,12 @@ export default function AccountPendingScreen(): React.JSX.Element {
           <Button
             title={t('auth.refreshStatus', 'تحديث الحالة')}
             onPress={refreshUser}
+            variant="outline"
+            fullWidth
+          />
+          <Button
+            title={t('auth.switchAccount', 'تبديل الحساب')}
+            onPress={logout}
             variant="outline"
             fullWidth
           />

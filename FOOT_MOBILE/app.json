@@ -1,22 +1,25 @@
 {
   "expo": {
-    "name": "FOOT_MOBILE",
+    "name": "AJI NQSSRO",
     "slug": "FOOT_MOBILE",
-    "scheme": "footmanager",
+    "scheme": [
+      "ajinqssro",
+      "footmanager"
+    ],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.footmanager.mobile",
+      "bundleIdentifier": "com.aji.n9essro",
       "infoPlist": {
         "NSCameraUsageDescription": "يتطلب التطبيق الوصول إلى الكاميرا لالتقاط وتحديث صور الحساب والمباريات.",
         "NSPhotoLibraryUsageDescription": "يتطلب التطبيق الوصول إلى مكتبة الصور لاختيار صور الحساب والملعب."
       }
     },
     "android": {
-      "package": "com.footmanager.mobile",
+      "package": "com.aji.n9essro",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

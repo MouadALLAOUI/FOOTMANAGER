@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   ScrollView,
@@ -20,17 +21,17 @@ import {
   Landmark,
   LogIn,
   MapPin,
-  Phone,
   Shield,
   ShieldCheck,
   Trophy,
-  User,
   Users,
   X,
 } from 'lucide-react-native';
 
 import { AjiNqssroHeader } from '@/components/ui/AjiNqssroHeader';
 import { usePublicMatches } from '@/api/matches';
+import { useAcceptMatchRequest, useApplyTeamToInvitation } from '@/api/managerMatches';
+import { getApiErrorMessage } from '@/api/errors';
 import { resolveImageUrl } from '@/utils/image';
 import { useAuth } from '@/auth/useAuth';
 import { post } from '@/api/client';
@@ -51,13 +52,18 @@ export default function ChallengeDetailScreen(): React.JSX.Element {
   const [formError, setFormError] = useState('');
   const [confirmedOpponent, setConfirmedOpponent] = useState<string | null>(null);
 
-  const { data: matchesData } = usePublicMatches();
+  const { data: matchesData, refetch } = usePublicMatches();
   const match = matchesData?.data?.find((m) => String(m.id) === String(params.id));
+
+  const acceptMatchMutation = useAcceptMatchRequest();
+  const applyInvitationMutation = useApplyTeamToInvitation();
 
   const challengerTeamName = match?.host_team?.name || 'فريق التحدي';
   const opponentTeamName = confirmedOpponent || match?.opponent_team?.name || 'فريقك';
   const stadiumName = match?.stadium?.name || match?.custom_terrain_name || 'ملعب كرة القدم';
-  const locationText = [match?.stadium?.city, match?.stadium?.type].filter(Boolean).join(' - ') || 'تنغير - الجنوب الشرقي';
+  const locationText =
+    [match?.stadium?.city, match?.stadium?.type].filter(Boolean).join(' - ') ||
+    'تنغير - الجنوب الشرقي';
   const matchDate = match?.match_datetime
     ? new Date(match.match_datetime).toLocaleDateString('ar-MA', {
         weekday: 'long',
@@ -76,12 +82,41 @@ export default function ChallengeDetailScreen(): React.JSX.Element {
     resolveImageUrl(match?.stadium?.cover_image_url) ||
     'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&w=600&q=80';
 
-  const handleAccept = () => {
-    if (isAuthenticated) {
+  const handleAccept = async () => {
+    if (!isAuthenticated) {
+      setShowGuestModal(true);
+      return;
+    }
+
+    if (!match?.id) {
       setConfirmedOpponent((user?.team?.name as string) || user?.name || 'فريقك');
       setAccepted(true);
-    } else {
-      setShowGuestModal(true);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await acceptMatchMutation.mutateAsync({ id: match.id });
+      setConfirmedOpponent((user?.team?.name as string) || user?.name || 'فريقك');
+      setAccepted(true);
+      void refetch();
+    } catch (primaryErr) {
+      // Fallback: if match has an invitation_token and direct accept returned a proposal requirement
+      if (match.invitation_token) {
+        try {
+          await applyInvitationMutation.mutateAsync({ token: match.invitation_token });
+          setConfirmedOpponent((user?.team?.name as string) || user?.name || 'فريقك');
+          setAccepted(true);
+          void refetch();
+          return;
+        } catch (fallbackErr) {
+          Alert.alert('تنبيه', getApiErrorMessage(fallbackErr));
+          return;
+        }
+      }
+      Alert.alert('تنبيه', getApiErrorMessage(primaryErr));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -104,20 +139,24 @@ export default function ChallengeDetailScreen(): React.JSX.Element {
 
     try {
       if (match?.invitation_token) {
-        await post(`/v1/match-invitations/${match.invitation_token}/apply-guest`, {
-          guest_team_name: guestTeamName.trim(),
-          guest_contact_name: guestContactName.trim(),
-          guest_phone: guestPhone.trim(),
-          notes: guestNotes.trim() || undefined,
-        }, { auth: false });
+        await post(
+          `/v1/match-invitations/${match.invitation_token}/apply-guest`,
+          {
+            guest_team_name: guestTeamName.trim(),
+            guest_contact_name: guestContactName.trim(),
+            guest_phone: guestPhone.trim(),
+            notes: guestNotes.trim() || undefined,
+          },
+          { auth: false },
+        );
       }
-    } catch {
-      // Continue client confirmation if network error
-    } finally {
-      setIsSubmitting(false);
       setShowGuestModal(false);
       setConfirmedOpponent(guestTeamName.trim());
       setAccepted(true);
+    } catch (err) {
+      setFormError(getApiErrorMessage(err));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -208,12 +247,19 @@ export default function ChallengeDetailScreen(): React.JSX.Element {
 
             {/* Accept Button: قبول التحدي */}
             <TouchableOpacity
-              style={styles.acceptButton}
-              onPress={handleAccept}
+              style={[styles.acceptButton, isSubmitting && { opacity: 0.7 }]}
+              onPress={() => void handleAccept()}
+              disabled={isSubmitting}
               activeOpacity={0.88}
             >
-              <Flame size={20} color="#FFFFFF" />
-              <Text style={styles.acceptButtonText}>قبول التحدي</Text>
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Flame size={20} color="#FFFFFF" />
+                  <Text style={styles.acceptButtonText}>قبول التحدي</Text>
+                </>
+              )}
             </TouchableOpacity>
 
             {/* Notice Footer */}
@@ -424,7 +470,7 @@ export default function ChallengeDetailScreen(): React.JSX.Element {
             {/* Confirm Guest Submission */}
             <TouchableOpacity
               style={styles.submitGuestBtn}
-              onPress={handleGuestSubmit}
+              onPress={() => void handleGuestSubmit()}
               disabled={isSubmitting}
               activeOpacity={0.88}
             >

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Image,
   ScrollView,
@@ -24,13 +24,24 @@ import {
 
 import { AjiNqssroHeader } from '@/components/ui/AjiNqssroHeader';
 import { usePublicStadium, usePublicStadiums, useStadiumSlots } from '@/api/stadiums';
+import { useRegisteredTeams } from '@/api/managerMatches';
 
 function generateDays() {
   const days = [];
   const arabicDays = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
   const arabicMonths = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو',
-    'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر',
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'ماي',
+    'يونيو',
+    'يوليوز',
+    'غشت',
+    'شتنبر',
+    'أكتوبر',
+    'نونبر',
+    'دجنبر',
   ];
 
   for (let i = 0; i < 7; i++) {
@@ -57,6 +68,12 @@ function generateDays() {
   return days;
 }
 
+const FALLBACK_OPPONENTS = [
+  { id: '1', name: 'شباب أيت لحسن', shieldColor: '#00875A', isAdd: false },
+  { id: '2', name: 'اتحاد دادس', shieldColor: '#0284C7', isAdd: false },
+  { id: '3', name: 'نجوم تودغى', shieldColor: '#6366F1', isAdd: false },
+];
+
 export default function BookMatchScreen(): React.JSX.Element {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -74,38 +91,58 @@ export default function BookMatchScreen(): React.JSX.Element {
   // Fetch stadiums or specific stadium
   const { data: stadiumsResponse } = usePublicStadiums();
   const allStadiums = stadiumsResponse?.data || [];
-  const currentStadiumId = params.stadiumId || (allStadiums[0]?.id ? String(allStadiums[0].id) : '1');
+  const currentStadiumId =
+    params.stadiumId || (allStadiums[0]?.id ? String(allStadiums[0].id) : '1');
 
   const { data: stadiumDetailResponse } = usePublicStadium(currentStadiumId);
-  const stadium = stadiumDetailResponse?.data || allStadiums.find((s) => String(s.id) === currentStadiumId);
+  const stadium =
+    stadiumDetailResponse?.data ||
+    allStadiums.find((s) => String(s.id) === currentStadiumId);
 
   // Fetch slots for this stadium and selected date
   const { data: slotsResponse } = useStadiumSlots(currentStadiumId, selectedDay.fullDate);
   const apiSlots = slotsResponse?.slots || [];
 
-  const slots = apiSlots.length > 0
-    ? apiSlots
-        .filter((s) => s.status !== 'closed')
-        .map((s, idx) => ({
-          id: `${s.start}-${s.end}-${idx}`,
-          time: `${s.start.slice(0, 5)} - ${s.end.slice(0, 5)}`,
-          status: s.status === 'booked' ? 'booked' : idx === 0 ? 'selected' : 'available',
-        }))
-    : [];
+  const slots =
+    apiSlots.length > 0
+      ? apiSlots
+          .filter((s) => s.status !== 'closed')
+          .map((s, idx) => ({
+            id: `${s.start}-${s.end}-${idx}`,
+            time: `${s.start.slice(0, 5)} - ${s.end.slice(0, 5)}`,
+            status: s.status === 'booked' ? 'booked' : idx === 0 ? 'selected' : 'available',
+          }))
+      : [];
 
-  const opponentTeams = [
-    { id: '1', name: 'شباب أيت لحسن', shieldColor: '#00875A' },
-    { id: '2', name: 'اتحاد دادس', shieldColor: '#0284C7' },
-    { id: '3', name: 'نجوم تودغى', shieldColor: '#6366F1' },
-    { id: '4', name: 'فريق آخر', shieldColor: '#94A3B8', isAdd: true },
-  ];
+  // Fetch real registered teams from API with graceful fallback
+  const { data: registeredTeamsResponse } = useRegisteredTeams();
+  const opponentTeams = useMemo(() => {
+    const apiTeams = registeredTeamsResponse?.data ?? [];
+    const mapped =
+      apiTeams.length > 0
+        ? apiTeams.slice(0, 3).map((t, index) => ({
+            id: String(t.id),
+            name: t.name,
+            shieldColor:
+              t.primary_color ||
+              (index === 0 ? '#00875A' : index === 1 ? '#0284C7' : '#6366F1'),
+            isAdd: false,
+          }))
+        : FALLBACK_OPPONENTS;
+
+    return [
+      ...mapped,
+      { id: 'other', name: 'فريق آخر', shieldColor: '#94A3B8', isAdd: true },
+    ];
+  }, [registeredTeamsResponse?.data]);
 
   const [selectedSlotId, setSelectedSlotId] = useState(slots[0]?.id || '1');
   const [matchType, setMatchType] = useState<'friendly' | 'challenge'>('friendly');
-  const [selectedOpponentId, setSelectedOpponentId] = useState('1');
+  const [selectedOpponentId, setSelectedOpponentId] = useState(opponentTeams[0]?.id || '1');
 
   const chosenSlot = slots.find((s) => s.id === selectedSlotId) || slots[0];
-  const chosenStadiumName = stadium?.name || (params.stadiumName as string) || 'ملعب كرة القدم';
+  const chosenStadiumName =
+    stadium?.name || (params.stadiumName as string) || 'ملعب كرة القدم';
 
   const handleConfirm = () => {
     if (matchType === 'challenge') {
@@ -132,7 +169,6 @@ export default function BookMatchScreen(): React.JSX.Element {
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
-
       {/* Header */}
       <AjiNqssroHeader
         showBack
@@ -399,6 +435,7 @@ export default function BookMatchScreen(): React.JSX.Element {
                         styles.teamShieldName,
                         isSelected && styles.teamShieldNameSelected,
                       ]}
+                      numberOfLines={1}
                     >
                       {team.name}
                     </Text>

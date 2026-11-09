@@ -17,11 +17,12 @@ export default function RenameGroupModal({
 
   useEffect(() => {
     if (open && group) {
-      setName(group.name || '')
+      // Pre-fill with current formatted or raw name
+      setName(currentTitle || group.name || '')
       setError(null)
       setSaving(false)
     }
-  }, [open, group])
+  }, [open, group, currentTitle])
 
   if (!open || !group) return null
 
@@ -38,7 +39,8 @@ export default function RenameGroupModal({
     const isDuplicate = existingGroups.some(
       (g) =>
         g.id !== group.id &&
-        String(g.name || '').trim().toLowerCase() === trimmed.toLowerCase(),
+        (String(g.name || '').trim().toLowerCase() === trimmed.toLowerCase() ||
+          formatGroupName(g.name, { groupId: g.id, tournamentId }).trim().toLowerCase() === trimmed.toLowerCase()),
     )
 
     if (isDuplicate) {
@@ -47,7 +49,7 @@ export default function RenameGroupModal({
     }
 
     // If unchanged, simply close
-    if (trimmed === String(group.name || '').trim()) {
+    if (trimmed === currentTitle.trim() || trimmed === String(group.name || '').trim()) {
       onClose()
       return
     }
@@ -115,7 +117,7 @@ export default function RenameGroupModal({
                 setName(e.target.value)
                 if (error) setError(null)
               }}
-              placeholder="مثال: المجموعة A أو مجموعة الأمل"
+              placeholder="مثال: مجموعة الأطلس أو مجموعة الصقور"
               maxLength={60}
               className="w-full h-11 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3.5 text-sm font-bold text-[#111313] dark:text-[#F5F7F2] placeholder-[#65706A]/50 focus:border-[#B8F000] dark:focus:border-[#D0FF38] focus:ring-2 focus:ring-[#B8F000]/25 focus:outline-none transition"
             />

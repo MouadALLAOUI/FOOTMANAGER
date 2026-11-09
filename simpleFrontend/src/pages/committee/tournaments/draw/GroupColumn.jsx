@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { TeamAvatar } from '../../../tournaments/shared'
 import { useToast } from '../../../../components/ui/Toast'
+import { useProfileModal } from '../../../../components/profile/ProfileModalContext'
 
 export default function GroupColumn({
   title,
@@ -34,6 +35,7 @@ export default function GroupColumn({
   onEditTeams,
 }) {
   const { toast } = useToast()
+  const { openTeam } = useProfileModal()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const isFree = capacity == null
@@ -71,8 +73,8 @@ export default function GroupColumn({
             : 'bg-white dark:bg-[#1B201D]'
         }`}
       >
-        {/* Right Side in RTL: Chevron + Group Title */}
-        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        {/* Right Side in RTL: Chevron + Group Title + Visible Edit Icon */}
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <ChevronDown
             className={`size-4 shrink-0 text-[#111313] dark:text-[#F5F7F2] transition-transform duration-200 ${
               expanded ? 'rotate-180' : 'rotate-0'
@@ -81,6 +83,22 @@ export default function GroupColumn({
           <span className="truncate text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
             {title}
           </span>
+
+          {/* Visible Edit Button next to every group name (Fix 1) */}
+          {!locked && onOpenRenameModal && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenRenameModal()
+              }}
+              className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 text-[#111313] dark:text-[#D0FF38] hover:bg-[#B8F000]/50 hover:scale-105 active:scale-95 transition cursor-pointer"
+              title="تعديل اسم المجموعة"
+              aria-label="تعديل اسم المجموعة"
+            >
+              <Pencil className="size-3.5 stroke-[2.5]" />
+            </button>
+          )}
         </div>
 
         {/* Left Side in RTL: Team Count Pill + 3-dots Menu */}
@@ -195,10 +213,27 @@ export default function GroupColumn({
                     locked ? '' : 'hover:bg-[#F7F8F5]/80 dark:hover:bg-[#252B27]/60 cursor-grab active:cursor-grabbing'
                   }`}
                 >
-                  {/* Right side in RTL: Team Logo + Team Name */}
+                  {/* Right side in RTL: Team Logo (CLICKABLE Fix 2) + Team Name */}
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <TeamAvatar team={member.team} className="size-8 shrink-0" />
-                    <span className="truncate text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (member.team) openTeam(member.team)
+                      }}
+                      className="shrink-0 cursor-pointer hover:opacity-80 active:scale-90 transition-transform"
+                      title="عرض معلومات الفريق"
+                      aria-label={`عرض معلومات ${member.team?.name || 'الفريق'}`}
+                    >
+                      <TeamAvatar team={member.team} className="size-8 shrink-0 pointer-events-none" />
+                    </button>
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (member.team) openTeam(member.team)
+                      }}
+                      className="truncate text-sm font-black text-[#111313] dark:text-[#F5F7F2] cursor-pointer hover:underline"
+                    >
                       {member.team?.name}
                     </span>
                   </div>

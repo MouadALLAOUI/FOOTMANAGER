@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Image,
   ScrollView,
@@ -21,13 +21,15 @@ import {
 import { AjiNqssroHeader } from '@/components/ui/AjiNqssroHeader';
 import { AjiNqssroTabBar } from '@/components/navigation/AjiNqssroTabBar';
 import { usePublicMatches } from '@/api/matches';
+import { useAuth } from '@/auth/useAuth';
 import { resolveImageUrl } from '@/utils/image';
 
 export default function ChallengesListScreen(): React.JSX.Element {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isAuthenticated, role } = useAuth();
 
-  const { data: matchesResponse, isLoading } = usePublicMatches();
+  const { data: matchesResponse } = usePublicMatches();
   const matches = matchesResponse?.data || [];
 
   const colors = ['#00875A', '#0284C7', '#6366F1', '#D97706', '#EF4444'];
@@ -40,7 +42,7 @@ export default function ChallengesListScreen(): React.JSX.Element {
       teamLogo: m.host_team?.logo_url,
       location: m.stadium?.name
         ? `${m.stadium.name} - ${m.stadium.city || 'تنغير'}`
-        : (m.custom_terrain_name || 'ملعب تنغير'),
+        : m.custom_terrain_name || 'ملعب تنغير',
       date: dt
         ? dt.toLocaleDateString('ar-MA', { weekday: 'short', day: 'numeric', month: 'short' })
         : 'قريباً',
@@ -51,6 +53,14 @@ export default function ChallengesListScreen(): React.JSX.Element {
       shieldColor: colors[idx % colors.length],
     };
   });
+
+  const handleCreateChallengePress = () => {
+    if (isAuthenticated && role === 'manager') {
+      router.push('/(manager)/matches/create' as any);
+    } else {
+      router.push('/(public)/book-match' as any);
+    }
+  };
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -67,7 +77,7 @@ export default function ChallengesListScreen(): React.JSX.Element {
         {/* Create Challenge CTA Banner */}
         <TouchableOpacity
           style={styles.createChallengeCard}
-          onPress={() => router.push('/(public)/book-match' as any)}
+          onPress={handleCreateChallengePress}
           activeOpacity={0.88}
         >
           <View style={styles.createIconBox}>
@@ -155,14 +165,13 @@ export default function ChallengesListScreen(): React.JSX.Element {
             </Text>
             <TouchableOpacity
               style={styles.emptyBtn}
-              onPress={() => router.push('/(public)/book-match' as any)}
+              onPress={handleCreateChallengePress}
             >
               <Text style={styles.emptyBtnText}>إنشاء تحدي الآن</Text>
             </TouchableOpacity>
           </View>
         )}
       </ScrollView>
-
 
       {/* Tab Bar */}
       <AjiNqssroTabBar mode="public" activeTab="challenges" />
@@ -364,4 +373,3 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-

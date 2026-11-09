@@ -58,7 +58,7 @@
   "auth.orContinueWith": "or continue with",
   "auth.roleAdminTitle": "Platform Admin",
   "auth.roleAdminDesc": "Manage and coordinate platform teams and venues",
-  "home.upcomingMatches": "Next Match",
+  "home.upcomingMatches": "Upcoming Matches",
   "home.noUpcomingMatchTitle": "No upcoming matches",
   "home.noUpcomingMatchDesc": "Join a team or browse open matches to play.",
   "home.noUpcomingTitle": "No scheduled activities",
@@ -307,7 +307,6 @@
   "users.empty": "No users found.",
   "approvals.title": "Registration Requests",
   "approvals.empty": "There are no pending registration requests right now.",
-  "home.upcomingMatches": "Upcoming Matches",
   "player.bookingsEmpty": "No bookings yet",
   "player.bookings.unknownBooking": "Booking",
   "player.bookings.booking": "Booking",
@@ -869,5 +868,9 @@
   "events.type.penalty_goal": "Penalty",
   "events.type.own_goal": "Own goal",
   "events.type.yellow_card": "Yellow",
-  "events.type.red_card": "Red"
+  "events.type.red_card": "Red",
+  "auth.switchAccount": "Switch Account",
+  "settings.switchAccountConfirm": "Do you want to log out and switch to another account?",
+  "settings.sessionManagement": "Session Management",
+  "settings.sessionHint": "Switch account or log out from this device"
 }

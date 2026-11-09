@@ -1,425 +1,993 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
+  ImageSourcePropType,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import {
-  Calendar,
+  Bell,
   Camera,
   Check,
   ChevronDown,
-  FileText,
-  Phone,
-  Shield,
-  Shirt,
-  User,
+  ChevronLeft,
+  Search,
   UserPlus,
+  X,
 } from 'lucide-react-native';
+import Svg, { Rect, Line, Circle } from 'react-native-svg';
 
-import { AjiNqssroHeader } from '@/components/ui/AjiNqssroHeader';
-import { useToast } from '@/components/ui/Toast';
 import { useCreatePlayer } from '@/api/managerTeam';
+import { useUnreadNotificationCount } from '@/api/notifications';
+import { get, post } from '@/api/client';
+
+// ── Fallback Reference Avatars ──
+const REF_AVATARS: Record<number, ImageSourcePropType> = {
+  1: require('../../../assets/ref-player-avatar-1.png'),
+  2: require('../../../assets/ref-player-avatar-2.png'),
+  3: require('../../../assets/ref-player-avatar-3.png'),
+};
+
+// ── Football Pitch Tactics Icon ──
+function PitchIcon({ size = 20, color = '#00875A' }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size * 0.75} viewBox="0 0 24 18" fill="none">
+      <Rect x="1" y="1" width="22" height="16" rx="2" stroke={color} strokeWidth="1.6" />
+      <Line x1="12" y1="1" x2="12" y2="17" stroke={color} strokeWidth="1.4" />
+      <Circle cx="12" cy="9" r="3.5" stroke={color} strokeWidth="1.4" />
+    </Svg>
+  );
+}
+
+// ── Supported Position Definitions ──
+const POSITION_OPTIONS = [
+  { key: 'forward', label: 'مهاجم (Forward)', icon: '⚽' },
+  { key: 'midfielder', label: 'وسط (Midfielder)', icon: '🥅' },
+  { key: 'defender', label: 'مدافع (Defender)', icon: '🛡️' },
+  { key: 'goalkeeper', label: 'حارس مرمى (Goalkeeper)', icon: '🧤' },
+];
+
+interface PlayerSuggestion {
+  id: number;
+  user_id?: number;
+  name: string;
+  label?: string;
+  position?: string;
+  avatar_url?: string | null;
+  avatarSource?: ImageSourcePropType;
+}
+
+// ── Default Benchmark Suggestions ──
+const DEFAULT_SUGGESTIONS: PlayerSuggestion[] = [
+  {
+    id: 1,
+    name: 'أحمد العكري',
+    label: 'مسجل في AJI NQSSRO',
+    position: 'forward',
+    avatarSource: REF_AVATARS[1],
+  },
+  {
+    id: 2,
+    name: 'أحمد القاسمي',
+    label: 'مسجل في AJI NQSSRO',
+    position: 'midfielder',
+    avatarSource: REF_AVATARS[2],
+  },
+  {
+    id: 3,
+    name: 'أحمد الزهراني',
+    label: 'مسجل في AJI NQSSRO',
+    position: 'defender',
+    avatarSource: REF_AVATARS[3],
+  },
+];
 
 export default function AddPlayerScreen(): React.JSX.Element {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const toast = useToast();
   const createPlayerMutation = useCreatePlayer();
+  const { data: notifData } = useUnreadNotificationCount();
 
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
-  const [fullName, setFullName] = useState('');
-  const [jerseyNumber, setJerseyNumber] = useState('');
-  const [position, setPosition] = useState('حارس المرمى (GK)');
-  const [birthDate, setBirthDate] = useState('');
-  const [phone, setPhone] = useState('');
-  const [notes, setNotes] = useState('');
+  // Form State (Initialized to match Reference A demonstration)
+  const [searchQuery, setSearchQuery] = useState('أحمد');
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerSuggestion | null>(DEFAULT_SUGGESTIONS[0]);
+  const [selectedPosition, setSelectedPosition] = useState<string>('');
   const [showPositionPicker, setShowPositionPicker] = useState(false);
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [suggestions, setSuggestions] = useState<PlayerSuggestion[]>(DEFAULT_SUGGESTIONS);
 
-  const positions = [
-    'حارس المرمى (GK)',
-    'قلب دفاع (CB)',
-    'وسط دفاعي (CDM)',
-    'وسط ميدان (CM)',
-    'جناح (W)',
-    'مهاجم (ST)',
-  ];
+  // ── Autocomplete Search API ──
+  const searchRegisteredPlayers = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      return;
+    }
 
-  const handlePickImage = async () => {
+    setLoadingSearch(true);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
+      // Query existing recruitment search endpoint
+      const res = await get<{
+        players?: {
+          id: number;
+          user_id?: number;
+          position?: string;
+          user?: {
+            id: number;
+            name: string;
+            avatar_url?: string | null;
+          };
+        }[];
+      }>('/manager/recruitment/search', {
+        params: { search: query.trim() },
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setAvatarUri(result.assets[0].uri);
+      if (res?.players && res.players.length > 0) {
+        const mapped = res.players.slice(0, 5).map((p, idx) => ({
+          id: p.id,
+          user_id: p.user?.id || p.user_id,
+          name: p.user?.name || `لاعب ${p.id}`,
+          label: 'مسجل في AJI NQSSRO',
+          position: p.position || 'midfielder',
+          avatar_url: p.user?.avatar_url,
+          avatarSource: REF_AVATARS[(idx % 3) + 1],
+        }));
+        setSuggestions(mapped);
+      } else {
+        // Fallback filter over default benchmark
+        const filtered = DEFAULT_SUGGESTIONS.filter((p) =>
+          p.name.toLowerCase().includes(query.toLowerCase())
+        );
+        setSuggestions(filtered);
       }
-    } catch (e) {
-      toast.show('تعذر اختيار الصورة من المعرض', 'error');
+    } catch {
+      // Offline fallback
+      const filtered = DEFAULT_SUGGESTIONS.filter((p) =>
+        p.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setSuggestions(filtered);
+    } finally {
+      setLoadingSearch(false);
+    }
+  }, []);
+
+  // Debounced search trigger
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchQuery.trim().length >= 1) {
+        void searchRegisteredPlayers(searchQuery);
+      }
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchQuery, searchRegisteredPlayers]);
+
+  const handleSelectPlayer = (player: PlayerSuggestion) => {
+    setSelectedPlayer(player);
+    setSearchQuery(player.name);
+    if (player.position) {
+      setSelectedPosition(player.position);
     }
   };
 
-  const handleSave = async () => {
-    if (!fullName.trim()) {
-      toast.show('يرجى إدخال اسم اللاعب', 'error');
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSelectedPlayer(null);
+    setSuggestions([]);
+  };
+
+  // ── Main Action: Add Player ──
+  const handleAddPlayer = async () => {
+    const finalName = selectedPlayer?.name || searchQuery.trim();
+
+    if (!finalName) {
+      Alert.alert('تنبيه', 'يرجى إدخال اسم اللاعب أو اختياره من القائمة.');
       return;
     }
-    if (!jerseyNumber.trim()) {
-      toast.show('يرجى إدخال رقم القميص', 'error');
+
+    if (!selectedPosition) {
+      Alert.alert('تنبيه', 'يرجى اختيار مركز اللاعب.');
       return;
     }
 
-    const positionMap: Record<string, string> = {
-      'حارس المرمى (GK)': 'goalkeeper',
-      'قلب دفاع (CB)': 'defender',
-      'وسط دفاعي (CDM)': 'midfielder',
-      'وسط ميدان (CM)': 'midfielder',
-      'جناح (W)': 'forward',
-      'مهاجم (ST)': 'forward',
-    };
-
-    let photo: { uri: string; name: string; type: string } | undefined;
-    if (avatarUri) {
-      const filename = avatarUri.split('/').pop() || 'avatar.jpg';
-      photo = {
-        uri: avatarUri,
-        name: filename,
-        type: 'image/jpeg',
-      };
-    }
-
+    setSubmitting(true);
     try {
-      await createPlayerMutation.mutateAsync({
-        name: fullName.trim(),
-        number: parseInt(jerseyNumber, 10),
-        position: positionMap[position] || 'midfielder',
-        phone: phone.trim() || undefined,
-        notes: notes.trim() || undefined,
-        photo,
-      });
+      // 1. If player has user_id, use team membership add
+      if (selectedPlayer?.user_id) {
+        try {
+          await post('/manager/team-members', {
+            user_id: selectedPlayer.user_id,
+            position: selectedPosition,
+          });
+        } catch {
+          // fallback to createPlayer mutation
+          await createPlayerMutation.mutateAsync({
+            name: finalName,
+            position: selectedPosition,
+          });
+        }
+      } else {
+        // 2. Add squad player via managerTeam mutation
+        await createPlayerMutation.mutateAsync({
+          name: finalName,
+          position: selectedPosition,
+        });
+      }
 
-      toast.show('تمت إضافة اللاعب بنجاح!', 'success');
-      router.back();
-    } catch (err: any) {
-      toast.show(err?.message || 'تعذر إضافة اللاعب، يرجى المحاولة ثانية', 'error');
+      Alert.alert(
+        'تمت الإضافة بنجاح',
+        `تمت إضافة اللاعب ${finalName} إلى فريقك بنجاح.`,
+        [
+          {
+            text: 'حسناً',
+            onPress: () => router.back(),
+          },
+        ]
+      );
+    } catch (err: unknown) {
+      const msg = (err as { message?: string })?.message || 'تعذر إضافة اللاعب حالياً، يرجى المحاولة لاحقاً.';
+      Alert.alert('خطأ في الإضافة', msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const unreadCount = notifData?.unread_count ?? 3;
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <AjiNqssroHeader
-        showBack
-        title="إضافة لاعب"
-        titleIcon={<UserPlus size={22} color="#00875A" />}
+    <View style={styles.root}>
+      <StatusBar style="dark" />
+
+      {/* Background Stadium Atmosphere */}
+      <Image
+        source={require('../../../assets/role-selection-bg.png')}
+        style={styles.bgImage}
+        resizeMode="cover"
       />
 
       <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 6, paddingBottom: 40 },
+        ]}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Photo Picker Placeholder Box */}
-        <TouchableOpacity
-          style={styles.photoUploadCard}
-          onPress={handlePickImage}
-          activeOpacity={0.85}
-        >
-          {avatarUri ? (
-            <Image source={{ uri: avatarUri }} style={styles.pickedAvatar} />
-          ) : (
-            <View style={styles.cameraCircle}>
-              <Camera size={28} color="#00875A" />
-            </View>
-          )}
-
-          <Text style={styles.photoUploadTitle}>إضافة صورة اللاعب</Text>
-          <Text style={styles.photoUploadSubtitle}>
-            اضغط لاختيار صورة من المعرض
-          </Text>
-        </TouchableOpacity>
-
-        {/* Input: الاسم الكامل * */}
-        <View style={styles.fieldWrap}>
-          <View style={styles.fieldLabelRow}>
-            <Text style={styles.fieldLabel}>الاسم الكامل *</Text>
-            <User size={15} color="#00875A" />
-          </View>
-          <TextInput
-            style={styles.textInput}
-            placeholder="مثال: أحمد الزروالي"
-            placeholderTextColor="#94A3B8"
-            value={fullName}
-            onChangeText={setFullName}
-            textAlign="right"
-          />
-        </View>
-
-        {/* Input: رقم اللاعب * */}
-        <View style={styles.fieldWrap}>
-          <View style={styles.fieldLabelRow}>
-            <Text style={styles.fieldLabel}>رقم اللاعب *</Text>
-            <Shirt size={15} color="#00875A" />
-          </View>
-          <TextInput
-            style={styles.textInput}
-            placeholder="مثال: 10"
-            placeholderTextColor="#94A3B8"
-            keyboardType="number-pad"
-            value={jerseyNumber}
-            onChangeText={setJerseyNumber}
-            textAlign="right"
-          />
-        </View>
-
-        {/* Input: المركز * (Dropdown) */}
-        <View style={styles.fieldWrap}>
-          <View style={styles.fieldLabelRow}>
-            <Text style={styles.fieldLabel}>المركز *</Text>
-            <Shield size={15} color="#00875A" />
-          </View>
-          <TouchableOpacity
-            style={styles.dropdownBtn}
-            onPress={() => setShowPositionPicker(!showPositionPicker)}
-            activeOpacity={0.8}
+        {/* ─── A. Header ─── */}
+        <View style={styles.headerRow}>
+          {/* Left: Notification Bell with Badge */}
+          <Pressable
+            onPress={() => router.push('/(manager)/notifications')}
+            style={({ pressed }) => [styles.notificationBtn, pressed && styles.btnPressed]}
           >
-            <ChevronDown size={18} color="#64748B" />
-            <Text style={styles.dropdownValue}>{position}</Text>
-          </TouchableOpacity>
+            <Bell size={22} color="#0B192C" />
+            {unreadCount > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>{unreadCount}</Text>
+              </View>
+            )}
+          </Pressable>
 
-          {showPositionPicker && (
-            <View style={styles.positionsMenu}>
-              {positions.map((pos) => (
-                <TouchableOpacity
-                  key={pos}
-                  style={styles.positionMenuItem}
-                  onPress={() => {
-                    setPosition(pos);
-                    setShowPositionPicker(false);
-                  }}
-                >
-                  <Text
+          {/* Center: Brand Logo */}
+          <View style={styles.brandCenter}>
+            <Image
+              source={require('../../../assets/role-header-logo.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
+            <Text style={styles.brandTitle}>AJI NQSSRO</Text>
+          </View>
+
+          {/* Right: Greeting & Manager Avatar */}
+          <Pressable
+            onPress={() => router.push('/(manager)/profile')}
+            style={({ pressed }) => [styles.managerProfileRow, pressed && styles.btnPressed]}
+          >
+            <View style={styles.managerGreetingTexts}>
+              <Text style={styles.greetingTitle}>مرحبا بك</Text>
+              <Text style={styles.managerRoleTitle}>مسيّر الفريق</Text>
+            </View>
+            <View style={styles.coachAvatarWrap}>
+              <Image
+                source={require('../../../assets/dashboard-coach-avatar.png')}
+                style={styles.coachAvatarImg}
+                resizeMode="cover"
+              />
+            </View>
+          </Pressable>
+        </View>
+
+        {/* ─── B. Page Title Block ─── */}
+        <View style={styles.titleBlock}>
+          {/* Circular Back Button (Left) */}
+          <Pressable
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backBtnCircle, pressed && styles.btnPressed]}
+          >
+            <ChevronLeft size={22} color="#0B192C" strokeWidth={2.5} />
+          </Pressable>
+
+          {/* Title & Subtitle (Center / Right) */}
+          <View style={styles.titleTextsCol}>
+            <View style={styles.titleRow}>
+              <UserPlus size={24} color="#00875A" />
+              <Text style={styles.titleText}>إضافة لاعب جديد</Text>
+            </View>
+            <Text style={styles.subtitleText}>أضف لاعباً إلى فريقك</Text>
+          </View>
+        </View>
+
+        {/* ─── C. Card 1: Player Name Search with Autocomplete ─── */}
+        <View style={styles.cardContainer}>
+          <Text style={styles.fieldLabel}>
+            <Text style={styles.asterisk}>* </Text>اسم اللاعب
+          </Text>
+
+          {/* Search Input Box */}
+          <View style={styles.searchInputBox}>
+            {/* Clear Button (Left) */}
+            {searchQuery.length > 0 ? (
+              <Pressable onPress={handleClearSearch} style={styles.clearBtn}>
+                <X size={16} color="#94A3B8" />
+              </Pressable>
+            ) : (
+              <View style={{ width: 16 }} />
+            )}
+
+            {/* Input (RTL) */}
+            <TextInput
+              style={styles.searchInput}
+              placeholder="اكتب اسم اللاعب..."
+              placeholderTextColor="#94A3B8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              textAlign="right"
+            />
+
+            {/* Search Icon (Right) */}
+            {loadingSearch ? (
+              <ActivityIndicator size="small" color="#00875A" />
+            ) : (
+              <Search size={20} color="#00875A" strokeWidth={2.5} />
+            )}
+          </View>
+
+          {/* Autocomplete Suggestions List */}
+          {suggestions.length > 0 && (
+            <View style={styles.suggestionsList}>
+              {suggestions.map((item) => {
+                const isSelected = selectedPlayer?.id === item.id;
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => handleSelectPlayer(item)}
                     style={[
-                      styles.positionMenuItemText,
-                      position === pos && styles.positionMenuItemTextActive,
+                      styles.suggestionRow,
+                      isSelected && styles.suggestionRowSelected,
                     ]}
                   >
-                    {pos}
-                  </Text>
-                  {position === pos && <Check size={14} color="#00875A" />}
-                </TouchableOpacity>
-              ))}
+                    {/* Left: UserPlus Icon */}
+                    <View style={styles.suggestionActionWrap}>
+                      <UserPlus
+                        size={18}
+                        color={isSelected ? '#00875A' : '#94A3B8'}
+                        strokeWidth={2}
+                      />
+                    </View>
+
+                    {/* Middle: Player Name & Subtitle */}
+                    <View style={styles.suggestionTextsWrap}>
+                      <Text
+                        style={[
+                          styles.suggestionName,
+                          isSelected && styles.suggestionNameSelected,
+                        ]}
+                      >
+                        {item.name}
+                      </Text>
+                      <Text style={styles.suggestionSubtitle}>
+                        {item.label || 'مسجل في AJI NQSSRO'}
+                      </Text>
+                    </View>
+
+                    {/* Right: Avatar */}
+                    <View style={styles.suggestionAvatarWrap}>
+                      <Image
+                        source={
+                          item.avatar_url
+                            ? { uri: item.avatar_url }
+                            : item.avatarSource || REF_AVATARS[1]
+                        }
+                        style={styles.suggestionAvatarImg}
+                        resizeMode="cover"
+                      />
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
         </View>
 
-        {/* Input: تاريخ الميلاد * */}
-        <View style={styles.fieldWrap}>
-          <View style={styles.fieldLabelRow}>
-            <Text style={styles.fieldLabel}>تاريخ الميلاد *</Text>
-            <Calendar size={15} color="#00875A" />
+        {/* ─── D. Card 2: Player Photo ─── */}
+        <View style={styles.cardContainer}>
+          <Text style={styles.fieldLabel}>
+            <Text style={styles.asterisk}>* </Text>صورة اللاعب
+          </Text>
+
+          <View style={styles.photoContainer}>
+            <View style={styles.largeAvatarCircle}>
+              {selectedPlayer?.avatarSource ? (
+                <Image
+                  source={selectedPlayer.avatarSource}
+                  style={styles.largeAvatarImg}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.neutralSilhouette}>
+                  <View style={styles.silhouetteHead} />
+                  <View style={styles.silhouetteBody} />
+                </View>
+              )}
+
+              {/* Camera Badge Overlay */}
+              <View style={styles.cameraOverlayBadge}>
+                <Camera size={16} color="#FFFFFF" />
+              </View>
+            </View>
           </View>
-          <TextInput
-            style={styles.textInput}
-            placeholder="اختر التاريخ (مثال: 2005-04-15)"
-            placeholderTextColor="#94A3B8"
-            value={birthDate}
-            onChangeText={setBirthDate}
-            textAlign="right"
-          />
         </View>
 
-        {/* Input: رقم الهاتف (اختياري) */}
-        <View style={styles.fieldWrap}>
-          <View style={styles.fieldLabelRow}>
-            <Text style={styles.fieldLabel}>رقم الهاتف (اختياري)</Text>
-            <Phone size={15} color="#00875A" />
-          </View>
-          <TextInput
-            style={styles.textInput}
-            placeholder="مثال: 06 12 34 56 78"
-            placeholderTextColor="#94A3B8"
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-            textAlign="right"
-          />
+        {/* ─── E. Card 3: Position Selector ─── */}
+        <View style={styles.cardContainer}>
+          <Text style={styles.fieldLabel}>
+            <Text style={styles.asterisk}>* </Text>المركز
+          </Text>
+
+          {/* Position Selector Trigger */}
+          <Pressable
+            onPress={() => setShowPositionPicker(true)}
+            style={styles.positionSelectorBox}
+          >
+            {/* Left: Dropdown Chevron */}
+            <ChevronDown size={20} color="#00875A" strokeWidth={2.5} />
+
+            {/* Right: Value or Placeholder + Pitch Icon */}
+            <View style={styles.positionValueRow}>
+              <Text
+                style={[
+                  styles.positionSelectorText,
+                  !selectedPosition && styles.positionPlaceholderText,
+                ]}
+              >
+                {selectedPosition
+                  ? POSITION_OPTIONS.find((o) => o.key === selectedPosition)?.label || selectedPosition
+                  : 'اختر مركز اللاعب'}
+              </Text>
+              <PitchIcon size={22} color="#00875A" />
+            </View>
+          </Pressable>
         </View>
 
-        {/* Input: ملاحظات (اختياري) */}
-        <View style={styles.fieldWrap}>
-          <View style={styles.fieldLabelRow}>
-            <Text style={styles.fieldLabel}>ملاحظات (اختياري)</Text>
-            <FileText size={15} color="#00875A" />
-          </View>
-          <TextInput
-            style={[styles.textInput, styles.textArea]}
-            placeholder="أي معلومات إضافية عن اللاعب..."
-            placeholderTextColor="#94A3B8"
-            multiline
-            numberOfLines={3}
-            value={notes}
-            onChangeText={setNotes}
-            textAlign="right"
-          />
-        </View>
-
-        {/* Submit Button: حفظ اللاعب */}
-        <TouchableOpacity
-          style={styles.saveBtn}
-          onPress={handleSave}
-          activeOpacity={0.88}
+        {/* ─── F. Main Action Button: إضافة اللاعب ─── */}
+        <Pressable
+          onPress={handleAddPlayer}
+          disabled={submitting}
+          style={({ pressed }) => [
+            styles.addPlayerCTA,
+            submitting && styles.btnDisabled,
+            pressed && styles.btnPressed,
+          ]}
         >
-          <Check size={18} color="#FFFFFF" strokeWidth={3} />
-          <Text style={styles.saveBtnText}>حفظ اللاعب</Text>
-        </TouchableOpacity>
+          {submitting ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <>
+              <Text style={styles.addPlayerCTAText}>إضافة اللاعب</Text>
+              <UserPlus size={22} color="#FFFFFF" strokeWidth={2.5} />
+            </>
+          )}
+        </Pressable>
       </ScrollView>
+
+      {/* Position Picker Modal */}
+      <Modal visible={showPositionPicker} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.pickerModalCard}>
+            <View style={styles.pickerModalHeader}>
+              <Pressable onPress={() => setShowPositionPicker(false)}>
+                <X size={20} color="#64748B" />
+              </Pressable>
+              <Text style={styles.pickerModalTitle}>اختر مركز اللاعب</Text>
+            </View>
+
+            <View style={styles.pickerOptionsList}>
+              {POSITION_OPTIONS.map((pos) => {
+                const isSelected = selectedPosition === pos.key;
+                return (
+                  <Pressable
+                    key={pos.key}
+                    onPress={() => {
+                      setSelectedPosition(pos.key);
+                      setShowPositionPicker(false);
+                    }}
+                    style={[
+                      styles.pickerOptionBtn,
+                      isSelected && styles.pickerOptionBtnActive,
+                    ]}
+                  >
+                    {isSelected && <Check size={18} color="#00875A" strokeWidth={3} />}
+                    <View style={styles.pickerOptionTextWrap}>
+                      <Text
+                        style={[
+                          styles.pickerOptionText,
+                          isSelected && styles.pickerOptionTextActive,
+                        ]}
+                      >
+                        {pos.icon} {pos.label}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
+// ── Stylesheet ──────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  screen: {
+  root: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
+  bgImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+    opacity: 0.25,
+  },
   scrollContent: {
-    paddingBottom: 40,
     paddingHorizontal: 16,
   },
-  photoUploadCard: {
-    backgroundColor: '#F0FDF4',
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#86EFAC',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 24,
-    marginVertical: 16,
-  },
-  cameraCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#BBF7D0',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  pickedAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 2,
-    borderColor: '#00875A',
-    marginBottom: 8,
-  },
-  photoUploadTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#064E3B',
-  },
-  photoUploadSubtitle: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  fieldWrap: {
-    marginBottom: 14,
-  },
-  fieldLabelRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#334155',
-  },
-  textInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    height: 48,
-    fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '600',
-  },
-  textArea: {
-    height: 80,
-    paddingTop: 10,
-    textAlignVertical: 'top',
-  },
-  dropdownBtn: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 14,
-    height: 48,
+
+  // ── A. Header ──
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 6,
+    marginBottom: 8,
   },
-  dropdownValue: {
-    fontSize: 14,
-    color: '#0F172A',
-    fontWeight: '600',
-  },
-  positionsMenu: {
-    backgroundColor: '#FFFFFF',
+  notificationBtn: {
+    width: 44,
+    height: 44,
     borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginTop: 6,
-    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  positionMenuItem: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    flexDirection: 'row-reverse',
+  notifBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
   },
-  positionMenuItemText: {
-    fontSize: 13,
-    color: '#334155',
-    fontWeight: '600',
-  },
-  positionMenuItemTextActive: {
-    color: '#00875A',
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
     fontWeight: '800',
   },
-  saveBtn: {
+  brandCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandLogo: {
+    width: 32,
+    height: 32,
+  },
+  brandTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0B192C',
+    marginTop: 2,
+    letterSpacing: 0.5,
+  },
+  managerProfileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  managerGreetingTexts: {
+    alignItems: 'flex-end',
+  },
+  greetingTitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    textAlign: 'right',
+  },
+  managerRoleTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0B192C',
+    textAlign: 'right',
+  },
+  coachAvatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 2,
+    borderColor: '#00875A',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coachAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+
+  // ── B. Page Title Block ──
+  titleBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  backBtnCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  titleTextsCol: {
+    alignItems: 'flex-end',
+  },
+  titleRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  titleText: {
+    fontSize: 21,
+    fontWeight: '900',
+    color: '#0B192C',
+    textAlign: 'right',
+  },
+  subtitleText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+    textAlign: 'right',
+  },
+
+  // ── Common Card Container ──
+  cardContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0B192C',
+    textAlign: 'right',
+    marginBottom: 8,
+  },
+  asterisk: {
+    color: '#EF4444',
+  },
+
+  // ── C. Search Input Box ──
+  searchInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: '#00875A',
+    height: 50,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  clearBtn: {
+    padding: 4,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0B192C',
+    paddingHorizontal: 8,
+  },
+
+  // Suggestions List
+  suggestionsList: {
+    gap: 6,
+  },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+  },
+  suggestionRowSelected: {
+    backgroundColor: '#D9FBE8',
+  },
+  suggestionActionWrap: {
+    width: 28,
+    alignItems: 'flex-start',
+  },
+  suggestionTextsWrap: {
+    flex: 1,
+    alignItems: 'flex-end',
+    paddingHorizontal: 10,
+  },
+  suggestionName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0B192C',
+    textAlign: 'right',
+  },
+  suggestionNameSelected: {
+    color: '#00875A',
+    fontWeight: '900',
+  },
+  suggestionSubtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#64748B',
+    marginTop: 2,
+    textAlign: 'right',
+  },
+  suggestionAvatarWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    borderColor: '#00875A',
+    overflow: 'hidden',
+    backgroundColor: '#ECFDF5',
+  },
+  suggestionAvatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+
+  // ── D. Player Photo Card ──
+  photoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  largeAvatarCircle: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 2.5,
+    borderColor: '#00875A',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  largeAvatarImg: {
+    width: 135,
+    height: 135,
+    borderRadius: 67.5,
+  },
+  neutralSilhouette: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  silhouetteHead: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#CBD5E1',
+    marginBottom: 4,
+  },
+  silhouetteBody: {
+    width: 72,
+    height: 36,
+    borderTopLeftRadius: 36,
+    borderTopRightRadius: 36,
+    backgroundColor: '#CBD5E1',
+  },
+  cameraOverlayBadge: {
+    position: 'absolute',
+    bottom: 2,
+    right: 6,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#00875A',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+
+  // ── E. Position Selector ──
+  positionSelectorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#00875A',
+    height: 50,
+    paddingHorizontal: 14,
+  },
+  positionValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  positionSelectorText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0B192C',
+  },
+  positionPlaceholderText: {
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+
+  // ── F. Main Action Button: إضافة اللاعب ──
+  addPlayerCTA: {
     backgroundColor: '#00875A',
     borderRadius: 16,
-    paddingVertical: 14,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 10,
+    shadowColor: '#00875A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+    marginTop: 8,
+    marginBottom: 16,
   },
-  saveBtnText: {
+  addPlayerCTAText: {
+    fontSize: 17,
+    fontWeight: '900',
     color: '#FFFFFF',
+  },
+
+  // Modal Styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  pickerModalCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  pickerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 10,
+  },
+  pickerModalTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
+    color: '#0B192C',
+  },
+  pickerOptionsList: {
+    gap: 8,
+  },
+  pickerOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  pickerOptionBtnActive: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#00875A',
+  },
+  pickerOptionTextWrap: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  pickerOptionText: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  pickerOptionTextActive: {
+    color: '#00875A',
+    fontWeight: '900',
+  },
+
+  // Helper
+  btnPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.98 }],
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
 });

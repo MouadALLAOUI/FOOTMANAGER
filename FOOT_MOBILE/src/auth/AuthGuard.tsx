@@ -42,6 +42,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }): React.JS
       return;
     }
 
+    // For managers in pending state, allow them to view the Manager Dashboard in pending approval state
+    if (sessionState === 'pending' && role === 'manager') {
+      if (group === '(auth)') {
+        router.replace('/(manager)');
+        return;
+      }
+      if (group === '(manager)') {
+        return;
+      }
+    }
+
     const route = ACCOUNT_STATE_ROUTES[sessionState];
     if (route) {
       router.replace(route);

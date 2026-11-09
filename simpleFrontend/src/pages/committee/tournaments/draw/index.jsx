@@ -92,9 +92,21 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
   const baseGroups = (serverGroups || []).map((g) => ({ id: g.group_id, name: g.name }))
   const currentGroups = wideGroups || baseGroups
   const displayGroups = useMemo(() => {
-    if (freeMode) return deriveDisplayGroups(teams, currentGroups, seqRef)
+    if (freeMode) return deriveDisplayGroups(teams, currentGroups)
     return currentGroups
   }, [teams, currentGroups, freeMode])
+
+  // Requirement 3: HIDE EMPTY GROUPS
+  // - Groups containing at least one assigned team are displayed.
+  // - Groups containing zero teams are hidden from cards, counts, and navigation.
+  const visibleGroups = useMemo(() => {
+    const withTeams = (displayGroups || []).filter((g) => membersOf(teams, g.id).length > 0)
+    // If no teams are drawn yet anywhere (initial empty state), show all groups so organizer can start
+    if (withTeams.length === 0 && assigned === 0) {
+      return displayGroups
+    }
+    return withTeams
+  }, [displayGroups, teams, assigned])
 
   const allDrawn = total > 0 && assigned === total
 
@@ -376,7 +388,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
             <div className="flex items-center gap-1.5">
               <Layers className="size-4 text-[#111313] dark:text-[#D0FF38]" />
               <span className="text-lg sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
-                {displayGroups.length}
+                {visibleGroups.length}
               </span>
             </div>
           </div>
@@ -551,7 +563,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
 
       {/* D. Expandable Group Cards List */}
       <div className="space-y-2.5">
-        {displayGroups.map((g) => {
+        {visibleGroups.map((g) => {
           const groupTitle = formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id })
           return (
             <GroupColumn
@@ -696,7 +708,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
       >
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            {displayGroups.map((g) => {
+            {visibleGroups.map((g) => {
               const members = membersOf(teams, g.id)
               const gTitle = formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id })
               return (

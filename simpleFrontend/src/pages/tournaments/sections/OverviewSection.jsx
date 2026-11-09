@@ -474,7 +474,9 @@ function RecentResults({ fixtures, loading, onOpen, onShowTab }) {
 function StandingsMini({ standings, tour, loading, onShowTab }) {
   const { t } = useTranslation()
   const { openTeam } = useProfileModal()
-  const groups = standings?.groups || []
+  const rawGroups = standings?.groups || []
+  // Requirement 3: HIDE EMPTY GROUPS
+  const groups = rawGroups.filter((g) => (g.rows?.length || 0) > 0)
   const [groupIdx, setGroupIdx] = useState(0)
   const active = groups[groupIdx] || groups[0]
   const rows = (active?.rows || []).slice(0, 4)

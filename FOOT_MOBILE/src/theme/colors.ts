@@ -1,8 +1,14 @@
 export const palette = {
   primaryGreen: '#00875A',
+  actionGreen: '#00A651',
+  deepGreen: '#006B45',
   darkGreen: '#065F46',
+  darkNavy: '#062F36',
   navy: '#0F2747',
   accentBlue: '#3B82F6',
+  skyBlue: '#38BDF8',
+  lightBlueSurface: '#EAF7FF',
+  selectedGreenSurface: '#E9FBF2',
   background: '#F8FAFC',
   surface: '#FFFFFF',
 

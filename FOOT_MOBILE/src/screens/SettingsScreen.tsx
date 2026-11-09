@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { ChevronRight, ChevronLeft, Globe, Info, LogOut, UserCircle } from 'lucide-react-native';
+import { ArrowLeftRight, ChevronRight, ChevronLeft, Globe, Info, LogOut, UserCircle } from 'lucide-react-native';
 
 import { useAuth } from '@/auth/AuthProvider';
 import { Card } from '@/components/ui/Card';
@@ -21,6 +21,7 @@ export function SettingsScreen(): React.JSX.Element {
   const { t, isRTL } = useI18n();
   const router = useRouter();
   const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmSwitchAccount, setConfirmSwitchAccount] = useState(false);
 
   const version = Constants.expoConfig?.version ?? '1.0.0';
   const Chevron = isRTL ? ChevronLeft : ChevronRight;
@@ -82,18 +83,65 @@ export function SettingsScreen(): React.JSX.Element {
             </View>
           </View>
           <View style={[styles.aboutBox, { backgroundColor: colors.bgMuted, borderColor: colors.border }]}>
-            <Text style={[styles.aboutName, { color: colors.text }]}>{t('app.name', 'FootMANAGER')}</Text>
+            <Text style={[styles.aboutName, { color: colors.text }]}>{t('app.name', 'AJI NQSSRO — أجي نقصرو')}</Text>
             <Text style={[styles.aboutVersion, { color: colors.textMuted }]}>v{version}</Text>
-            <Text style={[styles.aboutNote, { color: colors.textSubtle }]}>{t('settings.aboutNote', 'تطبيق مصاحب مبسط — الإدارة المتقدمة على الويب.')}</Text>
+            <Text style={[styles.aboutNote, { color: colors.textSubtle }]}>{t('settings.aboutNote', 'منصة كرة القدم المغربية لتنظيم المباريات والفرق والبطولات.')}</Text>
           </View>
         </Card>
 
-        {/* Logout */}
-        <View style={styles.logoutWrap}>
-          <Button title={t('auth.logout', 'تسجيل الخروج')} onPress={() => setConfirmLogout(true)} variant="danger" fullWidth leftIcon={<LogOut size={16} color="#fff" />} />
-        </View>
+        {/* Session Management: Switch Account & Logout */}
+        <Card>
+          <View style={styles.cardHeader}>
+            <View style={[styles.iconBox, { backgroundColor: colors.primary + '14' }]}>
+              <ArrowLeftRight size={18} color={colors.primary} />
+            </View>
+            <View style={styles.cardHeaderText}>
+              <Text style={[styles.cardTitle, { color: colors.text }]}>
+                {t('settings.sessionManagement', 'إدارة الجلسة')}
+              </Text>
+              <Text style={[styles.cardSubtitle, { color: colors.textMuted }]}>
+                {t('settings.sessionHint', 'تبديل الحساب أو تسجيل الخروج من هذا الجهاز')}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.sessionButtonsCol}>
+            {/* Switch Account */}
+            <Button
+              title={t('auth.switchAccount', 'تبديل الحساب')}
+              onPress={() => setConfirmSwitchAccount(true)}
+              variant="outline"
+              fullWidth
+              leftIcon={<ArrowLeftRight size={16} color={colors.primary} />}
+            />
+
+            {/* Logout */}
+            <Button
+              title={t('auth.logout', 'تسجيل الخروج')}
+              onPress={() => setConfirmLogout(true)}
+              variant="danger"
+              fullWidth
+              leftIcon={<LogOut size={16} color="#FFFFFF" />}
+            />
+          </View>
+        </Card>
       </ScrollView>
 
+      {/* Confirmation Dialog: Switch Account */}
+      <ConfirmationDialog
+        visible={confirmSwitchAccount}
+        title={t('auth.switchAccount', 'تبديل الحساب')}
+        description={t('settings.switchAccountConfirm', 'هل تريد تسجيل الخروج والتبديل إلى حساب آخر؟')}
+        confirmLabel={t('auth.switchAccount', 'تبديل الحساب')}
+        cancelLabel={t('common.cancel', 'إلغاء')}
+        onCancel={() => setConfirmSwitchAccount(false)}
+        onConfirm={() => {
+          setConfirmSwitchAccount(false);
+          void logout();
+        }}
+      />
+
+      {/* Confirmation Dialog: Logout */}
       <ConfirmationDialog
         visible={confirmLogout}
         title={t('auth.logout', 'تسجيل الخروج')}
@@ -126,5 +174,5 @@ const styles = StyleSheet.create({
   aboutName: { fontSize: 15, fontWeight: '800', textAlign: 'center' },
   aboutVersion: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
   aboutNote: { fontSize: 11, textAlign: 'center', marginTop: 4, lineHeight: 16 },
-  logoutWrap: { marginTop: spacing.sm },
+  sessionButtonsCol: { marginTop: spacing.md, gap: spacing.sm },
 });

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { BadgeCheck, Building2, Mail, Phone, Settings, ShieldCheck, Users, LockKeyhole, Pencil, AlertTriangle } from 'lucide-react-native';
+import { ArrowLeftRight, BadgeCheck, Building2, LogOut, Mail, Phone, Settings, ShieldCheck, Users, LockKeyhole, Pencil, AlertTriangle } from 'lucide-react-native';
 import { settingsPathForRole } from '@/navigation/tabs';
 
 import { useAuth } from '@/auth/AuthProvider';
@@ -11,19 +11,22 @@ import { ChangePasswordModal } from '@/components/profile/ChangePasswordModal';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ConfirmationDialog } from '@/components/ui/ConfirmationDialog';
 import { Screen } from '@/components/ui/Screen';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
 import { radius, spacing } from '@/theme/spacing';
 
 export function ProfileScreen(): React.JSX.Element {
-  const { user, isActivityLocked, refreshUser, role } = useAuth();
+  const { user, isActivityLocked, refreshUser, role, logout } = useAuth();
   const { colors } = useTheme();
   const { t, locale, isRTL } = useI18n();
   const router = useRouter();
   const [editVisible, setEditVisible] = useState(false);
   const [pwdVisible, setPwdVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const [confirmSwitchAccount, setConfirmSwitchAccount] = useState(false);
 
   const handleOpenSettings = (): void => {
     router.push(settingsPathForRole(role));
@@ -169,6 +172,20 @@ export function ProfileScreen(): React.JSX.Element {
             leftIcon={<Settings size={16} color={colors.text} />}
             fullWidth
           />
+          <Button
+            title={t('auth.switchAccount', 'تبديل الحساب')}
+            onPress={() => setConfirmSwitchAccount(true)}
+            variant="outline"
+            leftIcon={<ArrowLeftRight size={16} color={colors.primary} />}
+            fullWidth
+          />
+          <Button
+            title={t('auth.logout', 'تسجيل الخروج')}
+            onPress={() => setConfirmLogout(true)}
+            variant="danger"
+            leftIcon={<LogOut size={16} color="#FFFFFF" />}
+            fullWidth
+          />
           <Link href="/(auth)/forgot-password" asChild>
             <Text style={StyleSheet.flatten([styles.forgotLink, { color: colors.primary }])}>{t('auth.forgotPassword', 'نسيت كلمة المرور؟')}</Text>
           </Link>
@@ -181,6 +198,31 @@ export function ProfileScreen(): React.JSX.Element {
 
       <EditProfileModal visible={editVisible} onClose={() => setEditVisible(false)} />
       <ChangePasswordModal visible={pwdVisible} onClose={() => setPwdVisible(false)} />
+      <ConfirmationDialog
+        visible={confirmSwitchAccount}
+        title={t('auth.switchAccount', 'تبديل الحساب')}
+        description={t('settings.switchAccountConfirm', 'هل تريد تسجيل الخروج والتبديل إلى حساب آخر؟')}
+        confirmLabel={t('auth.switchAccount', 'تبديل الحساب')}
+        cancelLabel={t('common.cancel', 'إلغاء')}
+        onCancel={() => setConfirmSwitchAccount(false)}
+        onConfirm={() => {
+          setConfirmSwitchAccount(false);
+          void logout();
+        }}
+      />
+      <ConfirmationDialog
+        visible={confirmLogout}
+        title={t('auth.logout', 'تسجيل الخروج')}
+        description={t('settings.logoutConfirm', 'هل أنت متأكد أنك تريد تسجيل الخروج؟')}
+        confirmLabel={t('auth.logout', 'تسجيل الخروج')}
+        cancelLabel={t('common.cancel', 'إلغاء')}
+        destructive
+        onCancel={() => setConfirmLogout(false)}
+        onConfirm={() => {
+          setConfirmLogout(false);
+          void logout();
+        }}
+      />
     </Screen>
   );
 }

@@ -58,7 +58,7 @@
   "auth.orContinueWith": "ou continuer avec",
   "auth.roleAdminTitle": "Administrateur Plateforme",
   "auth.roleAdminDesc": "Gérez et coordonnez les équipes et terrains de la plateforme",
-  "home.upcomingMatches": "Prochain Match",
+  "home.upcomingMatches": "Prochains matchs",
   "home.noUpcomingMatchTitle": "Aucun match à venir",
   "home.noUpcomingMatchDesc": "Rejoignez une équipe ou explorez les matchs ouverts pour jouer.",
   "home.noUpcomingTitle": "Aucune activité programmée",
@@ -307,7 +307,6 @@
   "users.empty": "Aucun utilisateur trouvé.",
   "approvals.title": "Demandes d'inscription",
   "approvals.empty": "Aucune demande d'inscription en attente actuellement.",
-  "home.upcomingMatches": "Prochains matchs",
   "player.bookingsEmpty": "Aucune réservation pour le moment",
   "player.bookings.unknownBooking": "Réservation",
   "player.bookings.booking": "Réservation",
@@ -869,5 +868,9 @@
   "events.type.penalty_goal": "Penalty",
   "events.type.own_goal": "But contre son camp",
   "events.type.yellow_card": "Carton jaune",
-  "events.type.red_card": "Carton rouge"
+  "events.type.red_card": "Carton rouge",
+  "auth.switchAccount": "Changer de compte",
+  "settings.switchAccountConfirm": "Voulez-vous vous déconnecter et changer de compte ?",
+  "settings.sessionManagement": "Gestion de session",
+  "settings.sessionHint": "Changer de compte ou vous déconnecter de cet appareil"
 }

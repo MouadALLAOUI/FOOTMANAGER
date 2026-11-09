@@ -30,16 +30,19 @@ export function DrawGroups({ teams }) {
   const { openTeam } = useProfileModal()
   const [collapsedMap, setCollapsedMap] = useState({})
 
-  const groups = []
+  const rawGroups = []
   const map = new Map()
   for (const p of teams || []) {
     const key = p.group?.id || 'unassigned'
     if (!map.has(key)) {
       map.set(key, [])
-      groups.push({ key, name: p.group?.name || t('committee.detail.unassigned'), list: map.get(key) })
+      rawGroups.push({ key, name: p.group?.name || t('committee.detail.unassigned'), list: map.get(key) })
     }
     map.get(key).push(p.team)
   }
+
+  // Requirement 3: Hide empty groups from public tournament group displays
+  const groups = rawGroups.filter((g) => g.list.length > 0 && g.key !== 'unassigned')
   if (groups.length === 0) return null
 
   return (
@@ -90,7 +93,17 @@ export function DrawGroups({ teams }) {
                     className="flex items-center justify-between gap-3 py-2.5 px-1 rounded-xl transition-colors hover:bg-[#F7F8F5]/70 dark:hover:bg-[#252B27]/60 cursor-pointer"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <TeamAvatar team={team} className="size-8 shrink-0" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (team) openTeam(team)
+                        }}
+                        className="shrink-0 cursor-pointer hover:opacity-80 active:scale-90 transition-transform"
+                        title="عرض معلومات الفريق"
+                      >
+                        <TeamAvatar team={team} className="size-8 shrink-0 pointer-events-none" />
+                      </button>
                       <span className="min-w-0 truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
                         {team?.name || '—'}
                       </span>
@@ -118,7 +131,7 @@ export function StandingsTable({ groups }) {
 
   return (
     <div className="space-y-4">
-      {(groups || []).map((group, gIdx) => {
+      {(groups || []).filter((g) => ((g.rows || g.teams || []).length > 0)).map((group, gIdx) => {
         const gKey = group.group_id ?? group.name ?? gIdx
         const isCollapsed = Boolean(collapsedGroups[gKey])
         const displayGroupTitle = formatGroupName(group.name, {

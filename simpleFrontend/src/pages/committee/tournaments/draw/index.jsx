@@ -23,6 +23,7 @@ import { formatGroupName, setCustomGroupName } from '../../../../lib/groupNames'
 import { commitMove, deriveDisplayGroups, isNewGroup, membersOf, nextGroupLabel } from './drawLogic'
 import GroupColumn from './GroupColumn'
 import TeamPool from './TeamPool'
+import RenameGroupModal from './RenameGroupModal'
 
 export default function DrawBoard({ tournament, refresh, refreshKey, setActive }) {
   const { t } = useTranslation()
@@ -36,6 +37,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
   const [orgMode, setOrgMode] = useState('smart') // 'smart' | 'manual'
   const [expandedGroups, setExpandedGroups] = useState({})
   const [editingGroup, setEditingGroup] = useState(null)
+  const [renamingGroup, setRenamingGroup] = useState(null)
   const [, setGroupNameTick] = useState(0)
   const seqRef = useRef(0)
 
@@ -100,15 +102,51 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
     setExpandedGroups((prev) => ({ ...prev, [gid]: !prev[gid] }))
   }
 
-  const renameGroup = (groupObj, nextName) => {
+  const renameGroup = async (groupObj, nextName) => {
     const trimmed = String(nextName || '').trim()
-    if (!trimmed) return
-    setCustomGroupName(groupObj.id, trimmed, tournament.id)
-    setWideGroups((prev) =>
-      (prev || displayGroups).map((g) => (g.id === groupObj.id ? { ...g, name: trimmed } : g)),
+    if (!trimmed) {
+      toast.error('اسم المجموعة لا يمكن أن يكون فارغاً')
+      throw new Error('اسم المجموعة لا يمكن أن يكون فارغاً')
+    }
+
+    const duplicate = displayGroups.some(
+      (g) => g.id !== groupObj.id && String(g.name || '').trim().toLowerCase() === trimmed.toLowerCase(),
     )
-    setGroupNameTick((n) => n + 1)
-    toast.success(`تم تحديث اسم المجموعة إلى "${trimmed}"`)
+    if (duplicate) {
+      const msg = 'اسم المجموعة مستخدم بالفعل في هذه البطولة'
+      toast.error(msg)
+      throw new Error(msg)
+    }
+
+    if (isNewGroup(groupObj)) {
+      setWideGroups((prev) =>
+        (prev || displayGroups).map((g) => (g.id === groupObj.id ? { ...g, name: trimmed } : g)),
+      )
+      setCustomGroupName(groupObj.id, trimmed, tournament.id)
+      setGroupNameTick((n) => n + 1)
+      toast.success(`تم تحديث اسم المجموعة إلى "${trimmed}"`)
+      return
+    }
+
+    setBusy(`rename-${groupObj.id}`)
+    try {
+      const res = await api.put(`/committee/tournaments/${tournament.id}/draw/groups/${groupObj.id}`, {
+        name: trimmed,
+      })
+      const updatedName = res.data?.data?.name || trimmed
+      setWideGroups((prev) =>
+        (prev || displayGroups).map((g) => (g.id === groupObj.id ? { ...g, name: updatedName } : g)),
+      )
+      setCustomGroupName(groupObj.id, updatedName, tournament.id)
+      setGroupNameTick((n) => n + 1)
+      toast.success(res.data?.message || `تم تحديث اسم المجموعة إلى "${updatedName}"`)
+      refresh?.()
+    } catch (e) {
+      toastApiError(e, t)
+      throw e
+    } finally {
+      setBusy(null)
+    }
   }
 
   const movePivotToTarget = (pivotId, target) => {
@@ -520,6 +558,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
               key={g.id}
               title={groupTitle}
               groupName={g.name}
+              groupObj={g}
               members={membersOf(teams, g.id)}
               capacity={cap}
               locked={!canEdit}
@@ -530,6 +569,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
               onRemoveTeam={(teamId) => moveTeamByTeamId(teamId, null)}
               onDeleteGroup={canEdit ? () => emptyOrDeleteGroup(g) : null}
               onRenameGroup={canEdit ? (nextName) => renameGroup(g, nextName) : null}
+              onOpenRenameModal={canEdit ? () => setRenamingGroup(g) : null}
               onEditTeams={canEdit ? () => setEditingGroup(g) : null}
             />
           )
@@ -695,6 +735,16 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
           </div>
         </div>
       </Modal>
+
+      {/* Rename Group Modal */}
+      <RenameGroupModal
+        open={Boolean(renamingGroup)}
+        onClose={() => setRenamingGroup(null)}
+        group={renamingGroup}
+        tournamentId={tournament.id}
+        existingGroups={displayGroups}
+        onSave={(nextName) => renameGroup(renamingGroup, nextName)}
+      />
     </div>
   )
 }

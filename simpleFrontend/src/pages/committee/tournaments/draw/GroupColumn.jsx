@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
+  Copy,
   Edit3,
   GripVertical,
   MoreVertical,
@@ -13,10 +14,12 @@ import {
   X,
 } from 'lucide-react'
 import { TeamAvatar } from '../../../tournaments/shared'
+import { useToast } from '../../../../components/ui/Toast'
 
 export default function GroupColumn({
   title,
   groupName,
+  groupObj,
   members,
   capacity,
   locked,
@@ -27,23 +30,25 @@ export default function GroupColumn({
   onRemoveTeam,
   onDeleteGroup,
   onRenameGroup,
+  onOpenRenameModal,
   onEditTeams,
 }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(title || groupName || '')
+  const { toast } = useToast()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const isFree = capacity == null
   const isComplete = isFree ? members.length >= 2 : members.length >= capacity && capacity > 0
   const groupMatchesCount = Math.max(0, Math.floor((members.length * (members.length - 1)) / 2))
 
-  const commitRename = () => {
-    setEditing(false)
-    const next = draft.trim()
-    if (next && next !== title && next !== groupName) {
-      onRenameGroup?.(next)
-    } else {
-      setDraft(title || groupName || '')
+  const handleCopyGroupLink = () => {
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('group', groupObj?.id || groupName || '')
+      navigator.clipboard.writeText(url.toString())
+      toast?.success?.('تم نسخ رابط المجموعة بنجاح! 📋')
+    } catch {
+      navigator.clipboard?.writeText?.(title || groupName || '')
+      toast?.success?.('تم نسخ اسم المجموعة! 📋')
     }
   }
 
@@ -59,70 +64,26 @@ export default function GroupColumn({
     >
       {/* Card Header (Collapsed or Expanded) */}
       <div
-        onClick={() => !editing && onToggleExpand?.()}
+        onClick={() => onToggleExpand?.()}
         className={`flex items-center justify-between gap-2.5 px-4 py-3.5 cursor-pointer select-none transition-colors ${
           expanded
             ? 'bg-[#B8F000]/20 dark:bg-[#D0FF38]/12 border-b border-[#E1E5DF] dark:border-[#303832]'
             : 'bg-white dark:bg-[#1B201D]'
         }`}
       >
-        {/* Right Side in RTL: Group Icon + Name */}
+        {/* Right Side in RTL: Chevron + Group Title */}
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          {expanded ? (
-            <ChevronDown className="size-4 shrink-0 text-[#111313] dark:text-[#F5F7F2] rotate-180 transition-transform" />
-          ) : (
-            <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38]">
-              <Users className="size-4" />
-            </div>
-          )}
-
-          {editing ? (
-            <div
-              className="flex items-center gap-1.5 min-w-0 flex-1"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <input
-                autoFocus
-                value={draft}
-                placeholder="مثال: مجموعة الأطلس، Groupe Atlas"
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitRename()
-                  if (e.key === 'Escape') {
-                    setDraft(title || groupName || '')
-                    setEditing(false)
-                  }
-                }}
-                className="h-8 w-full max-w-[200px] rounded-lg border border-[#111313] dark:border-[#D0FF38] bg-white dark:bg-[#1B201D] px-2.5 text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={commitRename}
-                className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs cursor-pointer"
-                title="حفظ اسم المجموعة"
-              >
-                <Check className="size-3.5 stroke-[2.5]" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDraft(title || groupName || '')
-                  setEditing(false)
-                }}
-                className="grid size-7 shrink-0 place-items-center rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] cursor-pointer"
-                title="إلغاء"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          ) : (
-            <span className="truncate text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
-              {title}
-            </span>
-          )}
+          <ChevronDown
+            className={`size-4 shrink-0 text-[#111313] dark:text-[#F5F7F2] transition-transform duration-200 ${
+              expanded ? 'rotate-180' : 'rotate-0'
+            }`}
+          />
+          <span className="truncate text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+            {title}
+          </span>
         </div>
 
-        {/* Left Side in RTL: Team Count Pill + Edit/Menu Icons */}
+        {/* Left Side in RTL: Team Count Pill + 3-dots Menu */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
           <span
             onClick={() => onToggleExpand?.()}
@@ -131,26 +92,13 @@ export default function GroupColumn({
             {members.length} فرق
           </span>
 
-          {!locked && onRenameGroup && !editing && (
-            <button
-              type="button"
-              onClick={() => {
-                setDraft(title || groupName || '')
-                setEditing(true)
-              }}
-              className="grid size-7 place-items-center rounded-lg text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
-              title="تغيير اسم المجموعة"
-            >
-              <Pencil className="size-3.5" />
-            </button>
-          )}
-
-          {expanded && !locked && (
+          {/* 3-dots Menu Button */}
+          {!locked && (
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="grid size-7 place-items-center rounded-lg text-[#111313] dark:text-[#F5F7F2] hover:bg-black/5 dark:hover:bg-white/10 cursor-pointer"
+                className="grid size-8 place-items-center rounded-xl text-[#111313] dark:text-[#F5F7F2] hover:bg-black/5 dark:hover:bg-white/10 transition cursor-pointer"
                 aria-label="خيارات المجموعة"
               >
                 <MoreVertical className="size-4" />
@@ -158,7 +106,31 @@ export default function GroupColumn({
               {menuOpen && (
                 <>
                   <div className="fixed inset-0 z-20" onClick={() => setMenuOpen(false)} />
-                  <div className="absolute end-0 top-8 z-30 w-44 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1 shadow-lg">
+                  <div className="absolute end-0 top-9 z-30 w-48 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1.5 shadow-xl animate-in fade-in zoom-in-95">
+                    {onOpenRenameModal && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false)
+                          onOpenRenameModal()
+                        }}
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] cursor-pointer"
+                      >
+                        <Pencil className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>تغيير اسم المجموعة</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        handleCopyGroupLink()
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] cursor-pointer"
+                    >
+                      <Copy className="size-3.5 text-blue-600 dark:text-blue-400" />
+                      <span>نسخ رابط المجموعة</span>
+                    </button>
                     {onEditTeams && (
                       <button
                         type="button"
@@ -166,24 +138,10 @@ export default function GroupColumn({
                           setMenuOpen(false)
                           onEditTeams()
                         }}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] cursor-pointer"
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] cursor-pointer"
                       >
-                        <Edit3 className="size-3.5" />
+                        <Edit3 className="size-3.5 text-amber-600 dark:text-amber-400" />
                         <span>تعديل فرق المجموعة</span>
-                      </button>
-                    )}
-                    {onRenameGroup && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMenuOpen(false)
-                          setDraft(title || groupName || '')
-                          setEditing(true)
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] cursor-pointer"
-                      >
-                        <Pencil className="size-3.5" />
-                        <span>تغيير اسم المجموعة</span>
                       </button>
                     )}
                     {onDeleteGroup && (
@@ -193,10 +151,10 @@ export default function GroupColumn({
                           setMenuOpen(false)
                           onDeleteGroup()
                         }}
-                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-bold text-[#D92D20] hover:bg-[#D92D20]/10 cursor-pointer"
+                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-[#D92D20] hover:bg-[#D92D20]/10 cursor-pointer"
                       >
                         <Trash2 className="size-3.5" />
-                        <span>حذف / تفريغ المجموعة</span>
+                        <span>حذف المجموعة</span>
                       </button>
                     )}
                   </div>
@@ -204,21 +162,10 @@ export default function GroupColumn({
               )}
             </div>
           )}
-
-          {!expanded && (
-            <button
-              type="button"
-              onClick={() => onToggleExpand?.()}
-              className="grid size-7 place-items-center text-[#65706A] dark:text-[#B2B9B3]"
-              aria-label="توسيع المجموعة"
-            >
-              <ChevronLeft className="size-4 rtl:rotate-0" />
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Expanded Body (Matches Reference Image 2 Right Screen) */}
+      {/* Expanded Body (Matches Reference Image Left Screen) */}
       {expanded && (
         <div className="divide-y divide-[#E1E5DF]/70 dark:divide-[#303832]/70">
           {members.length === 0 ? (

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Committee;
 
+use App\Domains\Competition\Models\Group;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
@@ -10,6 +11,7 @@ use App\Http\Requests\Committee\AssignTeamToGroupRequest;
 use App\Http\Requests\Committee\SaveDrawRequest;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class TournamentDrawController extends Controller
@@ -109,6 +111,66 @@ class TournamentDrawController extends Controller
         $this->draw->unconfirmDraw($tournament);
 
         return response()->noContent();
+    }
+
+    /**
+     * Rename a group within the tournament.
+     * Preserves group ID, fixtures, team assignments, standings, and results integrity.
+     */
+    public function renameGroup(Request $request, Tournament $tournament, int $groupId): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if ($tournament->isCompleted() || $tournament->isCancelled()) {
+            throw new DomainException('لا يمكن تعديل المجموعات في بطولة مكتملة أو ملغاة');
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:60'],
+        ], [
+            'name.required' => 'اسم المجموعة مطلوب',
+            'name.max' => 'اسم المجموعة لا يمكن أن يتجاوز 60 حرفاً',
+        ]);
+
+        $name = trim($validated['name']);
+        if ($name === '') {
+            throw new DomainException('اسم المجموعة لا يمكن أن يكون فارغاً');
+        }
+
+        /** @var Group $group */
+        $group = Group::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('id', $groupId)
+            ->firstOrFail();
+
+        // Check for duplicate group name in this tournament (excluding this group itself)
+        $exists = Group::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('id', '!=', $groupId)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($name)])
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'message' => 'اسم المجموعة مستخدم بالفعل في هذه البطولة. يرجى اختيار اسم مختلف.',
+                'errors' => [
+                    'name' => ['اسم المجموعة مستخدم بالفعل في هذه البطولة'],
+                ],
+            ], 422);
+        }
+
+        $group->update(['name' => $name]);
+
+        return response()->json([
+            'message' => 'تم تغيير اسم المجموعة بنجاح',
+            'data' => [
+                'id' => $group->id,
+                'name' => $group->name,
+            ],
+            'draw' => $this->draw->currentDraw($tournament),
+        ]);
     }
 
     private function assertEditableDraw(Tournament $tournament): void

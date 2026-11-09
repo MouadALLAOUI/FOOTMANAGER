@@ -908,6 +908,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::delete('/draw', [TournamentDrawController::class, 'destroy']);
                 Route::post('/draw/confirm', [TournamentDrawController::class, 'confirm']);
                 Route::delete('/draw/confirm', [TournamentDrawController::class, 'unconfirm']);
+                Route::put('/draw/groups/{groupId}', [TournamentDrawController::class, 'renameGroup'])->whereNumber('groupId');
             });
 
             Route::get('/fixtures', [TournamentFixtureController::class, 'index']);

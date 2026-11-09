@@ -5,26 +5,29 @@ import {
   ArrowRight,
   BarChart3,
   Calendar,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Edit3,
   Eye,
   FileDown,
+  Info,
   LayoutGrid,
   ListOrdered,
   Lock,
   MessageSquareText,
+  MoreVertical,
   Network,
   Settings2,
   Share2,
   ShieldAlert,
-  SlidersHorizontal,
   Swords,
   Trophy,
   Users,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
-import { Badge, Button, Card, Empty, Modal, SectionTitle, Skeleton, StatusBadge } from '../../../components/dashboard/ui'
+import { Button, Card, Empty, Modal, SectionTitle, Skeleton, StatusBadge } from '../../../components/dashboard/ui'
 import DelegatedSubmissionReviewModal from '../../../domains/committee/components/DelegatedSubmissionReviewModal'
 import QuickShareCard from '../../../components/tournaments/QuickShareCard'
 import OverviewTab from './overviewTab'
@@ -41,53 +44,49 @@ import CommunicationTab from './communicationTab'
 import TournamentExport from './export'
 
 const tabs = [
-  { key: 'overview', icon: Eye, label: 'committee.detail.overview', color: 'emerald', subtext: 'مركز العمليات', iconBg: 'bg-emerald-100 text-emerald-700', activeBg: 'bg-emerald-600 text-white' },
-  { key: 'fixtures', icon: Swords, label: 'committee.detail.fixtures', color: 'rose', iconBg: 'bg-rose-100 text-rose-700', activeBg: 'bg-rose-600 text-white' },
-  { key: 'teams', icon: Users, label: 'committee.detail.teams', color: 'sky', iconBg: 'bg-sky-100 text-sky-700', activeBg: 'bg-sky-600 text-white' },
-  { key: 'standings', icon: Trophy, label: 'committee.detail.standings', color: 'amber', subtext: 'جدول النقاط', iconBg: 'bg-amber-100 text-amber-700', activeBg: 'bg-amber-600 text-white' },
-  { key: 'draw', icon: ListOrdered, label: 'committee.detail.draw', color: 'indigo', subtext: 'قرعة المجموعات', iconBg: 'bg-indigo-100 text-indigo-700', activeBg: 'bg-indigo-600 text-white' },
-  { key: 'bracket', icon: Network, label: 'committee.detail.bracket', color: 'violet', subtext: 'الأدوار الإقصائية', iconBg: 'bg-violet-100 text-violet-700', activeBg: 'bg-violet-600 text-white' },
-  { key: 'statistics', icon: Trophy, label: 'committee.detail.statistics', color: 'teal', subtext: 'الهدافون والبطاقات', iconBg: 'bg-teal-100 text-teal-700', activeBg: 'bg-teal-600 text-white' },
-  { key: 'analytics', icon: BarChart3, label: 'committee.detail.analytics', color: 'cyan', subtext: 'مؤشرات الأداء', iconBg: 'bg-cyan-100 text-cyan-700', activeBg: 'bg-cyan-600 text-white' },
-  { key: 'content', icon: LayoutGrid, label: 'committee.detail.content', color: 'fuchsia', subtext: 'المنشورات والأخبار', iconBg: 'bg-fuchsia-100 text-fuchsia-700', activeBg: 'bg-fuchsia-600 text-white' },
-  { key: 'communication', icon: MessageSquareText, label: 'committee.detail.communication', color: 'blue', subtext: 'إشعارات الفرق', iconBg: 'bg-blue-100 text-blue-700', activeBg: 'bg-blue-600 text-white' },
-  { key: 'settings', icon: Settings2, label: 'committee.detail.settings', color: 'slate', subtext: 'إعدادات البطولة', iconBg: 'bg-slate-100 text-slate-700', activeBg: 'bg-slate-800 text-white' },
+  { key: 'overview', icon: Info, label: 'committee.detail.overview', shortLabel: 'معلومات' },
+  { key: 'draw', icon: Users, label: 'committee.detail.draw', shortLabel: 'المجموعات' },
+  { key: 'fixtures', icon: CalendarDays, label: 'committee.detail.fixtures', shortLabel: 'المباريات' },
+  { key: 'standings', icon: BarChart3, label: 'committee.detail.standings', shortLabel: 'الترتيب' },
+  { key: 'teams', icon: Users, label: 'committee.detail.teams', shortLabel: 'الفرق' },
+  { key: 'bracket', icon: Network, label: 'committee.detail.bracket', shortLabel: 'الأدوار الإقصائية' },
+  { key: 'statistics', icon: Trophy, label: 'committee.detail.statistics', shortLabel: 'الإحصائيات' },
+  { key: 'analytics', icon: BarChart3, label: 'committee.detail.analytics', shortLabel: 'التحليلات' },
+  { key: 'content', icon: LayoutGrid, label: 'committee.detail.content', shortLabel: 'الأخبار' },
+  { key: 'communication', icon: MessageSquareText, label: 'committee.detail.communication', shortLabel: 'التواصل' },
+  { key: 'settings', icon: Settings2, label: 'committee.detail.settings', shortLabel: 'الإعدادات' },
 ]
+
+const STATUS_LABELS_AR = {
+  draft: 'قيد التنظيم',
+  open_for_registration: 'التسجيل مفتوح',
+  registration_closed: 'قيد التنظيم',
+  in_progress: 'جارية الآن',
+  completed: 'مكتملة',
+  cancelled: 'ملغاة',
+}
 
 export default function TournamentDetail() {
   const { t } = useTranslation()
   const { id } = useParams()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const initialTab = searchParams.get('tab')
-  const [active, setActive] = useState(initialTab && tabs.some((t) => t.key === initialTab) ? initialTab : 'overview')
+  const [active, setActive] = useState(initialTab && tabs.some((tb) => tb.key === initialTab) ? initialTab : 'overview')
 
   useEffect(() => {
     const requested = searchParams.get('tab')
-    if (requested && tabs.some((t) => t.key === requested) && requested !== active) {
+    if (requested && tabs.some((tb) => tb.key === requested) && requested !== active) {
       setActive(requested)
     }
   }, [searchParams])
+
   const [refresh, setRefresh] = useState(0)
   const [exportOpen, setExportOpen] = useState(false)
   const [reviewSubmissionFixture, setReviewSubmissionFixture] = useState(null)
   const [pendingPickerOpen, setPendingPickerOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [heroMenuOpen, setHeroMenuOpen] = useState(false)
   const tabsRef = useRef(null)
-
-  const scrollTabs = (direction) => {
-    if (!tabsRef.current) return
-    const scrollAmount = 260
-    tabsRef.current.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth',
-    })
-  }
-
-  const handleWheel = (e) => {
-    if (tabsRef.current && e.deltaY !== 0 && !e.shiftKey) {
-      tabsRef.current.scrollLeft += e.deltaY
-    }
-  }
 
   const { data: tour, loading } = useApi(
     () => api.get(`/committee/tournaments/${id}`).then((r) => r.data.data),
@@ -123,9 +122,9 @@ export default function TournamentDetail() {
   if (loading && !tour) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-24" />
-        <Skeleton className="h-48" />
-        <Skeleton className="h-48" />
+        <Skeleton className="h-44 rounded-3xl" />
+        <Skeleton className="h-16 rounded-2xl" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     )
   }
@@ -136,7 +135,10 @@ export default function TournamentDetail() {
         title={t('committee.detail.notFound')}
         subtitle={t('committee.detail.notFoundDesc')}
         action={
-          <Link to="/committee/tournaments" className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-sm font-bold text-slate-700">
+          <Link
+            to="/committee/tournaments"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-5 text-sm font-bold text-[#111313] dark:text-[#F5F7F2]"
+          >
             <ArrowRight className="size-4 rtl:rotate-180" />
             {t('committee.detail.back')}
           </Link>
@@ -152,6 +154,22 @@ export default function TournamentDetail() {
   const teamsComplete =
     (tour.stats?.registered_teams ?? 0) === (tour.teams_count ?? 0) && (tour.stats?.registered_teams ?? 0) > 0
   const canProceed = ['in_progress', 'completed'].includes(tour.status) || teamsComplete
+  const isLeague = tour.tournament_format === 'league'
+
+  const primaryTabs = [
+    { key: 'overview', icon: Info, label: 'معلومات' },
+    isLeague
+      ? { key: 'teams', icon: Users, label: 'الفرق' }
+      : { key: 'draw', icon: Users, label: 'المجموعات' },
+    { key: 'fixtures', icon: CalendarDays, label: 'المباريات', alert: pendingCount > 0 },
+    { key: 'standings', icon: BarChart3, label: 'الترتيب' },
+  ]
+
+  const secondaryTabs = tabs.filter((tb) => {
+    if (isLeague && (tb.key === 'draw' || tb.key === 'bracket')) return false
+    if (primaryTabs.some((p) => p.key === tb.key)) return false
+    return true
+  })
 
   const renderStep = (key, Component) => {
     if (active !== key) return null
@@ -165,232 +183,265 @@ export default function TournamentDetail() {
             current: tour.stats?.registered_teams ?? 0,
             expected: tour.teams_count ?? 0,
           })}
-          action={<Button size="sm" variant="soft" onClick={() => setActive('teams')}>{t('committee.detail.teams')}</Button>}
+          action={
+            <Button size="sm" onClick={() => setActive('teams')}>
+              {t('committee.detail.teams')}
+            </Button>
+          }
         />
       </Card>
     )
   }
 
+  const statusText = STATUS_LABELS_AR[tour.status] || t(`status.${tour.status}`) || 'قيد التنظيم'
+
   return (
-    <div className="pb-24 sm:pb-8">
-      {/* Tournament Hero Card */}
-      <div className="relative overflow-visible rounded-3xl bg-gradient-to-br from-[#0B1F3A] via-[#0e2746] to-[#071426] p-5 sm:p-6 text-white shadow-lg border border-slate-800/60 mb-4">
-        {/* Decorative lighting & glow */}
-        <div className="absolute inset-0 overflow-hidden rounded-3xl pointer-events-none">
-          <div className="pointer-events-none absolute -start-10 -top-10 h-44 w-44 rounded-full bg-emerald-500/20 blur-3xl" />
-          <div className="pointer-events-none absolute end-0 bottom-0 h-40 w-40 rounded-full bg-[#0F9D58]/15 blur-2xl" />
-          <div className="pointer-events-none absolute end-4 bottom-2 opacity-15">
-            <img src="/icon_trophy.png" alt="" className="size-24 sm:size-28 object-contain" />
-          </div>
-        </div>
-
-        {/* Top Badges & Actions */}
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 text-xs font-black text-emerald-300">
-              <Trophy className="size-3.5 text-emerald-400" />
-              {t(`committee.tournaments.formats.${tour.tournament_format}`) || 'دوري مجموعات'}
-            </span>
-            <StatusBadge status={tour.status} />
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-bold text-slate-200">
-              <Users className="size-3" />
-              {tour.stats?.registered_teams ?? 0} فرق
-            </span>
+    <div className="pb-24 sm:pb-10 space-y-4">
+      {/* Tournament Hero Banner + Anchored Primary 4-Tab Bar */}
+      <div className="overflow-hidden rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-xs">
+        {/* Dark Sport-Premium Hero Section */}
+        <div className="relative overflow-hidden bg-[#101211] p-4 sm:p-6 text-white">
+          {/* Subtle Stadium / Trophy Visual Backdrop */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-t from-[#101211] via-[#101211]/80 to-[#18221B]/60" />
+            <div className="absolute -bottom-8 left-0 right-0 h-20 bg-gradient-to-t from-[#1F9D55]/25 to-transparent" />
+            <div className="absolute start-3 bottom-2 sm:start-6 sm:bottom-3 opacity-90">
+              <img
+                src="/icon_trophy.png"
+                alt=""
+                className="size-20 sm:size-28 object-contain drop-shadow-[0_8px_20px_rgba(0,0,0,0.6)]"
+              />
+            </div>
           </div>
 
-          {/* Actions in Hero */}
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto relative z-10">
-            {/* Pending Delegated Results button */}
-            {pendingCount > 0 && (
-              <button
-                type="button"
-                onClick={handleReviewClick}
-                className="inline-flex min-h-[42px] sm:min-h-[36px] items-center gap-2 rounded-xl border border-white/20 bg-emerald-500 px-3.5 text-xs font-black text-white shadow-md hover:bg-emerald-600 transition-all active:scale-95 animate-pulse cursor-pointer"
-                title="توجد نتائج مباريات مسجلة عبر المندوب بانتظار المراجعة والاعتماد"
-              >
-                <ShieldAlert className="size-3.5 shrink-0 text-white" />
-                <span>مراجعة نتائج المندوب</span>
-                {pendingCount > 1 && (
-                  <span className="rounded-full bg-white px-1.5 py-0.2 text-[10px] font-black text-emerald-800">
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* Quick Share Links */}
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="inline-flex min-h-[42px] sm:min-h-[36px] items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 text-xs font-bold text-white transition-all active:scale-95 cursor-pointer"
-              title="مشاركة الروابط السريعة للبطولة والتسجيل"
-            >
-              <Share2 className="size-4 text-emerald-400" />
-              <span>روابط المشاركة السريعة</span>
-            </button>
-
-            {/* Export / Print */}
-            <button
-              type="button"
-              onClick={() => setExportOpen(true)}
-              className="inline-flex min-h-[42px] sm:min-h-[36px] items-center gap-2 rounded-xl bg-[#0F9D58] hover:bg-[#0c874b] px-3.5 text-xs font-bold text-white shadow-sm transition-all active:scale-95 cursor-pointer"
-            >
-              <FileDown className="size-4" />
-              <span>{t('committee.export.openButton') || 'تصدير / طباعة'}</span>
-            </button>
-
-            {/* Back to tournaments list */}
+          {/* Top Bar: Back Button + Edit / Actions */}
+          <div className="relative z-10 flex items-center justify-between gap-2 mb-3">
             <Link
               to="/committee/tournaments"
-              className="inline-flex min-h-[42px] sm:min-h-[36px] items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 px-3.5 text-xs font-bold text-white transition-all active:scale-95"
+              className="inline-flex size-9 sm:h-9 sm:w-auto sm:px-3 items-center justify-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white transition active:scale-95"
+              title={t('committee.detail.back') || 'عودة للقائمة'}
             >
-              <ArrowRight className="size-4 rtl:rotate-180" />
-              <span>{t('committee.detail.back') || 'عودة للقائمة'}</span>
+              <ArrowRight className="size-4 rtl:rotate-0" />
+              <span className="hidden sm:inline">{t('committee.detail.back') || 'عودة للقائمة'}</span>
             </Link>
-          </div>
-        </div>
 
-        {/* Title & Subtitle */}
-        <div className="relative z-10">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white font-heading">
-            {tour.name}
-          </h1>
-          <p className="mt-1.5 text-xs sm:text-sm text-slate-300 font-medium flex items-center gap-2 flex-wrap">
-            {tour.edition && <span className="font-bold text-emerald-400">{tour.edition}</span>}
-            {tour.category && <span>• {tour.category}</span>}
-            {tour.start_date && (
-              <span className="inline-flex items-center gap-1 text-slate-300">
-                • <Calendar className="size-3.5 text-slate-400 inline" />
-                {tour.start_date} {tour.end_date ? `إلى ${tour.end_date}` : ''}
-              </span>
-            )}
-          </p>
-        </div>
+            <div className="flex items-center gap-1.5">
+              {pendingCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleReviewClick}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#B8F000] px-3 text-xs font-black text-[#111313] shadow-xs transition active:scale-95 cursor-pointer"
+                >
+                  <ShieldAlert className="size-3.5 shrink-0" />
+                  <span>مراجعة النتائج ({pendingCount})</span>
+                </button>
+              )}
 
-        {/* Notice for Draft Status on Mobile / Desktop */}
-        {tour.status === 'draft' && (
-          <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-500/20 border border-amber-400/40 p-3 text-xs text-amber-200">
-            <div className="flex items-center gap-2">
-              <span className="grid size-6 place-items-center rounded-lg bg-amber-500 text-slate-900 font-bold shrink-0">!</span>
-              <span>هذه البطولة ما زالت في مرحلة المسودة، انشرها لفتح باب التسجيل للعامة والفرق.</span>
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="inline-flex size-9 sm:w-auto sm:px-3 items-center justify-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white transition active:scale-95 cursor-pointer"
+                title="روابط المشاركة السريعة"
+              >
+                <Share2 className="size-4 text-[#B8F000]" />
+                <span className="hidden md:inline">مشاركة</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setExportOpen(true)}
+                className="inline-flex size-9 sm:w-auto sm:px-3 items-center justify-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold text-white transition active:scale-95 cursor-pointer"
+                title={t('committee.export.openButton') || 'تصدير / طباعة'}
+              >
+                <FileDown className="size-4 text-[#B8F000]" />
+                <span className="hidden md:inline">تصدير</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActive('settings')}
+                className="inline-flex size-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition active:scale-95 cursor-pointer"
+                title="إعدادات البطولة"
+              >
+                <Edit3 className="size-4" />
+              </button>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setHeroMenuOpen((v) => !v)}
+                  className="inline-flex size-9 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white transition active:scale-95 cursor-pointer"
+                  aria-label="المزيد من الخيارات"
+                >
+                  <MoreVertical className="size-4" />
+                </button>
+                {heroMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setHeroMenuOpen(false)} />
+                    <div className="absolute end-0 top-11 z-40 w-48 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1.5 shadow-xl text-[#111313] dark:text-[#F5F7F2]">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeroMenuOpen(false)
+                          setShareOpen(true)
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] text-start"
+                      >
+                        <Share2 className="size-3.5 text-[#1F9D55] dark:text-[#D0FF38]" />
+                        <span>روابط المشاركة</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHeroMenuOpen(false)
+                          setExportOpen(true)
+                        }}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] text-start"
+                      >
+                        <FileDown className="size-3.5 text-[#1F9D55] dark:text-[#D0FF38]" />
+                        <span>تصدير / طباعة</span>
+                      </button>
+                      <Link
+                        to={`/tournaments/${tour.id}`}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] text-start"
+                      >
+                        <Eye className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
+                        <span>عرض صفحة الجمهور</span>
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-            <Link
-              to={`/committee/tournaments/wizard?id=${tour.id}`}
-              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 px-3.5 py-1 font-black text-xs transition-colors shadow-sm"
-            >
-              <span>متابعة خطوات النشر</span>
-              <ArrowRight className="size-3.5 rtl:rotate-180" />
-            </Link>
           </div>
-        )}
-      </div>
 
-      {/* Prominent Athletic Navigation Bar with Scrolling Arrows */}
-      <div className="mb-6 rounded-3xl bg-slate-100/70 p-2 sm:p-2.5 border border-slate-200/70 shadow-xs">
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Scroll Right Arrow */}
-          <button
-            type="button"
-            onClick={() => scrollTabs('right')}
-            className="flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-2xs text-slate-700 hover:text-emerald-600 hover:bg-emerald-50/50 hover:border-emerald-300 transition-all active:scale-95"
-            aria-label="تمرير لليمين"
-            title="تمرير لليمين"
-          >
-            <ChevronRight className="size-5" />
-          </button>
+          {/* Hero Content Aligned to Start (Right in RTL) with Trophy on End (Left in RTL) */}
+          <div className="relative z-10 flex flex-col items-start pe-24 sm:pe-32">
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <span className="inline-flex items-center rounded-full bg-[#B8F000] px-3 py-0.5 text-[11px] font-black text-[#111313]">
+                {statusText}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-bold text-white/85">
+                {t(`committee.tournaments.formats.${tour.tournament_format}`) || 'دوري مجموعات'}
+              </span>
+            </div>
 
-          {/* Scrollable Tabs Track */}
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white leading-tight">
+              {tour.name}
+            </h1>
+
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-bold text-white/80">
+              <span className="inline-flex items-center gap-1">
+                <Users className="size-3.5 text-[#B8F000]" />
+                <span>{tour.stats?.registered_teams ?? 0} فريقاً</span>
+              </span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1">
+                <span>إدارة البطولة</span>
+              </span>
+              {tour.start_date && (
+                <>
+                  <span>•</span>
+                  <span className="inline-flex items-center gap-1 text-white/75">
+                    <Calendar className="size-3.5 text-[#B8F000]" />
+                    <span>
+                      {tour.start_date} {tour.end_date ? `– ${tour.end_date}` : ''}
+                    </span>
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Draft Notice Banner */}
+          {tour.status === 'draft' && (
+            <div className="relative z-10 mt-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-white/10 backdrop-blur-xs border border-white/15 px-3.5 py-2.5 text-xs text-white">
+              <div className="flex items-center gap-2">
+                <span className="grid size-5 place-items-center rounded-full bg-[#B8F000] text-[#111313] font-black shrink-0 text-[11px]">
+                  !
+                </span>
+                <span className="font-semibold">البطولة في وضع المسودة — افتح باب التسجيل أو تابع الإعدادات.</span>
+              </div>
+              <Link
+                to={`/committee/tournaments/wizard?id=${tour.id}`}
+                className="inline-flex h-8 items-center gap-1 rounded-xl bg-[#B8F000] hover:bg-[#a6d900] text-[#111313] px-3 font-black text-xs transition"
+              >
+                <span>معالج الإعداد</span>
+                <ArrowRight className="size-3.5 rtl:rotate-180" />
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Primary 4-Segment Navigation Bar (Matches Reference Images 1 & 2) */}
+        <div className="p-2 sm:p-2.5 bg-white dark:bg-[#1B201D]">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
+            {primaryTabs.map(({ key, icon: Icon, label, alert }) => {
+              const locked = gatedTabs.includes(key) && !canProceed
+              const isCurrent = active === key
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={locked}
+                  onClick={() => setActive(key)}
+                  className={`relative flex flex-col items-center justify-center gap-1 rounded-2xl py-2.5 px-2 transition-all active:scale-95 cursor-pointer ${
+                    isCurrent
+                      ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] font-black shadow-xs'
+                      : locked
+                        ? 'bg-[#F7F8F5] dark:bg-[#252B27]/50 text-[#65706A]/50 dark:text-[#B2B9B3]/40 cursor-not-allowed'
+                        : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#303832] font-bold'
+                  }`}
+                >
+                  <div className="relative flex items-center justify-center">
+                    <Icon className="size-5 stroke-[2.2]" />
+                    {locked && <Lock className="size-3 ms-1 opacity-60" />}
+                    {alert && (
+                      <span className="absolute -top-1 -end-2 flex size-3.5 items-center justify-center rounded-full bg-[#D92D20] text-[9px] font-black text-white">
+                        !
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs sm:text-sm leading-tight truncate max-w-full">{label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Secondary Operational Tools Bar (Teams, Knockout, Stats, Content, Settings...) */}
           <div
             ref={tabsRef}
-            onWheel={handleWheel}
-            className="flex flex-1 items-center gap-2 sm:gap-2.5 overflow-x-auto no-scrollbar scroll-smooth py-0.5 px-0.5"
+            className="mt-2 pt-2 border-t border-[#E1E5DF]/70 dark:border-[#303832]/70 flex items-center gap-1.5 overflow-x-auto no-scrollbar"
           >
-            {tabs
-              .filter((tab) => {
-                if (tour.tournament_format === 'league') {
-                  return tab.key !== 'draw' && tab.key !== 'bracket'
-                }
-                return true
-              })
-              .map(({ key, icon: Icon, label, subtext, iconBg, activeBg }) => {
-                const locked = gatedTabs.includes(key) && !canProceed
-                const isCurrent = active === key
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    disabled={locked}
-                    onClick={() => setActive(key)}
-                    className={`group relative flex shrink-0 items-center gap-2.5 sm:gap-3 rounded-2xl p-2 pe-4 sm:p-2.5 sm:pe-5 transition-all active:scale-95 text-start ${
-                      isCurrent
-                        ? 'bg-white border-2 border-emerald-600 shadow-md ring-2 ring-emerald-500/20'
-                        : locked
-                          ? 'cursor-not-allowed bg-slate-50/60 border border-slate-200/50 opacity-40 text-slate-400'
-                          : 'bg-white border border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/80 shadow-2xs text-slate-800'
-                    }`}
-                  >
-                    {/* Prominent Athletic Icon Pill */}
-                    <div
-                      className={`relative flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-xl transition-all shadow-2xs ${
-                        isCurrent ? activeBg : iconBg
-                      }`}
-                    >
-                      <Icon className="size-5 sm:size-5.5" />
-                      {/* Pending review alert dot on icon */}
-                      {key === 'fixtures' && pendingCount > 0 && (
-                        <span className="absolute -top-1 -end-1 flex size-4 items-center justify-center rounded-full bg-rose-600 text-[10px] font-black text-white ring-2 ring-white animate-pulse">
-                          !
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Label & Dynamic Stats Subtext */}
-                    <div className="flex flex-col items-start min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`text-xs sm:text-sm font-black tracking-tight whitespace-nowrap ${
-                            isCurrent ? 'text-slate-900' : 'text-slate-700 group-hover:text-slate-900'
-                          }`}
-                        >
-                          {t(label)}
-                        </span>
-                        {locked && <Lock className="size-3 text-slate-400 shrink-0" />}
-                      </div>
-
-                      {/* Numerical Badge under label or context subtext */}
-                      {key === 'fixtures' && (tour.stats?.fixtures ?? 0) > 0 ? (
-                        <span className="text-[11px] font-black font-mono text-rose-600 tabular-nums">
-                          {tour.stats.fixtures} مباراة
-                        </span>
-                      ) : key === 'teams' && (tour.stats?.registered_teams ?? 0) > 0 ? (
-                        <span className="text-[11px] font-black font-mono text-sky-600 tabular-nums">
-                          {tour.stats.registered_teams} فرق
-                        </span>
-                      ) : subtext ? (
-                        <span
-                          className={`text-[10px] font-semibold truncate max-w-[90px] sm:max-w-none ${
-                            isCurrent ? 'text-emerald-700' : 'text-slate-400'
-                          }`}
-                        >
-                          {subtext}
-                        </span>
-                      ) : null}
-                    </div>
-                  </button>
-                )
-              })}
+            {secondaryTabs.map(({ key, icon: Icon, shortLabel }) => {
+              const locked = gatedTabs.includes(key) && !canProceed
+              const isCurrent = active === key
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={locked}
+                  onClick={() => setActive(key)}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs transition-all active:scale-95 cursor-pointer ${
+                    isCurrent
+                      ? 'bg-[#111313] dark:bg-[#D0FF38] text-white dark:text-[#111313] font-black'
+                      : locked
+                        ? 'opacity-45 cursor-not-allowed text-[#65706A] dark:text-[#B2B9B3]'
+                        : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2] font-bold'
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  <span>{shortLabel}</span>
+                  {key === 'teams' && (tour.stats?.registered_teams ?? 0) > 0 && (
+                    <span className="rounded-md bg-black/10 dark:bg-white/10 px-1.5 py-0.2 text-[10px] font-mono">
+                      {tour.stats.registered_teams}
+                    </span>
+                  )}
+                  {locked && <Lock className="size-3 opacity-60" />}
+                </button>
+              )
+            })}
           </div>
-
-          {/* Scroll Left Arrow */}
-          <button
-            type="button"
-            onClick={() => scrollTabs('left')}
-            className="flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-xl bg-white border border-slate-200/90 shadow-2xs text-slate-700 hover:text-emerald-600 hover:bg-emerald-50/50 hover:border-emerald-300 transition-all active:scale-95"
-            aria-label="تمرير لليسار"
-            title="تمرير لليسار"
-          >
-            <ChevronLeft className="size-5" />
-          </button>
         </div>
       </div>
 
@@ -416,7 +467,7 @@ export default function TournamentDetail() {
           size="md"
         >
           <div className="space-y-3 py-1" dir="rtl">
-            <p className="text-xs font-bold text-slate-500">
+            <p className="text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">
               اختر المباراة التي ترغب في مراجعة نتيجتها واعتمادها:
             </p>
             <div className="space-y-2 max-h-72 overflow-y-auto pe-1">
@@ -430,27 +481,27 @@ export default function TournamentDetail() {
                       setPendingPickerOpen(false)
                       setReviewSubmissionFixture(fix)
                     }}
-                    className="w-full flex items-center justify-between p-3 rounded-2xl border border-slate-200/80 bg-white hover:bg-slate-50 hover:border-emerald-300 transition-all text-start group shadow-2xs"
+                    className="w-full flex items-center justify-between p-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] transition-all text-start group shadow-2xs"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 font-black text-xs text-slate-900">
+                      <div className="flex items-center gap-2 font-black text-xs text-[#111313] dark:text-[#F5F7F2]">
                         <span>{fix.home_team?.name || 'المضيف'}</span>
-                        <span className="rounded-md bg-slate-900 text-white px-2 py-0.5 text-xs tabular-nums font-mono">
+                        <span className="rounded-md bg-[#111313] dark:bg-[#252B27] text-white px-2 py-0.5 text-xs tabular-nums font-mono">
                           {sub?.home_score ?? 0} - {sub?.away_score ?? 0}
                         </span>
                         <span>{fix.away_team?.name || 'الضيف'}</span>
                       </div>
-                      <p className="text-[11px] font-semibold text-slate-400 mt-1">
-                        مسجلة بواسطة: <span className="text-slate-700 font-bold">{sub?.recorder_name || 'مندوب المباراة'}</span>
+                      <p className="text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3] mt-1">
+                        مسجلة بواسطة: <span className="text-[#111313] dark:text-[#F5F7F2] font-bold">{sub?.recorder_name || 'مندوب المباراة'}</span>
                         {sub?.anomalies?.length > 0 && (
-                          <span className="ms-2 text-rose-600 font-bold">⚠️ تنبيهات</span>
+                          <span className="ms-2 text-[#D92D20] font-bold">⚠️ تنبيهات</span>
                         )}
                         {sub?.is_disputed && (
-                          <span className="ms-2 text-amber-600 font-bold">🛡️ متنازع عليها</span>
+                          <span className="ms-2 text-[#D97706] font-bold">🛡️ متنازع عليها</span>
                         )}
                       </p>
                     </div>
-                    <ArrowRight className="size-4 text-slate-300 group-hover:text-emerald-600 rtl:rotate-180 transition-colors" />
+                    <ArrowRight className="size-4 text-[#65706A] group-hover:text-[#1F9D55] dark:group-hover:text-[#D0FF38] rtl:rotate-180 transition-colors" />
                   </button>
                 )
               })}
@@ -475,7 +526,7 @@ export default function TournamentDetail() {
           }}
         />
       )}
-      {/* Quick Share Modal */}
+
       {shareOpen && (
         <Modal
           open={shareOpen}

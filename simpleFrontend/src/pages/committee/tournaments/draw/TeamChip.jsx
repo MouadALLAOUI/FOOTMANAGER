@@ -1,19 +1,21 @@
 import { GripVertical } from 'lucide-react'
 import { TeamAvatar } from '../../../tournaments/shared'
-import { chipClass } from './drawLogic'
 
-export default function TeamChip({ team, busy, showGrip, onDragStart, onDragOver, onDrop }) {
+export default function TeamChip({ entry, onDragStart, locked, onClick }) {
   return (
     <div
-      draggable={showGrip && !busy}
+      draggable={!locked}
       onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDrop={onDrop}
-      className={chipClass(busy)}
+      onClick={onClick}
+      className={`flex items-center gap-2.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3 py-2 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] shadow-2xs transition ${
+        locked
+          ? 'cursor-default opacity-80'
+          : 'cursor-grab hover:border-[#B8F000] dark:hover:border-[#D0FF38] active:cursor-grabbing'
+      }`}
     >
-      <TeamAvatar team={team} className="size-7" />
-      <span className="truncate text-xs font-bold text-slate-700">{team?.name || '-'}</span>
-      {showGrip && <GripVertical className="ms-auto size-4 shrink-0 text-slate-300" />}
+      {!locked && <GripVertical className="size-3.5 shrink-0 text-[#65706A] dark:text-[#B2B9B3]" />}
+      <TeamAvatar team={entry.team} className="size-6" />
+      <span className="truncate">{entry.team?.name}</span>
     </div>
   )
 }

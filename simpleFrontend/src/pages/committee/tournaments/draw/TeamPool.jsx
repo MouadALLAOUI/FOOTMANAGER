@@ -1,39 +1,45 @@
-import { useTranslation } from 'react-i18next'
-import { Badge } from '../../../../components/dashboard/ui'
+import { CheckCircle2, Users } from 'lucide-react'
 import TeamChip from './TeamChip'
 
-export default function TeamPool({ pool, canEdit, busy, over, onDragStart, onDragOverPool, onDragLeavePool, onDropPool }) {
-  const { t } = useTranslation()
-
+export default function TeamPool({ title, hint, allDrawnText, entries, onDragStart, onDrop, locked, onSelectTeam }) {
   return (
     <div
-      className={`max-h-[50vh] overflow-y-auto no-scrollbar rounded-3xl border p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)] transition-colors lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] ${
-        over?.type === 'pool' ? 'border-green-400 bg-green-50/60' : 'border-slate-200/70 bg-white'
-      }`}
-      onDragOver={onDragOverPool}
-      onDragLeave={onDragLeavePool}
-      onDrop={onDropPool}
+      onDragOver={(e) => !locked && e.preventDefault()}
+      onDrop={onDrop}
+      className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4"
     >
-      <div className="flex items-center justify-between gap-3">
-        <h4 className="text-sm font-extrabold text-slate-900">{t('committee.detail.unassigned')}</h4>
-        <Badge variant="info">{pool.length}</Badge>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="grid size-8 place-items-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38]">
+            <Users className="size-4" />
+          </span>
+          <div>
+            <p className="text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{title}</p>
+            <p className="text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3]">{hint}</p>
+          </div>
+        </div>
+        <span className="rounded-full bg-[#B8F000]/25 dark:bg-[#D0FF38]/15 px-2.5 py-0.5 text-xs font-black text-[#111313] dark:text-[#D0FF38]">
+          {entries.length}
+        </span>
       </div>
-      <div className="mt-3 space-y-2">
-        {pool.map((p) => (
-          <TeamChip
-            key={p.id}
-            team={p.team}
-            showGrip={canEdit}
-            busy={busy}
-            onDragStart={(e) => onDragStart(e, p)}
-          />
-        ))}
-        {pool.length === 0 && (
-          <p className="rounded-xl bg-slate-50 px-3 py-5 text-center text-[11px] font-semibold text-slate-400">
-            {t('committee.detail.allDrawn')}
-          </p>
-        )}
-      </div>
+      {entries.length === 0 ? (
+        <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#1F9D55]/40 bg-[#1F9D55]/10 py-5 text-xs font-bold text-[#1F9D55] dark:text-[#30D158]">
+          <CheckCircle2 className="size-4" />
+          {allDrawnText}
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {entries.map((entry) => (
+            <TeamChip
+              key={entry.team.id}
+              entry={entry}
+              onDragStart={onDragStart(entry.team.id)}
+              locked={locked}
+              onClick={() => !locked && onSelectTeam?.(entry)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

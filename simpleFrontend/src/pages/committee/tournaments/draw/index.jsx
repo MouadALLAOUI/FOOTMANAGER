@@ -1,26 +1,41 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, CheckCircle2, Lock, RefreshCw, RotateCcw, Undo2, Unlock, Users } from 'lucide-react'
+import {
+  Check,
+  CheckCircle2,
+  Dices,
+  Edit3,
+  Layers,
+  Lock,
+  Plus,
+  Save,
+  Shuffle,
+  Sparkles,
+  Unlock,
+  Users,
+} from 'lucide-react'
 import api from '../../../../api/client'
 import { useApi } from '../../../../hooks/useApi'
 import { Badge, Button, Card, Empty, Modal, Skeleton } from '../../../../components/dashboard/ui'
+import { TeamAvatar } from '../../../tournaments/shared'
 import { useToast } from '../../../../components/ui/Toast'
 import { toastApiError } from '../../../../lib/errors'
-import { commitMove, deriveDisplayGroups, isNewGroup, membersOf } from './drawLogic'
-import TeamPool from './TeamPool'
+import { commitMove, deriveDisplayGroups, isNewGroup, membersOf, nextGroupLabel } from './drawLogic'
 import GroupColumn from './GroupColumn'
-import { TeamAvatar } from '../../../tournaments/shared'
+import TeamPool from './TeamPool'
 
-export default function DrawBoard({ tournament, refresh, refreshKey }) {
+export default function DrawBoard({ tournament, refresh, refreshKey, setActive }) {
   const { t } = useTranslation()
   const { toast } = useToast()
   const [busy, setBusy] = useState(null)
   const [drag, setDrag] = useState(null)
-  const [over, setOver] = useState(null)
   const [local, setLocal] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [wideGroups, setWideGroups] = useState(null)
+  const [orgMode, setOrgMode] = useState('smart') // 'smart' | 'manual'
+  const [expandedGroups, setExpandedGroups] = useState({})
+  const [editingGroup, setEditingGroup] = useState(null)
   const seqRef = useRef(0)
 
   const { data: serverTeams, loading } = useApi(
@@ -35,76 +50,156 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
 
   useEffect(() => {
     if (serverGroups) {
-      setWideGroups(serverGroups.map((g) => ({ id: g.group_id, name: g.name })))
+      const mapped = serverGroups.map((g) => ({ id: g.group_id, name: g.name }))
+      setWideGroups(mapped)
+      if (mapped.length > 0) {
+        setExpandedGroups((prev) => (Object.keys(prev).length > 0 ? prev : { [mapped[0].id]: true }))
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverGroups])
+
+  useEffect(() => {
+    setLocal(null)
+    setDirty(false)
+  }, [serverTeams])
 
   const teams = local || serverTeams || []
   const pool = teams.filter((p) => !p.group)
   const total = teams.length
   const assigned = total - pool.length
+
   const drawPayload = () =>
     teams.map((p) => ({
       team_id: p.team?.id,
       group_id: p.group?.id ?? null,
       group_position: p.group_position ?? null,
     }))
-  const newGroupPayload = () =>
-    (wideGroups || []).filter(isNewGroup).map((g) => ({ key: g.id }))
+
+  const newGroupPayload = () => (wideGroups || []).filter(isNewGroup).map((g) => ({ key: g.id }))
+
   const hasFixtures = (tournament.stats?.fixtures ?? 0) > 0
-  const confirmed = Boolean(tournament.draw_confirmed_at)
-  const editableStatus = tournament.settings_editable ?? ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
+  const confirmed = Boolean(tournament.draw_confirmed_at || tournament.draw_confirmed)
+  const editableStatus =
+    tournament.settings_editable ?? ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
   const canEdit = editableStatus && !confirmed
   const canUnlock = editableStatus && confirmed
   const freeMode = tournament.group_mode === 'free'
-  const cap = freeMode ? Infinity : (tournament.teams_per_group || Infinity)
+  const cap = freeMode ? null : tournament.teams_per_group || 4
 
   const baseGroups = (serverGroups || []).map((g) => ({ id: g.group_id, name: g.name }))
   const currentGroups = wideGroups || baseGroups
-  const displayGroups = useMemo(
-    () => deriveDisplayGroups(teams, currentGroups, seqRef),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [teams, currentGroups],
-  )
+  const displayGroups = useMemo(() => {
+    if (freeMode) return deriveDisplayGroups(teams, currentGroups, seqRef)
+    return currentGroups
+  }, [teams, currentGroups, freeMode])
+
   const allDrawn = total > 0 && assigned === total
 
-  const handleDragStart = (e, pivot) => {
-    if (!canEdit || busy) {
-      e.preventDefault()
-      return
-    }
-    setDrag({
-      pivotId: pivot.id,
-      teamId: pivot.team?.id,
-      fromGroupId: pivot.group?.id ?? null,
-      fromPosition: pivot.group_position ?? null,
-    })
-    e.dataTransfer.effectAllowed = 'move'
-    try {
-      e.dataTransfer.setData('text/plain', String(pivot.id))
-    } catch {
-      /* ignore */
-    }
+  const toggleGroupExpand = (gid) => {
+    setExpandedGroups((prev) => ({ ...prev, [gid]: !prev[gid] }))
   }
 
-  const handleDrop = (e, target) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setOver(null)
-    const d = drag
-    setDrag(null)
-    if (!d || !canEdit || busy) return
-    if (target.type === 'pool' && d.fromGroupId === null) return
-    if (target.type === 'group' && d.fromGroupId === target.id && (target.position == null || target.position === d.fromPosition)) return
-
-    const result = commitMove(teams, d.pivotId, target, { groups: currentGroups, mode: tournament.group_mode, cap })
+  const movePivotToTarget = (pivotId, target) => {
+    if (!canEdit || busy) return
+    const result = commitMove(teams, pivotId, target, {
+      groups: displayGroups,
+      mode: tournament.group_mode,
+      cap: cap ?? Infinity,
+    })
     setLocal(result.teams)
-    setWideGroups(deriveDisplayGroups(result.teams, currentGroups, seqRef))
+    if (freeMode) {
+      setWideGroups(deriveDisplayGroups(result.teams, displayGroups, seqRef))
+    }
     setDirty(true)
     if (result.redirectedTo) {
       toast.info(t('committee.detail.groupFullRedirect', { group: result.redirectedTo }))
     }
+  }
+
+  const moveTeamByTeamId = (teamId, targetGroupObj) => {
+    const pivot = teams.find((p) => p.team?.id === teamId)
+    if (!pivot) return
+    if (!targetGroupObj) {
+      movePivotToTarget(pivot.id, { type: 'pool' })
+    } else {
+      movePivotToTarget(pivot.id, { type: 'group', id: targetGroupObj.id })
+    }
+  }
+
+  const toggleTeamInGroupModal = (pivot, groupObj) => {
+    if (!canEdit || busy) return
+    if (pivot.group?.id === groupObj.id) {
+      movePivotToTarget(pivot.id, { type: 'pool' })
+    } else {
+      movePivotToTarget(pivot.id, { type: 'group', id: groupObj.id })
+    }
+  }
+
+  const addGroup = () => {
+    if (!canEdit || busy) return
+    seqRef.current += 1
+    const newId = `__new__${seqRef.current}`
+    const newName = nextGroupLabel(displayGroups)
+    const nextGroups = [...displayGroups, { id: newId, name: newName, isNew: true }]
+    setWideGroups(nextGroups)
+    setExpandedGroups((prev) => ({ ...prev, [newId]: true }))
+    setDirty(true)
+  }
+
+  const emptyOrDeleteGroup = (groupObj) => {
+    if (!canEdit || busy) return
+    const members = membersOf(teams, groupObj.id)
+    if (members.length > 0 && !window.confirm(`هل تريد تفريغ الفرق من المجموعة ${groupObj.name}؟`)) return
+    const nextTeams = teams.map((p) =>
+      p.group?.id === groupObj.id ? { ...p, group: null, group_position: null } : p,
+    )
+    setLocal(nextTeams)
+    if (isNewGroup(groupObj)) {
+      setWideGroups((prev) => (prev || []).filter((g) => g.id !== groupObj.id))
+    }
+    setDirty(true)
+  }
+
+  const onDragStart = (teamId) => (e) => {
+    if (!canEdit || busy) {
+      e.preventDefault()
+      return
+    }
+    const pivot = teams.find((p) => p.team?.id === teamId)
+    if (!pivot) return
+    setDrag({
+      pivotId: pivot.id,
+      teamId: pivot.team?.id,
+      fromGroupId: pivot.group?.id ?? null,
+    })
+    e.dataTransfer.effectAllowed = 'move'
+    try {
+      e.dataTransfer.setData('text/plain', String(teamId))
+    } catch {}
+  }
+
+  const onDropGroup = (groupObj) => (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const rawId = Number(e.dataTransfer.getData('text/plain'))
+    const pivot = drag?.pivotId
+      ? teams.find((p) => p.id === drag.pivotId)
+      : teams.find((p) => p.team?.id === rawId)
+    setDrag(null)
+    if (!pivot) return
+    movePivotToTarget(pivot.id, { type: 'group', id: groupObj.id })
+  }
+
+  const onDropPool = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const rawId = Number(e.dataTransfer.getData('text/plain'))
+    const pivot = drag?.pivotId
+      ? teams.find((p) => p.id === drag.pivotId)
+      : teams.find((p) => p.team?.id === rawId)
+    setDrag(null)
+    if (!pivot) return
+    movePivotToTarget(pivot.id, { type: 'pool' })
   }
 
   const save = async () => {
@@ -115,27 +210,24 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
         groups: newGroupPayload(),
       })
       setDirty(false)
-      toast.success(t('committee.detail.drawSaved'))
+      toast.success(t('committee.detail.drawSaved') || 'تم حفظ توزيع المجموعات بنجاح')
       refresh()
+      return true
     } catch (e) {
       toastApiError(e, t)
+      return false
     } finally {
       setBusy(null)
     }
-  }
-
-  const discard = () => {
-    setLocal(serverTeams)
-    setWideGroups(baseGroups)
-    setDirty(false)
   }
 
   const autoDraw = async () => {
     setBusy('draw')
     try {
       await api.post(`/committee/tournaments/${tournament.id}/draw`)
+      setLocal(null)
       setDirty(false)
-      toast.success(t('committee.detail.drawDone'))
+      toast.success(t('committee.detail.drawComplete') || 'تم التوزيع العشوائي بنجاح')
       refresh()
     } catch (e) {
       toastApiError(e, t)
@@ -144,7 +236,21 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
     }
   }
 
-  const confirmDraw = async () => {
+  const unassignAll = () => {
+    if (!canEdit || busy) return
+    const next = teams.map((p) => ({ ...p, group: null, group_position: null }))
+    setLocal(next)
+    if (freeMode) {
+      setWideGroups(deriveDisplayGroups(next, currentGroups, seqRef))
+    }
+    setDirty(true)
+  }
+
+  const confirmAndProceed = async () => {
+    if (confirmed) {
+      setActive?.('fixtures')
+      return
+    }
     setBusy('confirm')
     try {
       if (dirty) {
@@ -156,8 +262,9 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
       }
       await api.post(`/committee/tournaments/${tournament.id}/draw/confirm`)
       setPreviewOpen(false)
-      toast.success(t('committee.detail.drawConfirmed'))
+      toast.success(t('committee.detail.drawConfirmed') || 'تم اعتماد المجموعات بنجاح')
       refresh()
+      setActive?.('fixtures')
     } catch (e) {
       toastApiError(e, t)
     } finally {
@@ -166,11 +273,11 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
   }
 
   const unlockDraw = async () => {
-    if (!window.confirm(t('committee.detail.unlockDrawConfirm'))) return
+    if (hasFixtures && !window.confirm(t('committee.detail.unlockDrawDeleteFixturesConfirm'))) return
     setBusy('unlock')
     try {
       await api.delete(`/committee/tournaments/${tournament.id}/draw/confirm`)
-      toast.success(t('committee.detail.drawUnlocked'))
+      toast.success(t('committee.detail.drawUnlocked') || 'تم إلغاء الاعتماد لتمكين التعديل')
       refresh()
     } catch (e) {
       toastApiError(e, t)
@@ -179,130 +286,344 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
     }
   }
 
-  const unassignAll = () => {
-    if (!window.confirm(t('committee.detail.unassignAllConfirm'))) return
-    const next = teams.map((p) => ({ ...p, group: null, group_position: null }))
-    setLocal(next)
-    setWideGroups(deriveDisplayGroups(next, currentGroups, seqRef))
-    setDirty(true)
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-20 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+      </div>
+    )
   }
 
+  if (total === 0) {
+    return (
+      <Card title={t('committee.detail.draw')}>
+        <Empty
+          icon={Users}
+          title={t('committee.detail.noTeamsToDraw')}
+          description={t('committee.detail.noTeamsToDrawDesc')}
+        />
+      </Card>
+    )
+  }
+
+  const editingGroupMembers = editingGroup ? membersOf(teams, editingGroup.id) : []
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs font-bold text-slate-500">
-          {t('committee.detail.drawStatus', { drawn: assigned, total })}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {confirmed ? (
-            canUnlock ? (
-              <Button size="sm" variant="outline" loading={busy === 'unlock'} onClick={unlockDraw}>
-                <Unlock className="size-4" />
-                {t('committee.detail.unlockDraw')}
-              </Button>
-            ) : null
-          ) : canEdit ? (
-            <>
-              {dirty && (
-                <>
-                  <Button size="sm" variant="outline" loading={busy === 'discard'} onClick={discard}>
-                    <Undo2 className="size-4" />
-                    {t('committee.detail.discardChanges')}
-                  </Button>
-                  <Button size="sm" loading={busy === 'save'} onClick={save}>
-                    <Check className="size-4" />
-                    {t('committee.detail.saveDraw')}
-                  </Button>
-                </>
-              )}
-              {!dirty && (
-                <Button size="sm" loading={busy === 'draw'} onClick={autoDraw} disabled={total === 0}>
-                  <RefreshCw className="size-4" />
-                  {t('committee.detail.autoDraw')}
-                </Button>
-              )}
-              {assigned > 0 && (
-                <Button size="sm" variant="outline" disabled={busy !== null} onClick={unassignAll}>
-                  <RotateCcw className="size-4" />
-                  {t('committee.detail.unassignAll')}
-                </Button>
-              )}
-              {allDrawn && (
-                <Button size="sm" loading={busy === 'confirm'} onClick={() => setPreviewOpen(true)}>
-                  <CheckCircle2 className="size-4" />
-                  {t('committee.detail.confirmDraw')}
-                </Button>
-              )}
-            </>
-          ) : null}
+    <div className="space-y-4 pb-8">
+      {/* B. Compact 3-Column Summary Card (Matches Reference Image 2) */}
+      <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3.5 sm:p-4 shadow-2xs">
+        <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] text-center">
+          <div className="flex flex-col items-center justify-center px-2">
+            <span className="text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+              عدد المجموعات
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Layers className="size-4 text-[#111313] dark:text-[#D0FF38]" />
+              <span className="text-lg sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
+                {displayGroups.length}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-center px-2">
+            <span className="text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+              عدد الفرق
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Users className="size-4 text-[#111313] dark:text-[#D0FF38]" />
+              <span className="text-lg sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
+                {total}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center justify-center px-2">
+            <span className="text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+              حالة المجموعات
+            </span>
+            {allDrawn && total > 0 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#1F9D55]/15 dark:bg-[#30D158]/20 px-2.5 py-0.5 text-xs font-black text-[#1F9D55] dark:text-[#30D158]">
+                <Check className="size-3 stroke-[3]" />
+                <span>مكتملة</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#D97706]/15 px-2.5 py-0.5 text-xs font-black text-[#D97706] dark:text-[#F59E0B] font-mono tabular-nums">
+                {assigned}/{total}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      {confirmed && (
-        <div className="flex items-center gap-2.5 rounded-xl border border-green-200 bg-green-50 px-3.5 py-2.5 text-[11px] font-bold text-green-700">
-          <CheckCircle2 className="size-4 shrink-0" />
-          {hasFixtures ? t('committee.detail.drawLocked') : t('committee.detail.drawConfirmedDesc')}
+      {/* C. Organization Mode Selector & Quick Actions ("إدارة المجموعات") */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
+            إدارة المجموعات
+          </h2>
+          {canUnlock && (
+            <button
+              type="button"
+              onClick={unlockDraw}
+              disabled={busy !== null}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3 py-1.5 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] transition cursor-pointer"
+            >
+              <Unlock className="size-3.5 text-[#D97706]" />
+              <span>{t('committee.detail.unlockDraw') || 'تعديل التوزيع'}</span>
+            </button>
+          )}
         </div>
+
+        {/* Two Organization Mode Cards (تنظيم ذكي vs تنظيم يدوي) */}
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => setOrgMode('smart')}
+            className={`relative flex flex-col items-center justify-center rounded-2xl border p-3.5 sm:p-4 text-center transition-all cursor-pointer ${
+              orgMode === 'smart'
+                ? 'border-[#B8F000] dark:border-[#D0FF38] bg-[#B8F000]/20 dark:bg-[#D0FF38]/12 shadow-2xs'
+                : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]'
+            }`}
+          >
+            {orgMode === 'smart' && (
+              <span className="absolute top-2.5 start-2.5 flex size-5 items-center justify-center rounded-full bg-[#1F9D55] dark:bg-[#30D158] text-white">
+                <Check className="size-3 stroke-[3]" />
+              </span>
+            )}
+            <Sparkles className="size-5 sm:size-6 text-[#111313] dark:text-[#D0FF38] mb-1.5" />
+            <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2]">تنظيم ذكي</span>
+            <span className="mt-0.5 text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3] leading-snug">
+              توزيع الفرق تلقائياً على المجموعات
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOrgMode('manual')}
+            className={`relative flex flex-col items-center justify-center rounded-2xl border p-3.5 sm:p-4 text-center transition-all cursor-pointer ${
+              orgMode === 'manual'
+                ? 'border-[#B8F000] dark:border-[#D0FF38] bg-[#B8F000]/20 dark:bg-[#D0FF38]/12 shadow-2xs'
+                : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]'
+            }`}
+          >
+            {orgMode === 'manual' && (
+              <span className="absolute top-2.5 start-2.5 flex size-5 items-center justify-center rounded-full bg-[#1F9D55] dark:bg-[#30D158] text-white">
+                <Check className="size-3 stroke-[3]" />
+              </span>
+            )}
+            <Edit3 className="size-5 sm:size-6 text-[#111313] dark:text-[#D0FF38] mb-1.5" />
+            <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2]">تنظيم يدوي</span>
+            <span className="mt-0.5 text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3] leading-snug">
+              إنشاء المجموعات وتوزيع الفرق بنفسك
+            </span>
+          </button>
+        </div>
+
+        {/* Quick Action Pills Row (+ إضافة مجموعة | توزيع عشوائي | إعادة التوزيع) */}
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2">
+            {(freeMode || orgMode === 'manual') && (
+              <button
+                type="button"
+                onClick={addGroup}
+                disabled={busy !== null}
+                className="flex flex-1 min-w-[110px] h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] px-3 text-xs font-black text-[#111313] dark:text-[#F5F7F2] shadow-2xs transition active:scale-95 cursor-pointer"
+              >
+                <Plus className="size-4 text-[#111313] dark:text-[#D0FF38]" />
+                <span>إضافة مجموعة</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={autoDraw}
+              disabled={busy !== null}
+              className="flex flex-1 min-w-[110px] h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] px-3 text-xs font-black text-[#111313] dark:text-[#F5F7F2] shadow-2xs transition active:scale-95 cursor-pointer"
+            >
+              <Dices className="size-4 text-[#111313] dark:text-[#D0FF38]" />
+              <span>{busy === 'draw' ? 'جاري التوزيع...' : 'توزيع عشوائي'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={unassignAll}
+              disabled={busy !== null || assigned === 0}
+              className="flex flex-1 min-w-[110px] h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] disabled:opacity-45 px-3 text-xs font-black text-[#111313] dark:text-[#F5F7F2] shadow-2xs transition active:scale-95 cursor-pointer"
+            >
+              <Shuffle className="size-4 text-[#65706A] dark:text-[#B2B9B3]" />
+              <span>إعادة التوزيع</span>
+            </button>
+
+            {dirty && (
+              <button
+                type="button"
+                onClick={save}
+                disabled={busy !== null}
+                className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#111313] dark:bg-[#D0FF38] px-4 text-xs font-black text-white dark:text-[#111313] shadow-xs transition active:scale-95 cursor-pointer"
+              >
+                <Save className="size-3.5" />
+                <span>{busy === 'save' ? 'جاري الحفظ...' : 'حفظ التعديلات'}</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Unassigned Teams Pool */}
+      {canEdit && pool.length > 0 && (
+        <TeamPool
+          title={t('committee.detail.teamPool') || 'الفرق غير الموزعة'}
+          hint="اضغط على الفريق لتعيينه للمجموعة المتاحة أو اسحبه إلى أي مجموعة"
+          allDrawnText={t('committee.detail.poolEmpty') || 'تم توزيع جميع الفرق'}
+          entries={pool}
+          onDragStart={onDragStart}
+          onDrop={onDropPool}
+          locked={!canEdit}
+          onSelectTeam={(entry) => {
+            const availGroup = displayGroups.find((g) => {
+              const m = membersOf(teams, g.id)
+              return cap == null || m.length < cap
+            })
+            if (availGroup) {
+              movePivotToTarget(entry.id, { type: 'group', id: availGroup.id })
+            } else if (displayGroups[0]) {
+              setEditingGroup(displayGroups[0])
+            }
+          }}
+        />
       )}
 
-      {loading ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-        </div>
-      ) : total === 0 ? (
-        <Card title={t('committee.detail.draw')}>
-          <Empty
-            icon={Users}
-            title={t('committee.detail.noTeamsToDraw')}
-            description={t('committee.detail.noTeamsToDrawDesc')}
+      {/* D. Expandable Group Cards List */}
+      <div className="space-y-2.5">
+        {displayGroups.map((g) => (
+          <GroupColumn
+            key={g.id}
+            title={`المجموعة ${g.name}`}
+            groupName={g.name}
+            members={membersOf(teams, g.id)}
+            capacity={cap}
+            locked={!canEdit}
+            expanded={Boolean(expandedGroups[g.id])}
+            onToggleExpand={() => toggleGroupExpand(g.id)}
+            onDragStart={onDragStart}
+            onDrop={onDropGroup(g)}
+            onRemoveTeam={(teamId) => moveTeamByTeamId(teamId, null)}
+            onDeleteGroup={canEdit ? () => emptyOrDeleteGroup(g) : null}
+            onEditTeams={canEdit ? () => setEditingGroup(g) : null}
           />
-        </Card>
-      ) : (
-        <>
-          {canEdit && (
-            <p className="rounded-xl bg-sky-50 px-3.5 py-2.5 text-[11px] font-bold text-sky-700">
-              {freeMode ? t('committee.detail.freeModeHint') : t('committee.detail.fixedModeHint')}
-            </p>
-          )}
-          <div className="grid gap-4 lg:grid-cols-[280px_1fr] lg:items-start">
-            <TeamPool
-              pool={pool}
-              canEdit={canEdit}
-              busy={busy}
-              over={over}
-              onDragStart={handleDragStart}
-              onDragOverPool={(e) => {
-                if (!canEdit) return
-                e.preventDefault()
-                setOver({ type: 'pool' })
-              }}
-              onDragLeavePool={() => setOver((v) => (v?.type === 'pool' ? null : v))}
-              onDropPool={(e) => handleDrop(e, { type: 'pool' })}
-            />
+        ))}
+      </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {displayGroups.map((g) => (
-                <GroupColumn
-                  key={g.id}
-                  group={g}
-                  members={membersOf(teams, g.id)}
-                  cap={cap}
-                  canEdit={canEdit}
-                  busy={busy}
-                  over={over}
-                  onDragStart={handleDragStart}
-                  onGroupDragOver={(gid) => setOver({ type: 'group', id: gid })}
-                  onGroupDragLeave={(gid) => setOver((v) => (v?.type === 'group' && v.id === gid ? null : v))}
-                  onGroupDrop={(e, gid) => handleDrop(e, { type: 'group', id: gid })}
-                  onTeamDrop={(e, gid, position) => handleDrop(e, { type: 'group', id: gid, position })}
-                />
-              ))}
+      {/* E. Bottom Primary Confirmation Button (Matches Reference Image 2) */}
+      <div className="pt-2">
+        <button
+          type="button"
+          disabled={busy !== null || (!confirmed && !allDrawn && !dirty)}
+          onClick={confirmAndProceed}
+          className="w-full flex h-12 sm:h-13 items-center justify-center gap-2 rounded-2xl bg-[#B8F000] dark:bg-[#D0FF38] hover:opacity-95 disabled:opacity-45 text-sm sm:text-base font-black text-[#111313] shadow-sm transition active:scale-[0.99] cursor-pointer"
+        >
+          <Check className="size-5 stroke-[2.8]" />
+          <span>
+            {confirmed
+              ? 'المجموعات معتمدة — المتابعة إلى المباريات'
+              : busy === 'confirm' || busy === 'save'
+                ? 'جاري الحفظ والاعتماد...'
+                : 'اعتماد المجموعات والمتابعة'}
+          </span>
+        </button>
+      </div>
+
+      {/* Mobile-Friendly Group Teams Picker Modal ("تعديل الفرق") */}
+      {editingGroup && (
+        <Modal
+          open={Boolean(editingGroup)}
+          onClose={() => setEditingGroup(null)}
+          title={`تعديل فرق المجموعة ${editingGroup.name}`}
+          size="md"
+        >
+          <div className="space-y-4" dir="rtl">
+            <div className="flex items-center justify-between rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 py-2.5 text-xs">
+              <span className="font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                اضغط على الفريق لإضافته أو إزالته من المجموعة {editingGroup.name}
+              </span>
+              <span className="rounded-full bg-[#B8F000] dark:bg-[#D0FF38] px-2.5 py-0.5 font-black text-[#111313]">
+                {editingGroupMembers.length} {cap ? `/ ${cap}` : ''} فرق
+              </span>
+            </div>
+
+            <div className="max-h-80 space-y-1.5 overflow-y-auto pe-1">
+              {teams.map((pivot) => {
+                const inThisGroup = pivot.group?.id === editingGroup.id
+                const inOtherGroup = pivot.group && pivot.group.id !== editingGroup.id
+                return (
+                  <button
+                    key={pivot.id}
+                    type="button"
+                    onClick={() => toggleTeamInGroupModal(pivot, editingGroup)}
+                    className={`w-full flex items-center justify-between gap-3 rounded-xl border p-3 text-start transition cursor-pointer ${
+                      inThisGroup
+                        ? 'border-[#B8F000] dark:border-[#D0FF38] bg-[#B8F000]/15 dark:bg-[#D0FF38]/12'
+                        : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <TeamAvatar team={pivot.team} className="size-8 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                          {pivot.team?.name}
+                        </p>
+                        {inOtherGroup && (
+                          <p className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                            حالياً في المجموعة {pivot.group.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {inThisGroup ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#1F9D55] dark:bg-[#30D158] px-2.5 py-1 text-[11px] font-black text-white">
+                          <Check className="size-3 stroke-[3]" />
+                          <span>مضاف</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">
+                          <Plus className="size-3" />
+                          <span>{inOtherGroup ? 'نقل لهنا' : 'إضافة'}</span>
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-[#E1E5DF] dark:border-[#303832]">
+              <button
+                type="button"
+                onClick={async () => {
+                  setEditingGroup(null)
+                  if (dirty) await save()
+                }}
+                className="flex-1 h-11 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] text-xs sm:text-sm font-black text-[#111313] cursor-pointer"
+              >
+                حفظ وإغلاق
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingGroup(null)}
+                className="h-11 px-4 rounded-xl border border-[#E1E5DF] dark:border-[#303832] text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] cursor-pointer"
+              >
+                إغلاق
+              </button>
             </div>
           </div>
-        </>
+        </Modal>
       )}
 
+      {/* Preview Modal */}
       <Modal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
@@ -315,41 +636,35 @@ export default function DrawBoard({ tournament, refresh, refreshKey }) {
             {displayGroups.map((g) => {
               const members = membersOf(teams, g.id)
               return (
-                <div key={g.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div key={g.id} className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-extrabold text-slate-900">{g.name}</h4>
-                    <Badge variant={members.length >= cap ? 'success' : 'neutral'}>
+                    <h4 className="text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">{g.name}</h4>
+                    <Badge variant={cap && members.length >= cap ? 'success' : 'neutral'}>
                       {freeMode ? members.length : `${members.length}/${cap}`}
                     </Badge>
                   </div>
                   <div className="mt-3 space-y-2">
                     {members.map((p) => (
-                      <div key={p.id} className="flex items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                      <div
+                        key={p.id}
+                        className="flex items-center gap-2.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3 py-2"
+                      >
                         <TeamAvatar team={p.team} className="size-7" />
-                        <span className="truncate text-xs font-bold text-slate-700">{p.team?.name || '-'}</span>
+                        <span className="truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+                          {p.team?.name || '-'}
+                        </span>
                       </div>
                     ))}
-                    {members.length === 0 && (
-                      <p className="rounded-xl border border-dashed border-slate-200 px-3 py-5 text-center text-[11px] font-semibold text-slate-400">
-                        {t('committee.detail.emptyGroup')}
-                      </p>
-                    )}
                   </div>
                 </div>
               )
             })}
           </div>
-          {!allDrawn && (
-            <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-[11px] font-bold text-amber-700">
-              <Lock className="size-4 shrink-0" />
-              {t('committee.detail.drawIncomplete')}
-            </p>
-          )}
-          <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <div className="flex items-center justify-end gap-2 border-t border-[#E1E5DF] dark:border-[#303832] pt-4">
             <Button size="sm" variant="outline" onClick={() => setPreviewOpen(false)}>
               {t('common.cancel')}
             </Button>
-            <Button size="sm" loading={busy === 'confirm'} disabled={!allDrawn} onClick={confirmDraw}>
+            <Button size="sm" loading={busy === 'confirm'} disabled={!allDrawn} onClick={confirmAndProceed}>
               <CheckCircle2 className="size-4" />
               {t('committee.detail.confirmDraw')}
             </Button>

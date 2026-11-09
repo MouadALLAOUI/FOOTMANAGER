@@ -2,28 +2,54 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
+  Calendar,
   CalendarDays,
   CalendarPlus,
+  Check,
   CheckCircle2,
-  LayoutTemplate,
-  ListChecks,
-  Lock,
-  Loader2,
+  ChevronDown,
+  Clock,
+  Edit3,
+  Eye,
   Landmark,
+  Layers,
+  LayoutTemplate,
+  Link2,
+  List,
+  ListChecks,
+  Loader2,
+  Lock,
+  MapPin,
+  MoreVertical,
   MousePointerClick,
   Play,
+  Plus,
   RefreshCw,
   RotateCcw,
   Search,
+  Settings,
   SkipForward,
   Sparkles,
   Swords,
   Trash2,
+  Trophy,
   Users,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
-import { Badge, Button, Empty, Field, FieldRow, Modal, SkeletonCards, Toggle, inputClass, selectClass } from '../../../components/dashboard/ui'
+import {
+  Badge,
+  Button,
+  Empty,
+  Field,
+  FieldRow,
+  Modal,
+  SkeletonCards,
+  Toggle,
+  inputClass,
+  selectClass,
+} from '../../../components/dashboard/ui'
+import { TeamAvatar } from '../../tournaments/shared'
 import TimeSlotPicker from '../../../components/TimeSlotPicker'
 import { buildTimeSlots } from '../../../lib/timeSlots'
 import MatchCard from '../../../domains/committee/components/MatchCard'
@@ -46,7 +72,6 @@ import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/li
 import DelegatedMatchLinkModal from '../../../domains/committee/components/DelegatedMatchLinkModal'
 import DelegatedSubmissionReviewModal from '../../../domains/committee/components/DelegatedSubmissionReviewModal'
 
-
 function fixtureStatus(f) {
   const m = f.match
   if (f.status === 'cancelled' || m?.status === 'cancelled') return 'cancelled'
@@ -67,25 +92,25 @@ function roundOptions(structure) {
 const ROUND_STATE_UI = {
   locked: {
     icon: Lock,
-    cls: 'bg-slate-100 text-slate-500',
+    cls: 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3]',
     labelKey: 'committee.detail.roundState.locked',
     descKey: 'committee.detail.roundStateDesc.locked',
   },
   available: {
     icon: Play,
-    cls: 'bg-green-50 text-green-700',
+    cls: 'bg-[#1F9D55]/10 text-[#1F9D55] dark:text-[#30D158]',
     labelKey: 'committee.detail.roundState.available',
     descKey: 'committee.detail.roundStateDesc.available',
   },
   in_progress: {
     icon: Loader2,
-    cls: 'bg-amber-50 text-amber-700',
+    cls: 'bg-[#D97706]/10 text-[#D97706] dark:text-[#F59E0B]',
     labelKey: 'committee.detail.roundState.inProgress',
     descKey: 'committee.detail.roundStateDesc.inProgress',
   },
   completed: {
     icon: CheckCircle2,
-    cls: 'bg-emerald-50 text-emerald-700',
+    cls: 'bg-[#1F9D55]/15 text-[#1F9D55] dark:text-[#30D158]',
     labelKey: 'committee.detail.roundState.completed',
     descKey: 'committee.detail.roundStateDesc.completed',
   },
@@ -97,12 +122,52 @@ const fmtDateTime = (dateStr, timeStr) => {
   return `${day} · ${timeStr}`
 }
 
+function formatArabicDayLabel(dateKey, dayIndex) {
+  if (!dateKey || dateKey === 'unscheduled') return 'مباريات بانتظار تحديد الموعد'
+  try {
+    const d = new Date(`${dateKey}T12:00:00`)
+    if (isNaN(d.getTime())) return `اليوم ${dayIndex + 1} – ${dateKey}`
+    const formatted = d.toLocaleDateString('ar-EG-u-nu-latn', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    })
+    return `اليوم ${dayIndex + 1} – ${formatted}`
+  } catch {
+    return `اليوم ${dayIndex + 1} – ${dateKey}`
+  }
+}
+
 export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const { t, i18n } = useTranslation()
   const { toast } = useToast()
 
+  // Mobile-First Sub-View: 'program' (البرنامج) | 'list' (قائمة المباريات) | 'settings' (الإعدادات / برمجة المباريات)
+  const [subView, setSubView] = useState('program')
+  const [progMode, setProgMode] = useState('smart') // 'smart' (التنظيم الذكي) | 'manual' (التنظيم اليدوي)
+  const [collapsedDays, setCollapsedDays] = useState({})
+  const [openingFixtureId, setOpeningFixtureId] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`aji_opening_match_${tournament.id}`)
+      return saved ? Number(saved) : null
+    } catch {
+      return null
+    }
+  })
+
+  const toggleOpeningMatch = (fixtureId) => {
+    setOpeningFixtureId((prev) => {
+      const next = prev === fixtureId ? null : fixtureId
+      try {
+        if (next) localStorage.setItem(`aji_opening_match_${tournament.id}`, String(next))
+        else localStorage.removeItem(`aji_opening_match_${tournament.id}`)
+      } catch {}
+      return next
+    })
+  }
+
   const [active, setActive] = useState(null)
-  const [filters, setFilters] = useState({ status: 'upcoming', group: 'all', stadium: 'all', date: 'all', customDate: '', q: '' })
+  const [filters, setFilters] = useState({ status: 'all', group: 'all', stadium: 'all', date: 'all', customDate: '', q: '' })
   const [queryInput, setQueryInput] = useState('')
   const [genOpen, setGenOpen] = useState(false)
   const [genView, setGenView] = useState('form')
@@ -117,8 +182,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const [prevState, setPrevState] = useState(null)
   const [form, setForm] = useState({
     stage: 'group',
-    starts_on: '',
-    default_time: '20:00',
+    starts_on: tournament.start_date || '',
+    default_time: '18:00',
     double_round_robin: false,
     stadium_ids: [],
   })
@@ -132,7 +197,6 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const [genLayout, setGenLayout] = useState(false)
   const [draft, setDraft] = useState({})
   const [slotErrors, setSlotErrors] = useState({})
-  const [leagueViewMode, setLeagueViewMode] = useState('assignment') // 'assignment' | 'rounds'
   const [activeWeekId, setActiveWeekId] = useState(null)
 
   const isLeague = tournament.tournament_format === 'league'
@@ -142,6 +206,13 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     () => api.get(`/committee/tournaments/${tournament.id}/match-rounds`).then((r) => r.data.data),
     [tournament.id, refreshKey],
     { staleTime: 0 },
+  )
+
+  // Fetch all tournament fixtures for the chronological 'البرنامج' schedule view & global stats
+  const { data: allTournamentFixtures, refetch: refetchAllFixtures } = useApi(
+    () => api.get(`/committee/tournaments/${tournament.id}/fixtures`).then((r) => r.data.data),
+    [tournament.id, refreshKey],
+    { staleTime: 0, keepPrevious: true },
   )
 
   useEffect(() => {
@@ -165,7 +236,11 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const activeKey = active ? (isGroup ? `m${active.matchday}` : `r${active.round_id}`) : null
   const roundParams = isLeague
     ? {}
-    : (active ? (isGroup ? { matchday: active.matchday } : { round_id: active.round_id }) : {})
+    : active
+      ? isGroup
+        ? { matchday: active.matchday }
+        : { round_id: active.round_id }
+      : {}
 
   const { data: rawFixtures, loading: fixturesLoading, refetch: refetchFixtures } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/fixtures`, { params: roundParams }).then((r) => r.data.data),
@@ -193,6 +268,72 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     })
   }, [rawFixtures, optimisticOverrides])
 
+  const mergedAllFixtures = useMemo(() => {
+    const base = allTournamentFixtures || fixtures || []
+    if (!Object.keys(optimisticOverrides).length) return base
+    return base.map((f) => {
+      const override = optimisticOverrides[f.id]
+      return override ? { ...f, ...override } : f
+    })
+  }, [allTournamentFixtures, fixtures, optimisticOverrides])
+
+  // Group all fixtures chronologically by date for the 'البرنامج' view
+  const chronologicalDaySections = useMemo(() => {
+    const list = [...(mergedAllFixtures || [])]
+    list.sort((a, b) => {
+      if (!a.scheduled_at && !b.scheduled_at) return (a.id || 0) - (b.id || 0)
+      if (!a.scheduled_at) return 1
+      if (!b.scheduled_at) return -1
+      return new Date(a.scheduled_at) - new Date(b.scheduled_at)
+    })
+
+    const map = new Map()
+    for (const f of list) {
+      const dateKey = f.scheduled_at ? f.scheduled_at.slice(0, 10) : 'unscheduled'
+      if (!map.has(dateKey)) map.set(dateKey, [])
+      map.get(dateKey).push(f)
+    }
+
+    let scheduledIdx = 0
+    return [...map.entries()].map(([dateKey, items]) => {
+      const isUnscheduled = dateKey === 'unscheduled'
+      const label = isUnscheduled
+        ? 'مباريات بانتظار تحديد الموعد'
+        : formatArabicDayLabel(dateKey, scheduledIdx++)
+      return {
+        dateKey,
+        label,
+        isUnscheduled,
+        items,
+      }
+    })
+  }, [mergedAllFixtures])
+
+  // Determine the opening match ID (either user-selected or the first scheduled match)
+  const effectiveOpeningMatchId = useMemo(() => {
+    if (openingFixtureId) return openingFixtureId
+    const firstDay = chronologicalDaySections.find((d) => !d.isUnscheduled && d.items.length > 0)
+    return firstDay?.items?.[0]?.id ?? mergedAllFixtures?.[0]?.id ?? null
+  }, [openingFixtureId, chronologicalDaySections, mergedAllFixtures])
+
+  // Compute global match statistics for the 3-column summary bar
+  const matchStats = useMemo(() => {
+    const all = mergedAllFixtures || []
+    const total = all.length || tournament.stats?.fixtures || 0
+    let completed = 0
+    let scheduled = 0
+    for (const f of all) {
+      const st = fixtureStatus(f)
+      if (st === 'completed') completed += 1
+      else if (st !== 'cancelled') scheduled += 1
+    }
+    if (all.length === 0 && total > 0) {
+      completed = tournament.stats?.finished_matches ?? 0
+      scheduled = Math.max(0, total - completed)
+    }
+    return { total, completed, scheduled }
+  }, [mergedAllFixtures, tournament.stats])
+
   const { weeks: leagueWeeks, unscheduled: leagueUnscheduled, chronologicalNumberMap } = useMemo(() => {
     if (!isLeague) return { weeks: [], unscheduled: [], chronologicalNumberMap: new Map() }
     return computeLeagueWeeks(fixtures || [], i18n.language)
@@ -210,7 +351,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   useEffect(() => {
     setQueryInput('')
-    setFilters((f) => ({ ...f, status: 'upcoming', group: 'all', stadium: 'all', date: 'all', customDate: '', q: '' }))
+    setFilters((f) => ({ ...f, status: 'all', group: 'all', stadium: 'all', date: 'all', customDate: '', q: '' }))
     setPrevState(null)
   }, [activeKey])
 
@@ -221,6 +362,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   const hasRounds = (structure?.group_stage?.length || 0) + (structure?.knockout?.length || 0) > 0
   const hasAnyFixtures =
+    (mergedAllFixtures?.length || 0) > 0 ||
     (structure?.group_stage?.length || 0) + (structure?.knockout || []).reduce((sum, r) => sum + (r.total || 0), 0) > 0
 
   const summary = active
@@ -231,7 +373,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   const roundLocked = useMemo(() => {
     if (!structure || !active) return false
-    const closed = (s) => (s.completed + (s.cancelled || 0) + (s.postponed || 0)) >= (s.total || 0)
+    const closed = (s) => s.completed + (s.cancelled || 0) + (s.postponed || 0) >= (s.total || 0)
     if (active.type === 'knockout') {
       const round = structure.knockout?.find((s) => s.round_id === active.round_id)
       if (round?.status) return round.status === 'locked'
@@ -246,14 +388,14 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     return !matchdays.slice(0, idx).every(closed)
   }, [structure, active])
 
-  const roundState = isGroup ? null : (summary?.status || null)
+  const roundState = isGroup ? null : summary?.status || null
   const stateMeta = roundState ? ROUND_STATE_UI[roundState] : null
 
   const groups = useMemo(() => {
     const map = new Map()
-    for (const f of fixtures || []) if (f.group) map.set(f.group.id, f.group.name)
+    for (const f of mergedAllFixtures || []) if (f.group) map.set(f.group.id, f.group.name)
     return [...map.entries()].map(([id, name]) => ({ id, name }))
-  }, [fixtures])
+  }, [mergedAllFixtures])
 
   const prevRoundKey = useMemo(() => {
     if (!structure || !active) return null
@@ -327,11 +469,14 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     for (const f of fixtures || []) {
       for (const side of ['home', 'away', 'bye']) {
         const key = `${f.id}:${side}`
-        const team = key in draft
-          ? draft[key]
-          : side === 'home' ? (f.home_team || null)
-            : side === 'away' ? (f.away_team || null)
-              : (f.bye_team || null)
+        const team =
+          key in draft
+            ? draft[key]
+            : side === 'home'
+              ? f.home_team || null
+              : side === 'away'
+                ? f.away_team || null
+                : f.bye_team || null
         if (team?.id) ids.add(team.id)
       }
     }
@@ -347,12 +492,11 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const isFirstKnockoutRound =
     active?.type === 'knockout' && active.round_id === structure?.knockout?.[0]?.round_id
 
-
   const stadiums = useMemo(() => {
     const map = new Map()
-    for (const f of fixtures || []) if (f.stadium) map.set(f.stadium.id, f.stadium.name)
+    for (const f of mergedAllFixtures || []) if (f.stadium) map.set(f.stadium.id, f.stadium.name)
     return [...map.entries()].map(([id, name]) => ({ id, name }))
-  }, [fixtures])
+  }, [mergedAllFixtures])
 
   const filtered = useMemo(() => {
     let list = fixtures || []
@@ -381,13 +525,18 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         if (filters.date === 'today') return +day === +today
         if (filters.date === 'tomorrow') return +day === +tomorrow
         if (filters.date === 'week') return day >= today && day < weekEnd
-        if (filters.date === 'custom' && filters.customDate) return +day === +new Date(`${filters.customDate}T00:00:00`)
+        if (filters.date === 'custom' && filters.customDate)
+          return +day === +new Date(`${filters.customDate}T00:00:00`)
         return true
       })
     }
     if (filters.q.trim()) {
       const q = filters.q.trim().toLowerCase()
-      list = list.filter((f) => (f.home_team?.name || '').toLowerCase().includes(q) || (f.away_team?.name || '').toLowerCase().includes(q))
+      list = list.filter(
+        (f) =>
+          (f.home_team?.name || '').toLowerCase().includes(q) ||
+          (f.away_team?.name || '').toLowerCase().includes(q),
+      )
     }
     return list
   }, [fixtures, filters, isGroup, isLeague, activeWeekId, leagueWeeks, leagueUnscheduled])
@@ -400,7 +549,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         headerLabel: dayGroup.headerLabel,
         items: dayGroup.matches.map((f) => ({
           f,
-          number: chronologicalNumberMap.get(f.id) || (f.matchday || 1),
+          number: chronologicalNumberMap.get(f.id) || f.matchday || 1,
         })),
       }))
     }
@@ -411,15 +560,26 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         if (!map.has(gid)) map.set(gid, [])
         map.get(gid).push(f)
       }
-      const entries = [...map.entries()].sort((a, b) => (a[1][0].group?.name || '').localeCompare(b[1][0].group?.name || '', 'ar'))
+      const entries = [...map.entries()].sort((a, b) =>
+        (a[1][0].group?.name || '').localeCompare(b[1][0].group?.name || '', 'ar'),
+      )
       let n = 0
-      return entries.map(([_gid, list]) => ({ group: list[0].group, items: list.map((f) => ({ f, number: ++n })) }))
+      return entries.map(([_gid, list]) => ({
+        group: list[0].group,
+        items: list.map((f) => ({ f, number: ++n })),
+      }))
     }
     return [{ group: null, items: (filtered || []).map((f, i) => ({ f, number: i + 1 })) }]
   }, [filtered, isGroup, isLeague, i18n.language, chronologicalNumberMap])
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
-  const toggleStadium = (id) => setForm((f) => ({ ...f, stadium_ids: f.stadium_ids.includes(id) ? f.stadium_ids.filter((x) => x !== id) : [...f.stadium_ids, id] }))
+  const toggleStadium = (id) =>
+    setForm((f) => ({
+      ...f,
+      stadium_ids: f.stadium_ids.includes(id)
+        ? f.stadium_ids.filter((x) => x !== id)
+        : [...f.stadium_ids, id],
+    }))
 
   const terrainParams = useMemo(
     () => ({ date: form.starts_on || undefined, time: form.default_time }),
@@ -427,18 +587,24 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   )
 
   const { data: genTerrains } = useApi(
-    () => api.get(`/committee/tournaments/${tournament.id}/fixtures/terrains`, { params: terrainParams }).then((r) => r.data.data),
+    () =>
+      api
+        .get(`/committee/tournaments/${tournament.id}/fixtures/terrains`, { params: terrainParams })
+        .then((r) => r.data.data),
     [tournament.id, form.starts_on, form.default_time],
     { enabled: genOpen, staleTime: 0 },
   )
 
   const { data: rescheduleTerrains } = useApi(
-    () => api.get(`/committee/tournaments/${tournament.id}/fixtures/terrains`, {
-      params: {
-        date: rescheduleFixture?.scheduled_at?.slice(0, 10),
-        time: rescheduleFixture?.scheduled_at?.slice(11, 16),
-      },
-    }).then((r) => r.data.data),
+    () =>
+      api
+        .get(`/committee/tournaments/${tournament.id}/fixtures/terrains`, {
+          params: {
+            date: rescheduleFixture?.scheduled_at?.slice(0, 10),
+            time: rescheduleFixture?.scheduled_at?.slice(11, 16),
+          },
+        })
+        .then((r) => r.data.data),
     [tournament.id, rescheduleFixture?.scheduled_at],
     { enabled: Boolean(rescheduleFixture) },
   )
@@ -509,7 +675,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   const qualifiedFilled = qualified.filter(Boolean)
   const qualifiedComplete = form.stage !== 'knockout' || qualifiedFilled.length === (koData?.expected || 0)
-  const koStandingsReady = form.stage !== 'knockout' || !koData || (koData.count > 0 && koData.count >= (koData.expected || 0))
+  const koStandingsReady =
+    form.stage !== 'knockout' || !koData || (koData.count > 0 && koData.count >= (koData.expected || 0))
 
   const stageHasFixtures = (stage) => {
     if (!structure) return false
@@ -519,6 +686,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
   const afterChange = () => {
     refetchFixtures()
+    refetchAllFixtures()
     refetchStructure()
     refresh()
   }
@@ -533,12 +701,16 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     setKoOptionOpen(false)
     setQualified([])
     qualifiedAutoFilled.current = false
-    const nextStage = target === 'knockout' || target === 'group'
-      ? target
-      : target === 'regenerate'
-        ? (isGroup ? 'group' : 'knockout')
-        : (isGroup ? 'group' : 'knockout')
-    // If no fixtures at all, default to group (first stage) unless explicitly knockout
+    const nextStage =
+      target === 'knockout' || target === 'group'
+        ? target
+        : target === 'regenerate'
+          ? isGroup
+            ? 'group'
+            : 'knockout'
+          : isGroup
+            ? 'group'
+            : 'knockout'
     const fallbackStage = !hasAnyFixtures && target !== 'knockout' ? 'group' : nextStage
     setForm((f) => ({ ...f, stage: fallbackStage, stadium_ids: [] }))
     setGenOpen(true)
@@ -637,13 +809,18 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const confirmGenerate = async (strategy) => {
     setBusy(strategy)
     try {
-      const r = await api.post(`/committee/tournaments/${tournament.id}/fixtures`, buildPayload(strategy, stageHasFixtures(form.stage)))
+      const r = await api.post(
+        `/committee/tournaments/${tournament.id}/fixtures`,
+        buildPayload(strategy, stageHasFixtures(form.stage)),
+      )
       const data = r.data?.data || {}
-      const msg = data.skipped > 0
-        ? t('committee.detail.generatedWithSkipped', { generated: data.generated, skipped: data.skipped })
-        : r.data?.message || t('committee.detail.fixturesGenerated')
+      const msg =
+        data.skipped > 0
+          ? t('committee.detail.generatedWithSkipped', { generated: data.generated, skipped: data.skipped })
+          : r.data?.message || t('committee.detail.fixturesGenerated')
       toast.success(msg)
       setGenOpen(false)
+      setSubView('program')
       afterChange()
     } catch (e) {
       toastApiError(e, t)
@@ -667,6 +844,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       toast.success(r.data?.message || t('committee.detail.layoutGenerated'))
       setGenOpen(false)
       setLayoutMode(true)
+      setSubView('list')
       afterChange()
     } catch (e) {
       toastApiError(e, t)
@@ -685,16 +863,16 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     })
     setDraft((d) => {
       const n = { ...d }
-
       if (team) {
         const oppKey = side === 'home' ? `${f.id}:away` : side === 'away' ? `${f.id}:home` : null
         if (oppKey) {
-          const oppCurrent = oppKey in n ? n[oppKey] : (side === 'home' ? f.away_team : f.home_team)
+          const oppCurrent = oppKey in n ? n[oppKey] : side === 'home' ? f.away_team : f.home_team
           if (oppCurrent?.id === team.id) n[oppKey] = null
         }
         n[key] = team
       } else {
-        const current = key in n ? n[key] : (side === 'home' ? f.home_team : side === 'away' ? f.away_team : f.bye_team)
+        const current =
+          key in n ? n[key] : side === 'home' ? f.home_team : side === 'away' ? f.away_team : f.bye_team
         if (!current) delete n[key]
         else n[key] = null
       }
@@ -721,7 +899,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       const list = e?.response?.data?.errors || []
       const next = {}
       for (const item of list) {
-        if (item?.fixture_id != null && item?.side) next[`${item.fixture_id}:${item.side}`] = item.message || e?.response?.data?.message
+        if (item?.fixture_id != null && item?.side)
+          next[`${item.fixture_id}:${item.side}`] = item.message || e?.response?.data?.message
       }
       setSlotErrors(next)
       toastApiError(e, t)
@@ -859,11 +1038,15 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   }
 
   const stageSegmented = (
-    <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
+    <div className="grid grid-cols-2 gap-1 rounded-2xl bg-[#F7F8F5] dark:bg-[#252B27] p-1 border border-[#E1E5DF] dark:border-[#303832]">
       <button
         type="button"
         onClick={() => setForm((f) => ({ ...f, stage: 'group' }))}
-        className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${form.stage === 'group' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+        className={`rounded-xl px-3 py-2 text-xs font-black transition-colors ${
+          form.stage === 'group'
+            ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+            : 'text-[#65706A] dark:text-[#B2B9B3]'
+        }`}
       >
         {t('committee.detail.groupStage')}
       </button>
@@ -871,7 +1054,11 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         <button
           type="button"
           onClick={() => setForm((f) => ({ ...f, stage: 'knockout' }))}
-          className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${form.stage === 'knockout' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          className={`rounded-xl px-3 py-2 text-xs font-black transition-colors ${
+            form.stage === 'knockout'
+              ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+              : 'text-[#65706A] dark:text-[#B2B9B3]'
+          }`}
         >
           {t('committee.detail.knockoutLabel')}
         </button>
@@ -882,10 +1069,18 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const stadiumPicker = (
     <Field
       label={t('committee.detail.pickStadiums')}
-      hint={unavailableCount > 0 ? t('committee.detail.terrainUnavailableNote', { count: unavailableCount, date: genTerrains?.date, time: genTerrains?.time }) : undefined}
+      hint={
+        unavailableCount > 0
+          ? t('committee.detail.terrainUnavailableNote', {
+              count: unavailableCount,
+              date: genTerrains?.date,
+              time: genTerrains?.time,
+            })
+          : undefined
+      }
     >
       {terrainList.length === 0 ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] font-bold text-amber-700">
+        <div className="flex items-center gap-2 rounded-2xl border border-[#D97706]/30 bg-[#D97706]/10 px-3.5 py-3 text-[11px] font-bold text-[#D97706] dark:text-[#F59E0B]">
           <AlertTriangle className="size-4 shrink-0" />
           {t('committee.detail.noTournamentStadiums')}
         </div>
@@ -900,47 +1095,40 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                 type="button"
                 disabled={!available}
                 onClick={() => toggleStadium(s.id)}
-                className={`flex items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-start transition-colors ${checked
-                  ? 'border-green-400 bg-green-50'
-                  : available
-                    ? 'border-slate-200 bg-white hover:bg-slate-50'
-                    : 'border-slate-200 bg-slate-50 opacity-70'
-                  } disabled:cursor-not-allowed`}
+                className={`flex items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-start transition-colors ${
+                  checked
+                    ? 'border-[#B8F000] bg-[#B8F000]/15 dark:bg-[#D0FF38]/12'
+                    : available
+                      ? 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]'
+                      : 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] opacity-60'
+                } disabled:cursor-not-allowed`}
               >
                 {s.cover_image_url ? (
                   <img src={s.cover_image_url} alt="" className="size-12 shrink-0 rounded-xl object-cover" />
                 ) : (
-                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-300">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A]">
                     <Landmark className="size-5" />
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-bold text-slate-800">{s.name}</p>
+                  <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{s.name}</p>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px]">
-                    {s.city && <span className="text-slate-400">{s.city}</span>}
-                    {s.type && <span className="text-slate-400">· {s.type}</span>}
+                    {s.city && <span className="text-[#65706A] dark:text-[#B2B9B3]">{s.city}</span>}
+                    {s.type && <span className="text-[#65706A] dark:text-[#B2B9B3]">· {s.type}</span>}
                     {s.price_per_hour != null && (
-                      <span className="font-bold text-slate-500">{t('committee.detail.terrainPricePerHour', { price: s.price_per_hour })}</span>
-                    )}
-                  </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-1">
-                    {available ? (
-                      <span className="rounded-lg bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                        {t('committee.detail.terrainAvailableSlot')}
-                      </span>
-                    ) : (
-                      <span className="rounded-lg bg-amber-200/70 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                        {s.unavailable_reason}
-                      </span>
-                    )}
-                    {s.supports_tournaments && (
-                      <span className="rounded-lg bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-700">
-                        {t('committee.detail.terrainSupportsTournaments')}
+                      <span className="font-bold text-[#111313] dark:text-[#F5F7F2]">
+                        {t('committee.detail.terrainPricePerHour', { price: s.price_per_hour })}
                       </span>
                     )}
                   </div>
                 </div>
-                <span className={`grid size-5 shrink-0 place-items-center rounded-md border text-white ${checked ? 'border-green-500 bg-green-500' : 'border-slate-300 bg-white'}`}>
+                <span
+                  className={`grid size-5 shrink-0 place-items-center rounded-md border ${
+                    checked
+                      ? 'border-[#1F9D55] bg-[#1F9D55] text-white'
+                      : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D]'
+                  }`}
+                >
                   {checked && <span className="text-[11px] font-black">✓</span>}
                 </span>
               </button>
@@ -954,7 +1142,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const knockoutTeamsEditor = (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-black text-slate-800">{t('committee.detail.knockoutTeams')}</p>
+        <p className="text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{t('committee.detail.knockoutTeams')}</p>
         <Button variant="ghost" size="sm" onClick={resetQualified}>
           <RotateCcw className="size-3.5" />
           {t('committee.detail.resetFromStandings')}
@@ -963,41 +1151,37 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       {!koData ? (
         <div className="grid gap-1.5">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-11 animate-pulse rounded-xl bg-slate-100" />
+            <div key={i} className="h-11 animate-pulse rounded-xl bg-[#F7F8F5] dark:bg-[#252B27]" />
           ))}
         </div>
       ) : koData.expected === 0 ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-[11px] font-bold text-slate-500">
+        <div className="flex items-center gap-2 rounded-2xl border border-[#E1E5DF] bg-[#F7F8F5] px-3.5 py-3 text-[11px] font-bold text-[#65706A]">
           <AlertTriangle className="size-4 shrink-0" />
           {t('committee.detail.noKnockoutInFormat')}
         </div>
       ) : koValidation?.status === 'invalid' && koData.count === koData.expected ? (
-        <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-3 text-[11px] font-bold text-red-700">
+        <div className="flex items-start gap-2 rounded-2xl border border-[#D92D20]/30 bg-[#D92D20]/10 px-3.5 py-3 text-[11px] font-bold text-[#D92D20]">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span>
             {t('committee.detail.knockout6.invalidTeams', { count: koData.count })}
             <span className="mt-1 block font-medium">{t('committee.detail.knockout6.invalidTeamsDesc')}</span>
           </span>
         </div>
-      ) : koValidation?.status === 'choice' && (koValidation?.options || []).includes('bye_final') && koData.count === koData.expected ? (
-        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] font-bold text-amber-700">
+      ) : koValidation?.status === 'choice' &&
+        (koValidation?.options || []).includes('bye_final') &&
+        koData.count === koData.expected ? (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-2xl border border-[#D97706]/30 bg-[#D97706]/10 px-3.5 py-3 text-[11px] font-bold text-[#D97706]">
           <AlertTriangle className="size-4 shrink-0" />
           <span>{t('committee.detail.oddKo.banner', { count: koData.count })}</span>
-          <span className="flex flex-wrap items-center gap-1 font-black">
-            {(koValidation?.trail || [1]).map((step, i) => (
-              <span key={step} className="flex items-center gap-1">
-                {i > 0 && <span className="text-amber-400">←</span>}
-                <span className="rounded-lg bg-white px-1.5 py-0.5 ring-1 ring-amber-200">{step}</span>
-              </span>
-            ))}
-          </span>
         </div>
       ) : koData.count < koData.expected ? (
-        <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] font-bold text-amber-700">
+        <div className="flex items-start gap-2 rounded-2xl border border-[#D97706]/30 bg-[#D97706]/10 px-3.5 py-3 text-[11px] font-bold text-[#D97706]">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span>
             {t('committee.detail.insufficientTeams', { available: koData.count, expected: koData.expected })}
-            {koData.count === 0 && <span className="mt-1 block font-medium">{t('committee.detail.standingsNotReady')}</span>}
+            {koData.count === 0 && (
+              <span className="mt-1 block font-medium">{t('committee.detail.standingsNotReady')}</span>
+            )}
           </span>
         </div>
       ) : (
@@ -1006,7 +1190,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
             const usedElsewhere = new Set(qualified.map((q) => q?.team_id).filter((id, i) => id && i !== index))
             return (
               <div key={index} className="flex items-center gap-2">
-                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-slate-900 text-[11px] font-black text-white">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#111313] dark:bg-[#252B27] text-[11px] font-black text-white">
                   {index + 1}
                 </span>
                 <select className={selectClass} value={slot?.team_id ?? ''} onChange={setSlot(index)}>
@@ -1015,7 +1199,9 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                     .filter((team) => !usedElsewhere.has(team.team_id))
                     .map((team) => (
                       <option key={team.team_id} value={team.team_id}>
-                        {team.rank ? `#${team.rank} ` : ''}{team.name}{team.group_name ? ` (${team.group_name})` : ''}
+                        {team.rank ? `#${team.rank} ` : ''}
+                        {team.name}
+                        {team.group_name ? ` (${team.group_name})` : ''}
                       </option>
                     ))}
                 </select>
@@ -1024,7 +1210,9 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           })}
         </div>
       )}
-      <p className="text-[11px] leading-relaxed text-slate-400">{t('committee.detail.knockoutTeamsDesc')}</p>
+      <p className="text-[11px] leading-relaxed text-[#65706A] dark:text-[#B2B9B3]">
+        {t('committee.detail.knockoutTeamsDesc')}
+      </p>
     </div>
   )
 
@@ -1052,36 +1240,39 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
   const planList = plan && (
     <div className="max-h-[42vh] space-y-1.5 overflow-y-auto pe-1">
       {plan.matches.length === 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs font-bold text-slate-400">
+        <div className="rounded-2xl border border-[#E1E5DF] bg-[#F7F8F5] px-4 py-6 text-center text-xs font-bold text-[#65706A]">
           {t('committee.detail.noMatchesForRound')}
         </div>
       )}
       {plan.matches.map((m, i) => {
         const conflicted = (m.conflicts || []).length > 0
         return (
-          <div key={i} className={`rounded-2xl border px-3.5 py-2.5 ${conflicted ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+          <div
+            key={i}
+            className={`rounded-2xl border px-3.5 py-2.5 ${
+              conflicted
+                ? 'border-[#D97706]/40 bg-[#D97706]/10'
+                : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D]'
+            }`}
+          >
             <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <p className="truncate text-xs font-black text-slate-800">
-                  {m.group_name ? `${m.group_name} · ` : ''}{m.round_name ? `${m.round_name} · ` : ''}{t('committee.detail.round', { n: m.matchday })}
-                </p>
-              </div>
-              <p className="shrink-0 text-[10px] font-bold text-slate-400">{fmtDateTime(m.date, m.time)}</p>
+              <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">
+                {m.group_name ? `${m.group_name} · ` : ''}
+                {m.round_name ? `${m.round_name} · ` : ''}
+                {t('committee.detail.round', { n: m.matchday })}
+              </p>
+              <p className="shrink-0 text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                {fmtDateTime(m.date, m.time)}
+              </p>
             </div>
             <div className="mt-1 flex items-center justify-between gap-2">
-              <p className="truncate text-xs font-bold text-slate-600">{m.home_team_name || t('committee.detail.tbd')}</p>
-              <span className="shrink-0 text-[10px] font-black text-slate-400">VS</span>
-              <p className="truncate text-xs font-bold text-slate-600">{m.away_team_name || t('committee.detail.tbd')}</p>
-            </div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {m.stadium_name ? (
-                <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500">{m.stadium_name}</span>
-              ) : (
-                <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-400">{t('committee.detail.noStadium')}</span>
-              )}
-              {(m.conflicts || []).map((reason, ri) => (
-                <span key={ri} className="rounded-lg bg-amber-200/70 px-2 py-0.5 text-[10px] font-bold text-amber-800">{reason}</span>
-              ))}
+              <p className="truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+                {m.home_team_name || t('committee.detail.tbd')}
+              </p>
+              <span className="shrink-0 text-[10px] font-black text-[#65706A]">VS</span>
+              <p className="truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+                {m.away_team_name || t('committee.detail.tbd')}
+              </p>
             </div>
           </div>
         )
@@ -1100,25 +1291,39 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         <div className="space-y-5">
           {stageSegmented}
 
-          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1">
+          <div className="grid grid-cols-2 gap-1 rounded-2xl bg-[#F7F8F5] dark:bg-[#252B27] p-1 border border-[#E1E5DF] dark:border-[#303832]">
             <button
               type="button"
-              onClick={() => { setGenLayout(false); setGenView('form') }}
-              className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${!genLayout ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              onClick={() => {
+                setGenLayout(false)
+                setGenView('form')
+              }}
+              className={`rounded-xl px-3 py-2 text-xs font-black transition-colors ${
+                !genLayout
+                  ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                  : 'text-[#65706A] dark:text-[#B2B9B3]'
+              }`}
             >
               {t('committee.detail.autoFill')}
             </button>
             <button
               type="button"
-              onClick={() => { setGenLayout(true); setGenView('form') }}
-              className={`rounded-xl px-3 py-2 text-xs font-bold transition-colors ${genLayout ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              onClick={() => {
+                setGenLayout(true)
+                setGenView('form')
+              }}
+              className={`rounded-xl px-3 py-2 text-xs font-black transition-colors ${
+                genLayout
+                  ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                  : 'text-[#65706A] dark:text-[#B2B9B3]'
+              }`}
             >
               {t('committee.detail.manualFill')}
             </button>
           </div>
 
           {genLayout && (
-            <p className="rounded-xl bg-sky-50 px-3.5 py-2.5 text-[11px] font-bold text-sky-700">
+            <p className="rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 py-2.5 text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">
               {t('committee.detail.generateLayoutDesc')}
             </p>
           )}
@@ -1141,12 +1346,20 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                     </Field>
                   </FieldRow>
 
-                  <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-4 py-3">
                     <div>
-                      <p className="text-xs font-bold text-slate-800">{t('committee.detail.doubleRound')}</p>
-                      <p className="text-[11px] text-slate-400">{t('committee.detail.doubleRoundDesc')}</p>
+                      <p className="text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+                        {t('committee.detail.doubleRound')}
+                      </p>
+                      <p className="text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                        {t('committee.detail.doubleRoundDesc')}
+                      </p>
                     </div>
-                    <Toggle checked={form.double_round_robin} onChange={(v) => setForm((f) => ({ ...f, double_round_robin: v }))} label={t('committee.detail.doubleRound')} />
+                    <Toggle
+                      checked={form.double_round_robin}
+                      onChange={(v) => setForm((f) => ({ ...f, double_round_robin: v }))}
+                      label={t('committee.detail.doubleRound')}
+                    />
                   </div>
                 </>
               ) : (
@@ -1170,7 +1383,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
 
               {stadiumPicker}
 
-              <div className="sticky bottom-0 -mx-6 flex gap-2 border-t border-slate-100 bg-white/95 px-6 py-4 backdrop-blur">
+              <div className="sticky bottom-0 -mx-6 flex gap-2 border-t border-[#E1E5DF] dark:border-[#303832] bg-white/95 dark:bg-[#1B201D]/95 px-6 py-4 backdrop-blur">
                 {genLayout ? (
                   <Button className="flex-1" loading={busy === 'layout'} onClick={confirmLayout}>
                     <LayoutTemplate className="size-4" />
@@ -1182,17 +1395,21 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                     {t('committee.detail.previewFixtures')}
                   </Button>
                 )}
-                <Button variant="outline" className="flex-1" onClick={() => setGenOpen(false)}>{t('common.cancel')}</Button>
+                <Button variant="outline" className="flex-1" onClick={() => setGenOpen(false)}>
+                  {t('common.cancel')}
+                </Button>
               </div>
             </>
           ) : (
             <>
               <div>
-                <p className="text-xs font-black text-slate-800">{t('committee.detail.reviewPlan')}</p>
+                <p className="text-xs font-black text-[#111313] dark:text-[#F5F7F2]">
+                  {t('committee.detail.reviewPlan')}
+                </p>
                 <div className="mt-2">{planSummary}</div>
               </div>
               {planList}
-              <div className="sticky bottom-0 -mx-6 flex flex-col gap-2 border-t border-slate-100 bg-white/95 px-6 py-4 backdrop-blur">
+              <div className="sticky bottom-0 -mx-6 flex flex-col gap-2 border-t border-[#E1E5DF] dark:border-[#303832] bg-white/95 dark:bg-[#1B201D]/95 px-6 py-4 backdrop-blur">
                 {plan && plan.conflicts > 0 ? (
                   <>
                     <div className="flex gap-2">
@@ -1205,7 +1422,14 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                         {t('committee.detail.skipConflicts')}
                       </Button>
                     </div>
-                    <Button variant="outline" className="w-full" onClick={() => { setGenView('form'); setPlan(null) }}>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setGenView('form')
+                        setPlan(null)
+                      }}
+                    >
                       {t('committee.detail.backToEdit')}
                     </Button>
                   </>
@@ -1215,7 +1439,14 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                       <CalendarPlus className="size-4" />
                       {t('committee.detail.confirmGenerate')}
                     </Button>
-                    <Button variant="outline" className="w-full" onClick={() => { setGenView('form'); setPlan(null) }}>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setGenView('form')
+                        setPlan(null)
+                      }}
+                    >
                       {t('committee.detail.backToEdit')}
                     </Button>
                   </>
@@ -1233,29 +1464,51 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         subtitle={t('committee.detail.conflictsFoundDesc')}
       >
         <div className="flex flex-col gap-2">
-          <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[11px] font-bold text-amber-700">
+          <div className="flex items-start gap-2 rounded-2xl border border-[#D97706]/30 bg-[#D97706]/10 px-3.5 py-3 text-[11px] font-bold text-[#D97706]">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>{t('committee.detail.planConflicts', { count: plan?.conflicts || 0 })}</span>
           </div>
-          <Button className="w-full" loading={busy === 'auto_roll'} onClick={() => { setConflictModal(false); confirmGenerate('auto_roll') }}>
+          <Button
+            className="w-full"
+            loading={busy === 'auto_roll'}
+            onClick={() => {
+              setConflictModal(false)
+              confirmGenerate('auto_roll')
+            }}
+          >
             <Sparkles className="size-4" />
             <span className="flex flex-col items-start">
               <span>{t('committee.detail.autoRoll')}</span>
               <span className="text-[10px] font-medium opacity-80">{t('committee.detail.autoRollDesc')}</span>
             </span>
           </Button>
-          <Button variant="soft" className="w-full" loading={busy === 'skip'} onClick={() => { setConflictModal(false); confirmGenerate('skip') }}>
+          <Button
+            variant="soft"
+            className="w-full"
+            loading={busy === 'skip'}
+            onClick={() => {
+              setConflictModal(false)
+              confirmGenerate('skip')
+            }}
+          >
             <SkipForward className="size-4" />
             <span className="flex flex-col items-start">
               <span>{t('committee.detail.skipConflicts')}</span>
               <span className="text-[10px] font-medium opacity-80">{t('committee.detail.skipConflictsDesc')}</span>
             </span>
           </Button>
-          <Button variant="outline" className="w-full" onClick={() => setConflictModal(false)}>{t('common.cancel')}</Button>
+          <Button variant="outline" className="w-full" onClick={() => setConflictModal(false)}>
+            {t('common.cancel')}
+          </Button>
         </div>
       </Modal>
 
-      <KnockoutOptionModal open={koOptionOpen} onClose={() => setKoOptionOpen(false)} onConfirm={confirmKoOption} busy={busy === 'ko-option'} />
+      <KnockoutOptionModal
+        open={koOptionOpen}
+        onClose={() => setKoOptionOpen(false)}
+        onConfirm={confirmKoOption}
+        busy={busy === 'ko-option'}
+      />
 
       <KnockoutOptionModal
         open={koOddOpen}
@@ -1284,13 +1537,18 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         />
       )}
 
-      {detailsFixture && <MatchDetailsModal fixture={detailsFixture} tournament={tournament} onClose={() => setDetailsFixture(null)} />}
+      {detailsFixture && (
+        <MatchDetailsModal fixture={detailsFixture} tournament={tournament} onClose={() => setDetailsFixture(null)} />
+      )}
       {rescheduleFixture && (
         <RescheduleDrawer
           fixture={rescheduleFixture}
           tournament={tournament}
           stadiums={rescheduleTerrains?.terrains || []}
           onClose={() => setRescheduleFixture(null)}
+          onOpenResult={(fix) => setResultFixture(fix)}
+          isOpeningMatch={rescheduleFixture.id === effectiveOpeningMatchId}
+          onToggleOpeningMatch={toggleOpeningMatch}
           onSaved={() => {
             setRescheduleFixture(null)
             afterChange()
@@ -1313,6 +1571,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           fixture={delegatedLinkFixture}
           onTokenChanged={() => {
             refetchFixtures?.()
+            refetchAllFixtures?.()
           }}
         />
       )}
@@ -1348,6 +1607,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
             refresh()
             refetchStructure()
             refetchFixtures()
+            refetchAllFixtures()
           }}
           refreshKey={refreshKey}
         />
@@ -1356,301 +1616,713 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     )
   }
 
-  if (!hasAnyFixtures) {
-    return (
-      <>
-        <Empty
-          icon={Swords}
-          title={t('committee.detail.noFixtures')}
-          description={t('committee.detail.noFixturesDesc')}
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button size="sm" onClick={() => openDrawer()}>
-                <CalendarPlus className="size-4" />
-                {t('committee.detail.generateFixtures')}
-              </Button>
-              {tournament.tournament_format !== 'league' && (
-                <Button size="sm" variant="outline" onClick={() => openDrawer('group', true)}>
-                  <LayoutTemplate className="size-4" />
-                  {t('committee.detail.generateLayout')}
-                </Button>
-              )}
-            </div>
-          }
-        />
-        {overlays}
-      </>
-    )
-  }
-
   const options = roundOptions(structure)
 
-  const poolPanel = layoutMode
-    ? (isGroup || isFirstKnockoutRound
-        ? (
-          <FixtureTeamPool
-            title={isGroup ? t('committee.detail.layoutPoolTitle') : t('committee.detail.layoutPoolKnockoutTitle')}
-            teams={isGroup ? groupPool : koPool}
-            usedIds={usedIds}
-            busy={busy !== null}
-            hint={t('committee.detail.layoutPoolHint')}
-          />
-        ) : (
-          <p className="flex items-center gap-2 rounded-xl bg-slate-100 px-3.5 py-2.5 text-[11px] font-bold text-slate-500">
-            <Lock className="size-4 shrink-0" />
-            {t('committee.detail.layoutLaterRounds')}
-          </p>
-        ))
-    : null
+  const poolPanel = layoutMode ? (
+    isGroup || isFirstKnockoutRound ? (
+      <FixtureTeamPool
+        title={isGroup ? t('committee.detail.layoutPoolTitle') : t('committee.detail.layoutPoolKnockoutTitle')}
+        teams={isGroup ? groupPool : koPool}
+        usedIds={usedIds}
+        busy={busy !== null}
+        hint={t('committee.detail.layoutPoolHint')}
+      />
+    ) : (
+      <p className="flex items-center gap-2 rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 py-2.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+        <Lock className="size-4 shrink-0" />
+        {t('committee.detail.layoutLaterRounds')}
+      </p>
+    )
+  ) : null
 
   return (
-    <div>
+    <div className="space-y-4 pb-8">
+      {/* Sub-Navigation Segmented Bar (البرنامج | قائمة المباريات | الإعدادات) — Matches Reference Image 1 */}
+      <div className="grid grid-cols-3 gap-1.5 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1.5 shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setSubView('program')}
+          className={`flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+            subView === 'program'
+              ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+              : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#303832]'
+          }`}
+        >
+          <Calendar className="size-4" />
+          <span>البرنامج</span>
+        </button>
 
-      <div className={`grid gap-5 ${isLeague ? '' : 'lg:grid-cols-[240px_1fr]'}`}>
-        {!isLeague && (
-          <aside className="hidden lg:block">
-            <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto pe-1 pb-4">
-              <RoundNav structure={structure} active={active} onSelect={changeRound} />
-              {poolPanel}
+        <button
+          type="button"
+          onClick={() => setSubView('list')}
+          className={`flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+            subView === 'list'
+              ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+              : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#303832]'
+          }`}
+        >
+          <List className="size-4" />
+          <span>قائمة المباريات</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSubView('settings')}
+          className={`flex h-10 items-center justify-center gap-1.5 rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+            subView === 'settings'
+              ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+              : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#303832]'
+          }`}
+        >
+          <Settings className="size-4" />
+          <span>الإعدادات</span>
+        </button>
+      </div>
+
+      {/* Compact 3-Column Match Statistics Bar (المبرمجة | المنجزة | إجمالي المباريات) — Matches Reference Image 1 */}
+      <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3.5 sm:p-4 shadow-2xs">
+        <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] text-center">
+          {/* المبرمجة */}
+          <div className="flex flex-col items-center justify-center px-2">
+            <span className="text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+              المبرمجة
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Calendar className="size-4 text-[#111313] dark:text-[#D0FF38]" />
+              <span className="text-lg sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
+                {matchStats.scheduled}
+              </span>
             </div>
-          </aside>
-        )}
-
-        <div className="min-w-0 space-y-4">
-          {isLeague ? (
-            <LeagueWeekSelector
-              weeks={leagueWeeks}
-              activeWeekId={activeWeekId}
-              onChangeWeek={setActiveWeekId}
-              unscheduledCount={leagueUnscheduled.length}
-              totalCount={fixtures?.length || 0}
-            />
-          ) : (
-            <div className="lg:hidden">
-              <label className="mb-1.5 block text-xs font-bold text-slate-500">{t('committee.detail.stagesTitle')}</label>
-              <select
-                className={selectClass}
-                value={activeKey || ''}
-                onChange={(e) => selectByKey(e.target.value)}
-              >
-                {options.group.length > 0 && (
-                  <optgroup label={t('committee.detail.groupStage')}>
-                    {options.group.map((o) => (
-                      <option key={o.key} value={o.key}>{t('committee.detail.round', { n: o.label.split(':')[1] })}</option>
-                    ))}
-                  </optgroup>
-                )}
-                {options.knockout.length > 0 && (
-                  <optgroup label={t('committee.detail.knockoutStages')}>
-                    {options.knockout.map((o) => (
-                      <option key={o.key} value={o.key}>{o.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            {!isLeague ? (
-              <div className="min-w-0">
-                <h3 className="text-lg font-black tracking-tight text-slate-900">
-                  {isGroup ? t('committee.detail.round', { n: active.matchday }) : summary?.name || ''}
-                </h3>
-                <SummaryChips summary={summary} />
-              </div>
-            ) : (
-              <div className="min-w-0">
-                <h3 className="text-lg font-black tracking-tight text-slate-900">
-                  {activeWeekId === 'unscheduled'
-                    ? (t('committee.detail.unscheduledMatches', 'مباريات بدون موعد / بانتظار البرمجة'))
-                    : (leagueWeeks.find((w) => w.id === activeWeekId)?.fullLabel || 'مباريات الأسبوع')}
-                </h3>
-                <p className="text-xs font-bold text-slate-400 mt-0.5">
-                  {filtered.length} {t('committee.detail.matchesCount', { count: filtered.length })}
-                </p>
-              </div>
-            )}
-            {(() => {
-              const hasPlayed = (structure?.group_stage || []).some((s) => (s.completed || 0) > 0) || (structure?.knockout || []).some((s) => (s.completed || 0) > 0)
-              return (
-                <div className="flex flex-wrap gap-2">
-                  {hasRounds ? (
-                    <>
-                      {tournament.tournament_format !== 'league' && (
-                        <Button
-                          size="sm"
-                          variant={layoutMode ? 'soft' : 'outline'}
-                          onClick={layoutToggle}
-                          title={t('committee.detail.generateLayoutDesc')}
-                        >
-                          <MousePointerClick className="size-4" />
-                          {t('committee.detail.manualFill')}
-                        </Button>
-                      )}
-                      {hasRounds && layoutMode && tournament.tournament_format !== 'league' && (
-                        <Button size="sm" variant="outline" onClick={() => { openDrawer(isGroup ? 'group' : 'knockout', true) }}>
-                          <LayoutTemplate className="size-4" />
-                          {t('committee.detail.generateLayout')}
-                        </Button>
-                      )}
-                      {hasKnockoutStage && koHasFixtures && (
-                        <Button
-                          size="sm"
-                          variant="dangerSoft"
-                          loading={busy === 'del-ko'}
-                          disabled={koPlayed}
-                          title={koPlayed ? t('committee.detail.deleteBracketBlocked') : undefined}
-                          onClick={deleteKnockout}
-                        >
-                          <Trash2 className="size-4" />
-                          {t('committee.detail.deleteBracket')}
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline" disabled={hasPlayed} title={hasPlayed ? t('committee.detail.regenerateBlocked') : undefined} onClick={() => openDrawer('regenerate')}>
-                        <RefreshCw className="size-4" />
-                        {t('committee.detail.regenerate')}
-                      </Button>
-                      <Button size="sm" variant="dangerSoft" loading={busy === 'del'} onClick={removeAll}>
-                        <Trash2 className="size-4" />
-                        {t('committee.detail.deleteFixtures')}
-                      </Button>
-                    </>
-                  ) : (
-                    <Button size="sm" onClick={() => openDrawer()}>
-                      <CalendarPlus className="size-4" />
-                      {t('committee.detail.generateFixtures')}
-                    </Button>
-                  )}
-                </div>
-              )
-            })()}
           </div>
 
-          {stateMeta && (
-            <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-3.5 py-2.5 text-[11px] font-bold ${stateMeta.cls}`}>
-              <span className="inline-flex items-center gap-1.5">
-                <stateMeta.icon className={`size-4 shrink-0 ${roundState === 'in_progress' ? 'animate-spin' : ''}`} />
-                {t(stateMeta.labelKey)}
+          {/* المنجزة */}
+          <div className="flex flex-col items-center justify-center px-2">
+            <span className="text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+              المنجزة
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="flex size-4 items-center justify-center rounded-full bg-[#1F9D55] dark:bg-[#30D158] text-white">
+                <Check className="size-2.5 stroke-[3]" />
               </span>
-              <span className="opacity-80">· {t(stateMeta.descKey)}</span>
+              <span className="text-lg sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
+                {matchStats.completed}
+              </span>
             </div>
-          )}
-          {!stateMeta && roundLocked && (
-            <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-3.5 py-2.5 text-[11px] font-bold text-slate-500">
-              <Lock className="size-4 shrink-0" />
-              {t('committee.detail.roundLockedDesc')}
-            </div>
-          )}
+          </div>
 
-          <FilterBar
-            filters={filters}
-            setFilters={setFilters}
-            queryInput={queryInput}
-            setQueryInput={setQueryInput}
-            groups={groups}
-            stadiums={stadiums}
-            isGroup={isGroup}
-          />
-
-          {layoutMode && <div className="lg:hidden">{poolPanel}</div>}
-
-          {layoutMode && draftCount > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-green-200 bg-green-50/70 px-4 py-3">
-              <p className="text-[11px] font-black text-green-800">
-                <span className="me-1">{draftCount}</span>
-                {t(draftCount === 1 ? 'committee.detail.layoutUnsaved' : 'committee.detail.layoutUnsavedPlural')}
-              </p>
-              <div className="flex gap-2">
-                <Button size="sm" loading={busy === 'slots'} onClick={saveSlots}>
-                  <CheckCircle2 className="size-4" />
-                  {t('committee.detail.layoutSave')}
-                </Button>
-                <Button size="sm" variant="ghost" disabled={busy === 'slots'} onClick={discardDraft}>
-                  {t('committee.detail.layoutDiscard')}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-4">
-            {!fixtures || (!fixtures.length && fixturesLoading) ? (
-              <SkeletonCards count={2} />
-            ) : fixtures.length === 0 ? (
-              isGroup ? (
-                <Empty
-                  icon={CalendarDays}
-                  title={t('committee.detail.noMatchesForRound')}
-                  action={<Button size="sm" variant="outline" onClick={() => openDrawer()}>{t('committee.detail.scheduleMatch')}</Button>}
-                />
-              ) : (
-                <Empty
-                  icon={Users}
-                  title={t('committee.detail.stageNotCreated')}
-                  description={t('committee.detail.stageNotCreatedDesc')}
-                  action={hasKnockoutStage ? <Button size="sm" variant="outline" onClick={() => openDrawer('knockout')}>{t('committee.detail.generateFixtures')}</Button> : undefined}
-                />
-              )
-            ) : filtered.length === 0 ? (
-              <Empty
-                icon={Search}
-                title={t('committee.detail.noMatchResults')}
-                action={<Button size="sm" variant="outline" onClick={() => setQueryInput('')}>{t('committee.detail.clearFilters')}</Button>}
-              />
-            ) : (
-              sections.map((section) => (
-                <div key={section.dayKey ?? section.group?.id ?? 'ko'} className="space-y-2.5">
-                  {section.headerLabel && (
-                    <div className="flex items-center justify-between rounded-2xl bg-slate-100/90 px-4 py-2.5 text-slate-800 border border-slate-200/60 mb-2">
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="size-4 text-emerald-600" />
-                        <h4 className="text-xs sm:text-sm font-black text-slate-900">{section.headerLabel}</h4>
-                      </div>
-                      <span className="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-black text-slate-600 shadow-2xs border border-slate-200/60">
-                        {section.items.length} {t('committee.detail.matchesCount', { count: section.items.length })}
-                      </span>
-                    </div>
-                  )}
-                  {section.group && (
-                    <div className="flex items-center justify-between px-1">
-                      <p className="text-xs font-black uppercase tracking-wide text-slate-400">
-                        {t('committee.detail.groupName')} {section.group.name}
-                      </p>
-                      <Badge variant="info">{t('committee.detail.matchesCount', { count: section.items.length })}</Badge>
-                    </div>
-                  )}
-                  {section.items.map(({ f, number }) => (
-                    <MatchCard
-                      key={f.id}
-                      f={f}
-                      number={number}
-                      busy={busy === f.id || busy === 'slots'}
-                      locked={roundLocked}
-                      tournament={tournament}
-                      prevRoundKey={prevRoundKey}
-                      prevData={prevData}
-                      onOpenPrev={openPrev}
-                      onResult={() => setResultFixture(f)}
-                      onDetails={() => setDetailsFixture(f)}
-                      onReschedule={() => setRescheduleFixture(f)}
-                      onPostpone={() => postponeMatch(f)}
-                      onCancel={() => cancelMatch(f)}
-                      onRestore={() => restoreMatch(f)}
-                      onDelegatedLink={() => setDelegatedLinkFixture(f)}
-                      onReviewSubmission={() => setReviewSubmissionFixture(f)}
-                      layoutMode={layoutMode}
-                      draft={draft}
-                      teamById={teamById}
-                      onStageSlot={stageSlot}
-                      slotErrors={slotErrors}
-                    />
-                  ))}
-                </div>
-              ))
-            )}
+          {/* إجمالي المباريات */}
+          <div className="flex flex-col items-center justify-center px-2">
+            <span className="text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+              إجمالي المباريات
+            </span>
+            <span className="text-lg sm:text-xl font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
+              {matchStats.total}
+            </span>
           </div>
         </div>
       </div>
+
+      {/* ================================================================= */}
+      {/* VIEW 3: الإعدادات / برمجة المباريات (Matches Reference Image 3 Right) */}
+      {/* ================================================================= */}
+      {subView === 'settings' && (
+        <div className="space-y-4">
+          {/* Smart vs Manual Programming Toggle */}
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1.5 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setProgMode('smart')}
+              className={`flex h-11 items-center justify-center gap-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
+                progMode === 'smart'
+                  ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                  : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
+              }`}
+            >
+              <Sparkles className="size-4" />
+              <span>التنظيم الذكي</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setProgMode('manual')}
+              className={`flex h-11 items-center justify-center gap-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
+                progMode === 'manual'
+                  ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                  : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
+              }`}
+            >
+              <Edit3 className="size-4" />
+              <span>التنظيم اليدوي</span>
+            </button>
+          </div>
+
+          {/* إعدادات البرنامج Summary Card */}
+          <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 space-y-3.5 shadow-2xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="size-4 text-[#111313] dark:text-[#D0FF38]" />
+                <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+                  إعدادات البرنامج
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => openDrawer('group', progMode === 'manual')}
+                className="inline-flex items-center gap-1 text-xs font-black text-[#1F9D55] dark:text-[#D0FF38] hover:underline cursor-pointer"
+              >
+                <Edit3 className="size-3.5" />
+                <span>تعديل</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] text-center pt-1">
+              <div className="px-2">
+                <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+                  مباراة افتتاحية
+                </span>
+                <span className="inline-flex items-center rounded-full bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 px-2.5 py-0.5 text-xs font-black text-[#111313] dark:text-[#D0FF38]">
+                  مفعلة
+                </span>
+              </div>
+
+              <div className="px-2">
+                <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+                  عدد الجولات
+                </span>
+                <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] font-mono">
+                  {(structure?.group_stage?.length || 0) + (structure?.knockout?.length || 0) || 'تلقائي'}
+                </span>
+              </div>
+
+              <div className="px-2">
+                <span className="block text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] mb-1">
+                  توقيتات المباريات
+                </span>
+                <span className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono">
+                  {form.default_time || '18:00'}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons inside Settings */}
+            <div className="pt-2 border-t border-[#E1E5DF] dark:border-[#303832] flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => openDrawer('group', progMode === 'manual')}
+                className="flex-1 flex h-11 items-center justify-center gap-2 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] text-xs sm:text-sm font-black text-[#111313] shadow-2xs transition active:scale-98 cursor-pointer"
+              >
+                <Sparkles className="size-4" />
+                <span>
+                  {progMode === 'manual' ? 'إنشاء قوالب التوزيع اليدوي' : 'إنشاء البرنامج تلقائياً'}
+                </span>
+              </button>
+
+              {hasKnockoutStage && (
+                <button
+                  type="button"
+                  onClick={() => openDrawer('knockout', false)}
+                  className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] cursor-pointer"
+                >
+                  <Trophy className="size-3.5" />
+                  <span>برمجة الأدوار الإقصائية</span>
+                </button>
+              )}
+
+              {hasAnyFixtures && (
+                <button
+                  type="button"
+                  onClick={removeAll}
+                  disabled={busy === 'del'}
+                  className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-[#D92D20]/30 bg-[#D92D20]/10 px-3.5 text-xs font-black text-[#D92D20] dark:text-[#FF453A] cursor-pointer"
+                >
+                  <Trash2 className="size-3.5" />
+                  <span>حذف الجدول</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* VIEW 1: البرنامج (Chronological Collapsible Day Sections — Ref 1 & 3) */}
+      {/* ================================================================= */}
+      {(subView === 'program' || (subView === 'settings' && hasAnyFixtures)) && (
+        <div className="space-y-3">
+          {!hasAnyFixtures ? (
+            <Empty
+              icon={Swords}
+              title={t('committee.detail.noFixtures')}
+              description={t('committee.detail.noFixturesDesc')}
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button size="sm" onClick={() => openDrawer()}>
+                    <CalendarPlus className="size-4" />
+                    {t('committee.detail.generateFixtures')}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => openDrawer('group', true)}>
+                    <LayoutTemplate className="size-4" />
+                    {t('committee.detail.generateLayout')}
+                  </Button>
+                </div>
+              }
+            />
+          ) : (
+            chronologicalDaySections.map((daySec) => {
+              const isCollapsed = Boolean(collapsedDays[daySec.dateKey])
+              return (
+                <div
+                  key={daySec.dateKey}
+                  className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs"
+                >
+                  {/* Day Section Header */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCollapsedDays((prev) => ({ ...prev, [daySec.dateKey]: !prev[daySec.dateKey] }))
+                    }
+                    className="w-full flex items-center justify-between gap-2 px-4 py-3 text-start hover:bg-[#F7F8F5]/60 dark:hover:bg-[#252B27]/50 transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Calendar className="size-4 shrink-0 text-[#111313] dark:text-[#D0FF38]" />
+                      <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {daySec.label}
+                      </span>
+                      <span className="rounded-full bg-[#F7F8F5] dark:bg-[#252B27] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
+                        {daySec.items.length}
+                      </span>
+                    </div>
+
+                    <ChevronDown
+                      className={`size-4 shrink-0 text-[#65706A] dark:text-[#B2B9B3] transition-transform ${
+                        isCollapsed ? '' : 'rotate-180'
+                      }`}
+                    />
+                  </button>
+
+                  {/* Day Matches List */}
+                  {!isCollapsed && (
+                    <div className="border-t border-[#E1E5DF]/70 dark:border-[#303832]/70 p-2.5 sm:p-3 space-y-2">
+                      {daySec.items.map((f) => {
+                        const isOpening = f.id === effectiveOpeningMatchId
+                        const st = fixtureStatus(f)
+                        const isPlayed = st === 'completed'
+                        const isLive = st === 'live'
+                        const showScore = isPlayed || isLive
+                        const timeStr = f.scheduled_at ? f.scheduled_at.slice(11, 16) : '—:—'
+                        const homeName = f.home_team?.name || f.slots?.home || t('committee.detail.tbd')
+                        const awayName = f.away_team?.name || f.slots?.away || t('committee.detail.tbd')
+
+                        return (
+                          <div
+                            key={f.id}
+                            onClick={() => setRescheduleFixture(f)}
+                            className={`rounded-2xl border p-3 transition-all cursor-pointer active:scale-[0.99] ${
+                              isOpening
+                                ? 'border-[#B8F000] dark:border-[#D0FF38]/60 bg-[#B8F000]/20 dark:bg-[#D0FF38]/12'
+                                : 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5]/60 dark:bg-[#252B27]/50 hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]'
+                            }`}
+                          >
+                            {/* Top Row: Opening Match Badge or Group/Stadium info + Kickoff Time */}
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                {isOpening ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#B8F000] dark:bg-[#D0FF38] px-2.5 py-0.5 text-[11px] font-black text-[#111313]">
+                                    <Trophy className="size-3" />
+                                    <span>المباراة الافتتاحية</span>
+                                  </span>
+                                ) : f.group?.name ? (
+                                  <span className="inline-flex items-center rounded-md bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
+                                    المجموعة {f.group.name}
+                                  </span>
+                                ) : f.round?.name ? (
+                                  <span className="inline-flex items-center rounded-md bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
+                                    {f.round.name}
+                                  </span>
+                                ) : null}
+
+                                {f.stadium?.name && (
+                                  <span className="truncate text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3] inline-flex items-center gap-0.5">
+                                    <MapPin className="size-2.5 shrink-0" />
+                                    <span className="truncate">{f.stadium.name}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="inline-flex items-center gap-1 text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
+                                  <span>{timeStr}</span>
+                                  <Clock className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setResultFixture(f)
+                                  }}
+                                  className="rounded-lg bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#1F9D55] dark:text-[#D0FF38] hover:opacity-80"
+                                  title="تسجيل النتيجة والأحداث"
+                                >
+                                  {isPlayed ? 'تعديل النتيجة' : 'النتيجة'}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Center Row: Home Team VS Away Team */}
+                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                              {/* Home Team (Right in RTL) */}
+                              <div className="flex items-center gap-2 min-w-0">
+                                <TeamAvatar team={f.home_team} className="size-7 sm:size-8 shrink-0" />
+                                <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                                  {homeName}
+                                </span>
+                              </div>
+
+                              {/* Score or VS Pill */}
+                              <div className="shrink-0 px-2">
+                                {showScore ? (
+                                  <span className="inline-flex items-center rounded-lg bg-[#111313] dark:bg-[#D0FF38] px-2.5 py-0.5 text-xs font-black text-white dark:text-[#111313] font-mono tabular-nums">
+                                    {f.match?.home_score ?? 0} : {f.match?.away_score ?? 0}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs font-black text-[#65706A] dark:text-[#B2B9B3]">
+                                    VS
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Away Team (Left in RTL) */}
+                              <div className="flex items-center justify-end gap-2 min-w-0">
+                                <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                                  {awayName}
+                                </span>
+                                <TeamAvatar team={f.away_team} className="size-7 sm:size-8 shrink-0" />
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })
+          )}
+
+          {/* Bottom Sticky / Prominent Lime Action Button (+ إضافة مباراة / إنشاء البرنامج) */}
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => openDrawer('group', progMode === 'manual')}
+              className="w-full flex h-12 sm:h-13 items-center justify-center gap-2 rounded-2xl bg-[#B8F000] dark:bg-[#D0FF38] hover:opacity-95 text-sm sm:text-base font-black text-[#111313] shadow-sm transition active:scale-[0.99] cursor-pointer"
+            >
+              {subView === 'settings' ? (
+                <>
+                  <Sparkles className="size-5" />
+                  <span>إنشاء البرنامج تلقائياً</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="size-5 stroke-[2.8]" />
+                  <span>{hasAnyFixtures ? 'إضافة / برمجة مباريات' : 'إنشاء برنامج المباريات'}</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* VIEW 2: قائمة المباريات (Full Round/Group Filterable List & Slots) */}
+      {/* ================================================================= */}
+      {subView === 'list' && (
+        <div className={`grid gap-5 ${isLeague ? '' : 'lg:grid-cols-[240px_1fr]'}`}>
+          {!isLeague && (
+            <aside className="hidden lg:block">
+              <div className="sticky top-4 max-h-[calc(100vh-2rem)] space-y-4 overflow-y-auto pe-1 pb-4">
+                <RoundNav structure={structure} active={active} onSelect={changeRound} />
+                {poolPanel}
+              </div>
+            </aside>
+          )}
+
+          <div className="min-w-0 space-y-4">
+            {isLeague ? (
+              <LeagueWeekSelector
+                weeks={leagueWeeks}
+                activeWeekId={activeWeekId}
+                onChangeWeek={setActiveWeekId}
+                unscheduledCount={leagueUnscheduled.length}
+                totalCount={fixtures?.length || 0}
+              />
+            ) : (
+              <div className="lg:hidden">
+                <label className="mb-1.5 block text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                  {t('committee.detail.stagesTitle')}
+                </label>
+                <select
+                  className={selectClass}
+                  value={activeKey || ''}
+                  onChange={(e) => selectByKey(e.target.value)}
+                >
+                  {options.group.length > 0 && (
+                    <optgroup label={t('committee.detail.groupStage')}>
+                      {options.group.map((o) => (
+                        <option key={o.key} value={o.key}>
+                          {t('committee.detail.round', { n: o.label.split(':')[1] })}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {options.knockout.length > 0 && (
+                    <optgroup label={t('committee.detail.knockoutStages')}>
+                      {options.knockout.map((o) => (
+                        <option key={o.key} value={o.key}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              {!isLeague ? (
+                <div className="min-w-0">
+                  <h3 className="text-lg font-black tracking-tight text-[#111313] dark:text-[#F5F7F2]">
+                    {isGroup ? t('committee.detail.round', { n: active?.matchday }) : summary?.name || ''}
+                  </h3>
+                  <SummaryChips summary={summary} />
+                </div>
+              ) : (
+                <div className="min-w-0">
+                  <h3 className="text-lg font-black tracking-tight text-[#111313] dark:text-[#F5F7F2]">
+                    {activeWeekId === 'unscheduled'
+                      ? t('committee.detail.unscheduledMatches', 'مباريات بدون موعد / بانتظار البرمجة')
+                      : leagueWeeks.find((w) => w.id === activeWeekId)?.fullLabel || 'مباريات الأسبوع'}
+                  </h3>
+                  <p className="text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mt-0.5">
+                    {filtered.length} {t('committee.detail.matchesCount', { count: filtered.length })}
+                  </p>
+                </div>
+              )}
+              {(() => {
+                const hasPlayed =
+                  (structure?.group_stage || []).some((s) => (s.completed || 0) > 0) ||
+                  (structure?.knockout || []).some((s) => (s.completed || 0) > 0)
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {hasRounds ? (
+                      <>
+                        {tournament.tournament_format !== 'league' && (
+                          <Button
+                            size="sm"
+                            variant={layoutMode ? 'soft' : 'outline'}
+                            onClick={layoutToggle}
+                            title={t('committee.detail.generateLayoutDesc')}
+                          >
+                            <MousePointerClick className="size-4" />
+                            {t('committee.detail.manualFill')}
+                          </Button>
+                        )}
+                        {hasRounds && layoutMode && tournament.tournament_format !== 'league' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              openDrawer(isGroup ? 'group' : 'knockout', true)
+                            }}
+                          >
+                            <LayoutTemplate className="size-4" />
+                            {t('committee.detail.generateLayout')}
+                          </Button>
+                        )}
+                        {hasKnockoutStage && koHasFixtures && (
+                          <Button
+                            size="sm"
+                            variant="dangerSoft"
+                            loading={busy === 'del-ko'}
+                            disabled={koPlayed}
+                            title={koPlayed ? t('committee.detail.deleteBracketBlocked') : undefined}
+                            onClick={deleteKnockout}
+                          >
+                            <Trash2 className="size-4" />
+                            {t('committee.detail.deleteBracket')}
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={hasPlayed}
+                          title={hasPlayed ? t('committee.detail.regenerateBlocked') : undefined}
+                          onClick={() => openDrawer('regenerate')}
+                        >
+                          <RefreshCw className="size-4" />
+                          {t('committee.detail.regenerate')}
+                        </Button>
+                        <Button size="sm" variant="dangerSoft" loading={busy === 'del'} onClick={removeAll}>
+                          <Trash2 className="size-4" />
+                          {t('committee.detail.deleteFixtures')}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="sm" onClick={() => openDrawer()}>
+                        <CalendarPlus className="size-4" />
+                        {t('committee.detail.generateFixtures')}
+                      </Button>
+                    )}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {stateMeta && (
+              <div
+                className={`flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-3.5 py-2.5 text-[11px] font-bold ${stateMeta.cls}`}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <stateMeta.icon
+                    className={`size-4 shrink-0 ${roundState === 'in_progress' ? 'animate-spin' : ''}`}
+                  />
+                  {t(stateMeta.labelKey)}
+                </span>
+                <span className="opacity-80">· {t(stateMeta.descKey)}</span>
+              </div>
+            )}
+            {!stateMeta && roundLocked && (
+              <div className="flex items-center gap-2 rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 py-2.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                <Lock className="size-4 shrink-0" />
+                {t('committee.detail.roundLockedDesc')}
+              </div>
+            )}
+
+            <FilterBar
+              filters={filters}
+              setFilters={setFilters}
+              queryInput={queryInput}
+              setQueryInput={setQueryInput}
+              groups={groups}
+              stadiums={stadiums}
+              isGroup={isGroup}
+            />
+
+            {layoutMode && <div className="lg:hidden">{poolPanel}</div>}
+
+            {layoutMode && draftCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-[#B8F000] bg-[#B8F000]/15 dark:bg-[#D0FF38]/10 px-4 py-3">
+                <p className="text-[11px] font-black text-[#111313] dark:text-[#F5F7F2]">
+                  <span className="me-1">{draftCount}</span>
+                  {t(draftCount === 1 ? 'committee.detail.layoutUnsaved' : 'committee.detail.layoutUnsavedPlural')}
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" loading={busy === 'slots'} onClick={saveSlots}>
+                    <CheckCircle2 className="size-4" />
+                    {t('committee.detail.layoutSave')}
+                  </Button>
+                  <Button size="sm" variant="ghost" disabled={busy === 'slots'} onClick={discardDraft}>
+                    {t('committee.detail.layoutDiscard')}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {!fixtures || (!fixtures.length && fixturesLoading) ? (
+                <SkeletonCards count={2} />
+              ) : fixtures.length === 0 ? (
+                isGroup ? (
+                  <Empty
+                    icon={CalendarDays}
+                    title={t('committee.detail.noMatchesForRound')}
+                    action={
+                      <Button size="sm" variant="outline" onClick={() => openDrawer()}>
+                        {t('committee.detail.scheduleMatch')}
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <Empty
+                    icon={Users}
+                    title={t('committee.detail.stageNotCreated')}
+                    description={t('committee.detail.stageNotCreatedDesc')}
+                    action={
+                      hasKnockoutStage ? (
+                        <Button size="sm" variant="outline" onClick={() => openDrawer('knockout')}>
+                          {t('committee.detail.generateFixtures')}
+                        </Button>
+                      ) : undefined
+                    }
+                  />
+                )
+              ) : filtered.length === 0 ? (
+                <Empty
+                  icon={Search}
+                  title={t('committee.detail.noMatchResults')}
+                  action={
+                    <Button size="sm" variant="outline" onClick={() => setQueryInput('')}>
+                      {t('committee.detail.clearFilters')}
+                    </Button>
+                  }
+                />
+              ) : (
+                sections.map((section) => (
+                  <div key={section.dayKey ?? section.group?.id ?? 'ko'} className="space-y-2.5">
+                    {section.headerLabel && (
+                      <div className="flex items-center justify-between rounded-2xl bg-[#F7F8F5] dark:bg-[#252B27] px-4 py-2.5 text-[#111313] dark:text-[#F5F7F2] border border-[#E1E5DF] dark:border-[#303832] mb-2">
+                        <div className="flex items-center gap-2">
+                          <CalendarDays className="size-4 text-[#1F9D55] dark:text-[#D0FF38]" />
+                          <h4 className="text-xs sm:text-sm font-black">{section.headerLabel}</h4>
+                        </div>
+                        <span className="rounded-full bg-white dark:bg-[#1B201D] px-2.5 py-0.5 text-[11px] font-black text-[#65706A] dark:text-[#B2B9B3] border border-[#E1E5DF] dark:border-[#303832]">
+                          {section.items.length} {t('committee.detail.matchesCount', { count: section.items.length })}
+                        </span>
+                      </div>
+                    )}
+                    {section.group && (
+                      <div className="flex items-center justify-between px-1">
+                        <p className="text-xs font-black uppercase tracking-wide text-[#65706A] dark:text-[#B2B9B3]">
+                          {t('committee.detail.groupName')} {section.group.name}
+                        </p>
+                        <Badge variant="info">
+                          {t('committee.detail.matchesCount', { count: section.items.length })}
+                        </Badge>
+                      </div>
+                    )}
+                    {section.items.map(({ f, number }) => (
+                      <MatchCard
+                        key={f.id}
+                        f={f}
+                        number={number}
+                        busy={busy === f.id || busy === 'slots'}
+                        locked={roundLocked}
+                        tournament={tournament}
+                        prevRoundKey={prevRoundKey}
+                        prevData={prevData}
+                        onOpenPrev={openPrev}
+                        onResult={() => setResultFixture(f)}
+                        onDetails={() => setDetailsFixture(f)}
+                        onReschedule={() => setRescheduleFixture(f)}
+                        onPostpone={() => postponeMatch(f)}
+                        onCancel={() => cancelMatch(f)}
+                        onRestore={() => restoreMatch(f)}
+                        onDelegatedLink={() => setDelegatedLinkFixture(f)}
+                        onReviewSubmission={() => setReviewSubmissionFixture(f)}
+                        layoutMode={layoutMode}
+                        draft={draft}
+                        teamById={teamById}
+                        onStageSlot={stageSlot}
+                        slotErrors={slotErrors}
+                      />
+                    ))}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {overlays}
     </div>

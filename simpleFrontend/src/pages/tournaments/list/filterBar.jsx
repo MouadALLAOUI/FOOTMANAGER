@@ -42,11 +42,44 @@ export default function FilterBar({
   const [open, setOpen] = useState(false)
   const hasActive = activeCount > 0 || !!search.trim()
 
+  const quickStatusTabs = [
+    { key: 'all', label: t('public.tournaments.filters.all', 'الكل') },
+    { key: 'upcoming', label: 'قادمة' },
+    { key: 'in_progress', label: 'جارية' },
+    { key: 'completed', label: 'منتهية' },
+  ]
+
+  const activeQuickTab =
+    filters.status === 'open_for_registration' || filters.status === 'registration_closed' || filters.status === 'upcoming'
+      ? 'upcoming'
+      : filters.status
+
   return (
     <div className="space-y-3">
+      {/* Quick Status Pills (Matches Master Reference Screen 1: الكل | قادمة | جارية | منتهية) */}
+      <div className="grid grid-cols-4 gap-1.5 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-1.5 shadow-2xs">
+        {quickStatusTabs.map((tab) => {
+          const isActive = activeQuickTab === tab.key
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onFilterChange('status', tab.key)}
+              className={`flex h-9 sm:h-10 items-center justify-center rounded-xl text-xs sm:text-sm font-black transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                  : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#303832]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
+      </div>
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
         <div className="relative flex-1 lg:max-w-md">
-          <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-[#65706A] dark:text-[#B2B9B3]" />
           <input
             type="search"
             value={search}

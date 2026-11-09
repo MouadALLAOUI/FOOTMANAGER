@@ -107,27 +107,67 @@ function InfoCell({ item }) {
 
 function QuickInfoStrip({ tour, stats }) {
   const { t, i18n } = useTranslation()
+  const { openTeam } = useProfileModal()
   const lang = i18n.language
   const stadium = tour.stadium
   const champion = toTeam(stats?.champion)
+  const totalTeams = tour.teams_count || tour.stats?.registered_teams || 0
 
-  const items = [
-    { key: 'dates', icon: CalendarDays, label: t('public.overview.dates'), value: formatTournamentDateRange(tour.start_date, tour.end_date, lang) || '—' },
-    { key: 'venue', icon: MapPin, label: t('public.overview.venue'), value: stadium?.name || tour.location || '—' },
-    { key: 'teams', icon: Users, label: t('public.overview.teams'), value: `${tour.stats?.registered_teams ?? 0} / ${tour.teams_count ?? 0}` },
-    { key: 'champions', icon: Trophy, label: t('public.overview.champions'), champion },
+  const rows = [
+    {
+      key: 'dates',
+      icon: CalendarDays,
+      value: formatTournamentDateRange(tour.start_date, tour.end_date, lang) || '—',
+    },
+    {
+      key: 'venue',
+      icon: MapPin,
+      value: stadium?.name || tour.location || '—',
+    },
+    {
+      key: 'teams',
+      icon: Users,
+      value: `${totalTeams} فريقاً`,
+    },
+    {
+      key: 'format',
+      icon: Trophy,
+      value: `البطولة: ${t(`committee.tournaments.formats.${tour.tournament_format}`, tour.tournament_format)}`,
+      champion,
+    },
   ]
 
   return (
-    <div className={`${CARD} px-4 py-6 sm:px-6`}>
-      <div className="relative">
-        <span aria-hidden="true" className="absolute end-[12%] start-[12%] top-6 hidden h-px bg-slate-200 sm:block" />
-        <div className="relative grid grid-cols-2 justify-items-center gap-y-6 sm:grid-cols-4">
-          {items.map((item) => (
-            <InfoCell key={item.key} item={item} />
-          ))}
-        </div>
-      </div>
+    <div className="space-y-2.5">
+      {rows.map((item) => {
+        const Icon = item.icon
+        return (
+          <div
+            key={item.key}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-4 py-3.5 shadow-2xs"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38]">
+                <Icon className="size-4" />
+              </span>
+              <p className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]" dir="auto">
+                {item.value}
+              </p>
+            </div>
+
+            {item.champion && (
+              <button
+                type="button"
+                onClick={() => item.champion.id != null && openTeam(item.champion)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 px-2.5 py-1 text-xs font-black text-[#111313] dark:text-[#D0FF38] cursor-pointer"
+              >
+                <TeamAvatar team={item.champion} className="size-5" />
+                <span className="truncate max-w-[110px]">{item.champion.name}</span>
+              </button>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

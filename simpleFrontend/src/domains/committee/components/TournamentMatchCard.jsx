@@ -20,6 +20,9 @@ import {
   Link2,
   ShieldAlert,
   Share2,
+  MoreVertical,
+  X,
+  ChevronLeft,
 } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 import TeamLogo from '../../../components/profile/TeamLogo'
@@ -129,6 +132,7 @@ export default function TournamentMatchCard({
   const [copyingPublicLink, setCopyingPublicLink] = useState(false)
   const [applyingDefault, setApplyingDefault] = useState(false)
   const [showReassignModal, setShowReassignModal] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const handleAwardDefaultPoints = async (e) => {
     e?.stopPropagation?.()
@@ -499,261 +503,293 @@ export default function TournamentMatchCard({
         </div>
       )}
 
-      {/* Bottom Action Buttons Row */}
-      <div className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
-        {/* Review Delegated Submission Button (if pending) */}
-        {fixture.delegated_submission && !isPlayed && onReviewSubmission && (
-          <Button
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-1.5 text-xs font-black text-white shadow-xs"
-            onClick={() => onReviewSubmission(fixture)}
-            disabled={busy}
-          >
-            <ShieldAlert className="size-3.5" />
-            <span>مراجعة واعتماد نتيجة المندوب</span>
-          </Button>
-        )}
-
-        {/* Delegated Match Link Button (Organizer -> Referee / Volunteer) */}
-        {onDelegatedLink && !isPlayed && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-            onClick={() => onDelegatedLink(fixture)}
-            disabled={busy || locked}
-            title="إنشاء ومشاركة رابط تسجيل المباراة السري مع المندوب أو الحكم"
-          >
-            <Link2 className="size-3.5 text-emerald-600" />
-            <span>رابط تسجيل المباراة</span>
-          </Button>
-        )}
-
-        {/* Copy Public Live Link Button */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-1.5 rounded-xl border-emerald-200 bg-emerald-50/50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100/80 transition"
-          onClick={handleCopyPublicLiveLink}
-          disabled={busy || copyingPublicLink}
-          title="نسخ رابط المتابعة المباشرة لمشاركته مع الجمهور"
-        >
-          {copyingPublicLink ? (
-            <Loader2 className="size-3.5 animate-spin text-emerald-600" />
-          ) : (
-            <Share2 className="size-3.5 text-emerald-600" />
+      {/* Bottom Action Bar: Compact Primary Actions + ⋮ Overflow Menu */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#E1E5DF] dark:border-[#303832] pt-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Review Delegated Submission Button (if pending) */}
+          {fixture.delegated_submission && !isPlayed && onReviewSubmission && (
+            <Button
+              size="sm"
+              className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3 py-1.5 text-xs font-black text-white shadow-xs"
+              onClick={() => onReviewSubmission(fixture)}
+              disabled={busy}
+            >
+              <ShieldAlert className="size-3.5" />
+              <span>اعتماد نتيجة المندوب</span>
+            </Button>
           )}
-          <span>نسخ رابط المتابعة المباشرة</span>
-        </Button>
 
-        {/* Play/Enter Result Button */}
-        {onResult && !isPlayed && !hasDisciplinedTeam && (
-          <Button
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700"
-            onClick={() => onResult(fixture)}
-            disabled={busy || locked}
+          {/* Direct Button for Disciplined Team */}
+          {hasDisciplinedTeam && !isPlayed && (
+            <Button
+              size="sm"
+              className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-1.5 text-xs font-black text-white shadow-xs hover:bg-amber-700"
+              onClick={handleAwardDefaultPoints}
+              disabled={busy || locked || applyingDefault}
+              title="إعطاء 3 نقاط اعتبارية للفريق الخصم وتحرير/إلغاء الموعد"
+            >
+              {applyingDefault ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="size-3.5" />
+              )}
+              <span>فوز اعتباري (3 نقاط)</span>
+            </Button>
+          )}
+
+          {/* Reassign Freed Slot Button */}
+          {canReassignSlot && (
+            <Button
+              size="sm"
+              className="flex items-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-3 py-1.5 text-xs font-black text-white shadow-xs transition cursor-pointer"
+              onClick={() => setShowReassignModal(true)}
+              disabled={busy || locked}
+              title="إسناد هذا التوقيت المحرر لمباراة لم تلعب بعد"
+            >
+              <CalendarCheck className="size-3.5" />
+              <span>إسناد الموعد</span>
+            </Button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 ms-auto">
+          {/* Primary Result CTA */}
+          {onResult && !isDefaultResult && !hasDisciplinedTeam && (
+            <button
+              type="button"
+              onClick={() => onResult(fixture)}
+              disabled={busy || locked}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] hover:opacity-90 px-3.5 text-xs font-black text-[#111313] shadow-2xs transition cursor-pointer disabled:opacity-50"
+            >
+              <Play className="size-3 fill-current" />
+              <span>{isPlayed ? 'تعديل النتيجة' : 'تسجيل النتيجة'}</span>
+            </button>
+          )}
+
+          {/* Primary Edit / Reschedule CTA */}
+          {!isPlayed && (onManageMatch || onReschedule) && (
+            <button
+              type="button"
+              onClick={() => (onManageMatch ? onManageMatch(fixture) : onReschedule(fixture))}
+              disabled={busy || locked}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] hover:bg-[#E9ECE7] dark:hover:bg-[#303832] px-3 text-xs font-black text-[#111313] dark:text-[#F5F7F2] transition cursor-pointer"
+            >
+              <CalendarDays className="size-3.5" />
+              <span>{isScheduled ? 'تعديل الموعد' : 'تحديد الموعد'}</span>
+            </button>
+          )}
+
+          {/* Compact ⋮ Overflow Menu Button */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            aria-label="خيارات إضافية للمباراة"
+            className="flex size-9 items-center justify-center rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#303832] transition cursor-pointer"
           >
-            <Play className="size-3 fill-current" />
-            <span>تسجيل النتيجة والأحداث</span>
-          </Button>
-        )}
-
-        {/* Reassign Freed Slot Button */}
-        {canReassignSlot && (
-          <Button
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition cursor-pointer"
-            onClick={() => setShowReassignModal(true)}
-            disabled={busy || locked}
-            title="إسناد هذا التوقيت المحرر لمباراة لم تلعب بعد"
-          >
-            <CalendarCheck className="size-3.5" />
-            <span>إسناد الموعد لمباراة أخرى</span>
-          </Button>
-        )}
-
-        {/* Direct Button for Disciplined Team */}
-        {hasDisciplinedTeam && !isPlayed && (
-          <Button
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-3.5 py-1.5 text-xs font-black text-white shadow-xs hover:bg-amber-700"
-            onClick={handleAwardDefaultPoints}
-            disabled={busy || locked || applyingDefault}
-            title="إعطاء 3 نقاط اعتبارية للفريق الخصم وتحرير/إلغاء الموعد"
-          >
-            {applyingDefault ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <CheckCircle2 className="size-3.5" />
-            )}
-            <span>إعطاء 3 نقاط اعتبارية للفريق الخصم</span>
-          </Button>
-        )}
-
-        {/* View Details / Edit for Played Match */}
-        {isPlayed && (
-          <>
-            {onDetails && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1.5 rounded-xl border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                onClick={() => onDetails(fixture)}
-                disabled={busy}
-              >
-                <Eye className="size-3.5 text-slate-500" />
-                <span>عرض التفاصيل</span>
-              </Button>
-            )}
-            {onResult && !isDefaultResult && !hasDisciplinedTeam && (
-              <Button
-                size="sm"
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 px-3.5 py-1.5 text-xs font-bold"
-                onClick={() => onResult(fixture)}
-                disabled={busy || locked}
-              >
-                <Play className="size-3 text-emerald-600" />
-                <span>تعديل النتيجة والأحداث</span>
-              </Button>
-            )}
-            {isDefaultResult && (
-              <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200/80 px-3 py-1.5 text-xs font-bold text-slate-500">
-                <CheckCircle2 className="size-3.5 text-slate-400" />
-                <span>مباراة محسومة اعتبارياً (أرشيف)</span>
-              </span>
-            )}
-          </>
-        )}
-
-                {/* Step 2.1: Move Borrowed Match to Own Slot */}
-        {onMoveToOwnSlot && isBorrowed && !isPlayed && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-purple-200 bg-purple-50 px-2.5 py-1.5 text-xs font-bold text-purple-800 hover:bg-purple-100 transition"
-            onClick={() => onMoveToOwnSlot(fixture)}
-            disabled={busy || locked}
-          >
-            <ArrowLeftRight className="size-3.5 text-purple-600" />
-            <span>نقل إلى موعد أحد الفريقين</span>
-          </Button>
-        )}
-
-        {/* Main Entry Point: تعديل المباراة */}
-        {onManageMatch && !isPlayed && (
-          <Button
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 px-3.5 py-1.5 text-xs font-black text-white shadow-xs transition cursor-pointer"
-            onClick={() => onManageMatch(fixture)}
-            disabled={busy || locked}
-          >
-            <RotateCcw className="size-3 text-emerald-400" />
-            <span>تعديل المباراة</span>
-          </Button>
-        )}
-
-        {/* Reschedule Button */}
-        {onReschedule && !isPlayed && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-            onClick={() => onReschedule(fixture)}
-            disabled={busy}
-          >
-            <CalendarDays className="size-3.5 text-slate-500" />
-            <span>{isScheduled ? 'تعديل الموعد' : 'تحديد الموعد'}</span>
-          </Button>
-        )}
-
-        {/* Unassign Booking Button */}
-        {onUnassign && isScheduled && !isPlayed && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-            onClick={() => onUnassign(fixture.id)}
-            disabled={isUnassigning || busy}
-          >
-            {isUnassigning ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <Unlink className="size-3.5 text-slate-500" />
-            )}
-            <span>إلغاء ربط الحجز</span>
-          </Button>
-        )}
-
-        {/* Swap Opponent Button */}
-        {onSwapOpponent && !isPlayed && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-            onClick={() => onSwapOpponent(fixture)}
-            disabled={busy}
-          >
-            <ArrowLeftRight className="size-3.5 text-slate-500" />
-            <span>تبديل الخصم</span>
-          </Button>
-        )}
-
-        {/* Postpone Button */}
-        {onPostpone && (fixture.status === 'pending' || fixture.status === 'scheduled') && !isPlayed && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-amber-200 bg-amber-50/50 px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100"
-            onClick={() => onPostpone(fixture)}
-            disabled={busy}
-          >
-            <Clock4 className="size-3.5 text-amber-600" />
-            <span>تأجيل</span>
-          </Button>
-        )}
-
-        {/* Reschedule Postponed Match with Suggestions */}
-        {onRescheduleSuggestion && isPostponed && !isPlayed && (
-          <Button
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white shadow-xs"
-            onClick={() => onRescheduleSuggestion(fixture)}
-            disabled={busy}
-          >
-            <Sparkles className="size-3.5 text-amber-300" />
-            <span>إعادة جدولة</span>
-          </Button>
-        )}
-
-        {/* Restore Button */}
-        {onRestore && (isPostponed || isCancelled) && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
-            onClick={() => onRestore(fixture)}
-            disabled={busy}
-          >
-            <RotateCcw className="size-3.5 text-slate-500" />
-            <span>استعادة</span>
-          </Button>
-        )}
-
-        {/* Cancel Button */}
-        {onCancel && (fixture.status === 'pending' || fixture.status === 'scheduled') && !isPlayed && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 rounded-xl border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50"
-            onClick={() => onCancel(fixture)}
-            disabled={busy}
-          >
-            <Ban className="size-3.5 text-red-500" />
-            <span>إلغاء</span>
-          </Button>
-        )}
+            <MoreVertical className="size-4" />
+          </button>
+        </div>
       </div>
+
+      {/* Secondary Per-Match Actions Bottom Sheet */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setMenuOpen(false)}
+          />
+
+          <div className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 shadow-2xl space-y-3 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#E1E5DF] dark:border-[#303832] pb-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] truncate">
+                  {fixture.home_team?.name || 'فريق 1'} ضد {fixture.away_team?.name || 'فريق 2'}
+                </p>
+                <p className="text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mt-0.5">
+                  {roundText} · {venueName}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(false)}
+                className="flex size-9 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3]"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              {onDetails && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onDetails(fixture)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <Eye className="size-4 text-[#65706A]" />
+                    عرض تفاصيل المباراة
+                  </span>
+                  <ChevronLeft className="size-4 text-[#65706A]" />
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  setMenuOpen(false)
+                  handleCopyPublicLiveLink(e)
+                }}
+                className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+              >
+                <span className="inline-flex items-center gap-2.5">
+                  <Share2 className="size-4 text-[#16834A] dark:text-[#D0FF38]" />
+                  نسخ رابط المتابعة المباشرة
+                </span>
+                <ChevronLeft className="size-4 text-[#65706A]" />
+              </button>
+
+              {onDelegatedLink && !isPlayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onDelegatedLink(fixture)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <Link2 className="size-4 text-[#16834A] dark:text-[#D0FF38]" />
+                    إنشاء رابط تسجيل المباراة (للمندوب / الحكم)
+                  </span>
+                  <ChevronLeft className="size-4 text-[#65706A]" />
+                </button>
+              )}
+
+              {onMoveToOwnSlot && isBorrowed && !isPlayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onMoveToOwnSlot(fixture)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <ArrowLeftRight className="size-4 text-purple-600" />
+                    نقل إلى موعد أحد الفريقين
+                  </span>
+                  <ChevronLeft className="size-4 text-[#65706A]" />
+                </button>
+              )}
+
+              {onSwapOpponent && !isPlayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onSwapOpponent(fixture)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <ArrowLeftRight className="size-4 text-[#65706A]" />
+                    تبديل الفريق الخصم
+                  </span>
+                  <ChevronLeft className="size-4 text-[#65706A]" />
+                </button>
+              )}
+
+              {onUnassign && isScheduled && !isPlayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onUnassign(fixture.id)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <Unlink className="size-4 text-[#65706A]" />
+                    إلغاء ربط الحجز
+                  </span>
+                  <ChevronLeft className="size-4 text-[#65706A]" />
+                </button>
+              )}
+
+              {onRescheduleSuggestion && isPostponed && !isPlayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onRescheduleSuggestion(fixture)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#16834A] dark:text-[#D0FF38] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <Sparkles className="size-4" />
+                    اقتراحات إعادة الجدولة
+                  </span>
+                  <ChevronLeft className="size-4" />
+                </button>
+              )}
+
+              {onPostpone && (fixture.status === 'pending' || fixture.status === 'scheduled') && !isPlayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onPostpone(fixture)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#B87500] dark:text-[#FFC857] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <Clock4 className="size-4" />
+                    تأجيل المباراة
+                  </span>
+                  <ChevronLeft className="size-4" />
+                </button>
+              )}
+
+              {onRestore && (isPostponed || isCancelled) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onRestore(fixture)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <RotateCcw className="size-4" />
+                    استعادة المباراة
+                  </span>
+                  <ChevronLeft className="size-4" />
+                </button>
+              )}
+
+              {onCancel && (fixture.status === 'pending' || fixture.status === 'scheduled') && !isPlayed && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onCancel(fixture)
+                  }}
+                  className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-black text-[#D93636] dark:text-[#FF6868] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]"
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <Ban className="size-4" />
+                    إلغاء المباراة
+                  </span>
+                  <ChevronLeft className="size-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {showReassignModal && (
         <ReassignFreedSlotModal
           open={showReassignModal}

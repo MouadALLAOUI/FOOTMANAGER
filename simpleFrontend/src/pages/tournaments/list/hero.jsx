@@ -65,7 +65,7 @@ export default function TournamentsHero({ stats }) {
           <button
             type="button"
             onClick={() => scrollTo('tournaments-directory')}
-            className="btn-ripple flex h-12 items-center justify-center gap-2 rounded-[16px] bg-green-500 px-7 text-sm font-bold text-white shadow-[0_14px_35px_rgba(22,163,74,0.5)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-green-600 hover:shadow-[0_20px_50px_rgba(22,163,74,0.6)] active:translate-y-0"
+            className="btn-ripple flex h-12 items-center justify-center gap-2 rounded-xl bg-[#B8F000] px-7 text-sm font-black text-[#111313] shadow-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:opacity-95 active:translate-y-0 cursor-pointer"
           >
             <ArrowDown className="size-4" />
             {t('public.tournaments.hero.explore', 'استكشف البطولات')}
@@ -73,7 +73,7 @@ export default function TournamentsHero({ stats }) {
           <button
             type="button"
             onClick={() => scrollTo('organizer-section')}
-            className="flex h-12 items-center justify-center gap-2 rounded-[16px] border-2 border-white/70 px-7 text-sm font-bold text-white backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-white hover:bg-white hover:text-green-700 active:translate-y-0"
+            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-white/40 bg-white/10 px-7 text-sm font-black text-white backdrop-blur-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-white hover:bg-white hover:text-[#111313] active:translate-y-0 cursor-pointer"
           >
             <Trophy className="size-4" />
             {t('public.tournaments.hero.organize', 'نظّم بطولتك معنا')}

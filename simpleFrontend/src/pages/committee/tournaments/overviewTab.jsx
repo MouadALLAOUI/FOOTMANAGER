@@ -165,92 +165,138 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
 
   return (
     <div className="space-y-5">
-      {/* Compact 4-Column Statistics Card */}
-      <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 sm:p-4 shadow-2xs">
-        <div className="grid grid-cols-4 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] text-center">
+      {/* ملخص البطولة + التقدم (Matches Master Reference Screen 6) */}
+      <div className="rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-5 shadow-2xs space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
+            ملخص البطولة
+          </h2>
+          {finishedCount > 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#16834A]/15 px-2.5 py-0.5 text-xs font-black text-[#16834A] dark:text-[#42D889]">
+              <CheckCheck className="size-3.5" />
+              <span>{finishedCount} منجزة</span>
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {/* Card 1: Teams & Groups */}
           <button
             type="button"
             onClick={() => setActive?.('teams')}
-            className="flex flex-col items-center justify-center px-1 sm:px-2 hover:opacity-80 transition cursor-pointer"
+            className="flex flex-col items-center justify-center rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3 text-center hover:border-[#B8F000] transition cursor-pointer"
           >
-            <div className="flex size-8 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38] mb-1">
-              <Users className="size-4" />
-            </div>
-            <span className="text-lg sm:text-2xl font-black tracking-tight text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
-              {registered}
+            <span className="text-xl sm:text-2xl font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums leading-none">
+              {registered || maxTeams}
             </span>
-            <span className="text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mt-0.5 truncate max-w-full">
-              {t('committee.detail.stat.teams') || 'الفرق'}
+            <span className="mt-1 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate max-w-full">
+              {!isLeague && groupsCount > 0 ? `${groupsCount} مجموعات` : 'فريقاً'}
             </span>
           </button>
 
+          {/* Card 2: Format / Groups */}
           <button
             type="button"
             onClick={() => setActive?.(isLeague ? 'teams' : 'draw')}
-            className="flex flex-col items-center justify-center px-1 sm:px-2 hover:opacity-80 transition cursor-pointer"
+            className="flex flex-col items-center justify-center rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3 text-center hover:border-[#B8F000] transition cursor-pointer"
           >
-            <div className="flex size-8 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38] mb-1">
+            <div className="flex size-7 items-center justify-center rounded-xl bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#D0FF38]">
               <LayoutGrid className="size-4" />
             </div>
-            <span className="text-lg sm:text-2xl font-black tracking-tight text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
-              {groupsCount}
-            </span>
-            <span className="text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mt-0.5 truncate max-w-full">
-              {t('committee.detail.stat.groups') || 'المجموعات'}
+            <span className="mt-1 text-[11px] sm:text-xs font-black text-[#111313] dark:text-[#F5F7F2] truncate max-w-full">
+              {isLeague ? 'نظام الدوري' : 'مجموعات'}
             </span>
           </button>
 
+          {/* Card 3: Matches Count */}
           <button
             type="button"
             onClick={() => setActive?.('fixtures')}
-            className="flex flex-col items-center justify-center px-1 sm:px-2 hover:opacity-80 transition cursor-pointer"
+            className="flex flex-col items-center justify-center rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3 text-center hover:border-[#B8F000] transition cursor-pointer"
           >
-            <div className="flex size-8 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38] mb-1">
-              <Swords className="size-4" />
-            </div>
-            <span className="text-lg sm:text-2xl font-black tracking-tight text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
+            <span className="text-xl sm:text-2xl font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums leading-none">
               {fixturesCount}
             </span>
-            <span className="text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mt-0.5 truncate max-w-full">
-              {t('committee.detail.stat.fixtures') || 'المباريات'}
+            <span className="mt-1 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate max-w-full">
+              مباراة
+            </span>
+          </button>
+        </div>
+
+        {/* التقدم Progress Bar (Matches Screen 6) */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center justify-between text-xs font-black">
+            <span className="text-[#111313] dark:text-[#F5F7F2]">التقدم</span>
+            <span className="text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+              {completedStepsCount} من {totalStepsCount} مكتملة
+            </span>
+          </div>
+          <div className="relative h-7 w-full overflow-hidden rounded-full bg-[#E9ECE7] dark:bg-[#252B27]">
+            <div
+              className="flex h-full items-center justify-end rounded-full bg-[#B8F000] dark:bg-[#D0FF38] px-3 transition-all duration-500"
+              style={{ width: `${Math.max(18, stepsPct)}%` }}
+            >
+              <span className="text-xs font-black text-[#111313] tabular-nums">{stepsPct}%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* إجراءات سريعة (3-Column Quick Action Cards — Matches Screen 6) */}
+      <div className="space-y-2.5">
+        <h2 className="text-base sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2] px-1">
+          إجراءات سريعة
+        </h2>
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+          {/* 1. إضافة فريق (Highlighted in Lime) */}
+          <button
+            type="button"
+            onClick={() => setActive?.('teams')}
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-[#B8F000] bg-[#B8F000] dark:bg-[#D0FF38] p-3.5 sm:p-4 text-center text-[#111313] shadow-2xs transition active:scale-95 cursor-pointer"
+          >
+            <span className="flex size-10 items-center justify-center rounded-xl bg-black/10 text-[#111313]">
+              <Users className="size-5" />
+            </span>
+            <span className="text-xs sm:text-sm font-black leading-tight">إضافة فريق</span>
+          </button>
+
+          {/* 2. تنظيم المجموعات */}
+          <button
+            type="button"
+            onClick={() => setActive?.(isLeague ? 'teams' : 'draw')}
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] p-3.5 sm:p-4 text-center text-[#111313] dark:text-[#F5F7F2] shadow-2xs transition active:scale-95 cursor-pointer"
+          >
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38]">
+              <LayoutGrid className="size-5" />
+            </span>
+            <span className="text-xs sm:text-sm font-black leading-tight">
+              {isLeague ? 'إدارة الفرق' : 'تنظيم المجموعات'}
             </span>
           </button>
 
+          {/* 3. برمجة المباريات */}
           <button
             type="button"
-            onClick={() => setActive?.('standings')}
-            className="flex flex-col items-center justify-center px-1 sm:px-2 hover:opacity-80 transition cursor-pointer"
+            onClick={() => setActive?.('fixtures')}
+            className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] p-3.5 sm:p-4 text-center text-[#111313] dark:text-[#F5F7F2] shadow-2xs transition active:scale-95 cursor-pointer"
           >
-            <div className="flex size-8 items-center justify-center rounded-xl bg-[#1F9D55]/10 dark:bg-[#30D158]/15 text-[#1F9D55] dark:text-[#30D158] mb-1">
-              <CheckCheck className="size-4" />
-            </div>
-            <span className="text-lg sm:text-2xl font-black tracking-tight text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
-              {finishedCount}
+            <span className="flex size-10 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38]">
+              <CalendarDays className="size-5" />
             </span>
-            <span className="text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] mt-0.5 truncate max-w-full">
-              {t('committee.detail.stat.finished') || 'المنجزة'}
-            </span>
+            <span className="text-xs sm:text-sm font-black leading-tight">برمجة المباريات</span>
           </button>
         </div>
       </div>
 
       {/* خطوات تنظيم البطولة (Matches Reference Image 3 Left Screen) */}
       <div className="rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-5 shadow-2xs">
-        <div className="flex items-center justify-between gap-2 mb-2.5">
+        <div className="flex items-center justify-between gap-2 mb-3">
           <h2 className="text-base sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
             خطوات تنظيم البطولة
           </h2>
           <span className="text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
             {completedStepsCount} من {totalStepsCount} مكتملة
           </span>
-        </div>
-
-        {/* Lime Progress Bar */}
-        <div className="mb-4 h-2.5 w-full overflow-hidden rounded-full bg-[#E9ECE7] dark:bg-[#252B27]">
-          <div
-            className="h-full rounded-full bg-[#B8F000] dark:bg-[#D0FF38] transition-all duration-500"
-            style={{ width: `${stepsPct}%` }}
-          />
         </div>
 
         {loading ? (

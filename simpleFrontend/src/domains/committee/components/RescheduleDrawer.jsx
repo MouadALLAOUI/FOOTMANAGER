@@ -19,6 +19,7 @@ import { TeamAvatar } from '../../../pages/tournaments/shared'
 import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
+import { formatGroupName } from '../../../lib/groupNames'
 import TimeSlotPicker from '../../../components/TimeSlotPicker'
 import useTerrainSlots from '../../../hooks/useTerrainSlots'
 import { buildTimeSlots } from '../../../lib/timeSlots'
@@ -138,7 +139,7 @@ export default function RescheduleDrawer({
   })()
 
   const groupOrRoundLabel = fixture.group?.name
-    ? `المجموعة ${fixture.group.name}`
+    ? formatGroupName(fixture.group.name, { groupId: fixture.group.id, tournamentId: tournament?.id })
     : fixture.round?.name || (fixture.matchday ? `الجولة ${fixture.matchday}` : 'دور المجموعات')
 
   const save = async (override = false) => {
@@ -484,11 +485,6 @@ export default function RescheduleDrawer({
                 placeholder="—"
                 value={homeScore}
                 onChange={(e) => setHomeScore(e.target.value)}
-                onFocus={() => {
-                  if (onOpenResult && !isPlayed) {
-                    // Let them type or open MatchControlRoom
-                  }
-                }}
                 className="h-11 w-16 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-center text-lg font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums focus:outline-none focus:border-[#B8F000]"
               />
               <span className="text-lg font-black text-[#65706A] dark:text-[#B2B9B3]">:</span>

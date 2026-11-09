@@ -6,7 +6,6 @@ import {
   Dices,
   Edit3,
   Layers,
-  Lock,
   Plus,
   Save,
   Shuffle,
@@ -20,6 +19,7 @@ import { Badge, Button, Card, Empty, Modal, Skeleton } from '../../../../compone
 import { TeamAvatar } from '../../../tournaments/shared'
 import { useToast } from '../../../../components/ui/Toast'
 import { toastApiError } from '../../../../lib/errors'
+import { formatGroupName, setCustomGroupName } from '../../../../lib/groupNames'
 import { commitMove, deriveDisplayGroups, isNewGroup, membersOf, nextGroupLabel } from './drawLogic'
 import GroupColumn from './GroupColumn'
 import TeamPool from './TeamPool'
@@ -36,6 +36,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
   const [orgMode, setOrgMode] = useState('smart') // 'smart' | 'manual'
   const [expandedGroups, setExpandedGroups] = useState({})
   const [editingGroup, setEditingGroup] = useState(null)
+  const [, setGroupNameTick] = useState(0)
   const seqRef = useRef(0)
 
   const { data: serverTeams, loading } = useApi(
@@ -99,6 +100,17 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
     setExpandedGroups((prev) => ({ ...prev, [gid]: !prev[gid] }))
   }
 
+  const renameGroup = (groupObj, nextName) => {
+    const trimmed = String(nextName || '').trim()
+    if (!trimmed) return
+    setCustomGroupName(groupObj.id, trimmed, tournament.id)
+    setWideGroups((prev) =>
+      (prev || displayGroups).map((g) => (g.id === groupObj.id ? { ...g, name: trimmed } : g)),
+    )
+    setGroupNameTick((n) => n + 1)
+    toast.success(`تم تحديث اسم المجموعة إلى "${trimmed}"`)
+  }
+
   const movePivotToTarget = (pivotId, target) => {
     if (!canEdit || busy) return
     const result = commitMove(teams, pivotId, target, {
@@ -149,7 +161,8 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
   const emptyOrDeleteGroup = (groupObj) => {
     if (!canEdit || busy) return
     const members = membersOf(teams, groupObj.id)
-    if (members.length > 0 && !window.confirm(`هل تريد تفريغ الفرق من المجموعة ${groupObj.name}؟`)) return
+    const gTitle = formatGroupName(groupObj.name, { groupId: groupObj.id, tournamentId: tournament.id })
+    if (members.length > 0 && !window.confirm(`هل تريد تفريغ الفرق من ${gTitle}؟`)) return
     const nextTeams = teams.map((p) =>
       p.group?.id === groupObj.id ? { ...p, group: null, group_position: null } : p,
     )
@@ -309,6 +322,9 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
   }
 
   const editingGroupMembers = editingGroup ? membersOf(teams, editingGroup.id) : []
+  const editingGroupTitle = editingGroup
+    ? formatGroupName(editingGroup.name, { groupId: editingGroup.id, tournamentId: tournament.id })
+    : ''
 
   return (
     <div className="space-y-4 pb-8">
@@ -497,23 +513,27 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
 
       {/* D. Expandable Group Cards List */}
       <div className="space-y-2.5">
-        {displayGroups.map((g) => (
-          <GroupColumn
-            key={g.id}
-            title={`المجموعة ${g.name}`}
-            groupName={g.name}
-            members={membersOf(teams, g.id)}
-            capacity={cap}
-            locked={!canEdit}
-            expanded={Boolean(expandedGroups[g.id])}
-            onToggleExpand={() => toggleGroupExpand(g.id)}
-            onDragStart={onDragStart}
-            onDrop={onDropGroup(g)}
-            onRemoveTeam={(teamId) => moveTeamByTeamId(teamId, null)}
-            onDeleteGroup={canEdit ? () => emptyOrDeleteGroup(g) : null}
-            onEditTeams={canEdit ? () => setEditingGroup(g) : null}
-          />
-        ))}
+        {displayGroups.map((g) => {
+          const groupTitle = formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id })
+          return (
+            <GroupColumn
+              key={g.id}
+              title={groupTitle}
+              groupName={g.name}
+              members={membersOf(teams, g.id)}
+              capacity={cap}
+              locked={!canEdit}
+              expanded={Boolean(expandedGroups[g.id])}
+              onToggleExpand={() => toggleGroupExpand(g.id)}
+              onDragStart={onDragStart}
+              onDrop={onDropGroup(g)}
+              onRemoveTeam={(teamId) => moveTeamByTeamId(teamId, null)}
+              onDeleteGroup={canEdit ? () => emptyOrDeleteGroup(g) : null}
+              onRenameGroup={canEdit ? (nextName) => renameGroup(g, nextName) : null}
+              onEditTeams={canEdit ? () => setEditingGroup(g) : null}
+            />
+          )
+        })}
       </div>
 
       {/* E. Bottom Primary Confirmation Button (Matches Reference Image 2) */}
@@ -540,13 +560,13 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
         <Modal
           open={Boolean(editingGroup)}
           onClose={() => setEditingGroup(null)}
-          title={`تعديل فرق المجموعة ${editingGroup.name}`}
+          title={`تعديل فرق ${editingGroupTitle}`}
           size="md"
         >
           <div className="space-y-4" dir="rtl">
             <div className="flex items-center justify-between rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 py-2.5 text-xs">
               <span className="font-bold text-[#65706A] dark:text-[#B2B9B3]">
-                اضغط على الفريق لإضافته أو إزالته من المجموعة {editingGroup.name}
+                اضغط على الفريق لإضافته أو إزالته من {editingGroupTitle}
               </span>
               <span className="rounded-full bg-[#B8F000] dark:bg-[#D0FF38] px-2.5 py-0.5 font-black text-[#111313]">
                 {editingGroupMembers.length} {cap ? `/ ${cap}` : ''} فرق
@@ -557,6 +577,9 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
               {teams.map((pivot) => {
                 const inThisGroup = pivot.group?.id === editingGroup.id
                 const inOtherGroup = pivot.group && pivot.group.id !== editingGroup.id
+                const otherGroupTitle = inOtherGroup
+                  ? formatGroupName(pivot.group.name, { groupId: pivot.group.id, tournamentId: tournament.id })
+                  : ''
                 return (
                   <button
                     key={pivot.id}
@@ -576,7 +599,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
                         </p>
                         {inOtherGroup && (
                           <p className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
-                            حالياً في المجموعة {pivot.group.name}
+                            حالياً في {otherGroupTitle}
                           </p>
                         )}
                       </div>
@@ -635,10 +658,11 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
           <div className="grid gap-4 md:grid-cols-2">
             {displayGroups.map((g) => {
               const members = membersOf(teams, g.id)
+              const gTitle = formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id })
               return (
                 <div key={g.id} className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4">
                   <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">{g.name}</h4>
+                    <h4 className="text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">{gTitle}</h4>
                     <Badge variant={cap && members.length >= cap ? 'success' : 'neutral'}>
                       {freeMode ? members.length : `${members.length}/${cap}`}
                     </Badge>

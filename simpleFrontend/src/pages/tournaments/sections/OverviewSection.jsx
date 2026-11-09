@@ -5,6 +5,8 @@ import {
   ArrowLeft,
   Award,
   CalendarDays,
+  CheckCircle2,
+  Clock,
   Flag,
   Flame,
   Hand,
@@ -23,11 +25,10 @@ import {
 import { TeamAvatar } from '../shared'
 import { formatTime, matchDay } from '../../../lib/adapters'
 import { formatTournamentDateRange } from '../list/shared'
+import { formatGroupName } from '../../../lib/groupNames'
 import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import { Skeleton } from '../../../components/dashboard/ui'
 import Collapsible from '../../../components/tournaments/Collapsible'
-
-const CARD = 'rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#F5F7F2] shadow-sm'
 
 function toTeam(info) {
   if (!info) return null
@@ -38,562 +39,735 @@ function buildFormMap(standings) {
   const map = {}
   for (const group of standings?.groups || []) {
     for (const row of group.rows || []) {
-      if (row.team) map[row.team_id] = row.form
+      const id = row.team_id ?? row.team?.id
+      if (id != null && Array.isArray(row.form)) map[id] = row.form
     }
   }
   return map
 }
 
-function FormBadges({ form }) {
-  const marks = (form || []).slice(-5)
-  if (!marks.length) return <span className="text-[10px] font-semibold text-slate-300">—</span>
-  return (
-    <div className="flex items-center gap-1">
-      {marks.map((mark, i) => (
-        <span
-          key={i}
-          className={`grid size-5 place-items-center rounded-full text-[9px] font-black ${
-            mark === 'W'
-              ? 'bg-emerald-100 text-emerald-700'
-              : mark === 'D'
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-rose-100 text-rose-600'
-          }`}
-        >
-          {mark}
-        </span>
-      ))}
-    </div>
-  )
+const FORM_STYLES = {
+  W: { cls: 'bg-[#179955]/15 text-[#179955] dark:bg-[#42D889]/20 dark:text-[#42D889]', text: 'W' },
+  D: { cls: 'bg-[#D9822B]/15 text-[#D9822B] dark:bg-[#FFC857]/20 dark:text-[#FFC857]', text: 'D' },
+  L: { cls: 'bg-[#D93636]/15 text-[#D93636] dark:bg-[#FF6868]/20 dark:text-[#FF6868]', text: 'L' },
 }
 
-function EmptyBlock({ icon: Icon, text }) {
+function FormRow({ form = [], align = 'start' }) {
+  const { t } = useTranslation()
+  if (!form || form.length === 0) return null
+  const labelFor = (r) =>
+    r === 'W' ? t('public.overview.formW') : r === 'D' ? t('public.overview.formD') : t('public.overview.formL')
   return (
-    <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
-      <span className="grid size-12 place-items-center rounded-2xl bg-slate-50 text-slate-300"><Icon className="size-6" /></span>
-      <p className="text-sm font-bold text-slate-600">{text}</p>
-    </div>
-  )
-}
-
-function InfoCell({ item }) {
-  const { openTeam } = useProfileModal()
-  const Icon = item.icon
-  return (
-    <div className="flex w-full flex-col items-center gap-2 text-center">
-      <span className="z-10 grid size-12 place-items-center rounded-full bg-green-50 text-green-600 ring-4 ring-white">
-        <Icon className="size-5" />
-      </span>
-      <p className="text-[11px] font-bold text-slate-400">{item.label}</p>
-      {item.champion ? (
-        item.champion ? (
-          <button
-            type="button"
-            onClick={() => item.champion.id != null && openTeam(item.champion)}
-            className="flex max-w-full items-center gap-1.5"
-          >
-            <TeamAvatar team={item.champion} className="size-6" />
-            <span className="truncate text-sm font-extrabold text-slate-900">{item.champion.name}</span>
-          </button>
-        ) : (
-          <span className="text-sm font-extrabold text-slate-300">—</span>
-        )
-      ) : (
-        <p className="max-w-full truncate text-sm font-extrabold text-slate-900" dir="auto">{item.value}</p>
-      )}
-    </div>
-  )
-}
-
-function QuickInfoStrip({ tour, stats }) {
-  const { t, i18n } = useTranslation()
-  const { openTeam } = useProfileModal()
-  const lang = i18n.language
-  const stadium = tour.stadium
-  const champion = toTeam(stats?.champion)
-  const totalTeams = tour.teams_count || tour.stats?.registered_teams || 0
-
-  const rows = [
-    {
-      key: 'dates',
-      icon: CalendarDays,
-      value: formatTournamentDateRange(tour.start_date, tour.end_date, lang) || '—',
-    },
-    {
-      key: 'venue',
-      icon: MapPin,
-      value: stadium?.name || tour.location || '—',
-    },
-    {
-      key: 'teams',
-      icon: Users,
-      value: `${totalTeams} فريقاً`,
-    },
-    {
-      key: 'format',
-      icon: Trophy,
-      value: `البطولة: ${t(`committee.tournaments.formats.${tour.tournament_format}`, tour.tournament_format)}`,
-      champion,
-    },
-  ]
-
-  return (
-    <div className="space-y-2.5">
-      {rows.map((item) => {
-        const Icon = item.icon
+    <div
+      className={`mt-1 flex items-center gap-1 ${
+        align === 'end' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+      }`}
+    >
+      {form.slice(-5).map((r, idx) => {
+        const s = FORM_STYLES[r] || FORM_STYLES.D
         return (
-          <div
-            key={item.key}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-4 py-3.5 shadow-2xs"
+          <span
+            key={idx}
+            title={labelFor(r)}
+            className={`grid size-4 sm:size-4.5 place-items-center rounded-full text-[8px] sm:text-[9px] font-black leading-none ${s.cls}`}
           >
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#D0FF38]">
-                <Icon className="size-4" />
-              </span>
-              <p className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]" dir="auto">
-                {item.value}
-              </p>
-            </div>
-
-            {item.champion && (
-              <button
-                type="button"
-                onClick={() => item.champion.id != null && openTeam(item.champion)}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 px-2.5 py-1 text-xs font-black text-[#111313] dark:text-[#D0FF38] cursor-pointer"
-              >
-                <TeamAvatar team={item.champion} className="size-5" />
-                <span className="truncate max-w-[110px]">{item.champion.name}</span>
-              </button>
-            )}
-          </div>
+            {s.text}
+          </span>
         )
       })}
     </div>
   )
 }
 
-function InfoPanel({ tour }) {
-  const { t } = useTranslation()
-  const [viewMode, setViewMode] = useState('image')
-  const stadium = tour.stadium
-  const hasCoords = Boolean(stadium && typeof stadium.latitude === 'number' && typeof stadium.longitude === 'number')
-  const mapSrc = hasCoords ? `https://maps.google.com/maps?q=${stadium.latitude},${stadium.longitude}&z=15&output=embed` : null
-  const mapsUrl = stadium?.google_maps_url || (hasCoords ? `https://www.google.com/maps?q=${stadium.latitude},${stadium.longitude}` : null)
-  const stadiumImg = coverThumb(stadium, '/stadium_sample_1.png')
+function EmptyBlock({ icon: Icon, text }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6 text-center">
+      <span className="grid size-10 place-items-center rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3]">
+        <Icon className="size-4.5" />
+      </span>
+      <p className="text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">{text}</p>
+    </div>
+  )
+}
 
-  const rows = [
-    { icon: Layers, label: t('public.overview.groups'), value: tour.groups_count > 0 ? `${tour.groups_count}` : '—' },
-    { icon: LayoutGrid, label: t('public.overview.format'), value: t(`committee.tournaments.formats.${tour.tournament_format}`) },
-    ...(tour.first_match_day
-      ? [{ icon: CalendarDays, label: 'اليوم الأول للمباريات', value: tour.first_match_day }]
-      : []),
-    {
-      icon: Landmark,
-      label: t('public.overview.venueCost'),
-      value: stadium?.name ? (stadium.price != null ? `${stadium.price} ${t('public.overview.currency')}` : t('public.overview.free')) : '—',
-    },
-  ]
+function PlayerThumb({ player }) {
+  const src = coverThumb(player?.photo_url)
+  const initial = (player?.name || '?').trim().charAt(0)
+  return src ? (
+    <img src={src} alt={player?.name || ''} className="size-9 shrink-0 rounded-xl object-cover ring-1 ring-[#E1E5DF] dark:ring-[#303832]" />
+  ) : (
+    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 text-xs font-black text-[#111313] dark:text-[#D0FF38]">
+      {initial}
+    </span>
+  )
+}
+
+/**
+ * Section 6 — 4-Column Tournament Statistics Strip with Circular Lime Progress Ring
+ * Matches the attached reference screenshot:
+ * 16 فريقاً | 24 مباراة | 18 مباراة منجزة | 75% نسبة التقدم
+ */
+function QuickInfoStrip({ tour, stats }) {
+  const teams = tour?.stats?.registered_teams ?? tour?.max_teams ?? 0
+  const totalMatches = tour?.stats?.fixtures ?? stats?.summary?.total_matches ?? 0
+  const played = tour?.stats?.finished_matches ?? stats?.summary?.matches_played ?? 0
+  const progress = totalMatches > 0 ? Math.min(100, Math.round((played / totalMatches) * 100)) : 0
+
+  // SVG circle parameters
+  const size = 34
+  const strokeWidth = 3.5
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const dashOffset = circumference - (progress / 100) * circumference
 
   return (
-    <Collapsible icon={Info} title={t('public.overview.infoTitle')}>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <dl className="grid content-center gap-3">
-          {rows.map((row) => (
-            <div key={row.label} className="flex items-center gap-3 rounded-2xl bg-slate-50/70 px-4 py-3">
-              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-slate-500 shadow-sm"><row.icon className="size-4" /></span>
-              <div className="min-w-0">
-                <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{row.label}</dt>
-                <dd className="truncate text-sm font-extrabold text-slate-800" dir="auto">{row.value}</dd>
-              </div>
-            </div>
-          ))}
-        </dl>
-        <div className="group relative h-60 sm:h-64 overflow-hidden rounded-2xl bg-slate-900 shadow-inner lg:h-auto lg:min-h-[14rem]">
-          {viewMode === 'map' && mapSrc ? (
-            <iframe
-              title={stadium?.name || 'موقع الملعب'}
-              src={mapSrc}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-              className="absolute inset-0 size-full border-0"
-            />
-          ) : (
-            <>
-              {stadiumImg ? (
-                <img
-                  src={stadiumImg}
-                  alt={stadium?.name || 'صورة الملعب'}
-                  className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="grid size-full place-items-center text-slate-400 bg-slate-100">
-                  <MapPin className="size-10" />
-                </div>
-              )}
-              {/* تدرج معتم رقيق لضمان وضوح الشارات والنصوص */}
-              <div
-                className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/25 to-slate-950/45 pointer-events-none"
-                aria-hidden="true"
+    <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] py-3 px-2 sm:px-4 sm:py-3.5 shadow-2xs">
+      <div className="grid grid-cols-4 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] items-center">
+        {/* 1. Teams Count */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3">
+          <Users className="size-4.5 sm:size-5 shrink-0 text-[#111313] dark:text-[#D0FF38]" strokeWidth={2} />
+          <div className="text-center sm:text-start min-w-0">
+            <p className="text-sm sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+              {teams}
+            </p>
+            <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+              فريقاً
+            </p>
+          </div>
+        </div>
+
+        {/* 2. Total Matches */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3">
+          <Swords className="size-4.5 sm:size-5 shrink-0 text-[#111313] dark:text-[#D0FF38]" strokeWidth={2} />
+          <div className="text-center sm:text-start min-w-0">
+            <p className="text-sm sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+              {totalMatches}
+            </p>
+            <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+              مباراة
+            </p>
+          </div>
+        </div>
+
+        {/* 3. Completed Matches */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3">
+          <CheckCircle2 className="size-4.5 sm:size-5 shrink-0 text-[#179955] dark:text-[#42D889]" strokeWidth={2.2} />
+          <div className="text-center sm:text-start min-w-0">
+            <p className="text-sm sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+              {played}
+            </p>
+            <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+              مباراة منجزة
+            </p>
+          </div>
+        </div>
+
+        {/* 4. Progress Ring + Percentage */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3">
+          <div className="relative shrink-0 grid place-items-center" style={{ width: size, height: size }}>
+            <svg width={size} height={size} className="-rotate-90">
+              <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={strokeWidth}
+                className="text-[#E9ECE7] dark:text-[#252B27]"
               />
-            </>
-          )}
-
-          {/* شارة اسم الملعب والمدينة في الأعلى */}
-          {stadium?.name && (
-            <div className="absolute start-3 top-3 inline-flex max-w-[70%] items-center gap-1.5 rounded-full bg-slate-950/80 border border-white/20 px-3 py-1.5 text-xs font-black text-white shadow-md backdrop-blur">
-              <MapPin className="size-3.5 shrink-0 text-emerald-400" />
-              <span className="truncate">{stadium.name}</span>
-            </div>
-          )}
-
-          {/* زر التبديل بين صورة الملعب والخريطة إذا توفرت الإحداثيات */}
-          {mapSrc && (
-            <button
-              type="button"
-              onClick={() => setViewMode(v => v === 'image' ? 'map' : 'image')}
-              className="absolute end-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 hover:bg-white text-slate-900 px-3 py-1 text-xs font-black shadow-md backdrop-blur transition-all active:scale-95 cursor-pointer"
-            >
-              {viewMode === 'map' ? '📷 صورة الملعب' : '🗺️ الخريطة'}
-            </button>
-          )}
-
-          {/* الإجراءات السفلية: رابط خرائط جوجل واسم المدينة */}
-          <div className="absolute bottom-3 inset-x-3 flex items-center justify-between gap-2 pointer-events-none">
-            {mapsUrl ? (
-              <a
-                href={mapsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-[11px] font-black shadow-md backdrop-blur transition-all active:scale-95"
-              >
-                <MapPin className="size-3.5 shrink-0" />
-                <span>{t('public.overview.maps')}</span>
-              </a>
-            ) : <div />}
-
-            {(stadium?.city || stadium?.address) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-slate-950/75 border border-white/10 px-2.5 py-1 text-[10px] font-bold text-slate-200 backdrop-blur">
-                <span>{stadium.city || stadium.address}</span>
-              </span>
-            )}
+              <circle
+                cx={size / 2}
+                cy={size / 2}
+                r={radius}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+                className="text-[#B8F000] dark:text-[#D0FF38] transition-all duration-500"
+              />
+            </svg>
+          </div>
+          <div className="text-center sm:text-start min-w-0">
+            <p className="text-sm sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+              {progress}%
+            </p>
+            <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+              نسبة التقدم
+            </p>
           </div>
         </div>
       </div>
-    </Collapsible>
-  )
-}
-
-function KeyStats({ stats, standings, loading }) {
-  const { t } = useTranslation()
-  const { openTeam } = useProfileModal()
-  const leader = (standings?.groups?.[0]?.rows || []).find((r) => r.team)
-  const scorer = stats?.top_scorers?.[0]
-  const assister = stats?.top_assists?.[0]
-  const keeper = stats?.best_goalkeeper
-  const attack = stats?.best_attack
-  const defense = stats?.best_defense
-
-  const teamOf = (tId, tName, tLogo) => (tId != null ? { id: tId, name: tName, logo_url: tLogo } : null)
-
-  const cards = [
-    { key: 'bestTeam', label: t('public.overview.bestTeam'), icon: Trophy, tint: 'bg-amber-50 text-amber-600', target: leader?.team, main: leader?.team?.name, sub: leader ? t('public.overview.bestTeamSub', { wins: leader.wins, points: leader.points }) : null },
-    { key: 'topScorer', label: t('public.overview.topScorer'), icon: Target, tint: 'bg-green-50 text-green-600', target: teamOf(scorer?.team_id, scorer?.team_name, scorer?.team_logo_url), main: scorer?.name, sub: scorer ? t('public.overview.topScorerSub', { count: scorer.count }) : null },
-    { key: 'topAssister', label: t('public.overview.topAssister'), icon: Hand, tint: 'bg-sky-50 text-sky-600', target: teamOf(assister?.team_id, assister?.team_name, assister?.team_logo_url), main: assister?.name, sub: assister ? t('public.overview.topAssisterSub', { count: assister.count }) : null },
-    { key: 'goalkeeper', label: t('public.overview.bestGoalkeeper'), icon: ShieldCheck, tint: 'bg-violet-50 text-violet-600', target: teamOf(keeper?.team_id, keeper?.team_name, keeper?.team_logo_url), main: keeper?.name, sub: keeper ? t('public.overview.bestGoalkeeperSub', { count: keeper.clean_sheets }) : null },
-    { key: 'attack', label: t('public.overview.bestAttack'), icon: Flame, tint: 'bg-rose-50 text-rose-600', target: toTeam(attack), main: attack?.name, sub: attack ? t('public.overview.bestAttackSub', { count: attack.goals }) : null },
-    { key: 'defense', label: t('public.overview.bestDefense'), icon: Shield, tint: 'bg-emerald-50 text-emerald-600', target: toTeam(defense), main: defense?.name, sub: defense ? t('public.overview.bestDefenseSub', { count: defense.goals_against }) : null },
-  ]
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-36 rounded-3xl" />
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-      {cards.map((card) => (
-        <div key={card.key} className={`${CARD} p-4`}>
-          <span className={`grid size-9 place-items-center rounded-full ${card.tint}`}><card.icon className="size-4" /></span>
-          <p className="mt-3 text-[11px] font-bold text-slate-400">{card.label}</p>
-          {card.main ? (
-            <button
-              type="button"
-              disabled={card.target?.id == null}
-              onClick={() => card.target?.id != null && openTeam(card.target)}
-              className="mt-0.5 block max-w-full truncate text-sm font-extrabold text-slate-900 hover:text-green-700 disabled:cursor-default disabled:hover:text-slate-900"
-            >
-              {card.main}
-            </button>
-          ) : (
-            <p className="mt-0.5 text-sm font-extrabold text-slate-300">—</p>
-          )}
-          <p className="mt-1 text-[11px] font-semibold text-slate-400">{card.sub || '—'}</p>
-        </div>
-      ))}
     </div>
   )
 }
 
-function TeamBlock({ team, form, align, onOpen }) {
-  return (
-    <div className={`flex min-w-0 items-center gap-2.5 ${align === 'end' ? 'flex-row-reverse' : ''}`}>
-      <TeamAvatar team={team} className="size-11" />
-      <div className="min-w-0">
-        {team ? (
-          <button
-            type="button"
-            onClick={() => team.id != null && onOpen(team)}
-            className="block max-w-full truncate text-sm font-extrabold text-slate-900 hover:text-green-700"
-          >
-            {team.name}
-          </button>
-        ) : (
-          <span className="text-sm font-extrabold text-slate-300">—</span>
-        )}
-        <FormBadges form={form} />
-      </div>
-    </div>
-  )
-}
-
-function NextMatchCard({ fixture, standings, loading }) {
+/**
+ * Section 7 — Upcoming Match Card ("المباراة القادمة")
+ * Unified AJI NQSSRO Match Card layout matching the reference screenshot.
+ */
+function NextMatchCard({ fixture, tour, standings, loading }) {
   const { t, i18n } = useTranslation()
   const { openTeam } = useProfileModal()
+  const formMap = useMemo(() => buildFormMap(standings), [standings])
+  const lang = i18n.language
 
-  if (loading) return <Skeleton className="h-64 rounded-3xl" />
-  if (!fixture) {
-    return (
-      <div className={CARD}>
-        <EmptyBlock icon={Swords} text={t('public.overview.noNextMatch')} />
-      </div>
-    )
-  }
-
-  const formMap = buildFormMap(standings)
-  const when = fixture.scheduled_at ? `${matchDay(fixture.scheduled_at, i18n.language)} · ${formatTime(fixture.scheduled_at)}` : ''
+  const stageLabel = useMemo(() => {
+    if (!fixture) return null
+    if (fixture.group?.name) {
+      return formatGroupName(fixture.group.name, { groupId: fixture.group.id, tournamentId: tour?.id })
+    }
+    if (fixture.round?.name) return fixture.round.name
+    if (tour?.tournament_format === 'league') return 'الدوري'
+    return null
+  }, [fixture, tour])
 
   return (
-    <Collapsible
-      icon={Swords}
-      title={t('public.overview.nextMatch')}
-      trailing={
-        fixture.round?.name ? (
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-500">{fixture.round.name}</span>
-        ) : null
-      }
-    >
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-        <TeamBlock team={fixture.home_team} form={formMap[fixture.home_team?.id]} onOpen={openTeam} />
-        <span className="px-1 text-sm font-black text-slate-300">VS</span>
-        <TeamBlock team={fixture.away_team} form={formMap[fixture.away_team?.id]} align="end" onOpen={openTeam} />
+    <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-5 shadow-2xs">
+      {/* Header Row */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="grid size-7 sm:size-8 shrink-0 place-items-center rounded-xl bg-[#B8F000]/25 dark:bg-[#D0FF38]/15 text-[#179955] dark:text-[#D0FF38]">
+            <CalendarDays className="size-4" />
+          </span>
+          <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+            {t('public.overview.nextMatch', 'المباراة القادمة')}
+          </h3>
+        </div>
+
+        {stageLabel && (
+          <span className="shrink-0 rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+            {stageLabel}
+          </span>
+        )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-3.5 text-[11px] font-bold text-slate-500">
-        {when && (
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarDays className="size-3.5 text-slate-400" />
-            {when}
-          </span>
-        )}
-        {fixture.stadium?.name && (
-          <span className="inline-flex items-center gap-1.5">
-            <MapPin className="size-3.5 text-slate-400" />
-            {fixture.stadium.name}
-          </span>
-        )}
-        {fixture.group?.name && <span className="text-slate-400">{fixture.group.name}</span>}
-      </div>
-    </Collapsible>
+      {loading ? (
+        <Skeleton className="h-24 rounded-xl" />
+      ) : fixture ? (
+        <div>
+          {/* Teams & VS/Time Row */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4 py-2">
+            {/* Home Team (Right in RTL) */}
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <TeamAvatar
+                team={fixture.home_team}
+                className="size-9 sm:size-11 shrink-0"
+                onClick={fixture.home_team?.id != null ? () => openTeam(fixture.home_team) : undefined}
+              />
+              <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  disabled={fixture.home_team?.id == null}
+                  onClick={() => fixture.home_team?.id != null && openTeam(fixture.home_team)}
+                  className="block max-w-full truncate text-start text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] hover:underline cursor-pointer"
+                >
+                  {fixture.home_team?.name || t('committee.detail.tbd')}
+                </button>
+                <FormRow form={formMap[fixture.home_team?.id]} align="start" />
+              </div>
+            </div>
+
+            {/* Center: VS + Time Pill */}
+            <div className="flex flex-col items-center justify-center px-1">
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#65706A] dark:text-[#B2B9B3]">
+                VS
+              </span>
+              <span className="mt-1 inline-flex items-center justify-center rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3 py-1 text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums shadow-2xs">
+                {fixture.scheduled_at ? formatTime(fixture.scheduled_at) : '—:—'}
+              </span>
+            </div>
+
+            {/* Away Team (Left in RTL) */}
+            <div className="flex items-center justify-end gap-2 sm:gap-3 min-w-0">
+              <div className="min-w-0 flex-1 text-end">
+                <button
+                  type="button"
+                  disabled={fixture.away_team?.id == null}
+                  onClick={() => fixture.away_team?.id != null && openTeam(fixture.away_team)}
+                  className="ms-auto block max-w-full truncate text-end text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] hover:underline cursor-pointer"
+                >
+                  {fixture.away_team?.name || t('committee.detail.tbd')}
+                </button>
+                <FormRow form={formMap[fixture.away_team?.id]} align="end" />
+              </div>
+              <TeamAvatar
+                team={fixture.away_team}
+                className="size-9 sm:size-11 shrink-0"
+                onClick={fixture.away_team?.id != null ? () => openTeam(fixture.away_team) : undefined}
+              />
+            </div>
+          </div>
+
+          {/* Bottom Venue / Date Bar */}
+          {(fixture.stadium?.name || fixture.scheduled_at) && (
+            <div className="mt-2.5 flex flex-wrap items-center justify-center gap-3 border-t border-[#E1E5DF]/70 dark:border-[#303832]/70 pt-2.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+              {fixture.stadium?.name && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="size-3.5 text-[#179955] dark:text-[#D0FF38]" />
+                  <span>{fixture.stadium.name}</span>
+                </span>
+              )}
+              {fixture.scheduled_at && (
+                <span className="inline-flex items-center gap-1">
+                  <CalendarDays className="size-3.5" />
+                  <span>{matchDay(fixture.scheduled_at, lang)}</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <EmptyBlock icon={CalendarDays} text={t('public.overview.noNextMatch')} />
+      )}
+    </div>
   )
 }
 
-function ResultRow({ f, onOpen, i18n }) {
-  const clickable = Boolean(onOpen) && Boolean(f.match?.id ?? f.match_id)
-  const winner = f.match?.winner_team_id
-  return (
-    <button
-      type="button"
-      onClick={() => clickable && onOpen(f)}
-      disabled={!clickable}
-      className="flex w-full items-center gap-2 rounded-2xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 text-start transition-colors hover:border-green-200 hover:bg-green-50/40"
-    >
-      <span className="w-14 shrink-0 text-center text-[10px] font-bold leading-tight text-slate-400">
-        {f.scheduled_at ? matchDay(f.scheduled_at, i18n.language) : '—'}
-        {f.scheduled_at ? <><br />{formatTime(f.scheduled_at)}</> : null}
-      </span>
-      <span className={`flex min-w-0 flex-1 items-center gap-2 ${winner === f.home_team?.id ? 'font-black text-slate-900' : 'font-bold text-slate-500'}`}>
-        <TeamAvatar team={f.home_team} className="size-7" />
-        <span className="truncate">{f.home_team?.name}</span>
-      </span>
-      <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-sm font-black tabular-nums text-slate-900 shadow-sm">
-        {f.match?.home_score} - {f.match?.away_score}
-      </span>
-      <span className={`flex min-w-0 flex-1 items-center justify-end gap-2 ${winner === f.away_team?.id ? 'font-black text-slate-900' : 'font-bold text-slate-500'}`}>
-        <span className="truncate">{f.away_team?.name}</span>
-        <TeamAvatar team={f.away_team} className="size-7" />
-      </span>
-    </button>
-  )
-}
-
+/**
+ * Section 8 — Recent Results Card ("آخر النتائج")
+ * Uses the unified compact Match Row layout from the reference screenshot.
+ */
 function RecentResults({ fixtures, loading, onOpen, onShowTab }) {
   const { t, i18n } = useTranslation()
+  const { openTeam } = useProfileModal()
+  const lang = i18n.language
 
-  if (loading) return <Skeleton className="h-64 rounded-3xl" />
-
-  const results = (fixtures || [])
-    .filter((f) => f.home_team && f.away_team && f.match?.status === 'finished')
-    .slice()
-    .sort((a, b) => new Date(b.scheduled_at || 0) - new Date(a.scheduled_at || 0))
-    .slice(0, 3)
+  const list = useMemo(() => {
+    return (fixtures || [])
+      .filter((f) => f.home_team && f.away_team && f.match?.status === 'finished')
+      .slice()
+      .sort((a, b) => new Date(b.scheduled_at || 0) - new Date(a.scheduled_at || 0))
+      .slice(0, 4)
+  }, [fixtures])
 
   return (
-    <Collapsible icon={Flag} title={t('public.overview.recentResults')}>
-      {results.length ? (
-        <div className="space-y-2.5">
-          {results.map((f) => <ResultRow key={f.id} f={f} onOpen={onOpen} i18n={i18n} />)}
+    <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-5 shadow-2xs">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <span className="grid size-7 sm:size-8 shrink-0 place-items-center rounded-xl bg-[#B8F000]/25 dark:bg-[#D0FF38]/15 text-[#179955] dark:text-[#D0FF38]">
+            <Clock className="size-4" />
+          </span>
+          <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+            {t('public.overview.recentResults', 'آخر النتائج')}
+          </h3>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2 py-2">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-12 rounded-xl" />
+          ))}
+        </div>
+      ) : list.length > 0 ? (
+        <div>
+          <div className="divide-y divide-[#E1E5DF]/70 dark:divide-[#303832]/70">
+            {list.map((f) => {
+              const clickable = Boolean(onOpen) && Boolean(f.match?.id ?? f.match_id)
+              const pens =
+                f.match?.home_penalties != null
+                  ? `(${f.match.home_penalties}-${f.match.away_penalties})`
+                  : null
+              const dayStr = f.scheduled_at ? matchDay(f.scheduled_at, lang) : ''
+              const timeStr = f.scheduled_at ? formatTime(f.scheduled_at) : ''
+
+              return (
+                <div
+                  key={f.id}
+                  onClick={() => clickable && onOpen(f)}
+                  className={`grid grid-cols-[56px_1fr_auto_1fr] sm:grid-cols-[78px_1fr_auto_1fr] items-center gap-1.5 sm:gap-2.5 py-2.5 transition-colors ${
+                    clickable
+                      ? 'cursor-pointer hover:bg-[#F7F8F5]/70 dark:hover:bg-[#252B27]/50 rounded-xl px-1'
+                      : ''
+                  }`}
+                >
+                  {/* Date & Time Column (Right in RTL) */}
+                  <div className="text-start leading-tight">
+                    {dayStr && (
+                      <p className="text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3] line-clamp-2">
+                        {dayStr}
+                      </p>
+                    )}
+                    {timeStr && (
+                      <p className="text-[10px] font-bold text-[#65706A]/85 dark:text-[#B2B9B3]/85 tabular-nums">
+                        {timeStr}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Home Team */}
+                  <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                    <TeamAvatar
+                      team={f.home_team}
+                      className="size-6 sm:size-7 shrink-0"
+                      onClick={(e) => {
+                        if (f.home_team?.id != null) {
+                          e?.stopPropagation?.()
+                          openTeam(f.home_team)
+                        }
+                      }}
+                    />
+                    <span className="min-w-0 truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                      {f.home_team.name}
+                    </span>
+                  </div>
+
+                  {/* Center Score Pill */}
+                  <div className="flex flex-col items-center px-1">
+                    <span
+                      dir="ltr"
+                      className="inline-flex min-w-[52px] sm:min-w-[60px] items-center justify-center rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums shadow-2xs"
+                    >
+                      {f.match.home_score} - {f.match.away_score}
+                    </span>
+                    {pens && <span className="mt-0.5 text-[9px] font-bold text-[#65706A]">{pens}</span>}
+                  </div>
+
+                  {/* Away Team */}
+                  <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
+                    <span className="min-w-0 truncate text-end text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                      {f.away_team.name}
+                    </span>
+                    <TeamAvatar
+                      team={f.away_team}
+                      className="size-6 sm:size-7 shrink-0"
+                      onClick={(e) => {
+                        if (f.away_team?.id != null) {
+                          e?.stopPropagation?.()
+                          openTeam(f.away_team)
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {onShowTab && (
+            <div className="mt-2.5 border-t border-[#E1E5DF]/70 dark:border-[#303832]/70 pt-2.5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => onShowTab('matches')}
+                className="inline-flex items-center gap-1.5 text-xs font-black text-[#179955] dark:text-[#D0FF38] hover:underline cursor-pointer"
+              >
+                <span>{t('public.overview.viewAllMatches', 'عرض جميع المباريات')}</span>
+                <ArrowLeft className="size-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       ) : (
-        <EmptyBlock icon={Flag} text={t('public.overview.noResults')} />
+        <EmptyBlock icon={Flag} text={t('public.overview.noRecentResults')} />
       )}
-      <button
-        type="button"
-        onClick={() => onShowTab('results')}
-        className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-bold text-green-700 transition-colors hover:text-green-800"
-      >
-        {t('public.overview.viewAllMatches')}
-        <ArrowLeft className="size-3.5" />
-      </button>
-    </Collapsible>
+    </div>
   )
 }
 
-function StandingsMini({ standings, loading, onShowTab }) {
+/**
+ * Section 9 — Standings Preview ("الترتيب")
+ * Complete 10-column zero-horizontal-scroll Standings Table preview matching the reference screenshot.
+ */
+function StandingsMini({ standings, tour, loading, onShowTab }) {
   const { t } = useTranslation()
   const { openTeam } = useProfileModal()
-
-  if (loading) return <Skeleton className="h-64 rounded-3xl" />
-
-  const rows = (standings?.groups?.[0]?.rows || []).filter((r) => r.team).slice(0, 3)
+  const groups = standings?.groups || []
+  const [groupIdx, setGroupIdx] = useState(0)
+  const active = groups[groupIdx] || groups[0]
+  const rows = (active?.rows || []).slice(0, 4)
 
   return (
-    <Collapsible icon={Trophy} title={t('public.overview.standings')}>
-      {rows.length ? (
-        <>
-          <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 px-2 pb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-            <span>{t('public.overview.colRank')}</span>
-            <span>{t('public.overview.colTeam')}</span>
-            <span className="text-center">{t('public.overview.colPlayed')}</span>
-            <span className="text-center">{t('public.overview.colPoints')}</span>
-          </div>
-          <div className="space-y-1.5">
-            {rows.map((row, i) => (
-              <div
-                key={row.team_id}
-                className={`grid grid-cols-[auto_1fr_auto_auto] items-center gap-2 rounded-2xl px-2 py-2 ${i === 0 ? 'bg-green-50/70 ring-1 ring-green-100' : 'bg-slate-50/60'}`}
-              >
-                <span className={`grid size-6 place-items-center rounded-full text-[10px] font-black ${i === 0 ? 'bg-green-600 text-white' : 'bg-white text-slate-500 shadow-sm'}`}>
-                  {i + 1}
-                </span>
-                <button type="button" onClick={() => row.team?.id != null && openTeam(row.team)} className="flex min-w-0 items-center gap-2 text-start">
-                  <TeamAvatar team={row.team} className="size-7" />
-                  <span className="truncate text-xs font-extrabold text-slate-800">{row.team?.name}</span>
+    <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs">
+      {/* Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3.5 sm:px-5">
+        <div className="flex items-center gap-2">
+          <span className="grid size-7 sm:size-8 shrink-0 place-items-center rounded-xl bg-[#B8F000]/25 dark:bg-[#D0FF38]/15 text-[#179955] dark:text-[#D0FF38]">
+            <Trophy className="size-4" />
+          </span>
+          <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+            {t('public.overview.standingsPreview', 'الترتيب')}
+          </h3>
+        </div>
+
+        {/* Group Selector Pills if multiple groups exist */}
+        {groups.length > 1 && (
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+            {groups.map((g, idx) => {
+              const gLabel = formatGroupName(g.name, { groupId: g.group_id, tournamentId: tour?.id })
+              return (
+                <button
+                  key={g.group_id ?? g.name ?? idx}
+                  type="button"
+                  onClick={() => setGroupIdx(idx)}
+                  className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-black transition-colors cursor-pointer ${
+                    idx === groupIdx
+                      ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313]'
+                      : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2]'
+                  }`}
+                >
+                  {gLabel}
                 </button>
-                <span className="text-center text-xs font-semibold text-slate-500">{row.played}</span>
-                <span className="text-center text-sm font-black tabular-nums text-slate-900">{row.points}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
-        </>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="p-4">
+          <Skeleton className="h-36 rounded-xl" />
+        </div>
+      ) : rows.length > 0 ? (
+        <div>
+          <div className="w-full overflow-x-hidden border-t border-[#E1E5DF] dark:border-[#303832]">
+            <table className="w-full table-fixed border-collapse text-center">
+              <colgroup>
+                <col className="w-[26px] sm:w-[38px]" />
+                <col className="w-auto" />
+                <col className="w-[22px] sm:w-[36px]" />
+                <col className="w-[22px] sm:w-[36px]" />
+                <col className="w-[22px] sm:w-[36px]" />
+                <col className="w-[22px] sm:w-[36px]" />
+                <col className="w-[24px] sm:w-[40px]" />
+                <col className="w-[24px] sm:w-[40px]" />
+                <col className="w-[28px] sm:w-[44px]" />
+                <col className="w-[34px] sm:w-[52px]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[10px] sm:text-xs font-black text-[#65706A] dark:text-[#B2B9B3]">
+                  <th className="py-2 px-0.5 text-center">#</th>
+                  <th className="py-2 px-1 text-start">{t('committee.detail.team', 'الفريق')}</th>
+                  <th className="py-2 px-0.5 text-center" title="لعب">لعب</th>
+                  <th className="py-2 px-0.5 text-center" title="فوز">ف</th>
+                  <th className="py-2 px-0.5 text-center" title="تعادل">ت</th>
+                  <th className="py-2 px-0.5 text-center" title="خسارة">خ</th>
+                  <th className="py-2 px-0.5 text-center" title="له">له</th>
+                  <th className="py-2 px-0.5 text-center" title="عليه">عليه</th>
+                  <th className="py-2 px-0.5 text-center" title="فارق الأهداف">+/-</th>
+                  <th className="py-2 px-0.5 text-center" title="النقاط">نقاط</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E1E5DF]/70 dark:divide-[#303832]/70">
+                {rows.map((row, idx) => {
+                  const isFirst = idx === 0
+                  const gd = row.goal_difference ?? (row.goals_for ?? 0) - (row.goals_against ?? 0)
+                  return (
+                    <tr
+                      key={row.team_id ?? idx}
+                      className={`transition-colors hover:bg-[#F7F8F5]/70 dark:hover:bg-[#252B27]/50 ${
+                        isFirst ? 'bg-[#B8F000]/18 dark:bg-[#D0FF38]/10' : ''
+                      }`}
+                    >
+                      {/* Rank # */}
+                      <td className="py-2.5 px-0.5 text-center align-middle">
+                        <span
+                          className={`mx-auto inline-flex size-5 sm:size-6 items-center justify-center rounded-full text-[10px] sm:text-xs font-black tabular-nums ${
+                            isFirst
+                              ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                              : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
+                          }`}
+                        >
+                          {idx + 1}
+                        </span>
+                      </td>
+
+                      {/* Team Logo + Name */}
+                      <td className="py-2.5 px-1 text-start align-middle min-w-0">
+                        <button
+                          type="button"
+                          disabled={row.team?.id == null}
+                          onClick={() => row.team?.id != null && openTeam(row.team)}
+                          className="flex w-full items-center gap-1.5 sm:gap-2 min-w-0 text-start cursor-pointer"
+                          title={row.team?.name || ''}
+                        >
+                          <TeamAvatar team={row.team} className="size-5 sm:size-6 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate text-[11px] sm:text-xs md:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                            {row.team?.name || '—'}
+                          </span>
+                        </button>
+                      </td>
+
+                      {/* Played */}
+                      <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+                        {row.played ?? 0}
+                      </td>
+
+                      {/* Wins */}
+                      <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+                        {row.wins ?? 0}
+                      </td>
+
+                      {/* Draws */}
+                      <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+                        {row.draws ?? 0}
+                      </td>
+
+                      {/* Losses */}
+                      <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+                        {row.losses ?? 0}
+                      </td>
+
+                      {/* GF */}
+                      <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+                        {row.goals_for ?? 0}
+                      </td>
+
+                      {/* GA */}
+                      <td className="py-2.5 px-0.5 text-[11px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] tabular-nums">
+                        {row.goals_against ?? 0}
+                      </td>
+
+                      {/* GD (+/-) */}
+                      <td
+                        dir="ltr"
+                        className={`py-2.5 px-0.5 text-[10px] sm:text-xs font-black tabular-nums ${
+                          gd > 0
+                            ? 'text-[#111313] dark:text-[#42D889]'
+                            : gd < 0
+                              ? 'text-[#D93636] dark:text-[#FF6868]'
+                              : 'text-[#65706A] dark:text-[#B2B9B3]'
+                        }`}
+                      >
+                        {gd > 0 ? `+${gd}` : gd}
+                      </td>
+
+                      {/* Points */}
+                      <td className="py-2.5 px-0.5 text-center align-middle">
+                        <span
+                          className={`mx-auto inline-flex min-w-[24px] sm:min-w-[30px] items-center justify-center rounded-lg px-1.5 py-0.5 text-[11px] sm:text-xs font-black tabular-nums ${
+                            isFirst
+                              ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
+                              : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]'
+                          }`}
+                        >
+                          {row.points ?? 0}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {onShowTab && (
+            <div className="border-t border-[#E1E5DF]/70 dark:border-[#303832]/70 px-4 py-2.5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => onShowTab('standings')}
+                className="inline-flex items-center gap-1.5 text-xs font-black text-[#179955] dark:text-[#D0FF38] hover:underline cursor-pointer"
+              >
+                <span>{t('public.overview.viewFullTable', 'عرض الترتيب الكامل')}</span>
+                <ArrowLeft className="size-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
-        <EmptyBlock icon={Trophy} text={t('public.overview.noStandings')} />
+        <div className="p-4">
+          <EmptyBlock icon={Trophy} text={t('public.tournamentPage.noStandings')} />
+        </div>
       )}
-      <button
-        type="button"
-        onClick={() => onShowTab('standings')}
-        className="mt-4 inline-flex items-center gap-1.5 text-[11px] font-bold text-green-700 transition-colors hover:text-green-800"
-      >
-        {t('public.overview.viewFullStandings')}
-        <ArrowLeft className="size-3.5" />
-      </button>
-    </Collapsible>
+    </div>
   )
 }
 
+/**
+ * Section 10 — Tournament Records ("أرقام قياسية")
+ * Matches the 4-tile horizontal record cards in the reference screenshot.
+ */
 function RecordsCard({ stats, loading }) {
   const { t } = useTranslation()
   const { openTeam } = useProfileModal()
+  if (loading) return <Skeleton className="h-40 rounded-2xl" />
 
-  if (loading) return <Skeleton className="h-64 rounded-3xl" />
-
-  const records = stats?.records
-  const mostGoals = records?.most_goals_in_match
-  const biggestWin = records?.biggest_win
-  const cleanSheets = records?.most_clean_sheets
-  const streak = records?.most_consecutive_wins
+  const bw = stats?.biggest_win
+  const highGoals = stats?.highest_scoring_team || stats?.best_attack
+  const cleanTeam = stats?.most_clean_sheets_team
+  const streak = stats?.longest_win_streak
 
   const tiles = [
     {
-      key: 'goals',
-      icon: Target,
-      label: t('public.overview.recordMostGoals'),
-      figure: mostGoals ? `${mostGoals.total} ${t('public.overview.goalsMatch')}` : null,
-      team: mostGoals ? `${mostGoals.home_team?.name} ${mostGoals.home_score} - ${mostGoals.away_score} ${mostGoals.away_team?.name}` : null,
-      target: toTeam(mostGoals?.home_team),
-    },
-    {
-      key: 'win',
+      key: 'biggestWin',
       icon: Flame,
-      label: t('public.overview.recordBiggestWin'),
-      figure: biggestWin ? `${biggestWin.home_score} - ${biggestWin.away_score}` : null,
-      team: biggestWin ? (biggestWin.home_score > biggestWin.away_score ? biggestWin.home_team?.name : biggestWin.away_team?.name) : null,
-      target: toTeam(biggestWin && biggestWin.home_score > biggestWin.away_score ? biggestWin.home_team : biggestWin?.away_team),
+      iconTone: 'text-[#D93636] dark:text-[#FF6868]',
+      label: t('public.overview.biggestWin', 'أكبر فوز'),
+      figure: bw ? `${bw.home_score} - ${bw.away_score}` : '—',
+      team: bw ? bw.winner?.name || bw.home_team?.name || '' : null,
+      target: bw ? toTeam(bw.winner || bw.home_team) : null,
     },
     {
       key: 'cleanSheets',
-      icon: ShieldCheck,
-      label: t('public.overview.recordCleanSheets'),
-      figure: cleanSheets?.count != null ? `${cleanSheets.count}` : null,
-      team: cleanSheets?.team?.name,
-      target: toTeam(cleanSheets?.team),
+      icon: Shield,
+      iconTone: 'text-[#179955] dark:text-[#42D889]',
+      label: t('public.overview.mostCleanSheetsTeam', 'أكثر شباك نظيفة'),
+      figure: cleanTeam ? `${cleanTeam.clean_sheets}` : '—',
+      team: cleanTeam?.name || null,
+      target: toTeam(cleanTeam),
     },
     {
-      key: 'streak',
+      key: 'highestScoring',
+      icon: Target,
+      iconTone: 'text-[#0284C7] dark:text-[#38BDF8]',
+      label: t('public.overview.highestScoringTeam', 'أكثر أهدافاً'),
+      figure: highGoals ? `${highGoals.goals} هدفاً` : '—',
+      team: highGoals?.name || null,
+      target: toTeam(highGoals),
+    },
+    {
+      key: 'winStreak',
       icon: Award,
-      label: t('public.overview.recordStreak'),
-      figure: streak?.count != null ? `${streak.count}` : null,
-      team: streak?.team?.name,
-      target: toTeam(streak?.team),
+      iconTone: 'text-[#D9822B] dark:text-[#FFC857]',
+      label: t('public.overview.longestWinStreak', 'أكثر الانتصارات متتالية'),
+      figure: streak ? `${streak.streak}` : '—',
+      team: streak?.name || null,
+      target: toTeam(streak),
     },
   ]
 
-  const hasAny = tiles.some((tile) => tile.figure != null)
+  const hasAny = Boolean(bw || highGoals || cleanTeam || streak)
 
   return (
-    <Collapsible icon={Award} title={t('public.overview.records')}>
+    <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-5 shadow-2xs">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="grid size-7 sm:size-8 shrink-0 place-items-center rounded-xl bg-[#B8F000]/25 dark:bg-[#D0FF38]/15 text-[#179955] dark:text-[#D0FF38]">
+          <Award className="size-4" />
+        </span>
+        <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+          {t('public.overview.records', 'أرقام قياسية')}
+        </h3>
+      </div>
+
       {hasAny ? (
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
           {tiles.map((tile) => (
-            <div key={tile.key} className="rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3">
-              <span className="grid size-7 place-items-center rounded-lg bg-white text-slate-400 shadow-sm"><tile.icon className="size-3.5" /></span>
-              <p className="mt-2 text-[10px] font-bold text-slate-400">{tile.label}</p>
-              <p className="mt-0.5 truncate text-sm font-black text-[#111313] dark:text-[#F5F7F2]" dir="auto">{tile.figure}</p>
-              {tile.team && (
+            <div
+              key={tile.key}
+              className="flex flex-col items-center justify-between rounded-2xl border border-[#E1E5DF]/80 dark:border-[#303832]/80 bg-[#F7F8F5] dark:bg-[#252B27] p-3 text-center"
+            >
+              <span className={`grid size-8 place-items-center rounded-xl bg-white dark:bg-[#1B201D] shadow-2xs ${tile.iconTone}`}>
+                <tile.icon className="size-4" />
+              </span>
+              <p className="mt-2 text-[10px] sm:text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] leading-snug">
+                {tile.label}
+              </p>
+              <p className="mt-1 truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]" dir="auto">
+                {tile.figure}
+              </p>
+              {tile.team ? (
                 <button
                   type="button"
                   disabled={tile.target?.id == null}
                   onClick={() => tile.target?.id != null && openTeam(tile.target)}
-                  className="mt-0.5 block max-w-full truncate text-[10px] font-semibold text-slate-500 hover:text-green-700 disabled:cursor-default disabled:hover:text-slate-500"
+                  className="mt-0.5 block max-w-full truncate text-[10px] sm:text-[11px] font-bold text-[#111313]/80 dark:text-[#F5F7F2]/80 hover:underline cursor-pointer"
                 >
                   {tile.team}
                 </button>
+              ) : (
+                <span className="mt-0.5 text-[10px] text-[#65706A]">—</span>
               )}
             </div>
           ))}
@@ -601,6 +775,232 @@ function RecordsCard({ stats, loading }) {
       ) : (
         <EmptyBlock icon={Award} text={t('public.overview.noRecords')} />
       )}
+    </div>
+  )
+}
+
+/**
+ * Additional Tournament Info & Key Stats (Preserved in clean collapsible cards)
+ */
+function InfoPanel({ tour }) {
+  const { t, i18n } = useTranslation()
+  const lang = i18n.language
+  const dates = formatTournamentDateRange(tour.start_date, tour.end_date, lang)
+  const venue = [tour.location, tour.stadium?.name].filter(Boolean).join(' • ')
+  const format = tour.tournament_format ? t(`committee.tournaments.formats.${tour.tournament_format}`) : null
+  const category = [tour.category, tour.edition].filter(Boolean).join(' • ')
+
+  const rows = [
+    dates && { icon: CalendarDays, label: t('public.overview.dates'), value: dates },
+    venue && { icon: MapPin, label: t('public.overview.venue'), value: venue },
+    tour.organizer?.name && { icon: Landmark, label: t('public.overview.organizer'), value: tour.organizer.name },
+    format && { icon: Flag, label: t('public.overview.format'), value: format },
+    category && { icon: Award, label: t('public.overview.category'), value: category },
+    tour.group_count && { icon: LayoutGrid, label: t('public.overview.groups'), value: tour.group_count },
+    tour.teams_per_group && { icon: Layers, label: t('public.overview.teamsPerGroup'), value: tour.teams_per_group },
+    tour.match_duration && {
+      icon: Swords,
+      label: t('public.overview.matchDuration'),
+      value: `${tour.match_duration} ${t('public.overview.minutesUnit')}`,
+    },
+  ].filter(Boolean)
+
+  if (rows.length === 0 && !tour.description) return null
+
+  return (
+    <Collapsible icon={Info} title={t('public.overview.tournamentInfo', 'معلومات البطولة')} defaultOpen={false}>
+      <div className="space-y-4">
+        {tour.description && (
+          <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5">
+            <p className="text-[11px] font-black uppercase tracking-wider text-[#65706A] dark:text-[#B2B9B3]">
+              {t('public.overview.about')}
+            </p>
+            <p className="mt-1.5 whitespace-pre-line text-xs sm:text-sm leading-relaxed text-[#111313] dark:text-[#F5F7F2]">
+              {tour.description}
+            </p>
+          </div>
+        )}
+
+        {rows.length > 0 && (
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {rows.map((r, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-2.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3 py-2.5"
+              >
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-white dark:bg-[#1B201D] text-[#111313] dark:text-[#D0FF38] shadow-2xs">
+                  <r.icon className="size-3.5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">{r.label}</p>
+                  <p className="mt-0.5 truncate text-xs font-extrabold text-[#111313] dark:text-[#F5F7F2]">{r.value}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Collapsible>
+  )
+}
+
+function deriveBestAttack(stats, standings) {
+  if (stats?.best_attack?.name) return stats.best_attack
+  let best = null
+  for (const g of standings?.groups || []) {
+    for (const r of g.rows || []) {
+      const goals = r.goals_for ?? 0
+      if (goals <= 0) continue
+      if (!best || goals > best.goals) {
+        best = {
+          team_id: r.team_id ?? r.team?.id,
+          name: r.team?.name,
+          logo_url: r.team?.logo_url,
+          goals,
+        }
+      }
+    }
+  }
+  return best
+}
+
+function deriveBestDefense(stats, standings) {
+  if (stats?.best_defense?.name) return stats.best_defense
+  let best = null
+  for (const g of standings?.groups || []) {
+    for (const r of g.rows || []) {
+      if ((r.played ?? 0) === 0) continue
+      const ga = r.goals_against ?? 0
+      if (!best || ga < best.goals_against) {
+        best = {
+          team_id: r.team_id ?? r.team?.id,
+          name: r.team?.name,
+          logo_url: r.team?.logo_url,
+          goals_against: ga,
+        }
+      }
+    }
+  }
+  return best
+}
+
+function KeyStats({ stats, standings, loading }) {
+  const { t } = useTranslation()
+  const { openTeam, openPlayer } = useProfileModal()
+  if (loading) return null
+
+  const attack = deriveBestAttack(stats, standings)
+  const defense = deriveBestDefense(stats, standings)
+  const scorer = stats?.top_scorers?.[0] || null
+  const keeper = stats?.best_goalkeeper || stats?.clean_sheets?.[0] || null
+
+  if (!attack && !defense && !scorer && !keeper) return null
+
+  return (
+    <Collapsible icon={ShieldCheck} title={t('public.overview.keyStats', 'إحصائيات بارزة')} defaultOpen={false}>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Best Attack */}
+        <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5">
+          <div className="flex items-center gap-2 text-[#179955] dark:text-[#42D889]">
+            <Flame className="size-4" />
+            <span className="text-[11px] font-black">{t('public.overview.bestAttack')}</span>
+          </div>
+          {attack ? (
+            <button
+              type="button"
+              onClick={() => openTeam(toTeam(attack))}
+              className="mt-2.5 flex w-full items-center gap-2.5 text-start cursor-pointer"
+            >
+              <TeamAvatar team={toTeam(attack)} className="size-8 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{attack.name}</p>
+                <p className="text-[11px] font-bold text-[#179955] dark:text-[#42D889]">
+                  {t('public.overview.goalsCount', { count: attack.goals })}
+                </p>
+              </div>
+            </button>
+          ) : (
+            <p className="mt-2 text-xs text-[#65706A]">—</p>
+          )}
+        </div>
+
+        {/* Best Defense */}
+        <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5">
+          <div className="flex items-center gap-2 text-sky-600 dark:text-sky-400">
+            <ShieldCheck className="size-4" />
+            <span className="text-[11px] font-black">{t('public.overview.bestDefense')}</span>
+          </div>
+          {defense ? (
+            <button
+              type="button"
+              onClick={() => openTeam(toTeam(defense))}
+              className="mt-2.5 flex w-full items-center gap-2.5 text-start cursor-pointer"
+            >
+              <TeamAvatar team={toTeam(defense)} className="size-8 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{defense.name}</p>
+                <p className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                  {t('public.overview.concededCount', { count: defense.goals_against })}
+                </p>
+              </div>
+            </button>
+          ) : (
+            <p className="mt-2 text-xs text-[#65706A]">—</p>
+          )}
+        </div>
+
+        {/* Top Scorer */}
+        <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5">
+          <div className="flex items-center gap-2 text-[#D9822B] dark:text-[#FFC857]">
+            <Target className="size-4" />
+            <span className="text-[11px] font-black">{t('public.overview.topScorer')}</span>
+          </div>
+          {scorer ? (
+            <button
+              type="button"
+              disabled={!scorer.player_id}
+              onClick={() => scorer.player_id && openPlayer({ id: scorer.player_id, name: scorer.name })}
+              className="mt-2.5 flex w-full items-center gap-2.5 text-start cursor-pointer"
+            >
+              <PlayerThumb player={scorer} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{scorer.name}</p>
+                <p className="truncate text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                  {scorer.team_name} • {scorer.count} أهداف
+                </p>
+              </div>
+            </button>
+          ) : (
+            <p className="mt-2 text-xs text-[#65706A]">—</p>
+          )}
+        </div>
+
+        {/* Best Goalkeeper */}
+        <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5">
+          <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
+            <Hand className="size-4" />
+            <span className="text-[11px] font-black">{t('public.overview.bestGoalkeeper')}</span>
+          </div>
+          {keeper ? (
+            <button
+              type="button"
+              disabled={!keeper.player_id}
+              onClick={() => keeper.player_id && openPlayer({ id: keeper.player_id, name: keeper.name })}
+              className="mt-2.5 flex w-full items-center gap-2.5 text-start cursor-pointer"
+            >
+              <PlayerThumb player={keeper} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{keeper.name}</p>
+                <p className="truncate text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                  {keeper.team_name}
+                </p>
+              </div>
+            </button>
+          ) : (
+            <p className="mt-2 text-xs text-[#65706A]">—</p>
+          )}
+        </div>
+      </div>
     </Collapsible>
   )
 }
@@ -615,20 +1015,25 @@ export default function OverviewSection({ tour, fixtures, standings, stats, load
   }, [fixtures])
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* 1. 4-Column Tournament Statistics & Progress Strip */}
       <QuickInfoStrip tour={tour} stats={stats} />
-      <InfoPanel tour={tour} />
-      <KeyStats stats={stats} standings={standings} loading={loading.stats} />
-      <div className="grid gap-5 lg:grid-cols-2">
-        <div className="space-y-5">
-          <NextMatchCard fixture={upcoming} standings={standings} loading={loading.fixtures} />
+
+      {/* 2. Main Overview Grid: Next Match -> Recent Results -> Standings Preview -> Records */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-4">
+          <NextMatchCard fixture={upcoming} tour={tour} standings={standings} loading={loading.fixtures} />
           <RecentResults fixtures={fixtures} loading={loading.fixtures} onOpen={onOpen} onShowTab={onShowTab} />
         </div>
-        <div className="space-y-5">
-          <StandingsMini standings={standings} loading={loading.standings} onShowTab={onShowTab} />
+        <div className="space-y-4">
+          <StandingsMini standings={standings} tour={tour} loading={loading.standings} onShowTab={onShowTab} />
           <RecordsCard stats={stats} loading={loading.stats} />
         </div>
       </div>
+
+      {/* 3. Expandable Additional Details & Key Stats */}
+      <InfoPanel tour={tour} />
+      <KeyStats stats={stats} standings={standings} loading={loading.stats} />
     </div>
   )
 }

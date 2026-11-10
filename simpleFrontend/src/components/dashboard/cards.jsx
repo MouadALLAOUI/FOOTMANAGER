@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   CalendarDays,
   Clock,
@@ -19,10 +20,13 @@ import TeamLogo from '../profile/TeamLogo'
 
 function TeamBadge({ team, logo, sub, align = 'start', onClick }) {
   const { t } = useTranslation()
+  const linkTo = !onClick && team?.id != null ? `/teams/${team.id}` : undefined
+  const interactive = Boolean((onClick || linkTo) && team?.id != null)
+  const nameContent = team?.name || t('ov.common.unknownTeam')
   return (
     <div
       className={`flex min-w-0 items-center gap-2.5 ${align === 'end' ? 'flex-row-reverse text-end' : ''} ${
-        onClick ? 'cursor-pointer group/team transition-transform hover:scale-105' : ''
+        interactive ? 'cursor-pointer group/team transition-transform hover:scale-105' : ''
       }`}
       onClick={(e) => {
         if (onClick && team?.id) {
@@ -30,12 +34,25 @@ function TeamBadge({ team, logo, sub, align = 'start', onClick }) {
           onClick(team)
         }
       }}
-      title={onClick && team?.name ? `عرض ملف ${team.name}` : undefined}
+      title={interactive && team?.name ? `عرض ملف ${team.name}` : undefined}
     >
-      <TeamLogo team={team} src={logo} className="size-9" fontSize="text-sm" />
+      <TeamLogo
+        team={team}
+        src={logo}
+        to={linkTo}
+        onClick={linkTo ? (e) => e.stopPropagation() : undefined}
+        className="size-9"
+        fontSize="text-sm"
+      />
       <div className={`min-w-0 ${align === 'end' ? 'items-end' : ''}`}>
-        <p className={`truncate text-sm font-extrabold text-slate-900 ${onClick ? 'group-hover/team:text-green-600 transition-colors' : ''} ${align === 'end' ? 'order-2' : ''}`}>
-          {team?.name || t('ov.common.unknownTeam')}
+        <p className={`truncate text-sm font-extrabold text-slate-900 ${interactive ? 'group-hover/team:text-green-600 transition-colors' : ''} ${align === 'end' ? 'order-2' : ''}`}>
+          {linkTo ? (
+            <Link to={linkTo} onClick={(e) => e.stopPropagation()} className="hover:text-green-600 transition-colors">
+              {nameContent}
+            </Link>
+          ) : (
+            nameContent
+          )}
         </p>
         {sub && <p className="truncate text-[11px] text-slate-400">{sub}</p>}
       </div>
@@ -123,7 +140,21 @@ export function MatchCard({ match, actions, onClick, onTeamClick }) {
           <TeamBadge
             team={match.opponent_team}
             logo={logoThumb(match.opponent_team)}
-            sub={isHost ? match.opponent_team?.city : match.target_team?.name || t('ov.common.potentialOpponent')}
+            sub={
+              isHost ? (
+                match.opponent_team?.city
+              ) : match.target_team?.id != null && match.target_team?.name ? (
+                <Link
+                  to={`/teams/${match.target_team.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:text-green-600 transition-colors"
+                >
+                  {match.target_team.name}
+                </Link>
+              ) : (
+                match.target_team?.name || t('ov.common.potentialOpponent')
+              )
+            }
             align="end"
             onClick={onTeamClick}
           />

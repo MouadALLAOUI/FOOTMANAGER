@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Check, CheckCircle2, Copy, ExternalLink, Info, Key, ShieldCheck, Sparkles, UserCheck, Users } from 'lucide-react'
 import { Badge, Button, Card, Empty, Skeleton } from '../../../../components/dashboard/ui'
 import api from '../../../../api/client'
@@ -68,7 +69,7 @@ export default function Step6Operations({ tournament, refresh }) {
                     >
                       <div className="min-w-0">
                         <p className="text-xs font-black text-slate-800 truncate">
-                          {home.name || 'طرف 1'} ضد {away.name || 'طرف 2'}
+                          {home.id != null ? <Link to={`/teams/${home.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{home.name || 'طرف 1'}</Link> : (home.name || 'طرف 1')} ضد {away.id != null ? <Link to={`/teams/${away.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{away.name || 'طرف 2'}</Link> : (away.name || 'طرف 2')}
                         </p>
                         <p className="text-[11px] text-slate-400">
                           {f.scheduled_at ? new Date(f.scheduled_at).toLocaleDateString() : 'التاريخ غير محدد'}

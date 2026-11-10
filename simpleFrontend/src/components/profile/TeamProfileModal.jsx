@@ -1,25 +1,25 @@
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, Clock, MapPin, Shield, Target, Users, Trophy, Sparkles } from 'lucide-react'
+import { CalendarDays, Clock, MapPin, Shield, Target, Users, Trophy, Sparkles, Lock } from 'lucide-react'
 import { usePublicTeamProfile } from '../../api/queries'
-import { Modal, Skeleton, Badge } from '../dashboard/ui'
+import { Modal, Skeleton, Badge, Button } from '../dashboard/ui'
 import TeamLogo from './TeamLogo'
 
-function Stat({ label, value, accent = 'text-slate-900' }) {
+function Stat({ label, value, accent = 'text-[#111313] dark:text-[#F5F7F2]' }) {
   return (
-    <div className="rounded-2xl bg-slate-50 p-3 text-center">
+    <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3 text-center">
       <p className={`text-base font-black tabular-nums ${accent}`}>{value ?? '—'}</p>
-      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-0.5 text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3]">{label}</p>
     </div>
   )
 }
 
-function Row({ icon: Icon, label, value }) {
+function InfoRow({ icon: Icon, label, value }) {
   if (value == null || value === '') return null
   return (
     <div className="flex items-center gap-2.5 text-sm">
-      <Icon className="size-4 shrink-0 text-slate-400" />
-      <span className="shrink-0 text-xs font-bold text-slate-400">{label}</span>
-      <span className="min-w-0 truncate font-bold text-slate-700">{value}</span>
+      <Icon className="size-4 shrink-0 text-[#65706A] dark:text-[#B2B9B3]" />
+      <span className="shrink-0 text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">{label}:</span>
+      <span className="min-w-0 truncate font-extrabold text-[#111313] dark:text-[#F5F7F2]">{value}</span>
     </div>
   )
 }
@@ -29,226 +29,259 @@ export default function TeamProfileModal({ team, onClose }) {
   const teamId = team?.id
   const { data, isLoading, error } = usePublicTeamProfile(teamId, { enabled: !!teamId })
   const info = data?.team
-  const display = info || team || {}
-  // 404 = the team's manager account is unavailable; treat it like private.
-  const isHidden = (info && info.visibility === 'private') || error?.response?.status === 404
+
+  // Merge initial clicked team prop with full backend response so committee fields
+  // (e.g. manager_name, players_count, is_free) remain available even if visibility is private.
+  const display = { ...(team || {}), ...(info || {}) }
+  const isNotFound = error?.response?.status === 404
+  const isPrivate = (info && info.visibility && info.visibility !== 'public') || isNotFound
+
+  const managerName = info?.manager?.name || display.manager_name || null
+  const managerAvatar = info?.manager?.avatar_url || null
+  const managerCity = info?.manager?.city || null
+  const playersCount = info?.players_count ?? team?.players_count ?? info?.member_count ?? null
 
   const weeklyBookings = info?.weekly_bookings || display?.weekly_bookings || []
   const recurringBookings = weeklyBookings.filter((b) => b.is_weekly)
   const otherBookings = weeklyBookings.filter((b) => !b.is_weekly)
 
+  const hasPublicStats =
+    info &&
+    !isPrivate &&
+    (info.points != null ||
+      info.matches_played != null ||
+      info.wins != null ||
+      info.draws != null ||
+      info.losses != null ||
+      info.goals_for != null)
+
   return (
-    <Modal open={Boolean(team)} onClose={onClose} title={display.name || t('profile.public.teamTitle')} subtitle={display.city}>
-      {isLoading && !info ? (
-        <div className="space-y-4">
-          <Skeleton className="h-24 rounded-3xl" />
-          <Skeleton className="h-20 rounded-2xl" />
-          <Skeleton className="h-28 rounded-2xl" />
-        </div>
-      ) : !info && !team ? (
-        error?.response?.status === 404 ? (
-          <div className="py-12 text-center">
-            <span className="mx-auto grid size-14 place-items-center rounded-3xl bg-slate-100 text-slate-400">
-              <Shield className="size-7" />
-            </span>
-            <p className="mt-4 text-sm font-bold text-slate-700">{t('profile.public.teamPrivate')}</p>
-            <p className="mx-auto mt-1 max-w-xs text-xs text-slate-400">{t('profile.public.teamPrivateDesc')}</p>
-          </div>
-        ) : (
-          <p className="py-12 text-center text-sm font-semibold text-slate-400">{t('profile.public.loadFailed')}</p>
-        )
+    <Modal
+      open={Boolean(team)}
+      onClose={onClose}
+      title={display.name || t('profile.public.teamTitle')}
+      subtitle={display.city || (display.is_free ? 'فريق مشارك بالبطولة' : undefined)}
+      footer={
+        <Button variant="secondary" size="sm" onClick={onClose} className="w-full sm:w-auto">
+          {t('common.close') || 'إغلاق'}
+        </Button>
+      }
+    >
+      {!team && !info ? (
+        <p className="py-10 text-center text-sm font-semibold text-[#65706A] dark:text-[#B2B9B3]">
+          {t('profile.public.loadFailed')}
+        </p>
       ) : (
-        <div className="space-y-5">
-          {/* Identity header — always visible, even for private teams */}
-          <div className="flex items-center gap-4">
-            <TeamLogo team={display} className="size-16" rounded="rounded-2xl" ring="ring-1 ring-slate-100" fontSize="text-xl" />
+        <div className="space-y-4" dir="rtl">
+          {/* Identity header — rendered immediately from team data */}
+          <div className="flex items-center gap-3.5 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5">
+            <TeamLogo
+              team={display}
+              className="size-16 shrink-0"
+              rounded="rounded-2xl"
+              ring="ring-1 ring-[#E1E5DF] dark:ring-[#303832]"
+              fontSize="text-xl"
+            />
             <div className="min-w-0 flex-1">
-              <h4 className="truncate text-lg font-black text-slate-900">{display.name}</h4>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {display.category && (
-                  <Badge variant="success">{display.category}</Badge>
+              <h4 className="break-words text-base sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
+                {display.name || '—'}
+              </h4>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {display.is_free && <Badge variant="info">فريق البطولة</Badge>}
+                {display.category && <Badge variant="success">{display.category}</Badge>}
+                {display.level && (
+                  <Badge variant="info">
+                    {t(`matchesPage.teams.levels.${display.level}`, { defaultValue: display.level })}
+                  </Badge>
                 )}
-                {display.level && <Badge variant="info">{t(`matchesPage.teams.levels.${display.level}`)}</Badge>}
               </div>
             </div>
           </div>
 
-          {/* Section: الحجوزات والمواعيد الأسبوعية للفريق */}
-          <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-emerald-50/50 to-teal-50/20 p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2 border-b border-emerald-100 pb-2">
-              <div className="flex items-center gap-2">
-                <span className="grid size-7 place-items-center rounded-lg bg-emerald-500/15 text-emerald-700">
-                  <CalendarDays className="size-4" />
-                </span>
-                <div>
-                  <h5 className="text-xs sm:text-sm font-black text-slate-900">
-                    الحجوزات والمواعيد الأسبوعية
-                  </h5>
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    مواعيد تدريب ومباريات الفريق الدائمة في الملاعب
-                  </p>
-                </div>
-              </div>
-              {weeklyBookings.length > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-200">
-                  <Sparkles className="size-2.5 text-emerald-600" />
-                  <span>{weeklyBookings.length} موعد</span>
+          {/* Manager Info (shown whenever real manager data exists from backend profile or committee team) */}
+          {managerName && (
+            <div className="flex items-center gap-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3.5">
+              {managerAvatar ? (
+                <img src={managerAvatar} alt="" className="size-11 shrink-0 rounded-full object-cover" loading="lazy" />
+              ) : (
+                <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#B8F000]/30 dark:bg-[#D0FF38]/20 text-sm font-black text-[#111313] dark:text-[#D0FF38]">
+                  {managerName.slice(0, 1)}
                 </span>
               )}
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-1.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                  <Trophy className="size-3.5 text-[#179955] dark:text-[#D0FF38]" />
+                  <span>{t('profile.public.manager') || 'مسير الفريق'}</span>
+                </p>
+                <p className="truncate text-sm font-black text-[#111313] dark:text-[#F5F7F2]">{managerName}</p>
+                {managerCity && (
+                  <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3]">
+                    <MapPin className="size-3" />
+                    <span>{managerCity}</span>
+                  </p>
+                )}
+              </div>
             </div>
+          )}
 
-            {weeklyBookings.length === 0 ? (
-              <div className="py-4 text-center">
-                <p className="text-xs font-semibold text-slate-500">
-                  لا توجد حجوزات أسبوعية دائمة مسجلة لهذا الفريق حالياً.
+          {/* Details Card (City, Players Count, Founded Year, Association, Description) */}
+          {(playersCount != null || display.city || display.founded_year || display.association_name || display.description) && (
+            <div className="space-y-2.5 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4">
+              {playersCount != null && (
+                <InfoRow icon={Users} label={t('profile.public.playersCount') || 'عدد اللاعبين'} value={playersCount} />
+              )}
+              {display.city && <InfoRow icon={MapPin} label={t('profile.public.city') || 'المدينة'} value={display.city} />}
+              {display.founded_year && (
+                <InfoRow icon={CalendarDays} label={t('profile.public.founded') || 'سنة التأسيس'} value={display.founded_year} />
+              )}
+              {display.association_name && (
+                <InfoRow icon={Shield} label={t('profile.public.association') || 'الجمعية'} value={display.association_name} />
+              )}
+              {display.description && (
+                <div className="flex items-start gap-2.5 text-sm pt-1">
+                  <Target className="mt-0.5 size-4 shrink-0 text-[#65706A] dark:text-[#B2B9B3]" />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                      {t('profile.public.description') || 'نبذة'}:{' '}
+                    </span>
+                    <span className="text-xs sm:text-sm leading-relaxed text-[#111313] dark:text-[#F5F7F2]">
+                      {display.description}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Loading extra profile details */}
+          {isLoading && !info && (
+            <div className="space-y-2.5">
+              <Skeleton className="h-20 rounded-2xl" />
+            </div>
+          )}
+
+          {/* Public Team Stats Grid */}
+          {hasPublicStats && (
+            <div className="grid grid-cols-3 gap-2">
+              <Stat
+                label={t('profile.public.points') || 'النقاط'}
+                value={info.points}
+                accent="text-[#179955] dark:text-[#D0FF38]"
+              />
+              <Stat label={t('profile.public.played') || 'لعب'} value={info.matches_played} />
+              <Stat label={t('profile.public.wins') || 'فوز'} value={info.wins} />
+              <Stat label={t('profile.public.draws') || 'تعادل'} value={info.draws} />
+              <Stat label={t('profile.public.losses') || 'خسارة'} value={info.losses} />
+              <Stat label={t('profile.public.goals') || 'الأهداف'} value={info.goals_for} />
+            </div>
+          )}
+
+          {/* Private Team Notice (without hiding basic identity/manager/players_count above) */}
+          {!isLoading && isPrivate && !hasPublicStats && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5">
+              <Lock className="mt-0.5 size-4 shrink-0 text-[#65706A] dark:text-[#B2B9B3]" />
+              <div>
+                <p className="text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+                  {t('profile.public.teamPrivate') || 'الملف الكامل للفريق خاص'}
+                </p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-[#65706A] dark:text-[#B2B9B3]">
+                  {t('profile.public.teamPrivateDesc') || 'تم عرض المعلومات الأساسية المتوفرة لهذا الفريق.'}
                 </p>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {/* 1. Recurring weekly bookings */}
-                {recurringBookings.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-emerald-200/80 bg-white p-3 shadow-xs"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white font-black text-xs">
-                        {b.day_name ? b.day_name.slice(0, 3) : 'يوم'}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-extrabold text-slate-900">
-                            كل يوم {b.day_name || 'أسبوعي'}
-                          </p>
-                          <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-700 border border-emerald-200">
-                            حجز أسبوعي دائم
-                          </span>
-                        </div>
-                        {b.terrain && (
-                          <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                            <MapPin className="size-3 text-slate-400 shrink-0" />
-                            <span className="truncate">{b.terrain.name}</span>
-                            {b.terrain.city && <span className="text-slate-400">({b.terrain.city})</span>}
-                          </p>
-                        )}
-                      </div>
-                    </div>
+            </div>
+          )}
 
-                    {b.start_time && (
-                      <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-800 border border-slate-200/70 self-start sm:self-auto shrink-0">
-                        <Clock className="size-3 text-emerald-600" />
-                        <span className="tabular-nums dir-ltr">{b.start_time} - {b.end_time}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {/* 2. Single or scheduled bookings */}
-                {otherBookings.map((b) => (
-                  <div
-                    key={b.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-xs"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-700 font-black text-xs">
-                        {b.day_name ? b.day_name.slice(0, 3) : 'موعد'}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-extrabold text-slate-900">
-                            {b.day_name || ''} {b.booking_date || ''}
-                          </p>
-                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-600">
-                            حجز ملعب
-                          </span>
-                        </div>
-                        {b.terrain && (
-                          <p className="flex items-center gap-1 text-[11px] text-slate-500 font-medium truncate mt-0.5">
-                            <MapPin className="size-3 text-slate-400 shrink-0" />
-                            <span className="truncate">{b.terrain.name}</span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {b.start_time && (
-                      <div className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs font-black text-slate-800 border border-slate-200/70 self-start sm:self-auto shrink-0">
-                        <Clock className="size-3 text-slate-500" />
-                        <span className="tabular-nums dir-ltr">{b.start_time} - {b.end_time}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {isHidden ? (
-            <>
-              <div className="flex items-start gap-2.5 rounded-2xl bg-slate-50 p-4">
-                <Shield className="mt-0.5 size-4 shrink-0 text-slate-400" />
-                <div>
-                  <p className="text-xs font-bold text-slate-700">{t('profile.public.teamPrivate')}</p>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-slate-400">{t('profile.public.teamPrivateDesc')}</p>
+          {/* Weekly Bookings Section (compact when empty, detailed when booked) */}
+          {!isLoading && (weeklyBookings.length > 0 || !isNotFound) && (
+            <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5]/70 dark:bg-[#252B27]/60 p-3.5 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 place-items-center rounded-lg bg-[#B8F000]/25 dark:bg-[#D0FF38]/15 text-[#111313] dark:text-[#D0FF38]">
+                    <CalendarDays className="size-4" />
+                  </span>
+                  <h5 className="text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                    الحجوزات والمواعيد الأسبوعية
+                  </h5>
                 </div>
-              </div>
-              <div className="space-y-2.5 rounded-2xl border border-slate-100 p-4">
-                <Row icon={MapPin} label={t('profile.public.city')} value={display.city} />
-                <Row icon={CalendarDays} label={t('profile.public.founded')} value={display.founded_year ?? '—'} />
-              </div>
-            </>
-          ) : info ? (
-            <>
-              <div className="grid grid-cols-3 gap-2.5">
-                <Stat label={t('profile.public.points')} value={info.points} accent="text-emerald-600" />
-                <Stat label={t('profile.public.played')} value={info.matches_played} />
-                <Stat label={t('profile.public.wins')} value={info.wins} />
-                <Stat label={t('profile.public.draws')} value={info.draws} />
-                <Stat label={t('profile.public.losses')} value={info.losses} />
-                <Stat label={t('profile.public.goals')} value={info.goals_for} />
-              </div>
-
-              <div className="space-y-2.5 rounded-2xl border border-slate-100 p-4">
-                <Row icon={Users} label={t('profile.public.playersCount')} value={info.players_count ?? '—'} />
-                <Row icon={CalendarDays} label={t('profile.public.founded')} value={info.founded_year ?? '—'} />
-                <Row icon={Shield} label={t('profile.public.association')} value={info.association_name} />
-                <Row icon={MapPin} label={t('profile.public.city')} value={info.city} />
-                {info.description && (
-                  <div className="flex items-start gap-2.5 text-sm">
-                    <Target className="mt-0.5 size-4 shrink-0 text-slate-400" />
-                    <span className="shrink-0 text-xs font-bold text-slate-400">{t('profile.public.description')}</span>
-                    <span className="min-w-0 text-sm leading-relaxed text-slate-600">{info.description}</span>
-                  </div>
+                {weeklyBookings.length > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#B8F000]/30 dark:bg-[#D0FF38]/20 px-2 py-0.5 text-[10px] font-black text-[#111313] dark:text-[#D0FF38]">
+                    <Sparkles className="size-2.5" />
+                    <span>{weeklyBookings.length} موعد</span>
+                  </span>
                 )}
               </div>
 
-              {info.manager && (
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-                  {info.manager.avatar_url ? (
-                    <img src={info.manager.avatar_url} alt="" className="size-11 shrink-0 rounded-full object-cover" loading="lazy" />
-                  ) : (
-                    <span className="grid size-11 shrink-0 place-items-center rounded-full bg-green-100 text-sm font-black text-green-700">
-                      {(info.manager.name || '؟').slice(0, 1)}
-                    </span>
-                  )}
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                      <Trophy className="size-3.5" />
-                      {t('profile.public.manager')}
-                    </p>
-                    <p className="truncate text-sm font-extrabold text-slate-900">{info.manager.name}</p>
-                    {info.manager.city && (
-                      <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
-                        <MapPin className="size-3" />
-                        {info.manager.city}
-                      </p>
-                    )}
-                  </div>
+              {weeklyBookings.length === 0 ? (
+                <p className="text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3]">
+                  لا توجد حجوزات أسبوعية دائمة مسجلة لهذا الفريق حالياً.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {recurringBookings.map((b) => (
+                    <div
+                      key={b.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#179955] text-white font-black text-xs">
+                          {b.day_name ? b.day_name.slice(0, 3) : 'يوم'}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold text-[#111313] dark:text-[#F5F7F2]">
+                            كل يوم {b.day_name || 'أسبوعي'}
+                          </p>
+                          {b.terrain && (
+                            <p className="flex items-center gap-1 text-[11px] text-[#65706A] dark:text-[#B2B9B3] font-medium truncate mt-0.5">
+                              <MapPin className="size-3 shrink-0" />
+                              <span className="truncate">{b.terrain.name}</span>
+                              {b.terrain.city && <span>({b.terrain.city})</span>}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {b.start_time && (
+                        <div className="inline-flex items-center gap-1.5 rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-xs font-black text-[#111313] dark:text-[#F5F7F2] border border-[#E1E5DF] dark:border-[#303832] self-start sm:self-auto shrink-0">
+                          <Clock className="size-3 text-[#179955] dark:text-[#D0FF38]" />
+                          <span className="tabular-nums" dir="ltr">{b.start_time} - {b.end_time}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {otherBookings.map((b) => (
+                    <div
+                      key={b.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] font-black text-xs">
+                          {b.day_name ? b.day_name.slice(0, 3) : 'موعد'}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-extrabold text-[#111313] dark:text-[#F5F7F2]">
+                            {b.day_name || ''} {b.booking_date || ''}
+                          </p>
+                          {b.terrain && (
+                            <p className="flex items-center gap-1 text-[11px] text-[#65706A] dark:text-[#B2B9B3] font-medium truncate mt-0.5">
+                              <MapPin className="size-3 shrink-0" />
+                              <span className="truncate">{b.terrain.name}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {b.start_time && (
+                        <div className="inline-flex items-center gap-1.5 rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-xs font-black text-[#111313] dark:text-[#F5F7F2] border border-[#E1E5DF] dark:border-[#303832] self-start sm:self-auto shrink-0">
+                          <Clock className="size-3 text-[#65706A] dark:text-[#B2B9B3]" />
+                          <span className="tabular-nums" dir="ltr">{b.start_time} - {b.end_time}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
-            </>
-          ) : (
-            <p className="py-6 text-center text-xs font-semibold text-slate-400">{t('profile.public.loadFailed')}</p>
+            </div>
           )}
         </div>
       )}

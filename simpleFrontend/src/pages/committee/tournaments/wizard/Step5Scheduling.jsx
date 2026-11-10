@@ -5,7 +5,8 @@ import api from '../../../../api/client'
 import { useApi } from '../../../../hooks/useApi'
 import { useToast } from '../../../../components/ui/Toast'
 import { toastApiError } from '../../../../lib/errors'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { formatGroupName } from '../../../../lib/groupNames'
 
 export default function Step5Scheduling({
   tournament,
@@ -120,7 +121,7 @@ export default function Step5Scheduling({
                 {groups.map((group) => (
                   <div key={group.id} className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-3.5">
                     <span className="block text-xs font-black text-slate-800 mb-2">
-                      {group.name || `المجموعة ${group.letter}`}
+                      {formatGroupName(group.name || group.letter, { groupId: group.id, tournamentId: tournament.id })}
                     </span>
                     <div className="space-y-1.5">
                       {(group.teams || []).map((t) => (
@@ -190,9 +191,9 @@ export default function Step5Scheduling({
                       className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 text-xs"
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className="truncate font-extrabold text-slate-800">{home.name || 'طرف 1'}</span>
+                        <span className="truncate font-extrabold text-slate-800">{home.id != null ? <Link to={`/teams/${home.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{home.name || 'طرف 1'}</Link> : (home.name || 'طرف 1')}</span>
                         <span className="text-slate-400 font-black">ضد</span>
-                        <span className="truncate font-extrabold text-slate-800">{away.name || 'طرف 2'}</span>
+                        <span className="truncate font-extrabold text-slate-800">{away.id != null ? <Link to={`/teams/${away.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{away.name || 'طرف 2'}</Link> : (away.name || 'طرف 2')}</span>
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">

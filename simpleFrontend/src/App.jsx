@@ -33,6 +33,7 @@ const PublicTournaments = lazy(() => import('./pages/tournaments'))
 const PublicTournamentDetail = lazy(() => import('./pages/tournaments/detail'))
 const TournamentJoinPage = lazy(() => import('./pages/tournaments/join'))
 const PublicPlayerDetail = lazy(() => import('./pages/players/detail'))
+const PublicTeamDetail = lazy(() => import('./pages/teams/detail'))
 const Login = lazy(() => import('./pages/auth/login'))
 const Register = lazy(() => import('./pages/auth/register'))
 const RegisterPlayer = lazy(() => import('./pages/player/register'))
@@ -94,6 +95,8 @@ function App() {
                 <Route path="/tournaments/:slug/join" element={<PageMaintenanceGate><TournamentJoinPage /></PageMaintenanceGate>} />
                 <Route path="/players/:id" element={<PageMaintenanceGate><PublicPlayerDetail /></PageMaintenanceGate>} />
                 <Route path="/p/:id" element={<PageMaintenanceGate><PublicPlayerDetail /></PageMaintenanceGate>} />
+                <Route path="/teams/:id" element={<PageMaintenanceGate><PublicTeamDetail /></PageMaintenanceGate>} />
+                <Route path="/team/:id" element={<PageMaintenanceGate><PublicTeamDetail /></PageMaintenanceGate>} />
                 {/* Short readable link aliases for quick sharing */}
                 <Route path="/t/:slug" element={<PageMaintenanceGate><PublicTournamentDetail /></PageMaintenanceGate>} />
                 <Route path="/j/:slug" element={<PageMaintenanceGate><TournamentJoinPage /></PageMaintenanceGate>} />

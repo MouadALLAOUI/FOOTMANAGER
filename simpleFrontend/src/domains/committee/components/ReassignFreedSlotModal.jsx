@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Calendar,
   CalendarCheck,
@@ -202,12 +203,14 @@ export default function ReassignFreedSlotModal({
                       <div className="flex items-center gap-1.5 min-w-0">
                         <TeamLogo
                           team={target.home_team}
+                          to={target.home_team?.id != null ? `/teams/${target.home_team.id}` : undefined}
+                          onClick={() => onClose?.()}
                           name={target.home_team?.name}
                           className="size-6 shrink-0"
                           rounded="rounded-lg"
                         />
                         <span className="truncate text-xs font-black text-slate-900">
-                          {target.home_team?.name || 'فريق مضيف'}
+                          {target.home_team?.id != null ? <Link to={`/teams/${target.home_team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{target.home_team.name}</Link> : (target.home_team?.name || 'فريق مضيف')}
                         </span>
                       </div>
 
@@ -217,12 +220,14 @@ export default function ReassignFreedSlotModal({
                       <div className="flex items-center gap-1.5 min-w-0">
                         <TeamLogo
                           team={target.away_team}
+                          to={target.away_team?.id != null ? `/teams/${target.away_team.id}` : undefined}
+                          onClick={() => onClose?.()}
                           name={target.away_team?.name}
                           className="size-6 shrink-0"
                           rounded="rounded-lg"
                         />
                         <span className="truncate text-xs font-black text-slate-900">
-                          {target.away_team?.name || 'فريق ضيف'}
+                          {target.away_team?.id != null ? <Link to={`/teams/${target.away_team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{target.away_team.name}</Link> : (target.away_team?.name || 'فريق ضيف')}
                         </span>
                       </div>
                     </div>

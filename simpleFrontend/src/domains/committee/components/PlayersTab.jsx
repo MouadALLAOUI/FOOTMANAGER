@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Check, Plus, RefreshCw, Users, X } from 'lucide-react'
 import api from '../../../api/client'
 import Jersey from '../../../pages/manager/live/components/Jersey'
@@ -256,7 +257,15 @@ function TeamRosterSection({
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
         <div className="flex items-center gap-2.5 min-w-0">
           {logoUrl ? (
-            <img src={logoUrl} alt={name} className="size-8 object-contain shrink-0 rounded-lg" />
+            teamId != null ? <Link to={`/teams/${teamId}`} target="_blank" rel="noopener noreferrer" className="shrink-0"><img src={logoUrl} alt={name} className="size-8 object-contain shrink-0 rounded-lg" /></Link> : <img src={logoUrl} alt={name} className="size-8 object-contain shrink-0 rounded-lg" />
+          ) : teamId != null ? (
+            <Link to={`/teams/${teamId}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
+              <Jersey
+                number=""
+                variant={teamVariant}
+                className="h-8 w-7 shrink-0 drop-shadow-none"
+              />
+            </Link>
           ) : (
             <Jersey
               number=""
@@ -264,7 +273,7 @@ function TeamRosterSection({
               className="h-8 w-7 shrink-0 drop-shadow-none"
             />
           )}
-          <h3 className="truncate text-base font-black text-slate-900">{name}</h3>
+          <h3 className="truncate text-base font-black text-slate-900">{teamId != null ? <Link to={`/teams/${teamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{name}</Link> : name}</h3>
         </div>
 
         {/* Badges: Total Limit, On pitch count, Bench count */}

@@ -10,9 +10,9 @@ export default function SummarySidebar({ displayScore, homeTeam, awayTeam, count
     <aside className="order-3 xl:order-1 min-w-0 space-y-5">
       <div className="">
         <div className="flex items-center justify-center gap-3 py-2">
-          <TeamAvatar team={homeTeam} className="size-8" />
+          <TeamAvatar team={homeTeam} to={homeTeam?.id != null ? `/teams/${homeTeam.id}` : undefined} target="_blank" className="size-8" />
           <span className="text-2xl font-black tabular-nums text-slate-900">{displayScore.home} - {displayScore.away}</span>
-          <TeamAvatar team={awayTeam} className="size-8" />
+          <TeamAvatar team={awayTeam} to={awayTeam?.id != null ? `/teams/${awayTeam.id}` : undefined} target="_blank" className="size-8" />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <MiniStat label={t('committee.result.goals')} value={counts.goals} />

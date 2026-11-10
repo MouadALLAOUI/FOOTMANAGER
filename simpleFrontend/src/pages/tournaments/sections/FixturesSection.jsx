@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Calendar,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react'
 import { TeamAvatar } from '../shared'
 import { formatGroupName } from '../../../lib/groupNames'
+import { extractOrderedGroupsFromFixtures, getGroupColor } from '../../../lib/groupColors'
 import { selectClass } from '../../../components/dashboard/ui'
 
 const LIVE_STATUSES = ['warmup', 'kickoff', 'first_half', 'halftime', 'second_half', 'extra_time', 'penalties']
@@ -76,6 +78,7 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
     () => (fixtures || []).filter((f) => f.home_team && f.away_team),
     [fixtures],
   )
+  const orderedGroups = useMemo(() => extractOrderedGroupsFromFixtures(validFixtures), [validFixtures])
 
   const list = useMemo(() => {
     const arr = [...validFixtures]
@@ -260,6 +263,7 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
                       const live = st === 'live'
                       const isOpening = f.id === openingMatchId
                       const clickable = Boolean(onOpen) && Boolean(f.match?.id ?? f.match_id)
+                      const gColor = f.group ? getGroupColor(f.group, orderedGroups) : null
                       const timeStr = f.scheduled_at ? f.scheduled_at.slice(11, 16) : '—:—'
                       const pens =
                         played && f.match?.home_penalties != null
@@ -267,30 +271,41 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
                           : null
 
                       return (
-                        <button
+                        <div
                           key={f.id}
-                          type="button"
+                          role={clickable ? 'button' : undefined}
+                          tabIndex={clickable ? 0 : undefined}
+                          onKeyDown={(e) => {
+                            if (clickable && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault()
+                              onOpen(f)
+                            }
+                          }}
                           onClick={() => clickable && onOpen(f)}
-                          disabled={!clickable}
                           className={`w-full rounded-2xl border p-3 text-start transition-all ${
+                            gColor ? 'border-s-4' : ''
+                          } ${
                             isOpening
                               ? 'border-[#B8F000] dark:border-[#D0FF38]/60 bg-[#B8F000]/20 dark:bg-[#D0FF38]/12'
                               : 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5]/60 dark:bg-[#252B27]/50 hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]'
                           } ${clickable ? 'cursor-pointer active:scale-[0.99]' : 'cursor-default'}`}
+                          style={gColor ? { borderInlineStartColor: gColor.hex } : undefined}
                         >
                           {/* Top Meta Row: Opening Badge / Group / Stadium + Kickoff Time */}
                           <div className="flex items-center justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              {isOpening ? (
+                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                              {isOpening && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-[#B8F000] dark:bg-[#D0FF38] px-2.5 py-0.5 text-[11px] font-black text-[#111313]">
                                   <Trophy className="size-3" />
                                   <span>المباراة الافتتاحية</span>
                                 </span>
-                              ) : f.group?.name ? (
-                                <span className="inline-flex items-center rounded-md bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
-                                  {formatGroupName(f.group.name, { groupId: f.group.id })}
+                              )}
+                              {f.group?.name ? (
+                                <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-black ${gColor ? gColor.badgeCls : 'bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] text-[#65706A] dark:text-[#B2B9B3]'}`}>
+                                  {gColor && <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: gColor.hex }} />}
+                                  <span>{formatGroupName(f.group.name, { groupId: f.group.id })}</span>
                                 </span>
-                              ) : f.round?.name ? (
+                              ) : !isOpening && f.round?.name ? (
                                 <span className="inline-flex items-center rounded-md bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
                                   {f.round.name}
                                 </span>
@@ -320,12 +335,25 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
                           {/* Center Teams Row */}
                           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                             {/* Home Team (Right in RTL) */}
-                            <div className="flex items-center gap-2 min-w-0">
-                              <TeamAvatar team={f.home_team} className="size-7 sm:size-8 shrink-0" />
-                              <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                                {f.home_team?.name || '—'}
-                              </span>
-                            </div>
+                            {f.home_team?.id != null ? (
+                              <Link
+                                to={`/teams/${f.home_team.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="group/team flex items-center gap-2 min-w-0 hover:opacity-85 transition-opacity"
+                              >
+                                <TeamAvatar team={f.home_team} className="size-7 sm:size-8 shrink-0" />
+                                <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] group-hover/team:underline">
+                                  {f.home_team?.name || '—'}
+                                </span>
+                              </Link>
+                            ) : (
+                              <div className="flex items-center gap-2 min-w-0">
+                                <TeamAvatar team={f.home_team} className="size-7 sm:size-8 shrink-0" />
+                                <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                                  {f.home_team?.name || '—'}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Score or VS */}
                             <div className="shrink-0 px-2 text-center">
@@ -345,14 +373,27 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
                             </div>
 
                             {/* Away Team (Left in RTL) */}
-                            <div className="flex items-center justify-end gap-2 min-w-0">
-                              <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                                {f.away_team?.name || '—'}
-                              </span>
-                              <TeamAvatar team={f.away_team} className="size-7 sm:size-8 shrink-0" />
-                            </div>
+                            {f.away_team?.id != null ? (
+                              <Link
+                                to={`/teams/${f.away_team.id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="group/team flex items-center justify-end gap-2 min-w-0 hover:opacity-85 transition-opacity"
+                              >
+                                <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] group-hover/team:underline">
+                                  {f.away_team?.name || '—'}
+                                </span>
+                                <TeamAvatar team={f.away_team} className="size-7 sm:size-8 shrink-0" />
+                              </Link>
+                            ) : (
+                              <div className="flex items-center justify-end gap-2 min-w-0">
+                                <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                                  {f.away_team?.name || '—'}
+                                </span>
+                                <TeamAvatar team={f.away_team} className="size-7 sm:size-8 shrink-0" />
+                              </div>
+                            )}
                           </div>
-                        </button>
+                        </div>
                       )
                     })}
                   </div>

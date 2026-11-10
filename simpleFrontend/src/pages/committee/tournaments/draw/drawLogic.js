@@ -33,7 +33,9 @@ export function commitMove(teams, pivotId, target, { groups, mode, cap }) {
     const members = out
       .filter((p) => p.group?.id === gid)
       .sort((a, b) => (a.group_position ?? 0) - (b.group_position ?? 0))
-    members.forEach((p, i) => { p.group_position = i + 1 })
+    members.forEach((p, i) => {
+      p.group_position = i + 1
+    })
     return members
   }
 
@@ -50,9 +52,9 @@ export function commitMove(teams, pivotId, target, { groups, mode, cap }) {
     if (isFull) {
       const ordered = groups || []
       const start = ordered.findIndex((g) => g.id === targetGid)
-      const next = ordered.find(
-        (g, i) => i > start && membersOf(out, g.id).length < cap,
-      ) ?? ordered.find((g, i) => i <= start && membersOf(out, g.id).length < cap)
+      const next =
+        ordered.find((g, i) => i > start && membersOf(out, g.id).length < cap) ??
+        ordered.find((g, i) => i <= start && membersOf(out, g.id).length < cap)
 
       if (!next) return { teams: out, redirectedTo: null }
       redirectedTo = next.name || ''
@@ -65,9 +67,11 @@ export function commitMove(teams, pivotId, target, { groups, mode, cap }) {
   }
 
   const members = compact(targetGid)
-  const pos = redirectedTo ? members.length + 1 : (target.position ?? members.length + 1)
+  const pos = redirectedTo ? members.length + 1 : target.position ?? members.length + 1
   const slot = Math.max(1, Math.min(pos, members.length + 1))
-  members.forEach((p, i) => { if (i + 1 >= slot) p.group_position = i + 2 })
+  members.forEach((p, i) => {
+    if (i + 1 >= slot) p.group_position = i + 2
+  })
 
   const groupName = (groups || []).find((g) => g.id === targetGid)?.name ?? ''
   pivot.group = { id: targetGid, name: groupName }
@@ -93,21 +97,13 @@ export function nextGroupLabel(groups) {
 }
 
 /**
- * Free-mode invariant, applied to the local board while manually editing,
- * mirroring the backend `ensureFreeNextGroup`: exactly one empty container must
- * always exist. Every group that holds members is kept, then a single empty one
- * is kept (the first empty in board order); any additional empty groups are
- * dropped. When no group is empty a fresh placeholder empty group is appended.
- *
- * @param teams    current board pivots
- * @param groups   current displayed group list [{ id, name, isNew? }]
- * @param seqRef   useRef counter used to mint stable placeholder ids
- * @returns next displayed group list
+ * Keeps only groups that contain at least one assigned team, plus any newly added
+ * local placeholder groups (`isNewGroup`) created during the current manual edit.
+ * Empty database groups are hidden from UI cards and counts while preserved in DB.
  */
 export function deriveDisplayGroups(teams, groups) {
   const memberIds = new Set((teams || []).filter((p) => p?.group).map((p) => p?.group?.id))
-  // Requirement 3: HIDE EMPTY GROUPS — only return groups that have members
-  return (groups || []).filter((g) => memberIds.has(g.id))
+  return (groups || []).filter((g) => memberIds.has(g.id) || isNewGroup(g))
 }
 
 /** New (not yet persisted) placeholder groups are identified by a string id. */

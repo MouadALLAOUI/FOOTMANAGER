@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarCheck, MapPin, RotateCw, Search, ShieldCheck, Swords, UserPlus, Users, X } from 'lucide-react'
 import api from '../../../api/client'
@@ -9,6 +10,7 @@ import { logoThumb, coverThumb } from '../../../lib/thumb'
 
 export default function GlobalSearch() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const {
     searchOpen: open,
     setSearchOpen: setOpen,
@@ -89,7 +91,7 @@ export default function GlobalSearch() {
   if (!open) return null
 
   const groups = [
-    { key: 'teams', title: t('ov.search.groupTeams'), icon: Users, items: teams.map((tm) => ({ id: tm.id, title: tm.name, sub: tm.city || '', onClick: () => openTeam(tm), img: logoThumb(tm), logo: true })) },
+    { key: 'teams', title: t('ov.search.groupTeams'), icon: Users, items: teams.map((tm) => ({ id: tm.id, title: tm.name, sub: tm.city || '', onClick: () => { if (tm?.id != null) { setOpen(false); navigate(`/teams/${tm.id}`) } else { openTeam(tm) } }, img: logoThumb(tm), logo: true })) },
     { key: 'players', title: t('ov.search.groupPlayers'), icon: UserPlus, items: (results.players || []).map((r) => ({ id: r.user_id, title: r.user?.name || r.full_name || t('ov.common.player'), sub: positionLabels[r.position] && t('ov.positions.' + r.position) || positionLabels[r.position] || t('ov.common.player'), onClick: () => openPlayer(r), img: r.player_profile?.avatar_url })) },
     { key: 'terrains', title: t('ov.search.groupTerrains'), icon: ShieldCheck, items: (results.terrains || []).map((tr) => ({ id: tr.id, title: tr.name, sub: tr.city, onClick: () => openBook({ terrain: tr, date: new Date().toISOString().slice(0, 10) }), img: coverThumb(tr) || tr.image_url })) },
     { key: 'matches', title: t('ov.search.groupMatches'), icon: Swords, items: (results.matches || []).map((m) => ({ id: m.id, title: m.host_team?.name || t('ov.common.match'), sub: m.stadium?.name || m.custom_terrain_name || '', onClick: () => openMatch(m) })) },

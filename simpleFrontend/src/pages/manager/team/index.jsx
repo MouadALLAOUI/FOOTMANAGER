@@ -1,5 +1,6 @@
 import i18n from '../../../i18n'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowUpDown,
@@ -182,7 +183,15 @@ export default function Team() {
             </button>
           </div>
           <div className="min-w-0 pb-1 text-white">
-            <h2 className="truncate text-2xl font-black drop-shadow">{team.name}</h2>
+            <h2 className="truncate text-2xl font-black drop-shadow">
+              {team?.id != null ? (
+                <Link to={`/teams/${team.id}`} className="hover:text-green-300 transition-colors">
+                  {team.name}
+                </Link>
+              ) : (
+                team.name
+              )}
+            </h2>
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-white/80">
               <span className="inline-flex items-center gap-1">
                 <Users className="size-3.5" />
@@ -361,7 +370,14 @@ export default function Team() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <TeamLogo team={team} className="size-16" rounded="rounded-2xl" ring="ring-1 ring-slate-200" fontSize="text-lg" />
+              <TeamLogo
+                team={team}
+                to={team?.id != null ? `/teams/${team.id}` : undefined}
+                className="size-16"
+                rounded="rounded-2xl"
+                ring="ring-1 ring-slate-200"
+                fontSize="text-lg"
+              />
               <div className="min-w-0 flex-1">
                 <Button variant="outline" size="sm" className="w-full" onClick={() => setLogoModalOpen(true)}>
                   {t('dash.changeLogo')}

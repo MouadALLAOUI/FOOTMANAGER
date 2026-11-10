@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   AlertTriangle,
@@ -7,30 +8,21 @@ import {
   CalendarPlus,
   Check,
   CheckCircle2,
-  ChevronDown,
-  Clock,
   Edit3,
-  Eye,
   Landmark,
-  Layers,
   LayoutTemplate,
-  Link2,
   List,
   ListChecks,
   Loader2,
   Lock,
-  MapPin,
-  MoreVertical,
   MousePointerClick,
   Play,
-  Plus,
   RefreshCw,
   RotateCcw,
   Search,
   Settings,
   SkipForward,
   Sparkles,
-  Swords,
   Trash2,
   Trophy,
   Users,
@@ -49,7 +41,9 @@ import {
   inputClass,
   selectClass,
 } from '../../../components/dashboard/ui'
-import { TeamAvatar } from '../../tournaments/shared'
+import { formatGroupName } from '../../../lib/groupNames'
+import { extractOrderedGroupsFromFixtures, getGroupColor } from '../../../lib/groupColors'
+import DayWorkspacePanel from './fixtures/DayWorkspacePanel'
 import TimeSlotPicker from '../../../components/TimeSlotPicker'
 import { buildTimeSlots } from '../../../lib/timeSlots'
 import MatchCard from '../../../domains/committee/components/MatchCard'
@@ -122,30 +116,15 @@ const fmtDateTime = (dateStr, timeStr) => {
   return `${day} · ${timeStr}`
 }
 
-function formatArabicDayLabel(dateKey, dayIndex) {
-  if (!dateKey || dateKey === 'unscheduled') return 'مباريات بانتظار تحديد الموعد'
-  try {
-    const d = new Date(`${dateKey}T12:00:00`)
-    if (isNaN(d.getTime())) return `اليوم ${dayIndex + 1} – ${dateKey}`
-    const formatted = d.toLocaleDateString('ar-EG-u-nu-latn', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-    })
-    return `اليوم ${dayIndex + 1} – ${formatted}`
-  } catch {
-    return `اليوم ${dayIndex + 1} – ${dateKey}`
-  }
-}
-
-export default function FixturesTab({ tournament, refresh, refreshKey }) {
+export default function FixturesTab({ tournament, refresh, refreshKey, onOpenExport }) {
   const { t, i18n } = useTranslation()
   const { toast } = useToast()
 
   // Mobile-First Sub-View: 'program' (البرنامج) | 'list' (قائمة المباريات) | 'settings' (الإعدادات / برمجة المباريات)
   const [subView, setSubView] = useState('program')
   const [progMode, setProgMode] = useState('smart') // 'smart' (التنظيم الذكي) | 'manual' (التنظيم اليدوي)
-  const [collapsedDays, setCollapsedDays] = useState({})
+  const [selectedDayKey, setSelectedDayKey] = useState(null)
+  const [customDays, setCustomDays] = useState([])
   const [openingFixtureId, setOpeningFixtureId] = useState(() => {
     try {
       const saved = localStorage.getItem(`aji_opening_match_${tournament.id}`)
@@ -208,11 +187,36 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     { staleTime: 0 },
   )
 
-  // Fetch all tournament fixtures for the chronological 'البرنامج' schedule view & global stats
-  const { data: allTournamentFixtures, refetch: refetchAllFixtures } = useApi(
-    () => api.get(`/committee/tournaments/${tournament.id}/fixtures`).then((r) => r.data.data),
-    [tournament.id, refreshKey],
-    { staleTime: 0, keepPrevious: true },
+  const koRoundIds = useMemo(
+    () => (!isLeague ? (structure?.knockout || []).map((k) => k.round_id).filter(Boolean) : []),
+    [isLeague, structure?.knockout],
+  )
+  const koRoundsKey = koRoundIds.join(',')
+
+  // Fetch all tournament fixtures (group + knockout rounds) for the Day-Based Workspace & stats
+  const { data: allTournamentFixtures, loading: allFixturesLoading, refetch: refetchAllFixtures } = useApi(
+    async () => {
+      const mainList = await api
+        .get(`/committee/tournaments/${tournament.id}/fixtures`)
+        .then((r) => r.data.data || [])
+      if (!koRoundIds.length) return mainList
+      const koLists = await Promise.all(
+        koRoundIds.map((roundId) =>
+          api
+            .get(`/committee/tournaments/${tournament.id}/fixtures`, { params: { round_id: roundId } })
+            .then((r) => r.data.data || [])
+            .catch(() => []),
+        ),
+      )
+      const byId = new Map()
+      for (const f of mainList) if (f?.id != null) byId.set(f.id, f)
+      for (const list of koLists) {
+        for (const f of list) if (f?.id != null && !byId.has(f.id)) byId.set(f.id, f)
+      }
+      return [...byId.values()]
+    },
+    [tournament.id, refreshKey, koRoundsKey],
+    { queryKey: ['committee-all-fixtures', tournament.id, refreshKey, koRoundsKey], staleTime: 0, keepPrevious: true },
   )
 
   useEffect(() => {
@@ -277,44 +281,15 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     })
   }, [allTournamentFixtures, fixtures, optimisticOverrides])
 
-  // Group all fixtures chronologically by date for the 'البرنامج' view
-  const chronologicalDaySections = useMemo(() => {
-    const list = [...(mergedAllFixtures || [])]
-    list.sort((a, b) => {
-      if (!a.scheduled_at && !b.scheduled_at) return (a.id || 0) - (b.id || 0)
-      if (!a.scheduled_at) return 1
-      if (!b.scheduled_at) return -1
-      return new Date(a.scheduled_at) - new Date(b.scheduled_at)
-    })
-
-    const map = new Map()
-    for (const f of list) {
-      const dateKey = f.scheduled_at ? f.scheduled_at.slice(0, 10) : 'unscheduled'
-      if (!map.has(dateKey)) map.set(dateKey, [])
-      map.get(dateKey).push(f)
-    }
-
-    let scheduledIdx = 0
-    return [...map.entries()].map(([dateKey, items]) => {
-      const isUnscheduled = dateKey === 'unscheduled'
-      const label = isUnscheduled
-        ? 'مباريات بانتظار تحديد الموعد'
-        : formatArabicDayLabel(dateKey, scheduledIdx++)
-      return {
-        dateKey,
-        label,
-        isUnscheduled,
-        items,
-      }
-    })
-  }, [mergedAllFixtures])
-
-  // Determine the opening match ID (either user-selected or the first scheduled match)
+  // Determine the opening match ID (either user-selected or the first scheduled match chronologically)
   const effectiveOpeningMatchId = useMemo(() => {
     if (openingFixtureId) return openingFixtureId
-    const firstDay = chronologicalDaySections.find((d) => !d.isUnscheduled && d.items.length > 0)
-    return firstDay?.items?.[0]?.id ?? mergedAllFixtures?.[0]?.id ?? null
-  }, [openingFixtureId, chronologicalDaySections, mergedAllFixtures])
+    const scheduled = (mergedAllFixtures || [])
+      .filter((f) => Boolean(f.scheduled_at))
+      .slice()
+      .sort((a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at))
+    return scheduled[0]?.id ?? mergedAllFixtures?.[0]?.id ?? null
+  }, [openingFixtureId, mergedAllFixtures])
 
   // Compute global match statistics for the 3-column summary bar
   const matchStats = useMemo(() => {
@@ -438,6 +413,44 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     [tournament.id, refreshKey],
   )
 
+  const orderedGroups = useMemo(
+    () => extractOrderedGroupsFromFixtures(mergedAllFixtures, drawTeams),
+    [mergedAllFixtures, drawTeams],
+  )
+
+  useEffect(() => {
+    setSelectedDayKey(null)
+    setCustomDays([])
+  }, [tournament.id])
+
+  useEffect(() => {
+    if (allTournamentFixtures == null) return
+    const dateSet = new Set()
+    let hasUnsched = false
+    for (const f of mergedAllFixtures || []) {
+      if (f.scheduled_at) dateSet.add(f.scheduled_at.slice(0, 10))
+      else hasUnsched = true
+    }
+    for (const dk of customDays) dateSet.add(dk)
+    const sortedDates = [...dateSet].sort((a, b) => a.localeCompare(b))
+
+    if (selectedDayKey === null) {
+      if (sortedDates.length > 0) setSelectedDayKey(sortedDates[0])
+      else if (hasUnsched) setSelectedDayKey('unscheduled')
+      else setSelectedDayKey('all')
+      return
+    }
+
+    if (selectedDayKey === 'unscheduled' && !hasUnsched) {
+      setSelectedDayKey(sortedDates[0] || 'all')
+      return
+    }
+
+    if (selectedDayKey !== 'all' && selectedDayKey !== 'unscheduled' && !dateSet.has(selectedDayKey)) {
+      setSelectedDayKey(sortedDates[0] || (hasUnsched ? 'unscheduled' : 'all'))
+    }
+  }, [allTournamentFixtures, mergedAllFixtures, customDays, selectedDayKey])
+
   const groupPool = useMemo(
     () =>
       (drawTeams || [])
@@ -446,10 +459,11 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           id: p.team.id,
           name: p.team.name,
           logo_url: p.team.logo_url,
-          group_name: p.group?.name || undefined,
+          group_id: p.group.id,
+          group_name: p.group?.name ? formatGroupName(p.group.name, { groupId: p.group.id, tournamentId: tournament.id }) : undefined,
         }))
         .sort((a, b) => (a.group_name || '').localeCompare(b.group_name || '', 'ar')),
-    [drawTeams],
+    [drawTeams, tournament.id],
   )
 
   const koPool = useMemo(
@@ -458,10 +472,10 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
         id: team.team_id,
         name: team.name,
         logo_url: undefined,
-        group_name: team.group_name || undefined,
+        group_name: team.group_name ? formatGroupName(team.group_name, { tournamentId: tournament.id }) : undefined,
         rank: team.rank,
       })),
-    [koQualifiedData],
+    [koQualifiedData, tournament.id],
   )
 
   const usedIds = useMemo(() => {
@@ -691,7 +705,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     refresh()
   }
 
-  const openDrawer = (target, asLayout = false) => {
+  const openDrawer = (target, asLayout = false, prefillDate = '') => {
     setPlan(null)
     setGenView('form')
     setGenLayout(asLayout)
@@ -712,7 +726,16 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
             ? 'group'
             : 'knockout'
     const fallbackStage = !hasAnyFixtures && target !== 'knockout' ? 'group' : nextStage
-    setForm((f) => ({ ...f, stage: fallbackStage, stadium_ids: [] }))
+    const safeDate =
+      prefillDate && prefillDate !== 'all' && prefillDate !== 'unscheduled'
+        ? prefillDate
+        : undefined
+    setForm((f) => ({
+      ...f,
+      stage: fallbackStage,
+      starts_on: safeDate || f.starts_on || tournament.start_date || '',
+      stadium_ids: [],
+    }))
     setGenOpen(true)
   }
 
@@ -821,6 +844,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       toast.success(msg)
       setGenOpen(false)
       setSubView('program')
+      if (form.starts_on) setSelectedDayKey(form.starts_on)
+      else setSelectedDayKey(null)
       afterChange()
     } catch (e) {
       toastApiError(e, t)
@@ -844,7 +869,8 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       toast.success(r.data?.message || t('committee.detail.layoutGenerated'))
       setGenOpen(false)
       setLayoutMode(true)
-      setSubView('list')
+      setSubView('program')
+      setSelectedDayKey(null)
       afterChange()
     } catch (e) {
       toastApiError(e, t)
@@ -914,6 +940,28 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
     if (!window.confirm(t('committee.detail.layoutDiscardConfirm'))) return
     setDraft({})
     setSlotErrors({})
+  }
+
+  const clearFixturesSlots = async (targetFixtures = []) => {
+    if (busy || !targetFixtures.length) return
+    const slots = []
+    for (const f of targetFixtures) {
+      if (f.home_team) slots.push({ id: f.id, side: 'home', team_id: null })
+      if (f.away_team) slots.push({ id: f.id, side: 'away', team_id: null })
+    }
+    if (!slots.length) return
+    setBusy('slots')
+    try {
+      await api.put(`/committee/tournaments/${tournament.id}/fixtures/slots`, { slots })
+      setDraft({})
+      setSlotErrors({})
+      toast.success('تم إفراغ مقاعد المباريات المحددة بنجاح')
+      afterChange()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setBusy(null)
+    }
   }
 
   const layoutToggle = () => {
@@ -1267,11 +1315,33 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
             </div>
             <div className="mt-1 flex items-center justify-between gap-2">
               <p className="truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
-                {m.home_team_name || t('committee.detail.tbd')}
+                {m.home_team_id != null && m.home_team_name ? (
+                  <Link
+                    to={`/teams/${m.home_team_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-[#047C3C] dark:hover:text-[#00DC58] transition-colors"
+                  >
+                    {m.home_team_name}
+                  </Link>
+                ) : (
+                  m.home_team_name || t('committee.detail.tbd')
+                )}
               </p>
               <span className="shrink-0 text-[10px] font-black text-[#65706A]">VS</span>
               <p className="truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
-                {m.away_team_name || t('committee.detail.tbd')}
+                {m.away_team_id != null && m.away_team_name ? (
+                  <Link
+                    to={`/teams/${m.away_team_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-[#047C3C] dark:hover:text-[#00DC58] transition-colors"
+                  >
+                    {m.away_team_name}
+                  </Link>
+                ) : (
+                  m.away_team_name || t('committee.detail.tbd')
+                )}
               </p>
             </div>
           </div>
@@ -1545,6 +1615,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
           fixture={rescheduleFixture}
           tournament={tournament}
           stadiums={rescheduleTerrains?.terrains || []}
+          orderedGroups={orderedGroups}
           onClose={() => setRescheduleFixture(null)}
           onOpenResult={(fix) => setResultFixture(fix)}
           isOpeningMatch={rescheduleFixture.id === effectiveOpeningMatchId}
@@ -1602,6 +1673,7 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       <FixtureTeamPool
         title={isGroup ? t('committee.detail.layoutPoolTitle') : t('committee.detail.layoutPoolKnockoutTitle')}
         teams={isGroup ? groupPool : koPool}
+        orderedGroups={orderedGroups}
         usedIds={usedIds}
         busy={busy !== null}
         hint={t('committee.detail.layoutPoolHint')}
@@ -1840,210 +1912,57 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
       )}
 
       {/* ================================================================= */}
-      {/* VIEW 1: البرنامج (Chronological Collapsible Day Sections — Ref 1 & 3) */}
+      {/* VIEW 1: البرنامج (Day-Based Interactive Scheduling Workspace) */}
       {/* ================================================================= */}
-      {(subView === 'program' || (!isLeague && subView === 'settings' && hasAnyFixtures)) && (
-        <div className="space-y-3">
-          {!hasAnyFixtures ? (
-            <Empty
-              icon={Swords}
-              title={t('committee.detail.noFixtures')}
-              description={t('committee.detail.noFixturesDesc')}
-              action={
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (isLeague) setSubView('settings')
-                      else openDrawer()
-                    }}
-                  >
-                    <CalendarPlus className="size-4" />
-                    {t('committee.detail.generateFixtures')}
-                  </Button>
-                  {!isLeague && (
-                    <Button size="sm" variant="outline" onClick={() => openDrawer('group', true)}>
-                      <LayoutTemplate className="size-4" />
-                      {t('committee.detail.generateLayout')}
-                    </Button>
-                  )}
-                </div>
-              }
-            />
-          ) : (
-            chronologicalDaySections.map((daySec) => {
-              const isCollapsed = Boolean(collapsedDays[daySec.dateKey])
-              return (
-                <div
-                  key={daySec.dateKey}
-                  className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs"
-                >
-                  {/* Day Section Header */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setCollapsedDays((prev) => ({ ...prev, [daySec.dateKey]: !prev[daySec.dateKey] }))
-                    }
-                    className="w-full flex items-center justify-between gap-2 px-4 py-3 text-start hover:bg-[#F7F8F5]/60 dark:hover:bg-[#252B27]/50 transition cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Calendar className="size-4 shrink-0 text-[#111313] dark:text-[#D0FF38]" />
-                      <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                        {daySec.label}
-                      </span>
-                      <span className="rounded-full bg-[#F7F8F5] dark:bg-[#252B27] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
-                        {daySec.items.length}
-                      </span>
-                    </div>
-
-                    <ChevronDown
-                      className={`size-4 shrink-0 text-[#65706A] dark:text-[#B2B9B3] transition-transform ${
-                        isCollapsed ? '' : 'rotate-180'
-                      }`}
-                    />
-                  </button>
-
-                  {/* Day Matches List */}
-                  {!isCollapsed && (
-                    <div className="border-t border-[#E1E5DF]/70 dark:border-[#303832]/70 p-2.5 sm:p-3 space-y-2">
-                      {daySec.items.map((f) => {
-                        const isOpening = f.id === effectiveOpeningMatchId
-                        const st = fixtureStatus(f)
-                        const isPlayed = st === 'completed'
-                        const isLive = st === 'live'
-                        const showScore = isPlayed || isLive
-                        const timeStr = f.scheduled_at ? f.scheduled_at.slice(11, 16) : '—:—'
-                        const homeName = f.home_team?.name || f.slots?.home || t('committee.detail.tbd')
-                        const awayName = f.away_team?.name || f.slots?.away || t('committee.detail.tbd')
-
-                        return (
-                          <div
-                            key={f.id}
-                            onClick={() => setRescheduleFixture(f)}
-                            className={`rounded-2xl border p-3 transition-all cursor-pointer active:scale-[0.99] ${
-                              isOpening
-                                ? 'border-[#B8F000] dark:border-[#D0FF38]/60 bg-[#B8F000]/20 dark:bg-[#D0FF38]/12'
-                                : 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5]/60 dark:bg-[#252B27]/50 hover:bg-[#F7F8F5] dark:hover:bg-[#252B27]'
-                            }`}
-                          >
-                            {/* Top Row: Opening Match Badge or Group/Stadium info + Kickoff Time */}
-                            <div className="flex items-center justify-between gap-2 mb-2">
-                              <div className="flex items-center gap-1.5 min-w-0">
-                                {isOpening ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#B8F000] dark:bg-[#D0FF38] px-2.5 py-0.5 text-[11px] font-black text-[#111313]">
-                                    <Trophy className="size-3" />
-                                    <span>المباراة الافتتاحية</span>
-                                  </span>
-                                ) : f.group?.name ? (
-                                  <span className="inline-flex items-center rounded-md bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
-                                    المجموعة {f.group.name}
-                                  </span>
-                                ) : f.round?.name ? (
-                                  <span className="inline-flex items-center rounded-md bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">
-                                    {f.round.name}
-                                  </span>
-                                ) : null}
-
-                                {f.stadium?.name && (
-                                  <span className="truncate text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3] inline-flex items-center gap-0.5">
-                                    <MapPin className="size-2.5 shrink-0" />
-                                    <span className="truncate">{f.stadium.name}</span>
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                <span className="inline-flex items-center gap-1 text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums">
-                                  <span>{timeStr}</span>
-                                  <Clock className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
-                                </span>
-
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setResultFixture(f)
-                                  }}
-                                  className="rounded-lg bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] px-2 py-0.5 text-[10px] font-black text-[#1F9D55] dark:text-[#D0FF38] hover:opacity-80"
-                                  title="تسجيل النتيجة والأحداث"
-                                >
-                                  {isPlayed ? 'تعديل النتيجة' : 'النتيجة'}
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Center Row: Home Team VS Away Team */}
-                            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                              {/* Home Team (Right in RTL) */}
-                              <div className="flex items-center gap-2 min-w-0">
-                                <TeamAvatar team={f.home_team} className="size-7 sm:size-8 shrink-0" />
-                                <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                                  {homeName}
-                                </span>
-                              </div>
-
-                              {/* Score or VS Pill */}
-                              <div className="shrink-0 px-2">
-                                {showScore ? (
-                                  <span className="inline-flex items-center rounded-lg bg-[#111313] dark:bg-[#D0FF38] px-2.5 py-0.5 text-xs font-black text-white dark:text-[#111313] font-mono tabular-nums">
-                                    {f.match?.home_score ?? 0} : {f.match?.away_score ?? 0}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs font-black text-[#65706A] dark:text-[#B2B9B3]">
-                                    VS
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Away Team (Left in RTL) */}
-                              <div className="flex items-center justify-end gap-2 min-w-0">
-                                <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                                  {awayName}
-                                </span>
-                                <TeamAvatar team={f.away_team} className="size-7 sm:size-8 shrink-0" />
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-
-          {/* Bottom Sticky / Prominent Lime Action Button (+ إضافة مباراة / إنشاء البرنامج) */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                if (isLeague) setSubView('settings')
-                else openDrawer('group', progMode === 'manual')
-              }}
-              className="w-full flex h-12 sm:h-13 items-center justify-center gap-2 rounded-2xl bg-[#B8F000] dark:bg-[#D0FF38] hover:opacity-95 text-sm sm:text-base font-black text-[#111313] shadow-sm transition active:scale-[0.99] cursor-pointer"
-            >
-              {subView === 'settings' ? (
-                <>
-                  <Sparkles className="size-5" />
-                  <span>إنشاء البرنامج تلقائياً</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="size-5 stroke-[2.8]" />
-                  <span>
-                    {isLeague
-                      ? 'إدارة وبرمجة مواعيد الدوري'
-                      : hasAnyFixtures
-                        ? 'إضافة / برمجة مباريات'
-                        : 'إنشاء برنامج المباريات'}
-                  </span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
+      {subView === 'program' && (allFixturesLoading && !allTournamentFixtures && !(fixtures || []).length ? (
+        <SkeletonCards count={3} />
+      ) : (
+        <DayWorkspacePanel
+          tournament={tournament}
+          fixtures={mergedAllFixtures}
+          drawTeams={drawTeams || []}
+          orderedGroups={orderedGroups}
+          effectiveOpeningMatchId={effectiveOpeningMatchId}
+          hasAnyFixtures={hasAnyFixtures}
+          hasKnockoutStage={hasKnockoutStage}
+          isLeague={isLeague}
+          busy={busy}
+          draft={draft}
+          draftCount={draftCount}
+          slotErrors={slotErrors}
+          teamById={teamById}
+          onStageSlot={stageSlot}
+          onSaveSlots={saveSlots}
+          onDiscardDraft={discardDraft}
+          onClearFixturesSlots={clearFixturesSlots}
+          onOpenReschedule={(f) => setRescheduleFixture(f)}
+          onOpenResult={(f) => setResultFixture(f)}
+          onOpenDetails={(f) => setDetailsFixture(f)}
+          onPostpone={postponeMatch}
+          onCancel={cancelMatch}
+          onRestore={restoreMatch}
+          onDelegatedLink={(f) => setDelegatedLinkFixture(f)}
+          onReviewSubmission={(f) => setReviewSubmissionFixture(f)}
+          onToggleOpeningMatch={toggleOpeningMatch}
+          onOpenGenerator={(stage, asLayout, prefillDate) => {
+            if (isLeague) {
+              setSubView('settings')
+              return
+            }
+            openDrawer(stage, asLayout, prefillDate)
+          }}
+          onOpenExport={onOpenExport}
+          onDeleteAll={removeAll}
+          onRefresh={afterChange}
+          defaultTime={form.default_time}
+          selectedDayKey={selectedDayKey || 'all'}
+          onSelectDayKey={(nextKey) => setSelectedDayKey(nextKey)}
+          customDays={customDays}
+          onAddCustomDay={(dateKey) =>
+            setCustomDays((prev) => (prev.includes(dateKey) ? prev : [...prev, dateKey]))
+          }
+        />
+      ))}
 
       {/* ================================================================= */}
       {/* VIEW 2: قائمة المباريات (Full Round/Group Filterable List & Slots) */}
@@ -2292,21 +2211,26 @@ export default function FixturesTab({ tournament, refresh, refreshKey }) {
                         </span>
                       </div>
                     )}
-                    {section.group && (
-                      <div className="flex items-center justify-between px-1">
-                        <p className="text-xs font-black uppercase tracking-wide text-[#65706A] dark:text-[#B2B9B3]">
-                          {t('committee.detail.groupName')} {section.group.name}
-                        </p>
-                        <Badge variant="info">
-                          {t('committee.detail.matchesCount', { count: section.items.length })}
-                        </Badge>
-                      </div>
-                    )}
+                    {section.group && (() => {
+                      const gc = getGroupColor(section.group, orderedGroups)
+                      return (
+                        <div className="flex items-center justify-between px-1">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-black ${gc.badgeCls}`}>
+                            <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: gc.hex }} />
+                            <span>{formatGroupName(section.group.name, { groupId: section.group.id, tournamentId: tournament.id })}</span>
+                          </span>
+                          <Badge variant="info">
+                            {t('committee.detail.matchesCount', { count: section.items.length })}
+                          </Badge>
+                        </div>
+                      )
+                    })()}
                     {section.items.map(({ f, number }) => (
                       <MatchCard
                         key={f.id}
                         f={f}
                         number={number}
+                        orderedGroups={orderedGroups}
                         busy={busy === f.id || busy === 'slots'}
                         locked={roundLocked}
                         tournament={tournament}

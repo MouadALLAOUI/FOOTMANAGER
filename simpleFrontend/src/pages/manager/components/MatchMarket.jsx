@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays, Clock, MapPin, Radar, Swords } from 'lucide-react'
 import { Button, Empty, Skeleton } from '../../../components/dashboard/ui'
@@ -51,15 +52,32 @@ export default function MatchMarket() {
               >
                 <div className="pointer-events-none absolute -end-8 -top-8 size-24 rounded-full bg-violet-500/[0.06] blur-2xl" />
                 <div className="flex items-center gap-3">
-                  {m.host_team?.logo_url ? (
-                    <img loading="lazy" decoding="async" src={logoThumb(m.host_team)} alt="" className="size-11 shrink-0 rounded-2xl object-cover" />
-                  ) : (
-                    <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-violet-50 text-sm font-black text-violet-600">
-                      {initials(m.host_team?.name)}
-                    </span>
-                  )}
+                  {(() => {
+                    const hostAvatar = m.host_team?.logo_url ? (
+                      <img loading="lazy" decoding="async" src={logoThumb(m.host_team)} alt="" className="size-11 shrink-0 rounded-2xl object-cover" />
+                    ) : (
+                      <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-violet-50 text-sm font-black text-violet-600">
+                        {initials(m.host_team?.name)}
+                      </span>
+                    )
+                    return m.host_team?.id != null ? (
+                      <Link to={`/teams/${m.host_team.id}`} className="shrink-0">
+                        {hostAvatar}
+                      </Link>
+                    ) : (
+                      hostAvatar
+                    )
+                  })()}
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-extrabold text-slate-900">{m.host_team?.name || t('ov.common.team')}</p>
+                    <p className="truncate text-sm font-extrabold text-slate-900">
+                      {m.host_team?.id != null && m.host_team?.name ? (
+                        <Link to={`/teams/${m.host_team.id}`} className="hover:text-green-600 transition-colors">
+                          {m.host_team.name}
+                        </Link>
+                      ) : (
+                        m.host_team?.name || t('ov.common.team')
+                      )}
+                    </p>
                     <p className="flex items-center gap-1 text-[11px] font-semibold text-slate-400">
                       <MapPin className="size-3 text-green-500" />
                       {m.host_team?.city || '—'}

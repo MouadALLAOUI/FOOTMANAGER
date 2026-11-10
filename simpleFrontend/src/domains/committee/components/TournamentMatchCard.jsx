@@ -26,6 +26,9 @@ import {
 } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 import TeamLogo from '../../../components/profile/TeamLogo'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
+import { formatGroupName } from '../../../lib/groupNames'
+import { getGroupColor } from '../../../lib/groupColors'
 import ReassignFreedSlotModal from './ReassignFreedSlotModal'
 import { useToast } from '../../../components/ui/Toast'
 import api from '../../../api/client'
@@ -101,6 +104,7 @@ export default function TournamentMatchCard({
   busy = false,
   locked = false,
   customRoundLabel,
+  orderedGroups = [],
 }) {
   const isScheduled = Boolean(fixture.scheduled_at) && fixture.status !== 'waiting_for_booking'
   const isPlayed = fixture.status === 'played' || fixture.match?.status === 'finished'
@@ -129,6 +133,7 @@ export default function TournamentMatchCard({
   )
 
   const { toast } = useToast()
+  const { openTeam } = useProfileModal()
   const [copyingPublicLink, setCopyingPublicLink] = useState(false)
   const [applyingDefault, setApplyingDefault] = useState(false)
   const [showReassignModal, setShowReassignModal] = useState(false)
@@ -202,7 +207,11 @@ export default function TournamentMatchCard({
 
   const dateInfo = useMemo(() => parseDateDetails(fixture.scheduled_at), [fixture.scheduled_at])
 
-  // Pick theme color based on matchday or index
+  // Consistent group color for group stage fixtures; fallback DATE_THEMES for non-group stages
+  const groupColor = useMemo(
+    () => (fixture.group ? getGroupColor(fixture.group, orderedGroups) : null),
+    [fixture.group, orderedGroups],
+  )
   const themeIndex = ((fixture.matchday || index || 0) + (dateInfo?.day || 0)) % DATE_THEMES.length
   const theme = DATE_THEMES[themeIndex] || DATE_THEMES[0]
 
@@ -210,7 +219,7 @@ export default function TournamentMatchCard({
   const roundText = useMemo(() => {
     if (customRoundLabel) return customRoundLabel
     if (fixture.group?.name && fixture.matchday) {
-      return `${fixture.group.name} · ج ${fixture.matchday}`
+      return `${formatGroupName(fixture.group.name, { groupId: fixture.group.id })} · ج ${fixture.matchday}`
     }
     if (fixture.matchday) {
       return `الجولة ${fixture.matchday}`
@@ -227,29 +236,42 @@ export default function TournamentMatchCard({
   const venueName = fixture.stadium?.name || fixture.venue_name || 'ملعب معتمد'
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-3.5 sm:p-4 shadow-sm transition hover:shadow-md">
+    <div
+      className={`overflow-hidden rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3.5 sm:p-4 shadow-sm transition hover:shadow-md ${
+        groupColor ? 'border-s-4' : ''
+      }`}
+      style={groupColor ? { borderInlineStartColor: groupColor.hex } : undefined}
+    >
       {/* Top Main Section: Left Date Banner + Right Content */}
       <div className="flex items-stretch gap-3 sm:gap-4">
-        {/* Left Column: Date Banner (exactly like image 2) */}
+        {/* Left Column: Date Banner */}
         <div
           className={`flex min-w-[76px] sm:min-w-[84px] shrink-0 flex-col items-center justify-center rounded-2xl border px-2 py-3 text-center ${
-            isScheduled && dateInfo ? theme.banner : 'bg-slate-50 text-slate-500 border-slate-200'
+            isScheduled && dateInfo
+              ? groupColor
+                ? groupColor.softCardCls
+                : theme.banner
+              : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] border-[#E1E5DF] dark:border-[#303832]'
           }`}
         >
           {isScheduled && dateInfo ? (
             <>
-              <span className="text-[11px] font-bold sm:text-xs">{dateInfo.weekday}</span>
-              <span className={`my-1 text-2xl font-black sm:text-3xl leading-none ${theme.number}`}>
+              <span className={`text-[11px] font-bold sm:text-xs ${groupColor ? groupColor.textCls : ''}`}>
+                {dateInfo.weekday}
+              </span>
+              <span className={`my-1 text-2xl font-black sm:text-3xl leading-none ${groupColor ? groupColor.textCls : theme.number}`}>
                 {dateInfo.day}
               </span>
-              <span className="text-[11px] font-bold leading-tight sm:text-xs">{dateInfo.month}</span>
+              <span className={`text-[11px] font-bold leading-tight sm:text-xs ${groupColor ? groupColor.textCls : ''}`}>
+                {dateInfo.month}
+              </span>
               <span className="mt-0.5 text-[10px] font-semibold opacity-75">{dateInfo.year}</span>
             </>
           ) : (
             <>
               <Calendar className="size-5 text-slate-400 mb-1" />
-              <span className="text-[10px] font-bold text-slate-500 leading-tight">بانتظار</span>
-              <span className="text-[10px] font-bold text-slate-500 leading-tight">الموعد</span>
+              <span className="text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3] leading-tight">بانتظار</span>
+              <span className="text-[10px] font-bold text-[#65706A] dark:text-[#B2B9B3] leading-tight">الموعد</span>
             </>
           )}
         </div>
@@ -259,9 +281,14 @@ export default function TournamentMatchCard({
           {/* Header Row: Round Badge on start + Badges on end */}
           <div className="flex items-center justify-between gap-2 mb-2">
             <span
-              className={`inline-flex items-center rounded-xl px-2.5 py-0.5 text-[11px] font-black sm:text-xs ${theme.roundPill}`}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-0.5 text-[11px] font-black sm:text-xs ${
+                groupColor ? groupColor.badgeCls : theme.roundPill
+              }`}
             >
-              {roundText}
+              {groupColor && (
+                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: groupColor.hex }} />
+              )}
+              <span>{roundText}</span>
             </span>
 
             <div className="flex flex-wrap items-center gap-1.5">
@@ -396,12 +423,13 @@ export default function TournamentMatchCard({
                 rounded="rounded-2xl"
                 fontSize="text-sm font-black"
                 ring="ring-1 ring-slate-200/80"
+                onClick={fixture.home_team?.id != null ? (e) => { e?.stopPropagation?.(); openTeam(fixture.home_team) } : undefined}
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1">
                   <Home className="size-3 shrink-0 text-slate-600" title="الفريق المضيف" />
-                  <span className="truncate text-xs sm:text-sm font-extrabold text-slate-900">
-                    {fixture.home_team?.name || 'فريق مضيف'}
+                  <span className="truncate text-xs sm:text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">
+                    {fixture.home_team?.id != null ? <button type="button" onClick={(e) => { e.stopPropagation(); openTeam(fixture.home_team) }} className="block max-w-full truncate text-start hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{fixture.home_team.name}</button> : (fixture.home_team?.name || 'فريق مضيف')}
                   </span>
                   {fixture.home_team?.status === 'withdrawn' && (
                     <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">
@@ -440,8 +468,8 @@ export default function TournamentMatchCard({
                       مُقصى
                     </span>
                   )}
-                  <span className="truncate text-xs sm:text-sm font-extrabold text-slate-900 block">
-                    {fixture.away_team?.name || 'فريق ضيف'}
+                  <span className="truncate text-xs sm:text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2] block">
+                    {fixture.away_team?.id != null ? <button type="button" onClick={(e) => { e.stopPropagation(); openTeam(fixture.away_team) }} className="block max-w-full truncate text-end hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{fixture.away_team.name}</button> : (fixture.away_team?.name || 'فريق ضيف')}
                   </span>
                 </div>
               </div>
@@ -452,25 +480,26 @@ export default function TournamentMatchCard({
                 rounded="rounded-2xl"
                 fontSize="text-sm font-black"
                 ring="ring-1 ring-slate-200/80"
+                onClick={fixture.away_team?.id != null ? (e) => { e?.stopPropagation?.(); openTeam(fixture.away_team) } : undefined}
               />
             </div>
           </div>
 
           {/* Match Info Row (Time, Date, Venue) */}
-          <div className="mt-2.5 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500 pt-2 border-t border-slate-100/80">
+          <div className="mt-2.5 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3] pt-2 border-t border-[#E1E5DF]/70 dark:border-[#303832]/70">
             {isScheduled && dateInfo ? (
               <>
-                <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-2.5 py-1 text-xs sm:text-sm font-black text-slate-900 shadow-2xs">
-                  <Clock className="size-3.5 text-emerald-600" />
+                <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] shadow-2xs">
+                  <Clock className="size-3.5 text-[#1F9D55] dark:text-[#D0FF38]" />
                   <span className="tabular-nums tracking-wide">{dateInfo.time}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays className="size-3.5 text-slate-400" />
+                  <CalendarDays className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
                   <span>{dateInfo.fullDate}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="size-3.5 text-slate-400" />
-                  <span className="text-slate-700 font-bold">{venueName}</span>
+                  <MapPin className="size-3.5 text-[#65706A] dark:text-[#B2B9B3]" />
+                  <span className="text-[#111313] dark:text-[#F5F7F2] font-bold">{venueName}</span>
                 </span>
               </>
             ) : (

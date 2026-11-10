@@ -1,11 +1,25 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Users } from 'lucide-react'
+import { Skeleton } from '../../../components/dashboard/ui'
 import { DrawGroups, TeamAvatar } from '../shared'
-import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 
-export default function TeamsSection({ teams }) {
+export default function TeamsSection({ teams, loading = false }) {
   const { t } = useTranslation()
-  const { openTeam } = useProfileModal()
+
+  if (loading || teams == null) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <Skeleton className="h-7 w-44 rounded-xl" />
+          <Skeleton className="h-6 w-20 rounded-full" />
+        </div>
+        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-36 rounded-2xl" />
+      </div>
+    )
+  }
+
   const list = (teams || []).filter((p) => p.status === 'registered' && p.team)
   const hasAssignedGroups = list.some((p) => p.group?.id != null || p.group?.name)
 
@@ -43,12 +57,31 @@ export default function TeamsSection({ teams }) {
         <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] divide-y divide-[#E1E5DF]/70 dark:divide-[#303832]/70 px-3 py-1.5 shadow-2xs">
           {list.map((p) => {
             const team = p.team
+            if (team?.id != null) {
+              return (
+                <Link
+                  key={p.id}
+                  to={`/teams/${team.id}`}
+                  className="group flex w-full items-center justify-between gap-3 py-2.5 px-1.5 rounded-xl text-start transition-colors hover:bg-[#F7F8F5]/70 dark:hover:bg-[#252B27]/60"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <TeamAvatar team={team} className="size-8 shrink-0" />
+                    <span className="min-w-0 truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] group-hover:text-[#179955] dark:group-hover:text-[#D0FF38] transition-colors">
+                      {team.name}
+                    </span>
+                  </div>
+                  {team.city && (
+                    <span className="shrink-0 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                      {team.city}
+                    </span>
+                  )}
+                </Link>
+              )
+            }
             return (
-              <button
+              <div
                 key={p.id}
-                type="button"
-                onClick={() => openTeam(team)}
-                className="flex w-full items-center justify-between gap-3 py-2.5 px-1.5 rounded-xl text-start transition-colors hover:bg-[#F7F8F5]/70 dark:hover:bg-[#252B27]/60 cursor-pointer"
+                className="flex w-full items-center justify-between gap-3 py-2.5 px-1.5 rounded-xl text-start"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <TeamAvatar team={team} className="size-8 shrink-0" />
@@ -61,7 +94,7 @@ export default function TeamsSection({ teams }) {
                     {team.city}
                   </span>
                 )}
-              </button>
+              </div>
             )
           })}
         </div>

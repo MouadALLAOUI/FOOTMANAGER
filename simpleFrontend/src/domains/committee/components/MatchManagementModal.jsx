@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   CalendarDays,
   ArrowLeftRight,
@@ -356,7 +357,7 @@ export default function MatchManagementModal({
             <div>
               <h3 className="text-sm font-black text-slate-900">تعديل المباراة</h3>
               <p className="text-[11px] font-semibold text-slate-400">
-                {fixture.home_team?.name} ضد {fixture.away_team?.name}
+                {fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{fixture.home_team.name}</Link> : fixture.home_team?.name} ضد {fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{fixture.away_team.name}</Link> : fixture.away_team?.name}
               </p>
             </div>
           </div>
@@ -375,12 +376,12 @@ export default function MatchManagementModal({
             <div className="flex items-center gap-1.5">
               <Home className="size-3.5 text-emerald-600" />
               <span>المضيف:</span>
-              <span className="text-slate-900 font-extrabold">{fixture.home_team?.name}</span>
+              <span className="text-slate-900 font-extrabold">{fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{fixture.home_team.name}</Link> : fixture.home_team?.name}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Shield className="size-3.5 text-rose-500" />
               <span>الضيف:</span>
-              <span className="text-slate-900 font-extrabold">{fixture.away_team?.name}</span>
+              <span className="text-slate-900 font-extrabold">{fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{fixture.away_team.name}</Link> : fixture.away_team?.name}</span>
             </div>
           </div>
           {fixture.scheduled_at && (
@@ -569,7 +570,7 @@ export default function MatchManagementModal({
                           >
                             <div className="flex items-center justify-between font-extrabold text-slate-900 mb-1">
                               <span>
-                                {item.home_team.name} ضد {item.away_team.name}
+                                {item.home_team?.id != null ? <Link to={`/teams/${item.home_team.id}`} onClick={(e) => { e.stopPropagation(); onClose?.() }} className="hover:text-emerald-600 transition-colors">{item.home_team.name}</Link> : item.home_team?.name} ضد {item.away_team?.id != null ? <Link to={`/teams/${item.away_team.id}`} onClick={(e) => { e.stopPropagation(); onClose?.() }} className="hover:text-emerald-600 transition-colors">{item.away_team.name}</Link> : item.away_team?.name}
                               </span>
                               <span className="text-[11px] font-black rounded-lg bg-slate-100 px-2 py-0.5 text-slate-700">
                                 جولة {item.matchday}
@@ -634,7 +635,7 @@ export default function MatchManagementModal({
                           >
                             <div className="flex items-center justify-between font-extrabold text-slate-900 mb-1">
                               <span>
-                                {item.home_team.name} ضد {item.away_team.name}
+                                {item.home_team?.id != null ? <Link to={`/teams/${item.home_team.id}`} onClick={(e) => { e.stopPropagation(); onClose?.() }} className="hover:text-emerald-600 transition-colors">{item.home_team.name}</Link> : item.home_team?.name} ضد {item.away_team?.id != null ? <Link to={`/teams/${item.away_team.id}`} onClick={(e) => { e.stopPropagation(); onClose?.() }} className="hover:text-emerald-600 transition-colors">{item.away_team.name}</Link> : item.away_team?.name}
                               </span>
                               <span className="text-[11px] font-bold rounded-lg bg-amber-100 text-amber-900 px-2 py-0.5">
                                 {item.status_label}
@@ -785,8 +786,8 @@ export default function MatchManagementModal({
                   <span>عكس أدوار الاستضافة</span>
                 </div>
                 <p className="text-slate-700 leading-relaxed font-medium">
-                  سيصبح <strong className="text-slate-900">{fixture.away_team?.name}</strong> هو الفريق المضيف، و{' '}
-                  <strong className="text-slate-900">{fixture.home_team?.name}</strong> هو الفريق الضيف.
+                  سيصبح <strong className="text-slate-900">{fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{fixture.away_team.name}</Link> : fixture.away_team?.name}</strong> هو الفريق المضيف، و{' '}
+                  <strong className="text-slate-900">{fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{fixture.home_team.name}</Link> : fixture.home_team?.name}</strong> هو الفريق الضيف.
                 </p>
                 <p className="text-[11px] text-slate-500">
                   سيبقى التاريخ والتوقيت والملعب كما هو تلقائياً، مع وضع الملاحظة "الموعد يخص {fixture.home_team?.name} (الضيف)".

@@ -17,12 +17,20 @@ export default function RenameGroupModal({
 
   useEffect(() => {
     if (open && group) {
-      // Pre-fill with current formatted or raw name
       setName(currentTitle || group.name || '')
       setError(null)
       setSaving(false)
     }
   }, [open, group, currentTitle])
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !saving) onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, saving, onClose])
 
   if (!open || !group) return null
 
@@ -35,12 +43,12 @@ export default function RenameGroupModal({
       return
     }
 
-    // Check duplicate name within the same tournament (case-insensitive & trimmed)
+    const normalized = trimmed.toLowerCase()
     const isDuplicate = existingGroups.some(
       (g) =>
         g.id !== group.id &&
-        (String(g.name || '').trim().toLowerCase() === trimmed.toLowerCase() ||
-          formatGroupName(g.name, { groupId: g.id, tournamentId }).trim().toLowerCase() === trimmed.toLowerCase()),
+        (String(g.name || '').trim().toLowerCase() === normalized ||
+          formatGroupName(g.name, { groupId: g.id, tournamentId }).trim().toLowerCase() === normalized),
     )
 
     if (isDuplicate) {
@@ -48,7 +56,6 @@ export default function RenameGroupModal({
       return
     }
 
-    // If unchanged, simply close
     if (trimmed === currentTitle.trim() || trimmed === String(group.name || '').trim()) {
       onClose()
       return
@@ -72,9 +79,16 @@ export default function RenameGroupModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+    <div
+      dir="rtl"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+      onClick={() => !saving && onClose()}
+    >
       <div
-        className="w-full max-w-md rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 sm:p-6 shadow-2xl transition-all"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rename-group-title"
+        className="w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 sm:p-6 shadow-2xl transition-all"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -83,7 +97,7 @@ export default function RenameGroupModal({
             <span className="grid size-9 place-items-center rounded-xl bg-[#B8F000]/30 dark:bg-[#D0FF38]/20 text-[#111313] dark:text-[#D0FF38]">
               <Pencil className="size-4" />
             </span>
-            <h3 className="text-base font-black text-[#111313] dark:text-[#F5F7F2]">
+            <h3 id="rename-group-title" className="text-base font-black text-[#111313] dark:text-[#F5F7F2]">
               تغيير اسم المجموعة
             </h3>
           </div>
@@ -91,7 +105,8 @@ export default function RenameGroupModal({
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="grid size-8 place-items-center rounded-xl text-[#65706A] dark:text-[#B2B9B3] hover:bg-black/5 dark:hover:bg-white/10 transition cursor-pointer"
+            aria-label="إغلاق"
+            className="grid size-9 place-items-center rounded-xl text-[#65706A] dark:text-[#B2B9B3] hover:bg-black/5 dark:hover:bg-white/10 transition cursor-pointer"
           >
             <X className="size-4" />
           </button>
@@ -106,23 +121,36 @@ export default function RenameGroupModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-[#111313] dark:text-[#F5F7F2] mb-1.5">
+            <label htmlFor="rename-group-input" className="block text-xs font-bold text-[#111313] dark:text-[#F5F7F2] mb-1.5">
               اسم المجموعة الجديد
             </label>
-            <input
-              type="text"
-              autoFocus
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                if (error) setError(null)
-              }}
-              placeholder="مثال: مجموعة الأطلس أو مجموعة الصقور"
-              maxLength={60}
-              className="w-full h-11 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3.5 text-sm font-bold text-[#111313] dark:text-[#F5F7F2] placeholder-[#65706A]/50 focus:border-[#B8F000] dark:focus:border-[#D0FF38] focus:ring-2 focus:ring-[#B8F000]/25 focus:outline-none transition"
-            />
+            <div className="relative">
+              <input
+                id="rename-group-input"
+                type="text"
+                autoFocus
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  if (error) setError(null)
+                }}
+                placeholder="مثال: مجموعة الأطلس أو مجموعة الصقور"
+                maxLength={60}
+                className="w-full h-11 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] pe-3.5 ps-10 text-sm font-bold text-[#111313] dark:text-[#F5F7F2] placeholder-[#65706A]/50 focus:border-[#B8F000] dark:focus:border-[#D0FF38] focus:ring-2 focus:ring-[#B8F000]/25 focus:outline-none transition"
+              />
+              {name && !saving && (
+                <button
+                  type="button"
+                  onClick={() => setName('')}
+                  aria-label="مسح النص"
+                  className="absolute start-2.5 top-1/2 -translate-y-1/2 grid size-6 place-items-center rounded-full text-[#65706A] dark:text-[#B2B9B3] hover:bg-[#E9ECE7] dark:hover:bg-[#303832] cursor-pointer"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
             <p className="mt-1.5 text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
-              يتم حفظ الاسم فوراً في قاعدة البيانات وسيظهر في المباريات، الترتيب، وجداول البطولة.
+              يتم حفظ الاسم فوراً في قاعدة البيانات وسيظهر في المباريات، الترتيب، وصفحة البطولة.
             </p>
           </div>
 
@@ -136,7 +164,7 @@ export default function RenameGroupModal({
           <div className="flex items-center gap-2 pt-2">
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !name.trim()}
               className="flex-1 flex h-11 items-center justify-center gap-2 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] text-xs sm:text-sm font-black text-[#111313] shadow-xs hover:opacity-95 disabled:opacity-50 transition active:scale-98 cursor-pointer"
             >
               {saving ? (
@@ -147,7 +175,7 @@ export default function RenameGroupModal({
               ) : (
                 <>
                   <Check className="size-4 stroke-[2.8]" />
-                  <span>حفظ التعديلات</span>
+                  <span>حفظ</span>
                 </>
               )}
             </button>

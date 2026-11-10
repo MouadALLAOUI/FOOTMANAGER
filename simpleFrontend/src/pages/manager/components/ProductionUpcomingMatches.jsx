@@ -106,7 +106,12 @@ export default function ProductionUpcomingMatches() {
       {!isLoading && matches.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           {matches.map((m) => {
-            const oppName = m.opponent_team?.name || m.host_team?.name || (isRtl ? 'فريق منافس' : 'Opponent')
+            const oppTeam =
+              m.host_team_id != null && team?.id != null && Number(m.host_team_id) === Number(team.id)
+                ? m.opponent_team
+                : (m.host_team || m.opponent_team)
+            const oppTeamId = !m.is_guest ? (oppTeam?.id ?? null) : null
+            const oppName = oppTeam?.name || (m.is_guest ? m.guest_team_name : null) || (isRtl ? 'فريق منافس' : 'Opponent')
             const myName = team?.name || (isRtl ? 'فريقي' : 'My Team')
             const stadiumName = m.stadium?.name || m.custom_terrain_name || (isRtl ? 'ملعب محلي' : 'Local Stadium')
             const matchDate = m.match_datetime
@@ -145,10 +150,23 @@ export default function ProductionUpcomingMatches() {
                   {/* Team 1 */}
                   <div className="flex flex-col items-center flex-1 text-center min-w-0">
                     <div className="grid size-12 place-items-center rounded-2xl bg-slate-100 p-1 shadow-xs border border-slate-200/70">
-                      <TeamLogo team={team} name={myName} className="size-10" rounded="rounded-xl" fontSize="text-sm" />
+                      <TeamLogo
+                        team={team}
+                        name={myName}
+                        to={team?.id != null ? `/teams/${team.id}` : undefined}
+                        className="size-10"
+                        rounded="rounded-xl"
+                        fontSize="text-sm"
+                      />
                     </div>
                     <span className="mt-2 text-xs font-black text-slate-800 line-clamp-1 w-full">
-                      {myName}
+                      {team?.id != null ? (
+                        <Link to={`/teams/${team.id}`} className="hover:text-emerald-600 transition-colors">
+                          {myName}
+                        </Link>
+                      ) : (
+                        myName
+                      )}
                     </span>
                   </div>
 
@@ -158,14 +176,31 @@ export default function ProductionUpcomingMatches() {
                   </div>
 
                   {/* Team 2 */}
-                  <div className="flex flex-col items-center flex-1 text-center min-w-0">
-                    <div className="grid size-12 place-items-center rounded-2xl bg-slate-100 p-1 shadow-xs border border-slate-200/70">
-                      <TeamLogo team={m.opponent_team || m.host_team} name={oppName} className="size-10" rounded="rounded-xl" fontSize="text-sm" />
-                    </div>
-                    <span className="mt-2 text-xs font-black text-slate-800 line-clamp-1 w-full">
-                      {oppName}
-                    </span>
-                  </div>
+                  {(() => {
+                    return (
+                      <div className="flex flex-col items-center flex-1 text-center min-w-0">
+                        <div className="grid size-12 place-items-center rounded-2xl bg-slate-100 p-1 shadow-xs border border-slate-200/70">
+                          <TeamLogo
+                            team={oppTeam}
+                            name={oppName}
+                            to={oppTeamId != null ? `/teams/${oppTeamId}` : undefined}
+                            className="size-10"
+                            rounded="rounded-xl"
+                            fontSize="text-sm"
+                          />
+                        </div>
+                        <span className="mt-2 text-xs font-black text-slate-800 line-clamp-1 w-full">
+                          {oppTeamId != null ? (
+                            <Link to={`/teams/${oppTeamId}`} className="hover:text-emerald-600 transition-colors">
+                              {oppName}
+                            </Link>
+                          ) : (
+                            oppName
+                          )}
+                        </span>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Date & Location */}

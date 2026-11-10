@@ -1,6 +1,7 @@
 import { Document, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/renderer'
 import i18n from '../../../i18n'
 import { logoThumb } from '../../../lib/thumb'
+import { formatGroupName } from '../../../lib/groupNames'
 import { sortMatchEvents, minuteText, sideOf, eventText } from '../matchEvents'
 
 import w400 from '../../../fonts/static/NotoKufiArabic-400.ttf'
@@ -338,7 +339,7 @@ export default function MatchPdfDocument({ match, images, appName }) {
         ? m.away_team?.name
         : ''
     : ''
-  const stageName = m.round?.name || m.group?.name
+  const stageName = m.round?.name || (m.group?.name ? formatGroupName(m.group.name, { groupId: m.group.id }) : undefined)
   const status = m.is_finished ? 'finished' : m.is_live ? 'live' : 'scheduled'
   const statusColor = STATUS_COLORS[status] || STATUS_COLORS.scheduled
   const statusText = i18n.t(MATCH_STATUS_KEYS[status], { defaultValue: status })

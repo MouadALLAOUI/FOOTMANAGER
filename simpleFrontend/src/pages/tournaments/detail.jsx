@@ -73,17 +73,17 @@ export default function PublicTournamentDetail() {
   const fixturesQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/fixtures`).then((r) => r.data.data),
     [slug],
-    { enabled: fixturesActive && Boolean(tour) },
+    { enabled: fixturesActive && Boolean(tour), staleTime: 0 },
   )
   const standingsQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/standings`).then((r) => r.data.data),
     [slug],
-    { enabled: standingsActive && Boolean(tour) },
+    { enabled: standingsActive && Boolean(tour), staleTime: 0 },
   )
   const teamsQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/teams`).then((r) => r.data.data),
     [slug],
-    { enabled: active === 'teams' && Boolean(tour) },
+    { enabled: active === 'teams' && Boolean(tour), staleTime: 0 },
   )
   const bracketQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/bracket`).then((r) => r.data.data),
@@ -307,7 +307,13 @@ export default function PublicTournamentDetail() {
           </>
         )}
 
-        {active === 'teams' && <TeamsSection teams={teamsQuery.data} standings={standingsQuery.data} />}
+        {active === 'teams' && (
+          <TeamsSection
+            teams={teamsQuery.data}
+            standings={standingsQuery.data}
+            loading={teamsQuery.loading || (teamsQuery.isFetching && teamsQuery.data == null)}
+          />
+        )}
 
         {(active === 'matches' || active === 'results') && (
           <>
@@ -330,16 +336,21 @@ export default function PublicTournamentDetail() {
 
         {active === 'gallery' && <GallerySection gallery={galleryQuery.data} />}
 
-        {active === 'standings' && (standingsQuery.data?.groups?.length ?? 0) === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] py-16 text-center">
-            <span className="grid size-14 place-items-center rounded-2xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A]">
-              <Trophy className="size-6" />
-            </span>
-            <p className="text-sm font-bold text-[#65706A] dark:text-[#B2B9B3]">{t('public.tournamentPage.noStandings')}</p>
-          </div>
-        ) : (
-          active === 'standings' && <StandingsTable groups={standingsQuery.data?.groups || []} />
-        )}
+        {(() => {
+          if (active !== 'standings') return null
+          const nonEmptyStandingGroups = (standingsQuery.data?.groups || []).filter((g) => (g.rows || g.teams || []).length > 0)
+          if (nonEmptyStandingGroups.length === 0) {
+            return (
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] py-16 text-center">
+                <span className="grid size-14 place-items-center rounded-2xl bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A]">
+                  <Trophy className="size-6" />
+                </span>
+                <p className="text-sm font-bold text-[#65706A] dark:text-[#B2B9B3]">{t('public.tournamentPage.noStandings')}</p>
+              </div>
+            )
+          }
+          return <StandingsTable groups={nonEmptyStandingGroups} />
+        })()}
 
         {active === 'scorers' && <ScorersSection stats={statsQuery.data} />}
 

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Activity,
-  AlertTriangle,
   Calendar,
   CheckCircle2,
   Footprints,
@@ -72,9 +71,6 @@ export default function PlayerHeader({ player, onShareClick }) {
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 sm:p-7 text-[#111313] dark:text-[#F5F7F2] shadow-sm">
-      {/* Background Stadium Glow & Atmospheric Lines */}
-      
-
       <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
         {/* Avatar Frame with Glowing Shield/Circle Effect */}
         <div className="relative shrink-0">
@@ -150,20 +146,32 @@ export default function PlayerHeader({ player, onShareClick }) {
           {/* Team / Free Agent Status */}
           <div className="mt-3 flex flex-wrap items-center justify-center md:justify-start gap-3">
             {player.team ? (
-              <Link
-                to={`/matches?team=${encodeURIComponent(player.team.name)}`}
-                className="group inline-flex items-center gap-2.5 rounded-2xl border border-slate-700/80 bg-slate-800/70 hover:bg-slate-800 hover:border-emerald-500/50 px-3.5 py-1.5 text-xs font-bold text-slate-200 transition-all shadow-sm"
-              >
-                <TeamLogo team={player.team} className="size-6 rounded-lg" />
-                <span className="group-hover:text-emerald-300 transition-colors">
-                  {player.team.name}
-                </span>
-                {player.team.city && (
-                  <span className="text-[11px] font-medium text-slate-400">
-                    ({player.team.city})
+              player.team.id != null ? (
+                <Link
+                  to={`/teams/${player.team.id}`}
+                  className="group inline-flex items-center gap-2.5 rounded-2xl border border-slate-700/80 bg-slate-800/70 hover:bg-slate-800 hover:border-emerald-500/50 px-3.5 py-1.5 text-xs font-bold text-slate-200 transition-all shadow-sm"
+                >
+                  <TeamLogo team={player.team} className="size-6 rounded-lg" />
+                  <span className="group-hover:text-emerald-300 transition-colors">
+                    {player.team.name}
                   </span>
-                )}
-              </Link>
+                  {player.team.city && (
+                    <span className="text-[11px] font-medium text-slate-400">
+                      ({player.team.city})
+                    </span>
+                  )}
+                </Link>
+              ) : (
+                <div className="inline-flex items-center gap-2.5 rounded-2xl border border-slate-700/80 bg-slate-800/70 px-3.5 py-1.5 text-xs font-bold text-slate-200 shadow-sm">
+                  <TeamLogo team={player.team} className="size-6 rounded-lg" />
+                  <span>{player.team.name}</span>
+                  {player.team.city && (
+                    <span className="text-[11px] font-medium text-slate-400">
+                      ({player.team.city})
+                    </span>
+                  )}
+                </div>
+              )
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-2xl border border-sky-500/30 bg-sky-500/15 px-3 py-1.5 text-xs font-bold text-sky-300">
                 <UserCheck className="size-4 text-sky-400" />

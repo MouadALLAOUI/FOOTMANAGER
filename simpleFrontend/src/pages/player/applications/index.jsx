@@ -1,4 +1,5 @@
 import { CalendarDays, MapPin } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
@@ -67,7 +68,15 @@ export default function Applications() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-extrabold text-slate-900">{m?.host_team?.name || t('player.feed.team')}</p>
+                      <p className="text-sm font-extrabold text-slate-900">
+                        {m?.host_team?.id != null && m?.host_team?.name ? (
+                          <Link to={`/teams/${m.host_team.id}`} className="hover:text-green-600 transition-colors">
+                            {m.host_team.name}
+                          </Link>
+                        ) : (
+                          m?.host_team?.name || t('player.feed.team')
+                        )}
+                      </p>
                       <Badge variant={typeBadge[a.type] || 'neutral'}>
                         {a.type === 'invite' ? t('player.applications.typeInvite') : t('player.applications.typeApply')}
                       </Badge>

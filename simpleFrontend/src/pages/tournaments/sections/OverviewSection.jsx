@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { coverThumb } from '../../../lib/thumb'
 import { useTranslation } from 'react-i18next'
 import {
@@ -26,6 +27,7 @@ import { TeamAvatar } from '../shared'
 import { formatTime, matchDay } from '../../../lib/adapters'
 import { formatTournamentDateRange } from '../list/shared'
 import { formatGroupName } from '../../../lib/groupNames'
+import { getGroupColor, sortOrderedGroups } from '../../../lib/groupColors'
 import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import { Skeleton } from '../../../components/dashboard/ui'
 import Collapsible from '../../../components/tournaments/Collapsible'
@@ -209,9 +211,16 @@ function QuickInfoStrip({ tour, stats }) {
  */
 function NextMatchCard({ fixture, tour, standings, loading }) {
   const { t, i18n } = useTranslation()
-  const { openTeam } = useProfileModal()
   const formMap = useMemo(() => buildFormMap(standings), [standings])
   const lang = i18n.language
+
+  const orderedStandingsGroups = useMemo(
+    () =>
+      sortOrderedGroups(
+        (standings?.groups || []).map((g) => ({ id: g.group_id ?? g.id, name: g.name })),
+      ),
+    [standings?.groups],
+  )
 
   const stageLabel = useMemo(() => {
     if (!fixture) return null
@@ -223,8 +232,17 @@ function NextMatchCard({ fixture, tour, standings, loading }) {
     return null
   }, [fixture, tour])
 
+  const groupColor = fixture?.group
+    ? getGroupColor(fixture.group, orderedStandingsGroups)
+    : null
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-5 shadow-2xs">
+    <div
+      className={`overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4 sm:p-5 shadow-2xs ${
+        groupColor ? 'border-s-4' : ''
+      }`}
+      style={groupColor ? { borderInlineStartColor: groupColor.hex } : undefined}
+    >
       {/* Header Row */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
@@ -237,8 +255,15 @@ function NextMatchCard({ fixture, tour, standings, loading }) {
         </div>
 
         {stageLabel && (
-          <span className="shrink-0 rounded-lg border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
-            {stageLabel}
+          <span
+            className={`shrink-0 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-0.5 text-[11px] font-bold ${
+              groupColor
+                ? groupColor.badgeCls
+                : 'border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3]'
+            }`}
+          >
+            {groupColor && <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: groupColor.hex }} />}
+            <span>{stageLabel}</span>
           </span>
         )}
       </div>
@@ -251,22 +276,34 @@ function NextMatchCard({ fixture, tour, standings, loading }) {
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4 py-2">
             {/* Home Team (Right in RTL) */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-              <TeamAvatar
-                team={fixture.home_team}
-                className="size-9 sm:size-11 shrink-0"
-                onClick={fixture.home_team?.id != null ? () => openTeam(fixture.home_team) : undefined}
-              />
-              <div className="min-w-0 flex-1">
-                <button
-                  type="button"
-                  disabled={fixture.home_team?.id == null}
-                  onClick={() => fixture.home_team?.id != null && openTeam(fixture.home_team)}
-                  className="block max-w-full truncate text-start text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] hover:underline cursor-pointer"
-                >
-                  {fixture.home_team?.name || t('committee.detail.tbd')}
-                </button>
-                <FormRow form={formMap[fixture.home_team?.id]} align="start" />
-              </div>
+              {fixture.home_team?.id != null ? (
+                <>
+                  <TeamAvatar
+                    team={fixture.home_team}
+                    to={`/teams/${fixture.home_team.id}`}
+                    className="size-9 sm:size-11"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      to={`/teams/${fixture.home_team.id}`}
+                      className="block max-w-full truncate text-start text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] hover:underline"
+                    >
+                      {fixture.home_team?.name || t('committee.detail.tbd')}
+                    </Link>
+                    <FormRow form={formMap[fixture.home_team?.id]} align="start" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <TeamAvatar team={fixture.home_team} className="size-9 sm:size-11 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <span className="block max-w-full truncate text-start text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                      {fixture.home_team?.name || t('committee.detail.tbd')}
+                    </span>
+                    <FormRow form={formMap[fixture.home_team?.id]} align="start" />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Center: VS + Time Pill */}
@@ -281,22 +318,34 @@ function NextMatchCard({ fixture, tour, standings, loading }) {
 
             {/* Away Team (Left in RTL) */}
             <div className="flex items-center justify-end gap-2 sm:gap-3 min-w-0">
-              <div className="min-w-0 flex-1 text-end">
-                <button
-                  type="button"
-                  disabled={fixture.away_team?.id == null}
-                  onClick={() => fixture.away_team?.id != null && openTeam(fixture.away_team)}
-                  className="ms-auto block max-w-full truncate text-end text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] hover:underline cursor-pointer"
-                >
-                  {fixture.away_team?.name || t('committee.detail.tbd')}
-                </button>
-                <FormRow form={formMap[fixture.away_team?.id]} align="end" />
-              </div>
-              <TeamAvatar
-                team={fixture.away_team}
-                className="size-9 sm:size-11 shrink-0"
-                onClick={fixture.away_team?.id != null ? () => openTeam(fixture.away_team) : undefined}
-              />
+              {fixture.away_team?.id != null ? (
+                <>
+                  <div className="min-w-0 flex-1 text-end">
+                    <Link
+                      to={`/teams/${fixture.away_team.id}`}
+                      className="ms-auto block max-w-full truncate text-end text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] hover:underline"
+                    >
+                      {fixture.away_team?.name || t('committee.detail.tbd')}
+                    </Link>
+                    <FormRow form={formMap[fixture.away_team?.id]} align="end" />
+                  </div>
+                  <TeamAvatar
+                    team={fixture.away_team}
+                    to={`/teams/${fixture.away_team.id}`}
+                    className="size-9 sm:size-11"
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="min-w-0 flex-1 text-end">
+                    <span className="ms-auto block max-w-full truncate text-end text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                      {fixture.away_team?.name || t('committee.detail.tbd')}
+                    </span>
+                    <FormRow form={formMap[fixture.away_team?.id]} align="end" />
+                  </div>
+                  <TeamAvatar team={fixture.away_team} className="size-9 sm:size-11 shrink-0" />
+                </>
+              )}
             </div>
           </div>
 
@@ -331,7 +380,6 @@ function NextMatchCard({ fixture, tour, standings, loading }) {
  */
 function RecentResults({ fixtures, loading, onOpen, onShowTab }) {
   const { t, i18n } = useTranslation()
-  const { openTeam } = useProfileModal()
   const lang = i18n.language
 
   const list = useMemo(() => {
@@ -399,21 +447,25 @@ function RecentResults({ fixtures, loading, onOpen, onShowTab }) {
                   </div>
 
                   {/* Home Team */}
-                  <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
-                    <TeamAvatar
-                      team={f.home_team}
-                      className="size-6 sm:size-7 shrink-0"
-                      onClick={(e) => {
-                        if (f.home_team?.id != null) {
-                          e?.stopPropagation?.()
-                          openTeam(f.home_team)
-                        }
-                      }}
-                    />
-                    <span className="min-w-0 truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                      {f.home_team.name}
-                    </span>
-                  </div>
+                  {f.home_team?.id != null ? (
+                    <Link
+                      to={`/teams/${f.home_team.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex min-w-0 items-center gap-1.5 sm:gap-2 hover:underline"
+                    >
+                      <TeamAvatar team={f.home_team} className="size-6 sm:size-7 shrink-0" />
+                      <span className="min-w-0 truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {f.home_team.name}
+                      </span>
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+                      <TeamAvatar team={f.home_team} className="size-6 sm:size-7 shrink-0" />
+                      <span className="min-w-0 truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {f.home_team.name}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Center Score Pill */}
                   <div className="flex flex-col items-center px-1">
@@ -427,21 +479,25 @@ function RecentResults({ fixtures, loading, onOpen, onShowTab }) {
                   </div>
 
                   {/* Away Team */}
-                  <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
-                    <span className="min-w-0 truncate text-end text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                      {f.away_team.name}
-                    </span>
-                    <TeamAvatar
-                      team={f.away_team}
-                      className="size-6 sm:size-7 shrink-0"
-                      onClick={(e) => {
-                        if (f.away_team?.id != null) {
-                          e?.stopPropagation?.()
-                          openTeam(f.away_team)
-                        }
-                      }}
-                    />
-                  </div>
+                  {f.away_team?.id != null ? (
+                    <Link
+                      to={`/teams/${f.away_team.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2 hover:underline"
+                    >
+                      <span className="min-w-0 truncate text-end text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {f.away_team.name}
+                      </span>
+                      <TeamAvatar team={f.away_team} className="size-6 sm:size-7 shrink-0" />
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
+                      <span className="min-w-0 truncate text-end text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {f.away_team.name}
+                      </span>
+                      <TeamAvatar team={f.away_team} className="size-6 sm:size-7 shrink-0" />
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -461,7 +517,7 @@ function RecentResults({ fixtures, loading, onOpen, onShowTab }) {
           )}
         </div>
       ) : (
-        <EmptyBlock icon={Flag} text={t('public.overview.noRecentResults')} />
+        <EmptyBlock icon={Flag} text={t('public.overview.noResults')} />
       )}
     </div>
   )
@@ -473,7 +529,6 @@ function RecentResults({ fixtures, loading, onOpen, onShowTab }) {
  */
 function StandingsMini({ standings, tour, loading, onShowTab }) {
   const { t } = useTranslation()
-  const { openTeam } = useProfileModal()
   const rawGroups = standings?.groups || []
   // Requirement 3: HIDE EMPTY GROUPS
   const groups = rawGroups.filter((g) => (g.rows?.length || 0) > 0)
@@ -499,18 +554,24 @@ function StandingsMini({ standings, tour, loading, onShowTab }) {
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {groups.map((g, idx) => {
               const gLabel = formatGroupName(g.name, { groupId: g.group_id, tournamentId: tour?.id })
+              const gc = getGroupColor(
+                { id: g.group_id ?? g.id, name: g.name },
+                groups.map((gr) => ({ id: gr.group_id ?? gr.id, name: gr.name })),
+              )
+              const isActive = idx === groupIdx
               return (
                 <button
                   key={g.group_id ?? g.name ?? idx}
                   type="button"
                   onClick={() => setGroupIdx(idx)}
-                  className={`shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-black transition-colors cursor-pointer ${
-                    idx === groupIdx
-                      ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313]'
-                      : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2]'
+                  className={`inline-flex items-center gap-1.5 shrink-0 rounded-lg border px-2.5 py-1 text-[11px] font-black transition-colors cursor-pointer ${
+                    isActive
+                      ? gc.activePillCls
+                      : 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] hover:text-[#111313] dark:hover:text-[#F5F7F2]'
                   }`}
                 >
-                  {gLabel}
+                  <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: gc.hex }} />
+                  <span>{gLabel}</span>
                 </button>
               )
             })}
@@ -556,6 +617,7 @@ function StandingsMini({ standings, tour, loading, onShowTab }) {
                 {rows.map((row, idx) => {
                   const isFirst = idx === 0
                   const gd = row.goal_difference ?? (row.goals_for ?? 0) - (row.goals_against ?? 0)
+                  const teamId = row.team?.id ?? row.team_id
                   return (
                     <tr
                       key={row.team_id ?? idx}
@@ -578,18 +640,28 @@ function StandingsMini({ standings, tour, loading, onShowTab }) {
 
                       {/* Team Logo + Name */}
                       <td className="py-2.5 px-1 text-start align-middle min-w-0">
-                        <button
-                          type="button"
-                          disabled={row.team?.id == null}
-                          onClick={() => row.team?.id != null && openTeam(row.team)}
-                          className="flex w-full items-center gap-1.5 sm:gap-2 min-w-0 text-start cursor-pointer"
-                          title={row.team?.name || ''}
-                        >
-                          <TeamAvatar team={row.team} className="size-5 sm:size-6 shrink-0" />
-                          <span className="min-w-0 flex-1 truncate text-[11px] sm:text-xs md:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                            {row.team?.name || '—'}
-                          </span>
-                        </button>
+                        {teamId != null ? (
+                          <Link
+                            to={`/teams/${teamId}`}
+                            className="flex w-full items-center gap-1.5 sm:gap-2 min-w-0 text-start hover:underline"
+                            title={row.team?.name || ''}
+                          >
+                            <TeamAvatar team={row.team} className="size-5 sm:size-6 shrink-0" />
+                            <span className="min-w-0 flex-1 truncate text-[11px] sm:text-xs md:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                              {row.team?.name || '—'}
+                            </span>
+                          </Link>
+                        ) : (
+                          <div
+                            className="flex w-full items-center gap-1.5 sm:gap-2 min-w-0 text-start"
+                            title={row.team?.name || ''}
+                          >
+                            <TeamAvatar team={row.team} className="size-5 sm:size-6 shrink-0" />
+                            <span className="min-w-0 flex-1 truncate text-[11px] sm:text-xs md:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                              {row.team?.name || '—'}
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Played */}
@@ -683,7 +755,6 @@ function StandingsMini({ standings, tour, loading, onShowTab }) {
  */
 function RecordsCard({ stats, loading }) {
   const { t } = useTranslation()
-  const { openTeam } = useProfileModal()
   if (loading) return <Skeleton className="h-40 rounded-2xl" />
 
   const bw = stats?.biggest_win
@@ -760,14 +831,18 @@ function RecordsCard({ stats, loading }) {
                 {tile.figure}
               </p>
               {tile.team ? (
-                <button
-                  type="button"
-                  disabled={tile.target?.id == null}
-                  onClick={() => tile.target?.id != null && openTeam(tile.target)}
-                  className="mt-0.5 block max-w-full truncate text-[10px] sm:text-[11px] font-bold text-[#111313]/80 dark:text-[#F5F7F2]/80 hover:underline cursor-pointer"
-                >
-                  {tile.team}
-                </button>
+                tile.target?.id != null ? (
+                  <Link
+                    to={`/teams/${tile.target.id}`}
+                    className="mt-0.5 block max-w-full truncate text-[10px] sm:text-[11px] font-bold text-[#111313]/80 dark:text-[#F5F7F2]/80 hover:underline"
+                  >
+                    {tile.team}
+                  </Link>
+                ) : (
+                  <span className="mt-0.5 block max-w-full truncate text-[10px] sm:text-[11px] font-bold text-[#111313]/80 dark:text-[#F5F7F2]/80">
+                    {tile.team}
+                  </span>
+                )
               ) : (
                 <span className="mt-0.5 text-[10px] text-[#65706A]">—</span>
               )}
@@ -784,13 +859,17 @@ function RecordsCard({ stats, loading }) {
 /**
  * Additional Tournament Info & Key Stats (Preserved in clean collapsible cards)
  */
-function InfoPanel({ tour }) {
+function InfoPanel({ tour, standings }) {
   const { t, i18n } = useTranslation()
   const lang = i18n.language
   const dates = formatTournamentDateRange(tour.start_date, tour.end_date, lang)
   const venue = [tour.location, tour.stadium?.name].filter(Boolean).join(' • ')
   const format = tour.tournament_format ? t(`committee.tournaments.formats.${tour.tournament_format}`) : null
   const category = [tour.category, tour.edition].filter(Boolean).join(' • ')
+  const activeGroupCount =
+    tour.group_count && Array.isArray(standings?.groups)
+      ? standings.groups.filter((g) => (g.rows || g.teams || []).length > 0).length
+      : tour.group_count
 
   const rows = [
     dates && { icon: CalendarDays, label: t('public.overview.dates'), value: dates },
@@ -798,7 +877,7 @@ function InfoPanel({ tour }) {
     tour.organizer?.name && { icon: Landmark, label: t('public.overview.organizer'), value: tour.organizer.name },
     format && { icon: Flag, label: t('public.overview.format'), value: format },
     category && { icon: Award, label: t('public.overview.category'), value: category },
-    tour.group_count && { icon: LayoutGrid, label: t('public.overview.groups'), value: tour.group_count },
+    activeGroupCount > 0 && { icon: LayoutGrid, label: t('public.overview.groups'), value: activeGroupCount },
     tour.teams_per_group && { icon: Layers, label: t('public.overview.teamsPerGroup'), value: tour.teams_per_group },
     tour.match_duration && {
       icon: Swords,
@@ -888,7 +967,7 @@ function deriveBestDefense(stats, standings) {
 
 function KeyStats({ stats, standings, loading }) {
   const { t } = useTranslation()
-  const { openTeam, openPlayer } = useProfileModal()
+  const { openPlayer } = useProfileModal()
   if (loading) return null
 
   const attack = deriveBestAttack(stats, standings)
@@ -908,19 +987,30 @@ function KeyStats({ stats, standings, loading }) {
             <span className="text-[11px] font-black">{t('public.overview.bestAttack')}</span>
           </div>
           {attack ? (
-            <button
-              type="button"
-              onClick={() => openTeam(toTeam(attack))}
-              className="mt-2.5 flex w-full items-center gap-2.5 text-start cursor-pointer"
-            >
-              <TeamAvatar team={toTeam(attack)} className="size-8 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{attack.name}</p>
-                <p className="text-[11px] font-bold text-[#179955] dark:text-[#42D889]">
-                  {t('public.overview.goalsCount', { count: attack.goals })}
-                </p>
+            toTeam(attack)?.id != null ? (
+              <Link
+                to={`/teams/${toTeam(attack).id}`}
+                className="mt-2.5 flex w-full items-center gap-2.5 text-start hover:underline"
+              >
+                <TeamAvatar team={toTeam(attack)} className="size-8 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{attack.name}</p>
+                  <p className="text-[11px] font-bold text-[#179955] dark:text-[#42D889]">
+                    {t('public.overview.goalsCount', { count: attack.goals })}
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <div className="mt-2.5 flex w-full items-center gap-2.5 text-start">
+                <TeamAvatar team={toTeam(attack)} className="size-8 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{attack.name}</p>
+                  <p className="text-[11px] font-bold text-[#179955] dark:text-[#42D889]">
+                    {t('public.overview.goalsCount', { count: attack.goals })}
+                  </p>
+                </div>
               </div>
-            </button>
+            )
           ) : (
             <p className="mt-2 text-xs text-[#65706A]">—</p>
           )}
@@ -933,19 +1023,30 @@ function KeyStats({ stats, standings, loading }) {
             <span className="text-[11px] font-black">{t('public.overview.bestDefense')}</span>
           </div>
           {defense ? (
-            <button
-              type="button"
-              onClick={() => openTeam(toTeam(defense))}
-              className="mt-2.5 flex w-full items-center gap-2.5 text-start cursor-pointer"
-            >
-              <TeamAvatar team={toTeam(defense)} className="size-8 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{defense.name}</p>
-                <p className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
-                  {t('public.overview.concededCount', { count: defense.goals_against })}
-                </p>
+            toTeam(defense)?.id != null ? (
+              <Link
+                to={`/teams/${toTeam(defense).id}`}
+                className="mt-2.5 flex w-full items-center gap-2.5 text-start hover:underline"
+              >
+                <TeamAvatar team={toTeam(defense)} className="size-8 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{defense.name}</p>
+                  <p className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                    {t('public.overview.concededCount', { count: defense.goals_against })}
+                  </p>
+                </div>
+              </Link>
+            ) : (
+              <div className="mt-2.5 flex w-full items-center gap-2.5 text-start">
+                <TeamAvatar team={toTeam(defense)} className="size-8 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">{defense.name}</p>
+                  <p className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                    {t('public.overview.concededCount', { count: defense.goals_against })}
+                  </p>
+                </div>
               </div>
-            </button>
+            )
           ) : (
             <p className="mt-2 text-xs text-[#65706A]">—</p>
           )}
@@ -1034,7 +1135,7 @@ export default function OverviewSection({ tour, fixtures, standings, stats, load
       </div>
 
       {/* 3. Expandable Additional Details & Key Stats */}
-      <InfoPanel tour={tour} />
+      <InfoPanel tour={tour} standings={standings} />
       <KeyStats stats={stats} standings={standings} loading={loading.stats} />
     </div>
   )

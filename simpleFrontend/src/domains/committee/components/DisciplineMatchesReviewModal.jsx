@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
   Ban,
@@ -122,10 +123,10 @@ export default function DisciplineMatchesReviewModal({
         {/* Team Banner */}
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-3.5">
           <div className="flex items-center gap-3">
-            <TeamLogo team={team} className="size-10 rounded-xl" />
+            <TeamLogo team={team} to={team?.id != null ? `/teams/${team.id}` : undefined} onClick={() => onClose?.()} className="size-10 rounded-xl" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-slate-900 text-sm">{team?.name || '—'}</span>
+                <span className="font-extrabold text-slate-900 text-sm">{team?.id != null ? <Link to={`/teams/${team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{team?.name || '—'}</Link> : (team?.name || '—')}</span>
                 <Badge variant={isDisqualified ? 'danger' : 'warning'}>{statusLabel}</Badge>
               </div>
               <p className="text-[11px] text-slate-500 font-medium">
@@ -203,7 +204,7 @@ export default function DisciplineMatchesReviewModal({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black text-slate-900">
-                            {m.is_home ? `${m.team_name} ضد ${m.opponent?.name || '—'}` : `${m.opponent?.name || '—'} ضد ${m.team_name}`}
+                            {m.is_home ? <>{(m.team_id ?? team?.id) != null ? <Link to={`/teams/${m.team_id ?? team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.team_name}</Link> : m.team_name} ضد {m.opponent?.id != null ? <Link to={`/teams/${m.opponent.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.opponent.name}</Link> : (m.opponent?.name || '—')}</> : <>{m.opponent?.id != null ? <Link to={`/teams/${m.opponent.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.opponent.name}</Link> : (m.opponent?.name || '—')} ضد {(m.team_id ?? team?.id) != null ? <Link to={`/teams/${m.team_id ?? team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.team_name}</Link> : m.team_name}</>}
                           </span>
                           <span className="text-[10px] text-slate-400 font-semibold">
                             الجولة {m.matchday || '—'}
@@ -296,7 +297,7 @@ export default function DisciplineMatchesReviewModal({
               {completedMatches.map((m) => (
                 <div key={m.id} className="flex items-center justify-between rounded-lg bg-white px-2.5 py-1.5 border border-slate-200/60">
                   <span>
-                    {m.team_name} {m.home_score ?? 0} - {m.away_score ?? 0} {m.opponent?.name || '—'}
+                    {(m.team_id ?? team?.id) != null ? <Link to={`/teams/${m.team_id ?? team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.team_name}</Link> : m.team_name} {m.home_score ?? 0} - {m.away_score ?? 0} {m.opponent?.id != null ? <Link to={`/teams/${m.opponent.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.opponent.name}</Link> : (m.opponent?.name || '—')}
                   </span>
                   <Badge variant="success">ملعوبة ومحفوظة</Badge>
                 </div>

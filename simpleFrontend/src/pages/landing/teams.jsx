@@ -9,7 +9,6 @@ import {
   faMapPin,
   faPhone,
   faShieldHalved,
-  faTrophy,
   faUser,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons'
@@ -95,10 +94,21 @@ function ContactModal({ team, open, onClose, onOpenProfile }) {
 
         {/* Team Identity */}
         <div className="flex flex-col items-center text-center">
-          <div className="grid size-20 place-items-center rounded-full bg-emerald-50 p-2 ring-4 ring-emerald-100 shadow-md">
-            <TeamLogo team={team} name={team.name} className="size-16" rounded="rounded-full" fontSize="text-xl" />
-          </div>
-          <h3 className="mt-3 text-lg font-black text-slate-900">{team.name}</h3>
+          <button
+            type="button"
+            onClick={() => {
+              onClose()
+              onOpenProfile?.(team)
+            }}
+            className="group flex flex-col items-center cursor-pointer"
+          >
+            <span className="grid size-20 place-items-center rounded-full bg-emerald-50 p-2 ring-4 ring-emerald-100 shadow-md transition-transform group-hover:scale-105">
+              <TeamLogo team={team} name={team.name} className="size-16" rounded="rounded-full" fontSize="text-xl" />
+            </span>
+            <h3 className="mt-3 text-lg font-black text-slate-900 transition-colors group-hover:text-emerald-600 group-hover:underline">
+              {team.name}
+            </h3>
+          </button>
           {team.city && (
             <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
               <FontAwesomeIcon icon={faMapPin} className="size-3 text-slate-400" />

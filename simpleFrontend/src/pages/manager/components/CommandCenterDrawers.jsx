@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarCheck,
@@ -74,14 +75,27 @@ export function MatchDrawer() {
           <div className="rounded-3xl bg-gradient-to-l from-[#0b1220] to-[#12321f] p-6 text-center text-white">
             <div className="flex items-center justify-center gap-4">
               <div className="flex flex-col items-center gap-2">
-                {m.host_team?.logo_url ? (
-                  <img loading="lazy" decoding="async" src={logoThumb(m.host_team)} alt="" className="size-14 rounded-2xl object-cover ring-2 ring-white/10" />
-                ) : (
-                  <span className="grid size-14 place-items-center rounded-2xl bg-white/10 text-lg font-black">
-                    {initials(m.host_team?.name)}
-                  </span>
-                )}
-                <span className="max-w-[110px] truncate text-xs font-bold">{m.host_team?.name}</span>
+                {(() => {
+                  const hostAvatar = m.host_team?.logo_url ? (
+                    <img loading="lazy" decoding="async" src={logoThumb(m.host_team)} alt="" className="size-14 rounded-2xl object-cover ring-2 ring-white/10" />
+                  ) : (
+                    <span className="grid size-14 place-items-center rounded-2xl bg-white/10 text-lg font-black">
+                      {initials(m.host_team?.name)}
+                    </span>
+                  )
+                  return m.host_team?.id != null ? (
+                    <Link to={`/teams/${m.host_team.id}`} onClick={() => setMatch(null)}>
+                      {hostAvatar}
+                    </Link>
+                  ) : hostAvatar
+                })()}
+                <span className="max-w-[110px] truncate text-xs font-bold">
+                  {m.host_team?.id != null && m.host_team?.name ? (
+                    <Link to={`/teams/${m.host_team.id}`} onClick={() => setMatch(null)} className="hover:text-green-300 transition-colors">
+                      {m.host_team.name}
+                    </Link>
+                  ) : m.host_team?.name}
+                </span>
               </div>
               <div className="flex flex-col items-center">
                 <span className="text-2xl font-black">{m.host_score ?? '–'}</span>
@@ -89,14 +103,30 @@ export function MatchDrawer() {
                 <span className="text-2xl font-black">{m.opponent_score ?? '–'}</span>
               </div>
               <div className="flex flex-col items-center gap-2">
-                {m.opponent_team?.logo_url ? (
-                  <img loading="lazy" decoding="async" src={logoThumb(m.opponent_team)} alt="" className="size-14 rounded-2xl object-cover ring-2 ring-white/10" />
-                ) : (
-                  <span className="grid size-14 place-items-center rounded-2xl bg-white/10 text-lg font-black">
-                    {initials(m.opponent_team?.name)}
-                  </span>
-                )}
-                <span className="max-w-[110px] truncate text-xs font-bold">{m.opponent_team?.name || t('ov.hero.potentialOpponent')}</span>
+                {(() => {
+                  const oppId = !m.is_guest ? (m.opponent_team?.id ?? null) : null
+                  const oppAvatar = m.opponent_team?.logo_url ? (
+                    <img loading="lazy" decoding="async" src={logoThumb(m.opponent_team)} alt="" className="size-14 rounded-2xl object-cover ring-2 ring-white/10" />
+                  ) : (
+                    <span className="grid size-14 place-items-center rounded-2xl bg-white/10 text-lg font-black">
+                      {initials(m.opponent_team?.name)}
+                    </span>
+                  )
+                  return oppId != null ? (
+                    <Link to={`/teams/${oppId}`} onClick={() => setMatch(null)}>
+                      {oppAvatar}
+                    </Link>
+                  ) : oppAvatar
+                })()}
+                <span className="max-w-[110px] truncate text-xs font-bold">
+                  {!m.is_guest && m.opponent_team?.id != null && m.opponent_team?.name ? (
+                    <Link to={`/teams/${m.opponent_team.id}`} onClick={() => setMatch(null)} className="hover:text-green-300 transition-colors">
+                      {m.opponent_team.name}
+                    </Link>
+                  ) : (
+                    m.opponent_team?.name || t('ov.hero.potentialOpponent')
+                  )}
+                </span>
               </div>
             </div>
           </div>
@@ -457,15 +487,30 @@ export function TeamRowDrawer() {
     <Drawer open onClose={() => setTeamRow(null)} title={t('ov.drawers.teamTitle')} subtitle={row.city || '—'} size="440">
       <div className="space-y-5">
         <div className="flex items-center gap-4">
-          {row.logo_url ? (
-            <img loading="lazy" decoding="async" src={logoThumb(row)} alt="" className="size-16 rounded-3xl object-cover" />
-          ) : (
-            <span className="grid size-16 place-items-center rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 text-2xl font-black text-white">
-              {initials(row.name)}
-            </span>
-          )}
+          {(() => {
+            const avatar = row.logo_url ? (
+              <img loading="lazy" decoding="async" src={logoThumb(row)} alt="" className="size-16 rounded-3xl object-cover" />
+            ) : (
+              <span className="grid size-16 place-items-center rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 text-2xl font-black text-white">
+                {initials(row.name)}
+              </span>
+            )
+            return row?.id != null ? (
+              <Link to={`/teams/${row.id}`} onClick={() => setTeamRow(null)} className="shrink-0">
+                {avatar}
+              </Link>
+            ) : avatar
+          })()}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-black text-slate-900">{row.name}</p>
+            <p className="truncate text-lg font-black text-slate-900">
+              {row?.id != null ? (
+                <Link to={`/teams/${row.id}`} onClick={() => setTeamRow(null)} className="hover:text-green-600 transition-colors">
+                  {row.name}
+                </Link>
+              ) : (
+                row.name
+              )}
+            </p>
             <p className="text-xs font-semibold text-slate-400">{t('ov.drawers.matchesCount', { count: row.matches_played ?? 0 })}</p>
           </div>
         </div>
@@ -535,10 +580,32 @@ export function JoinMatchDrawer() {
         <div className="rounded-3xl bg-gradient-to-l from-[#0b1220] to-[#12321f] p-6 text-center text-white">
           <div className="flex items-center justify-center gap-4">
             <div className="flex flex-col items-center gap-2">
-              <span className="grid size-12 place-items-center rounded-2xl bg-white/10 text-base font-black">
-                {initials(m.host_team?.name)}
+              {m.host_team?.id != null ? (
+                <Link
+                  to={`/teams/${m.host_team.id}`}
+                  onClick={() => setJoinMatch(null)}
+                  className="grid size-12 place-items-center rounded-2xl bg-white/10 text-base font-black"
+                >
+                  {initials(m.host_team?.name)}
+                </Link>
+              ) : (
+                <span className="grid size-12 place-items-center rounded-2xl bg-white/10 text-base font-black">
+                  {initials(m.host_team?.name)}
+                </span>
+              )}
+              <span className="max-w-[110px] truncate text-xs font-bold">
+                {m.host_team?.id != null && m.host_team?.name ? (
+                  <Link
+                    to={`/teams/${m.host_team.id}`}
+                    onClick={() => setJoinMatch(null)}
+                    className="hover:text-green-300 transition-colors"
+                  >
+                    {m.host_team.name}
+                  </Link>
+                ) : (
+                  m.host_team?.name
+                )}
               </span>
-              <span className="max-w-[110px] truncate text-xs font-bold">{m.host_team?.name}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="text-xl font-black">{t('ov.common.vs')}</span>

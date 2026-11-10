@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Shield,
@@ -117,9 +118,26 @@ export default function AdminTeams() {
       sortable: true,
       render: (row) => (
         <div className="flex items-center gap-3">
-          <TeamAvatar team={row} className="size-10 shrink-0 rounded-2xl shadow-xs" />
+          <TeamAvatar
+            team={row}
+            to={row?.id != null ? `/teams/${row.id}` : undefined}
+            onClick={(e) => e.stopPropagation()}
+            className="size-10 shrink-0 rounded-2xl shadow-xs"
+          />
           <div className="min-w-0">
-            <p className="truncate text-sm font-black text-slate-900">{row.name}</p>
+            <p className="truncate text-sm font-black text-slate-900">
+              {row?.id != null ? (
+                <Link
+                  to={`/teams/${row.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:text-green-600 transition-colors"
+                >
+                  {row.name}
+                </Link>
+              ) : (
+                row.name
+              )}
+            </p>
             <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
               {row.association_name && <span>{row.association_name} •</span>}
               <span>ID: #{row.id}</span>

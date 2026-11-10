@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   CalendarDays,
   CheckCircle2,
@@ -1171,10 +1172,10 @@ export default function LeagueAssignmentPanel({
                       <div className="my-3 flex items-center justify-between px-2">
                         <div className="flex flex-1 items-center gap-2">
                           <div className="size-9 rounded-full bg-slate-100 p-1 flex items-center justify-center font-bold text-xs text-slate-700">
-                            {sug.fixture.home_team?.name?.charAt(0) || 'H'}
+                            {sug.fixture.home_team?.id != null ? <Link to={`/teams/${sug.fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="flex size-full items-center justify-center hover:text-emerald-600 transition-colors">{sug.fixture.home_team.name?.charAt(0) || 'H'}</Link> : (sug.fixture.home_team?.name?.charAt(0) || 'H')}
                           </div>
                           <div>
-                            <p className="text-xs font-black text-slate-900">{sug.fixture.home_team?.name}</p>
+                            <p className="text-xs font-black text-slate-900">{sug.fixture.home_team?.id != null ? <Link to={`/teams/${sug.fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{sug.fixture.home_team.name}</Link> : sug.fixture.home_team?.name}</p>
                             <span className="text-[10px] font-semibold text-emerald-600">المضيف (صاحب الحجز)</span>
                           </div>
                         </div>
@@ -1183,11 +1184,11 @@ export default function LeagueAssignmentPanel({
 
                         <div className="flex flex-1 items-center justify-end gap-2 text-end">
                           <div>
-                            <p className="text-xs font-black text-slate-900">{sug.fixture.away_team?.name}</p>
+                            <p className="text-xs font-black text-slate-900">{sug.fixture.away_team?.id != null ? <Link to={`/teams/${sug.fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{sug.fixture.away_team.name}</Link> : sug.fixture.away_team?.name}</p>
                             <span className="text-[10px] font-semibold text-slate-400">الضيف</span>
                           </div>
                           <div className="size-9 rounded-full bg-slate-100 p-1 flex items-center justify-center font-bold text-xs text-slate-700">
-                            {sug.fixture.away_team?.name?.charAt(0) || 'A'}
+                            {sug.fixture.away_team?.id != null ? <Link to={`/teams/${sug.fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="flex size-full items-center justify-center hover:text-emerald-600 transition-colors">{sug.fixture.away_team.name?.charAt(0) || 'A'}</Link> : (sug.fixture.away_team?.name?.charAt(0) || 'A')}
                           </div>
                         </div>
                       </div>
@@ -1375,7 +1376,7 @@ export default function LeagueAssignmentPanel({
                                     <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-black text-slate-600 shrink-0">
                                       جولة {ef.matchday}
                                     </span>
-                                    <span className="truncate">{ef.home_team?.name} ضد {ef.away_team?.name}</span>
+                                    <span className="truncate">{ef.home_team?.id != null ? <Link to={`/teams/${ef.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{ef.home_team.name}</Link> : ef.home_team?.name} ضد {ef.away_team?.id != null ? <Link to={`/teams/${ef.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{ef.away_team.name}</Link> : ef.away_team?.name}</span>
                                     {ef.has_rest_warning && (
                                       <span className="rounded bg-amber-100 px-1 py-0.2 text-[9px] font-black text-amber-800 shrink-0" title="تعارض مع فترة الراحة ولكن يمكن فرضه">
                                         ⚠️ راحة
@@ -1424,7 +1425,7 @@ export default function LeagueAssignmentPanel({
                                     <span className="rounded bg-sky-100 text-sky-900 px-1.5 py-0.2 text-[10px] font-black shrink-0">
                                       جولة {cand.matchday}
                                     </span>
-                                    <span className="truncate">{cand.home_team?.name} ضد {cand.away_team?.name}</span>
+                                    <span className="truncate">{cand.home_team?.id != null ? <Link to={`/teams/${cand.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{cand.home_team.name}</Link> : cand.home_team?.name} ضد {cand.away_team?.id != null ? <Link to={`/teams/${cand.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{cand.away_team.name}</Link> : cand.away_team?.name}</span>
                                     {cand.days_saved > 0 && (
                                       <span className="rounded bg-emerald-100 text-emerald-800 px-1.5 py-0.2 text-[10px] font-black shrink-0">
                                         وفر {cand.days_saved} يوم
@@ -1980,11 +1981,11 @@ export default function LeagueAssignmentPanel({
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3.5 text-xs">
                   <div className="flex items-center justify-between font-bold text-slate-700">
                     <span>الفريق المضيف:</span>
-                    <span className="text-slate-900">{opponentSwapFixture.home_team?.name}</span>
+                    <span className="text-slate-900">{opponentSwapFixture.home_team?.id != null ? <Link to={`/teams/${opponentSwapFixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{opponentSwapFixture.home_team.name}</Link> : opponentSwapFixture.home_team?.name}</span>
                   </div>
                   <div className="mt-2 flex items-center justify-between font-bold text-slate-700">
                     <span>الخصم الحالي:</span>
-                    <span className="text-rose-600 font-black">{opponentSwapFixture.away_team?.name}</span>
+                    <span className="text-rose-600 font-black">{opponentSwapFixture.away_team?.id != null ? <Link to={`/teams/${opponentSwapFixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{opponentSwapFixture.away_team.name}</Link> : opponentSwapFixture.away_team?.name}</span>
                   </div>
                 </div>
 
@@ -2032,8 +2033,8 @@ export default function LeagueAssignmentPanel({
                       <div className="space-y-1 text-slate-700 ps-5 font-medium text-[11px] leading-relaxed">
                         <p>
                           • <span className="text-slate-900 font-bold">هذه المباراة:</span> ستصبح بين{' '}
-                          <span className="font-bold text-slate-900">{opponentSwapFixture.home_team?.name}</span> و{' '}
-                          <span className="font-bold text-emerald-700">{selectedTeamData.team_name}</span>.
+                          <span className="font-bold text-slate-900">{opponentSwapFixture.home_team?.id != null ? <Link to={`/teams/${opponentSwapFixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{opponentSwapFixture.home_team.name}</Link> : opponentSwapFixture.home_team?.name}</span> و{' '}
+                          <span className="font-bold text-emerald-700">{selectedTeamData.team_id != null ? <Link to={`/teams/${selectedTeamData.team_id}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{selectedTeamData.team_name}</Link> : selectedTeamData.team_name}</span>.
                         </p>
                       </div>
                     </div>
@@ -2134,7 +2135,7 @@ export default function LeagueAssignmentPanel({
 
             <div className="space-y-3 text-xs">
               <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 font-bold text-slate-800">
-                {postponeFixture.home_team?.name} ضد {postponeFixture.away_team?.name}
+                {postponeFixture.home_team?.id != null ? <Link to={`/teams/${postponeFixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{postponeFixture.home_team.name}</Link> : postponeFixture.home_team?.name} ضد {postponeFixture.away_team?.id != null ? <Link to={`/teams/${postponeFixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{postponeFixture.away_team.name}</Link> : postponeFixture.away_team?.name}
               </div>
 
               <div>
@@ -2268,7 +2269,7 @@ export default function LeagueAssignmentPanel({
                   <span className="rounded bg-sky-100 text-sky-900 px-2 py-0.5 text-[11px] font-black">
                     جولة {advanceCandidateModal.fixture.matchday}
                   </span>
-                  <span>{advanceCandidateModal.fixture.home_team?.name} ضد {advanceCandidateModal.fixture.away_team?.name}</span>
+                  <span>{advanceCandidateModal.fixture.home_team?.id != null ? <Link to={`/teams/${advanceCandidateModal.fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{advanceCandidateModal.fixture.home_team.name}</Link> : advanceCandidateModal.fixture.home_team?.name} ضد {advanceCandidateModal.fixture.away_team?.id != null ? <Link to={`/teams/${advanceCandidateModal.fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{advanceCandidateModal.fixture.away_team.name}</Link> : advanceCandidateModal.fixture.away_team?.name}</span>
                 </div>
                 {advanceCandidateModal.fixture.days_saved > 0 && (
                   <div className="text-emerald-700 font-extrabold flex items-center gap-1">
@@ -2441,7 +2442,7 @@ export default function LeagueAssignmentPanel({
 
             <div className="space-y-3 text-xs">
               <div className="rounded-2xl bg-slate-50 p-3 font-bold text-slate-800">
-                <p>{quickAssignFixture.home_team?.name} ضد {quickAssignFixture.away_team?.name}</p>
+                <p>{quickAssignFixture.home_team?.id != null ? <Link to={`/teams/${quickAssignFixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{quickAssignFixture.home_team.name}</Link> : quickAssignFixture.home_team?.name} ضد {quickAssignFixture.away_team?.id != null ? <Link to={`/teams/${quickAssignFixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{quickAssignFixture.away_team.name}</Link> : quickAssignFixture.away_team?.name}</p>
                 <p className="text-[11px] text-emerald-700 mt-1 font-semibold">
                   الموعد: {quickAssignSlot.date} ({quickAssignSlot.time}) - {quickAssignSlot.stadium?.name}
                 </p>

@@ -1,9 +1,12 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { Flag, X } from 'lucide-react'
 
 export default function EndMatchModal({
   open,
   score,
+  homeTeamId,
+  awayTeamId,
   homeTeamName,
   awayTeamName,
   onConfirm,
@@ -48,13 +51,35 @@ export default function EndMatchModal({
           <p className="text-[11px] font-bold text-slate-400">النتيجة الحالية</p>
           <div className="mt-1 flex items-center justify-center gap-3">
             <span className="max-w-[120px] truncate text-xs font-black text-slate-800">
-              {homeTeamName}
+              {homeTeamId != null && homeTeamName ? (
+                <Link
+                  to={`/teams/${homeTeamId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-600 transition-colors"
+                >
+                  {homeTeamName}
+                </Link>
+              ) : (
+                homeTeamName
+              )}
             </span>
             <span className="text-2xl font-black tabular-nums text-slate-900">
               {score.home} - {score.away}
             </span>
             <span className="max-w-[120px] truncate text-xs font-black text-slate-800">
-              {awayTeamName}
+              {awayTeamId != null && awayTeamName ? (
+                <Link
+                  to={`/teams/${awayTeamId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-emerald-600 transition-colors"
+                >
+                  {awayTeamName}
+                </Link>
+              ) : (
+                awayTeamName
+              )}
             </span>
           </div>
         </div>

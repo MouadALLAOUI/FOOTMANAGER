@@ -1,4 +1,5 @@
 import { Fragment } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCrown, faFutbol, faMapPin, faMedal } from '@fortawesome/free-solid-svg-icons'
@@ -48,9 +49,31 @@ export default function LeaderboardRow({ row }) {
   const top = podium[row.id]
   const clickable = row.team_id != null
 
+  const openThisTeam = () =>
+    openTeam({ id: row.team_id, name: row.name, city: row.city, logo_url: row.logo_url })
+
   return (
     <div
-      onClick={clickable ? () => openTeam({ id: row.team_id, name: row.name, city: row.city, logo_url: row.logo_url }) : undefined}
+      role={clickable ? 'button' : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onClick={
+        clickable
+          ? (e) => {
+              if (e.target.closest('a, button')) return
+              openThisTeam()
+            }
+          : undefined
+      }
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                openThisTeam()
+              }
+            }
+          : undefined
+      }
       className={`${gridClass} ${clickable ? 'cursor-pointer' : ''} transition-colors duration-300 ${
         top ? `${top.row} ${top.ring} ring-1` : 'hover:bg-[#E9ECE7] dark:hover:bg-[#252B27]'
       }`}
@@ -71,7 +94,22 @@ export default function LeaderboardRow({ row }) {
 
       <div className="flex min-w-0 items-center gap-3">
         {row.logo_url ? (
-          <TeamLogo team={{ name: row.name, logo_url: row.logo_url }} className="size-11" fontSize="text-base" />
+          <TeamLogo
+            team={{ id: row.team_id, name: row.name, logo_url: row.logo_url }}
+            to={clickable ? `/teams/${row.team_id}` : undefined}
+            onClick={clickable ? (e) => e.stopPropagation() : undefined}
+            className="size-11"
+            fontSize="text-base"
+          />
+        ) : clickable ? (
+          <Link
+            to={`/teams/${row.team_id}`}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={row.name}
+            className={`grid size-11 shrink-0 place-items-center rounded-2xl transition-transform duration-300 ease-out hover:scale-110 ${accent.soft}`}
+          >
+            <FontAwesomeIcon icon={faFutbol} style={{ color: accent.color }} className="size-6" />
+          </Link>
         ) : (
           <div
             className={`grid size-11 shrink-0 place-items-center rounded-2xl transition-transform duration-300 ease-out hover:scale-110 ${accent.soft}`}
@@ -80,7 +118,19 @@ export default function LeaderboardRow({ row }) {
           </div>
         )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">{row.name}</p>
+          <p className="truncate text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">
+            {clickable ? (
+              <Link
+                to={`/teams/${row.team_id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="hover:text-emerald-600 dark:hover:text-[#D0FF38] hover:underline transition-colors"
+              >
+                {row.name}
+              </Link>
+            ) : (
+              row.name
+            )}
+          </p>
           <p className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-[#65706A] dark:text-[#B2B9B3] md:hidden">
             <FontAwesomeIcon icon={faMapPin} className="size-3 shrink-0 text-[#65706A] dark:text-[#B2B9B3]" />
             <span className="truncate">{row.city}</span>

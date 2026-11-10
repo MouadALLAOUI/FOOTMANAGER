@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Bell, CalendarCheck, Check, Hourglass, MapPin, Swords, UserPlus, X, Zap } from 'lucide-react'
 import api from '../../../api/client'
@@ -45,11 +46,28 @@ function ChallengeRow({ c }) {
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3">
-      <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sm font-black text-sky-600">
-        {initials(c.host_team?.name)}
-      </span>
+      {c.host_team?.id != null ? (
+        <Link
+          to={`/teams/${c.host_team.id}`}
+          className="grid size-10 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sm font-black text-sky-600"
+        >
+          {initials(c.host_team?.name)}
+        </Link>
+      ) : (
+        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sm font-black text-sky-600">
+          {initials(c.host_team?.name)}
+        </span>
+      )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-extrabold text-slate-800">{c.host_team?.name}</p>
+        <p className="truncate text-xs font-extrabold text-slate-800">
+          {c.host_team?.id != null && c.host_team?.name ? (
+            <Link to={`/teams/${c.host_team.id}`} className="hover:text-green-600 transition-colors">
+              {c.host_team.name}
+            </Link>
+          ) : (
+            c.host_team?.name
+          )}
+        </p>
         <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
           {formatTime(c.match_datetime)} • {c.stadium?.name || c.custom_terrain_name || t('ov.common.unspecifiedStadium')}
         </p>
@@ -193,15 +211,41 @@ export default function TodayPanel() {
           {matchToday ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-slate-900 text-xs font-black text-white">
-                  {initials(team?.name)}
-                </span>
+                {team?.id != null ? (
+                  <Link
+                    to={`/teams/${team.id}`}
+                    className="grid size-9 shrink-0 place-items-center rounded-2xl bg-slate-900 text-xs font-black text-white"
+                  >
+                    {initials(team?.name)}
+                  </Link>
+                ) : (
+                  <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-slate-900 text-xs font-black text-white">
+                    {initials(team?.name)}
+                  </span>
+                )}
                 <Swords className="size-3.5 shrink-0 text-slate-300" />
-                <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-sky-50 text-xs font-black text-sky-600">
-                  {initials(opp?.name)}
-                </span>
+                {opp?.id != null ? (
+                  <Link
+                    to={`/teams/${opp.id}`}
+                    className="grid size-9 shrink-0 place-items-center rounded-2xl bg-sky-50 text-xs font-black text-sky-600"
+                  >
+                    {initials(opp?.name)}
+                  </Link>
+                ) : (
+                  <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-sky-50 text-xs font-black text-sky-600">
+                    {initials(opp?.name)}
+                  </span>
+                )}
                 <div className="ms-auto text-end">
-                  <p className="text-xs font-black text-slate-800">{opp?.name || t('ov.common.opponent')}</p>
+                  <p className="text-xs font-black text-slate-800">
+                    {opp?.id != null && opp?.name ? (
+                      <Link to={`/teams/${opp.id}`} className="hover:text-green-600 transition-colors">
+                        {opp.name}
+                      </Link>
+                    ) : (
+                      opp?.name || t('ov.common.opponent')
+                    )}
+                  </p>
                   <p className="text-[10px] font-semibold text-slate-400">{formatTime(matchToday.match_datetime)}</p>
                 </div>
               </div>

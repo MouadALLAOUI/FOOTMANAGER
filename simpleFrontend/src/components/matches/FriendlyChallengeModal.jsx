@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import {
   CalendarDays,
   CheckCircle2,
@@ -209,12 +210,28 @@ export default function FriendlyChallengeModal({ open, onClose, targetTeam }) {
           <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div className="size-12 shrink-0 rounded-xl bg-slate-800 p-1 ring-1 ring-emerald-500/40 grid place-items-center overflow-hidden">
-                <TeamLogo team={targetTeam} size="md" />
+                <TeamLogo
+                  team={targetTeam}
+                  size="md"
+                  to={targetTeam?.id != null ? `/teams/${targetTeam.id}` : undefined}
+                  target="_blank"
+                />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-black text-white truncate">
-                    {targetTeam.name}
+                    {targetTeam?.id != null ? (
+                      <Link
+                        to={`/teams/${targetTeam.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-emerald-300 hover:underline transition-colors"
+                      >
+                        {targetTeam.name}
+                      </Link>
+                    ) : (
+                      targetTeam.name
+                    )}
                   </h4>
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                     <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />

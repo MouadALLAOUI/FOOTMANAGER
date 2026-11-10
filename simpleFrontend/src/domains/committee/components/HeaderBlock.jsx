@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronDown, Info, Link2, X } from 'lucide-react'
 import { formatTime, matchDay } from '../../../lib/adapters'
 
@@ -10,9 +11,9 @@ export default function HeaderBlock({ t, homeName, awayName, tournament, fixture
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-extrabold text-slate-900">
-            {homeName}
+            {fixture?.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{homeName}</Link> : homeName}
             <span className="mx-2 text-xs font-black text-slate-300">VS</span>
-            {awayName}
+            {fixture?.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{awayName}</Link> : awayName}
           </p>
           <p className="mt-0.5 text-[11px] font-semibold text-slate-400">{t('committee.result.title')}</p>
         </div>

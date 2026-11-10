@@ -257,7 +257,18 @@ export default function MatchInvitePage() {
           )}
 
           <h1 className="text-2xl font-black text-white sm:text-4xl tracking-tight leading-tight">
-            من يتحدى فريق <span className="text-emerald-400 underline decoration-emerald-500/40 decoration-4 underline-offset-8">{match.host_team?.name}</span>؟
+            من يتحدى فريق{' '}
+            {match.host_team?.id != null ? (
+              <Link
+                to={`/teams/${match.host_team.id}`}
+                className="text-emerald-400 underline decoration-emerald-500/40 decoration-4 underline-offset-8 hover:text-emerald-300"
+              >
+                {match.host_team?.name}
+              </Link>
+            ) : (
+              <span className="text-emerald-400 underline decoration-emerald-500/40 decoration-4 underline-offset-8">{match.host_team?.name}</span>
+            )}
+            ؟
           </h1>
           <p className="text-xs text-slate-300 sm:text-sm max-w-lg mx-auto leading-relaxed">
             {isClosed
@@ -273,23 +284,47 @@ export default function MatchInvitePage() {
             <div className="flex items-center justify-around gap-2 sm:gap-6">
               {/* Host Team Side */}
               <div className="flex flex-1 flex-col items-center text-center">
-                <div className="relative">
-                  <div className="grid size-20 sm:size-24 place-items-center rounded-3xl bg-emerald-950/60 p-2 shadow-2xl ring-2 ring-emerald-500/40 transition-transform duration-300 hover:scale-105">
-                    <TeamLogo
-                      team={match.host_team}
-                      src={logoThumb(match.host_team) || match.host_team?.logo_url || match.host_team?.logo}
-                      className="size-full rounded-2xl"
-                      fontSize="text-2xl sm:text-3xl font-black"
-                      bg="bg-transparent"
-                    />
-                  </div>
-                  <span className="absolute -bottom-2.5 start-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-black text-slate-950 shadow">
-                    صاحب التحدي
-                  </span>
-                </div>
-                <p className="mt-4 text-sm font-black text-white sm:text-lg line-clamp-1">
-                  {match.host_team?.name}
-                </p>
+                {match.host_team?.id != null ? (
+                  <Link to={`/teams/${match.host_team.id}`} className="group flex flex-col items-center text-center">
+                    <div className="relative">
+                      <div className="grid size-20 sm:size-24 place-items-center rounded-3xl bg-emerald-950/60 p-2 shadow-2xl ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
+                        <TeamLogo
+                          team={match.host_team}
+                          src={logoThumb(match.host_team) || match.host_team?.logo_url || match.host_team?.logo}
+                          className="size-full rounded-2xl"
+                          fontSize="text-2xl sm:text-3xl font-black"
+                          bg="bg-transparent"
+                        />
+                      </div>
+                      <span className="absolute -bottom-2.5 start-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-black text-slate-950 shadow">
+                        صاحب التحدي
+                      </span>
+                    </div>
+                    <p className="mt-4 text-sm font-black text-white sm:text-lg line-clamp-1 group-hover:underline">
+                      {match.host_team?.name}
+                    </p>
+                  </Link>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <div className="grid size-20 sm:size-24 place-items-center rounded-3xl bg-emerald-950/60 p-2 shadow-2xl ring-2 ring-emerald-500/40 transition-transform duration-300 hover:scale-105">
+                        <TeamLogo
+                          team={match.host_team}
+                          src={logoThumb(match.host_team) || match.host_team?.logo_url || match.host_team?.logo}
+                          className="size-full rounded-2xl"
+                          fontSize="text-2xl sm:text-3xl font-black"
+                          bg="bg-transparent"
+                        />
+                      </div>
+                      <span className="absolute -bottom-2.5 start-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-500 px-2.5 py-0.5 text-[10px] font-black text-slate-950 shadow">
+                        صاحب التحدي
+                      </span>
+                    </div>
+                    <p className="mt-4 text-sm font-black text-white sm:text-lg line-clamp-1">
+                      {match.host_team?.name}
+                    </p>
+                  </>
+                )}
                 <div className="mt-0.5 flex items-center gap-1 text-[11px] font-bold text-slate-400">
                   <MapPin className="size-3 text-emerald-400" />
                   <span>{match.host_team?.city || 'المغرب'}</span>
@@ -312,26 +347,45 @@ export default function MatchInvitePage() {
               {/* Opponent Slot */}
               <div className="flex flex-1 flex-col items-center text-center">
                 {isClosed ? (
-                  <>
-                    <div className="grid size-20 sm:size-24 place-items-center rounded-3xl border-2 border-emerald-500/40 bg-emerald-950/60 p-2 shadow-2xl">
-                      {match.opponent_team ? (
+                  !match.is_guest && match.opponent_team?.id != null ? (
+                    <Link to={`/teams/${match.opponent_team.id}`} className="group flex flex-col items-center text-center">
+                      <div className="grid size-20 sm:size-24 place-items-center rounded-3xl border-2 border-emerald-500/40 bg-emerald-950/60 p-2 shadow-2xl transition-transform group-hover:scale-105">
                         <TeamLogo
                           team={match.opponent_team}
                           src={logoThumb(match.opponent_team) || match.opponent_team?.logo_url || match.opponent_team?.logo}
                           className="size-full rounded-2xl"
                           bg="bg-transparent"
                         />
-                      ) : (
-                        <Shield className="size-10 text-emerald-400" />
-                      )}
-                    </div>
-                    <span className="mt-2 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                      تم تأكيد المنافس
-                    </span>
-                    <p className="mt-1 text-sm font-black text-white sm:text-lg line-clamp-1">
-                      {match.is_guest ? match.guest_team_name : match.opponent_team?.name || 'المنافس'}
-                    </p>
-                  </>
+                      </div>
+                      <span className="mt-2 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                        تم تأكيد المنافس
+                      </span>
+                      <p className="mt-1 text-sm font-black text-white sm:text-lg line-clamp-1 group-hover:underline">
+                        {match.opponent_team?.name || 'المنافس'}
+                      </p>
+                    </Link>
+                  ) : (
+                    <>
+                      <div className="grid size-20 sm:size-24 place-items-center rounded-3xl border-2 border-emerald-500/40 bg-emerald-950/60 p-2 shadow-2xl">
+                        {match.opponent_team ? (
+                          <TeamLogo
+                            team={match.opponent_team}
+                            src={logoThumb(match.opponent_team) || match.opponent_team?.logo_url || match.opponent_team?.logo}
+                            className="size-full rounded-2xl"
+                            bg="bg-transparent"
+                          />
+                        ) : (
+                          <Shield className="size-10 text-emerald-400" />
+                        )}
+                      </div>
+                      <span className="mt-2 rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                        تم تأكيد المنافس
+                      </span>
+                      <p className="mt-1 text-sm font-black text-white sm:text-lg line-clamp-1">
+                        {match.is_guest ? match.guest_team_name : match.opponent_team?.name || 'المنافس'}
+                      </p>
+                    </>
+                  )
                 ) : (
                   <>
                     <div className="group relative grid size-20 sm:size-24 place-items-center rounded-3xl border-2 border-dashed border-emerald-400/50 bg-emerald-500/5 text-emerald-400 shadow-inner transition-all duration-300 hover:border-emerald-400 hover:bg-emerald-500/10">
@@ -574,20 +628,37 @@ export default function MatchInvitePage() {
           /* Scenario: Registered Approved Manager Challenging */
           <div className="rounded-3xl border border-emerald-500/30 bg-slate-900/90 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
             <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
-              <div className="flex items-center gap-3">
-                <TeamLogo
-                  team={userTeam}
-                  src={logoThumb(userTeam) || userTeam?.logo_url || userTeam?.logo}
-                  className="size-12 rounded-2xl shadow ring-1 ring-emerald-500/30"
-                  bg="bg-transparent"
-                />
-                <div>
-                  <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
-                    مدير فريق رسمي
-                  </span>
-                  <p className="text-base font-black text-white">{userTeam.name}</p>
+              {userTeam?.id != null ? (
+                <Link to={`/teams/${userTeam.id}`} className="flex items-center gap-3 hover:underline">
+                  <TeamLogo
+                    team={userTeam}
+                    src={logoThumb(userTeam) || userTeam?.logo_url || userTeam?.logo}
+                    className="size-12 rounded-2xl shadow ring-1 ring-emerald-500/30"
+                    bg="bg-transparent"
+                  />
+                  <div>
+                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                      مدير فريق رسمي
+                    </span>
+                    <p className="text-base font-black text-white">{userTeam.name}</p>
+                  </div>
+                </Link>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <TeamLogo
+                    team={userTeam}
+                    src={logoThumb(userTeam) || userTeam?.logo_url || userTeam?.logo}
+                    className="size-12 rounded-2xl shadow ring-1 ring-emerald-500/30"
+                    bg="bg-transparent"
+                  />
+                  <div>
+                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                      مدير فريق رسمي
+                    </span>
+                    <p className="text-base font-black text-white">{userTeam.name}</p>
+                  </div>
                 </div>
-              </div>
+              )}
               <button
                 type="button"
                 onClick={() => setActiveTab('guest')}

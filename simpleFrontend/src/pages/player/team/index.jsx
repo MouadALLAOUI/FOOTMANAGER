@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ShieldCheck, Star, Users } from 'lucide-react'
 import api from '../../../api/client'
@@ -64,9 +65,23 @@ export default function PlayerTeam() {
       {/* Team Card */}
       <div className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
         <div className="flex items-center gap-4">
-          <TeamLogo team={team} className="size-16" rounded="rounded-2xl" fontSize="text-2xl" />
+          <TeamLogo
+            team={team}
+            to={team?.id != null ? `/teams/${team.id}` : undefined}
+            className="size-16"
+            rounded="rounded-2xl"
+            fontSize="text-2xl"
+          />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-lg font-black text-slate-900">{team.name}</p>
+            <p className="truncate text-lg font-black text-slate-900">
+              {team?.id != null ? (
+                <Link to={`/teams/${team.id}`} className="hover:text-emerald-600 transition-colors">
+                  {team.name}
+                </Link>
+              ) : (
+                team.name
+              )}
+            </p>
             <p className="text-xs font-semibold text-slate-400">
               {team.city || ''} {team.city && team.category ? '• ' : ''}{team.category === 'adult' ? 'كبار' : team.category === 'teenager' ? 'شباب' : team.category || ''}
             </p>

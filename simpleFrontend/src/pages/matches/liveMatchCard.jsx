@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -49,17 +50,41 @@ export default function LiveMatchCard({ match }) {
 
       <div className="absolute inset-x-0 top-14 flex flex-col items-center justify-center px-6 text-center">
         <div className="flex items-center gap-3 md:gap-4">
-          <TeamLogo color={accentA} />
+          {match.homeId != null ? (
+            <Link to={`/teams/${match.homeId}`} title={match.home} className="hover:opacity-90">
+              <TeamLogo color={accentA} />
+            </Link>
+          ) : (
+            <TeamLogo color={accentA} />
+          )}
           <span className="rounded-full bg-white/15 px-3 py-1 text-[11px] font-black text-white backdrop-blur-sm">
             {t('matchesPage.live.vs')}
           </span>
-          <TeamLogo color={accentB} />
+          {match.awayId != null ? (
+            <Link to={`/teams/${match.awayId}`} title={match.away} className="hover:opacity-90">
+              <TeamLogo color={accentB} />
+            </Link>
+          ) : (
+            <TeamLogo color={accentB} />
+          )}
         </div>
 
         <h3 className="mt-2.5 flex items-center gap-2.5 text-sm font-extrabold text-white md:text-base">
-          <span className="max-w-[110px] truncate">{match.home}</span>
+          {match.homeId != null ? (
+            <Link to={`/teams/${match.homeId}`} className="max-w-[110px] truncate hover:underline">
+              {match.home}
+            </Link>
+          ) : (
+            <span className="max-w-[110px] truncate">{match.home}</span>
+          )}
           <span className="text-white/40">·</span>
-          <span className="max-w-[110px] truncate">{match.away}</span>
+          {match.awayId != null ? (
+            <Link to={`/teams/${match.awayId}`} className="max-w-[110px] truncate hover:underline">
+              {match.away}
+            </Link>
+          ) : (
+            <span className="max-w-[110px] truncate">{match.away}</span>
+          )}
         </h3>
 
         <p key={match.id} className="score-pop mt-1 text-3xl font-black tabular-nums text-white drop-shadow-lg">

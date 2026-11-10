@@ -193,7 +193,7 @@ export default function LeagueMatchCard({
               e.stopPropagation()
               if (fixture.home_team?.id != null) openTeam(fixture.home_team)
             }}
-            className="flex items-center gap-2 min-w-0 cursor-pointer"
+            role={fixture.home_team?.id != null ? 'button' : undefined} tabIndex={fixture.home_team?.id != null ? 0 : undefined} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && fixture.home_team?.id != null) { e.preventDefault(); e.stopPropagation(); openTeam(fixture.home_team) } }} className={`group/team flex items-center gap-2 min-w-0 ${fixture.home_team?.id != null ? 'cursor-pointer' : ''}`}
           >
             <div className="relative shrink-0">
               <TeamLogo
@@ -208,7 +208,7 @@ export default function LeagueMatchCard({
                 <Home className="size-2 stroke-[2.5]" />
               </span>
             </div>
-            <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+            <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] transition-colors group-hover/team:text-[#16834A] dark:group-hover/team:text-[#D0FF38]">
               {fixture.home_team?.name || 'فريق غير محدد'}
             </span>
           </div>
@@ -230,9 +230,9 @@ export default function LeagueMatchCard({
               e.stopPropagation()
               if (fixture.away_team?.id != null) openTeam(fixture.away_team)
             }}
-            className="flex items-center justify-end gap-2 min-w-0 cursor-pointer"
+            role={fixture.away_team?.id != null ? 'button' : undefined} tabIndex={fixture.away_team?.id != null ? 0 : undefined} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && fixture.away_team?.id != null) { e.preventDefault(); e.stopPropagation(); openTeam(fixture.away_team) } }} className={`group/team flex items-center justify-end gap-2 min-w-0 ${fixture.away_team?.id != null ? 'cursor-pointer' : ''}`}
           >
-            <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+            <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] transition-colors group-hover/team:text-[#16834A] dark:group-hover/team:text-[#D0FF38]">
               {fixture.away_team?.name || 'فريق غير محدد'}
             </span>
             <TeamLogo

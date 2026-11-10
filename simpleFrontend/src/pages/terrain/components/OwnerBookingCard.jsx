@@ -1,4 +1,5 @@
 import i18n from '../../../i18n'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays, Clock, Phone, Users } from 'lucide-react'
 import { Button, StatusBadge } from '../../../components/dashboard/ui'
@@ -38,7 +39,10 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
 
   return (
     <div
-      onClick={onView}
+      onClick={(e) => {
+        if (e.target.closest('button, a')) return
+        onView?.()
+      }}
       role={onView ? 'button' : undefined}
       tabIndex={onView ? 0 : undefined}
       onKeyDown={onView ? (e) => {
@@ -97,7 +101,17 @@ export function OwnerBookingCard({ booking, onDecide, onView, whatsappUrl, terra
           ) : (
             <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
               <Users className="size-3" />
-              {team.name || t('dash.unknownTeam')}
+              {team?.id != null && team?.name ? (
+                <Link
+                  to={`/teams/${team.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:text-green-600 transition-colors"
+                >
+                  {team.name}
+                </Link>
+              ) : (
+                team.name || t('dash.unknownTeam')
+              )}
             </p>
           )}
         </div>

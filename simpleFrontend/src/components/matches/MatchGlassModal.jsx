@@ -13,7 +13,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faWhatsapp } from '@fortawesome/free-brands-svg-icons'
 import { exportMatchCardToBlob, downloadBlob } from '../../lib/cardExportUtils'
 import TeamLogo from '../profile/TeamLogo'
+import { useProfileModal } from '../profile/ProfileModalContext'
 import { logoThumb } from '../../lib/thumb'
+import { formatGroupName } from '../../lib/groupNames'
 
 const TRANSPARENT_PIXEL =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAEASTN7V4='
@@ -324,6 +326,8 @@ function TeamEventsList({
   teamLogo,
   teamScore,
   isRtl,
+  forExport = false,
+  onTeamClick = null,
   t,
 }) {
   const hasAnyEvent =
@@ -332,18 +336,38 @@ function TeamEventsList({
     events.subs.length > 0 ||
     events.others.length > 0
 
+  const canClick = !forExport && onTeamClick && team?.id != null
+
   return (
     <div className="space-y-3 text-start">
       {/* Team Header Bar */}
       <div className="flex items-center gap-2 pb-2 border-b border-emerald-500/20">
-        <div className="size-6 shrink-0 rounded-lg bg-white/5 border border-white/10 p-0.5 flex items-center justify-center overflow-hidden">
-          <TeamLogo team={team} src={teamLogo} className="size-full object-contain" rounded="rounded-md" />
-        </div>
-        <span className="text-xs sm:text-sm font-black text-emerald-200 truncate" dir="auto">
-          {team?.name || (isRtl ? 'الفريق' : 'Team')}
-        </span>
+        {canClick ? (
+          <button
+            type="button"
+            onClick={() => onTeamClick(team)}
+            title={team?.name ? `عرض ملف ${team.name}` : undefined}
+            className="flex min-w-0 items-center gap-2 text-start hover:underline cursor-pointer"
+          >
+            <div className="size-6 shrink-0 rounded-lg bg-white/5 border border-white/10 p-0.5 flex items-center justify-center overflow-hidden">
+              <TeamLogo team={team} src={teamLogo} className="size-full object-contain" rounded="rounded-md" />
+            </div>
+            <span className="text-xs sm:text-sm font-black text-emerald-200 truncate" dir="auto">
+              {team?.name || (isRtl ? 'الفريق' : 'Team')}
+            </span>
+          </button>
+        ) : (
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="size-6 shrink-0 rounded-lg bg-white/5 border border-white/10 p-0.5 flex items-center justify-center overflow-hidden">
+              <TeamLogo team={team} src={teamLogo} className="size-full object-contain" rounded="rounded-md" />
+            </div>
+            <span className="text-xs sm:text-sm font-black text-emerald-200 truncate" dir="auto">
+              {team?.name || (isRtl ? 'الفريق' : 'Team')}
+            </span>
+          </div>
+        )}
         {teamScore != null && (
-          <span className="ms-auto text-xs font-mono font-black text-amber-300 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30">
+          <span className="ms-auto text-xs font-mono font-black text-amber-300 bg-emerald-950/80 px-2 py-0.5 rounded-md border border-emerald-500/30 shrink-0">
             {teamScore}
           </span>
         )}
@@ -553,6 +577,55 @@ function MatchCardBody({
   onTeamClick = null,
   t,
 }) {
+  const canClickHome = !forExport && onTeamClick && homeTeam?.id != null
+  const canClickAway = !forExport && onTeamClick && awayTeam?.id != null
+
+  const homeLogoBox = (
+    <div className="relative flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+      <div className={`relative ${forExport ? 'size-24 sm:size-28' : 'size-18 xs:size-20 sm:size-24 md:size-28'} aspect-square rounded-2xl bg-white/5 border border-white/10 p-2 flex items-center justify-center shadow-lg shrink-0 overflow-hidden`}>
+        {hasHomeLogo ? (
+          <TeamLogo
+            team={homeTeam}
+            src={homeDataUrl || homeLogoUrl}
+            className="max-h-full max-w-full object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
+            rounded="rounded-none"
+            bg="bg-transparent"
+          />
+        ) : (
+          <TeamLogo team={homeTeam} className="size-full" rounded="rounded-xl" fontSize="text-xl sm:text-2xl font-black" />
+        )}
+      </div>
+      {homeWinner && (
+        <span className="absolute -top-1.5 end-0 grid size-6 sm:size-7 place-items-center rounded-full bg-amber-400 text-amber-950 shadow ring-2 ring-emerald-950">
+          <Trophy className="size-3.5 sm:size-4" />
+        </span>
+      )}
+    </div>
+  )
+
+  const awayLogoBox = (
+    <div className="relative flex items-center justify-center shrink-0 transition-transform group-hover:scale-105">
+      <div className={`relative ${forExport ? 'size-24 sm:size-28' : 'size-18 xs:size-20 sm:size-24 md:size-28'} aspect-square rounded-2xl bg-white/5 border border-white/10 p-2 flex items-center justify-center shadow-lg shrink-0 overflow-hidden`}>
+        {hasAwayLogo ? (
+          <TeamLogo
+            team={awayTeam}
+            src={awayDataUrl || awayLogoUrl}
+            className="max-h-full max-w-full object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
+            rounded="rounded-none"
+            bg="bg-transparent"
+          />
+        ) : (
+          <TeamLogo team={awayTeam} className="size-full" rounded="rounded-xl" fontSize="text-xl sm:text-2xl font-black" />
+        )}
+      </div>
+      {awayWinner && (
+        <span className="absolute -top-1.5 end-0 grid size-6 sm:size-7 place-items-center rounded-full bg-amber-400 text-amber-950 shadow ring-2 ring-emerald-950">
+          <Trophy className="size-3.5 sm:size-4" />
+        </span>
+      )}
+    </div>
+  )
+
   return (
     <div className="relative z-10">
       {/* Status Capsule */}
@@ -579,33 +652,26 @@ function MatchCardBody({
       <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4 md:gap-6">
         {/* Home Team */}
         <div className="flex flex-col items-center text-center">
-          <div
-            className={`relative flex items-center justify-center shrink-0 ${!forExport && onTeamClick && homeTeam ? 'cursor-pointer transition-transform hover:scale-105' : ''}`}
-            onClick={!forExport && onTeamClick && homeTeam ? () => onTeamClick(homeTeam) : undefined}
-            title={!forExport && homeTeam?.name ? `عرض ملف ${homeTeam.name}` : undefined}
-          >
-            <div className={`relative ${forExport ? 'size-24 sm:size-28' : 'size-18 xs:size-20 sm:size-24 md:size-28'} aspect-square rounded-2xl bg-white/5 border border-white/10 p-2 flex items-center justify-center shadow-lg shrink-0 overflow-hidden`}>
-              {hasHomeLogo ? (
-                <TeamLogo
-                  team={homeTeam}
-                  src={homeDataUrl || homeLogoUrl}
-                  className="max-h-full max-w-full object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
-                  rounded="rounded-none"
-                  bg="bg-transparent"
-                />
-              ) : (
-                <TeamLogo team={homeTeam} className="size-full" rounded="rounded-xl" fontSize="text-xl sm:text-2xl font-black" />
-              )}
-            </div>
-            {homeWinner && (
-              <span className="absolute -top-1.5 end-0 grid size-6 sm:size-7 place-items-center rounded-full bg-amber-400 text-amber-950 shadow ring-2 ring-emerald-950">
-                <Trophy className="size-3.5 sm:size-4" />
-              </span>
-            )}
-          </div>
-          <p className={`mt-2.5 w-full ${forExport ? 'max-w-[220px] text-base' : 'max-w-[120px] xs:max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-xs sm:text-base md:text-lg'} font-black text-white drop-shadow leading-tight line-clamp-2 break-words text-center`} dir="auto">
-            {homeTeam?.name || '—'}
-          </p>
+          {canClickHome ? (
+            <button
+              type="button"
+              onClick={() => onTeamClick(homeTeam)}
+              title={`عرض ملف ${homeTeam.name}`}
+              className="group flex flex-col items-center text-center cursor-pointer focus:outline-none"
+            >
+              {homeLogoBox}
+              <p className="mt-2.5 w-full max-w-[120px] xs:max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-xs sm:text-base md:text-lg font-black text-white drop-shadow leading-tight line-clamp-2 break-words text-center group-hover:underline" dir="auto">
+                {homeTeam?.name || '—'}
+              </p>
+            </button>
+          ) : (
+            <>
+              {homeLogoBox}
+              <p className={`mt-2.5 w-full ${forExport ? 'max-w-[220px] text-base' : 'max-w-[120px] xs:max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-xs sm:text-base md:text-lg'} font-black text-white drop-shadow leading-tight line-clamp-2 break-words text-center`} dir="auto">
+                {homeTeam?.name || '—'}
+              </p>
+            </>
+          )}
           {homeSubtitle && (
             <p className="text-[10px] sm:text-xs font-semibold text-emerald-200/60 line-clamp-1">
               {homeSubtitle}
@@ -649,33 +715,26 @@ function MatchCardBody({
 
         {/* Away Team */}
         <div className="flex flex-col items-center text-center">
-          <div
-            className={`relative flex items-center justify-center shrink-0 ${!forExport && onTeamClick && awayTeam ? 'cursor-pointer transition-transform hover:scale-105' : ''}`}
-            onClick={!forExport && onTeamClick && awayTeam ? () => onTeamClick(awayTeam) : undefined}
-            title={!forExport && awayTeam?.name ? `عرض ملف ${awayTeam.name}` : undefined}
-          >
-            <div className={`relative ${forExport ? 'size-24 sm:size-28' : 'size-18 xs:size-20 sm:size-24 md:size-28'} aspect-square rounded-2xl bg-white/5 border border-white/10 p-2 flex items-center justify-center shadow-lg shrink-0 overflow-hidden`}>
-              {hasAwayLogo ? (
-                <TeamLogo
-                  team={awayTeam}
-                  src={awayDataUrl || awayLogoUrl}
-                  className="max-h-full max-w-full object-contain filter drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]"
-                  rounded="rounded-none"
-                  bg="bg-transparent"
-                />
-              ) : (
-                <TeamLogo team={awayTeam} className="size-full" rounded="rounded-xl" fontSize="text-xl sm:text-2xl font-black" />
-              )}
-            </div>
-            {awayWinner && (
-              <span className="absolute -top-1.5 end-0 grid size-6 sm:size-7 place-items-center rounded-full bg-amber-400 text-amber-950 shadow ring-2 ring-emerald-950">
-                <Trophy className="size-3.5 sm:size-4" />
-              </span>
-            )}
-          </div>
-          <p className={`mt-2.5 w-full ${forExport ? 'max-w-[220px] text-base' : 'max-w-[120px] xs:max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-xs sm:text-base md:text-lg'} font-black text-white drop-shadow leading-tight line-clamp-2 break-words text-center`} dir="auto">
-            {awayTeam?.name || '—'}
-          </p>
+          {canClickAway ? (
+            <button
+              type="button"
+              onClick={() => onTeamClick(awayTeam)}
+              title={`عرض ملف ${awayTeam.name}`}
+              className="group flex flex-col items-center text-center cursor-pointer focus:outline-none"
+            >
+              {awayLogoBox}
+              <p className="mt-2.5 w-full max-w-[120px] xs:max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-xs sm:text-base md:text-lg font-black text-white drop-shadow leading-tight line-clamp-2 break-words text-center group-hover:underline" dir="auto">
+                {awayTeam?.name || '—'}
+              </p>
+            </button>
+          ) : (
+            <>
+              {awayLogoBox}
+              <p className={`mt-2.5 w-full ${forExport ? 'max-w-[220px] text-base' : 'max-w-[120px] xs:max-w-[150px] sm:max-w-[190px] md:max-w-[240px] text-xs sm:text-base md:text-lg'} font-black text-white drop-shadow leading-tight line-clamp-2 break-words text-center`} dir="auto">
+                {awayTeam?.name || '—'}
+              </p>
+            </>
+          )}
           {awaySubtitle && (
             <p className="text-[10px] sm:text-xs font-semibold text-emerald-200/60 line-clamp-1">
               {awaySubtitle}
@@ -705,6 +764,7 @@ function MatchCardBody({
                 teamLogo={homeDataUrl || homeLogoUrl}
                 teamScore={homeScore}
                 isRtl={isRtl}
+                forExport={true}
                 t={t}
               />
               <TeamEventsList
@@ -713,6 +773,7 @@ function MatchCardBody({
                 teamLogo={awayDataUrl || awayLogoUrl}
                 teamScore={awayScore}
                 isRtl={isRtl}
+                forExport={true}
                 t={t}
               />
             </div>
@@ -725,6 +786,7 @@ function MatchCardBody({
                   teamLogo={homeDataUrl || homeLogoUrl}
                   teamScore={homeScore}
                   isRtl={isRtl}
+                  onTeamClick={onTeamClick}
                   t={t}
                 />
               </div>
@@ -735,6 +797,7 @@ function MatchCardBody({
                   teamLogo={awayDataUrl || awayLogoUrl}
                   teamScore={awayScore}
                   isRtl={isRtl}
+                  onTeamClick={onTeamClick}
                   t={t}
                 />
               </div>
@@ -765,7 +828,17 @@ export default function MatchGlassModal({
   managerActions = null,
 }) {
   const { t, i18n } = useTranslation()
+  const { openTeam } = useProfileModal()
   const isRtl = i18n.language.startsWith('ar')
+
+  const handleTeamClick = useMemo(() => {
+    if (onTeamClick) return onTeamClick
+    return (team) => {
+      if (team?.id == null) return
+      onClose?.()
+      openTeam(team)
+    }
+  }, [onTeamClick, onClose, openTeam])
 
   const cardRef = useRef(null)
   const storyRef = useRef(null)
@@ -867,7 +940,7 @@ export default function MatchGlassModal({
   const stadiumName = match?.stadium?.name || match?.custom_terrain_name
   const stageOrRoundText =
     match?.round?.name ||
-    match?.group?.name ||
+    (match?.group?.name ? formatGroupName(match.group.name, { groupId: match.group.id }) : null) ||
     (match?.tournament?.name ? match.tournament.name : null) ||
     (match?.stage ? t(`tournament.stages.${match.stage}`, { defaultValue: match.stage }) : null)
 
@@ -991,6 +1064,15 @@ export default function MatchGlassModal({
     }
   }
 
+  useEffect(() => {
+    if (!open) return undefined
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose?.()
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   return (
@@ -1083,7 +1165,11 @@ export default function MatchGlassModal({
       </div>
 
       {/* Main Interactive Modal */}
-      <div className="fixed inset-0 z-[var(--z-modal)] overflow-y-auto p-2 sm:p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-0 z-[var(--z-modal)] overflow-y-auto p-2 sm:p-4"
+      >
         <div className="flex min-h-full items-center justify-center">
           {/* Dark blur backdrop */}
           <div
@@ -1177,7 +1263,7 @@ export default function MatchGlassModal({
                   hasEvents={hasEvents}
                   homeEvents={homeEvents}
                   awayEvents={awayEvents}
-                  onTeamClick={onTeamClick}
+                  onTeamClick={handleTeamClick}
                   t={t}
                 />
 

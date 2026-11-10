@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
@@ -441,13 +441,34 @@ export default function LiveMatch() {
             <div className="grid grid-cols-3 items-center gap-2 p-4 sm:p-6">
               {/* Home Team */}
               <div className="flex flex-col items-center justify-center gap-2 text-center">
-                <Avatar
-                  name={homeTeam?.name}
-                  src={homeTeam?.logo_url}
-                  className="size-12 rounded-2xl sm:size-16 ring-2 ring-emerald-500/20"
-                />
+                {homeTeam?.id != null ? (
+                  <Link to={`/teams/${homeTeam.id}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                    <Avatar
+                      name={homeTeam?.name}
+                      src={homeTeam?.logo_url}
+                      className="size-12 rounded-2xl sm:size-16 ring-2 ring-emerald-500/20"
+                    />
+                  </Link>
+                ) : (
+                  <Avatar
+                    name={homeTeam?.name}
+                    src={homeTeam?.logo_url}
+                    className="size-12 rounded-2xl sm:size-16 ring-2 ring-emerald-500/20"
+                  />
+                )}
                 <p className="line-clamp-2 max-w-[120px] sm:max-w-[160px] text-[11px] font-black text-slate-900 sm:text-sm">
-                  {homeTeam?.name || 'فريق المضيف'}
+                  {homeTeam?.id != null && homeTeam?.name ? (
+                    <Link
+                      to={`/teams/${homeTeam.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-emerald-600 transition-colors"
+                    >
+                      {homeTeam.name}
+                    </Link>
+                  ) : (
+                    homeTeam?.name || 'فريق المضيف'
+                  )}
                 </p>
               </div>
 
@@ -499,13 +520,34 @@ export default function LiveMatch() {
 
               {/* Away Team */}
               <div className="flex flex-col items-center justify-center gap-2 text-center">
-                <Avatar
-                  name={awayTeam?.name}
-                  src={awayTeam?.logo_url}
-                  className="size-12 rounded-2xl sm:size-16 ring-2 ring-slate-200"
-                />
+                {awayTeam?.id != null ? (
+                  <Link to={`/teams/${awayTeam.id}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                    <Avatar
+                      name={awayTeam?.name}
+                      src={awayTeam?.logo_url}
+                      className="size-12 rounded-2xl sm:size-16 ring-2 ring-slate-200"
+                    />
+                  </Link>
+                ) : (
+                  <Avatar
+                    name={awayTeam?.name}
+                    src={awayTeam?.logo_url}
+                    className="size-12 rounded-2xl sm:size-16 ring-2 ring-slate-200"
+                  />
+                )}
                 <p className="line-clamp-2 max-w-[120px] sm:max-w-[160px] text-[11px] font-black text-slate-900 sm:text-sm">
-                  {awayTeam?.name || 'فريق الضيف'}
+                  {awayTeam?.id != null && awayTeam?.name ? (
+                    <Link
+                      to={`/teams/${awayTeam.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-emerald-600 transition-colors"
+                    >
+                      {awayTeam.name}
+                    </Link>
+                  ) : (
+                    awayTeam?.name || 'فريق الضيف'
+                  )}
                 </p>
               </div>
             </div>
@@ -596,9 +638,26 @@ export default function LiveMatch() {
                     {/* Team Header Strip */}
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex items-center gap-2.5">
-                        <Jersey number="" variant="home" className="h-7 w-6" />
+                        {homeTeam?.id != null ? (
+                          <Link to={`/teams/${homeTeam.id}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                            <Jersey number="" variant="home" className="h-7 w-6" />
+                          </Link>
+                        ) : (
+                          <Jersey number="" variant="home" className="h-7 w-6" />
+                        )}
                         <h3 className="text-sm font-black text-slate-900 sm:text-base">
-                          {homeTeam?.name || 'فريق المضيف'}
+                          {homeTeam?.id != null && homeTeam?.name ? (
+                            <Link
+                              to={`/teams/${homeTeam.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-emerald-600 transition-colors"
+                            >
+                              {homeTeam.name}
+                            </Link>
+                          ) : (
+                            homeTeam?.name || 'فريق المضيف'
+                          )}
                         </h3>
                       </div>
 
@@ -718,9 +777,26 @@ export default function LiveMatch() {
                     {/* Team Header Strip */}
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex items-center gap-2.5">
-                        <Jersey number="" variant="away" className="h-7 w-6" />
+                        {awayTeam?.id != null ? (
+                          <Link to={`/teams/${awayTeam.id}`} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                            <Jersey number="" variant="away" className="h-7 w-6" />
+                          </Link>
+                        ) : (
+                          <Jersey number="" variant="away" className="h-7 w-6" />
+                        )}
                         <h3 className="text-sm font-black text-slate-900 sm:text-base">
-                          {awayTeam?.name || 'فريق الضيف'}
+                          {awayTeam?.id != null && awayTeam?.name ? (
+                            <Link
+                              to={`/teams/${awayTeam.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="hover:text-emerald-600 transition-colors"
+                            >
+                              {awayTeam.name}
+                            </Link>
+                          ) : (
+                            awayTeam?.name || 'فريق الضيف'
+                          )}
                         </h3>
                       </div>
 
@@ -869,7 +945,18 @@ export default function LiveMatch() {
                             {ev.description || ev.player?.name || 'حدث'}
                           </p>
                           <p className="text-[10px] font-bold text-slate-400">
-                            {ev.team?.name || 'مباراة'}
+                            {(ev.team?.id ?? ev.team_id) != null && ev.team?.name ? (
+                              <Link
+                                to={`/teams/${ev.team?.id ?? ev.team_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="hover:text-emerald-600 transition-colors"
+                              >
+                                {ev.team.name}
+                              </Link>
+                            ) : (
+                              ev.team?.name || 'مباراة'
+                            )}
                           </p>
                         </div>
                       </div>
@@ -895,7 +982,20 @@ export default function LiveMatch() {
               <h3 className="mb-4 text-sm font-black text-slate-900">ملخص المباراة</h3>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-xs font-black text-slate-800">{homeTeam?.name}</p>
+                  <p className="text-xs font-black text-slate-800">
+                    {homeTeam?.id != null && homeTeam?.name ? (
+                      <Link
+                        to={`/teams/${homeTeam.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-emerald-600 transition-colors"
+                      >
+                        {homeTeam.name}
+                      </Link>
+                    ) : (
+                      homeTeam?.name
+                    )}
+                  </p>
                   <div className="mt-3 space-y-1 text-xs font-bold text-slate-600">
                     <p>الأهداف: {score.home}</p>
                     <p>
@@ -905,7 +1005,20 @@ export default function LiveMatch() {
                 </div>
 
                 <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-xs font-black text-slate-800">{awayTeam?.name}</p>
+                  <p className="text-xs font-black text-slate-800">
+                    {awayTeam?.id != null && awayTeam?.name ? (
+                      <Link
+                        to={`/teams/${awayTeam.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-emerald-600 transition-colors"
+                      >
+                        {awayTeam.name}
+                      </Link>
+                    ) : (
+                      awayTeam?.name
+                    )}
+                  </p>
                   <div className="mt-3 space-y-1 text-xs font-bold text-slate-600">
                     <p>الأهداف: {score.away}</p>
                     <p>
@@ -951,6 +1064,8 @@ export default function LiveMatch() {
             <EndMatchModal
               open={endModalOpen}
               score={score}
+              homeTeamId={homeTeam?.id}
+              awayTeamId={awayTeam?.id}
               homeTeamName={homeTeam?.name}
               awayTeamName={awayTeam?.name}
               busy={busyAction === 'finish'}

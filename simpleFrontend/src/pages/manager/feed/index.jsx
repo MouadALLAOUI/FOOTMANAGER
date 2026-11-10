@@ -1,7 +1,7 @@
 import i18n from '../../../i18n'
 import { useTranslation } from 'react-i18next'
 import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft,
   CalendarDays,
@@ -208,7 +208,19 @@ function AcceptModal({ match, onClose, onDone }) {
           <div className="rounded-3xl bg-gradient-to-l from-[#0b1220] to-[#12321f] p-6 text-center text-white">
             <div className="flex items-center justify-center gap-6">
               <div className="flex flex-col items-center gap-2">
-                <span className="text-2xl font-black">{result.match_request?.host_team?.name}</span>
+                <span className="text-2xl font-black">
+                  {result.match_request?.host_team?.id != null ? (
+                    <Link
+                      to={`/teams/${result.match_request.host_team.id}`}
+                      onClick={onClose}
+                      className="hover:text-green-300 transition-colors"
+                    >
+                      {result.match_request.host_team.name}
+                    </Link>
+                  ) : (
+                    result.match_request?.host_team?.name
+                  )}
+                </span>
                 <span className="text-[10px] font-bold text-white/40">{t('dash.hostTeam')}</span>
               </div>
               <span className="grid size-10 place-items-center rounded-full bg-white/10 text-green-400">
@@ -256,7 +268,18 @@ function AcceptModal({ match, onClose, onDone }) {
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-center">
             <p className="text-sm font-extrabold text-slate-800">
-              {match?.host_team?.name} <span className="mx-1 text-slate-300">{t('dash.vs')}</span> {t('dash.yourTeam')}
+              {match?.host_team?.id != null ? (
+                <Link
+                  to={`/teams/${match.host_team.id}`}
+                  onClick={onClose}
+                  className="hover:text-green-600 transition-colors"
+                >
+                  {match.host_team.name}
+                </Link>
+              ) : (
+                match?.host_team?.name
+              )}{' '}
+              <span className="mx-1 text-slate-300">{t('dash.vs')}</span> {t('dash.yourTeam')}
             </p>
             <p className="mt-1 text-xs font-semibold text-slate-400">
               {datetime

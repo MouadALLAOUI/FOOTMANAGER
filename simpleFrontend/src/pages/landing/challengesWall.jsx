@@ -1,18 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  CalendarDays,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Flame,
   MapPin,
-  MessageCircle,
-  Phone,
-  Shield,
   Swords,
-  Trophy,
-  Users,
-  Zap,
 } from 'lucide-react'
 import api from '../../api/client'
 import TeamLogo from '../../components/profile/TeamLogo'
@@ -162,22 +154,49 @@ export default function RegisteredTeamsChallenge({ theme = 'dark' }) {
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 {/* Team Info */}
                 <div className="flex items-center gap-3.5 w-full sm:w-auto">
-                  <div className="size-14 sm:size-18 shrink-0 rounded-2xl bg-white p-1.5 sm:p-2 shadow-md flex items-center justify-center overflow-hidden ring-1 ring-white/20">
-                    {currentTeam.logo_url ? (
-                      <img
-                        src={currentTeam.logo_url}
-                        alt={currentTeam.name}
-                        className="size-full object-contain"
-                      />
-                    ) : (
-                      <TeamLogo team={currentTeam} size="lg" />
-                    )}
-                  </div>
+                  {currentTeam.id != null ? (
+                    <Link
+                      to={`/teams/${currentTeam.id}`}
+                      aria-label={currentTeam.name}
+                      className="size-14 sm:size-18 shrink-0 rounded-2xl bg-white p-1.5 sm:p-2 shadow-md flex items-center justify-center overflow-hidden ring-1 ring-white/20 transition-transform hover:scale-105"
+                    >
+                      {currentTeam.logo_url ? (
+                        <img
+                          src={currentTeam.logo_url}
+                          alt={currentTeam.name}
+                          className="size-full object-contain"
+                        />
+                      ) : (
+                        <TeamLogo team={currentTeam} size="lg" />
+                      )}
+                    </Link>
+                  ) : (
+                    <div className="size-14 sm:size-18 shrink-0 rounded-2xl bg-white p-1.5 sm:p-2 shadow-md flex items-center justify-center overflow-hidden ring-1 ring-white/20">
+                      {currentTeam.logo_url ? (
+                        <img
+                          src={currentTeam.logo_url}
+                          alt={currentTeam.name}
+                          className="size-full object-contain"
+                        />
+                      ) : (
+                        <TeamLogo team={currentTeam} size="lg" />
+                      )}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2] whitespace-nowrap">
-                        {currentTeam.name}
-                      </h3>
+                      {currentTeam.id != null ? (
+                        <Link
+                          to={`/teams/${currentTeam.id}`}
+                          className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2] whitespace-nowrap hover:text-[#179955] dark:hover:text-[#D0FF38] hover:underline transition-colors"
+                        >
+                          {currentTeam.name}
+                        </Link>
+                      ) : (
+                        <h3 className="text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2] whitespace-nowrap">
+                          {currentTeam.name}
+                        </h3>
+                      )}
                       {/* Real Presence Indicator */}
                       {currentTeam.manager_online ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 px-2.5 py-0.5 text-[10px] font-black text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]">

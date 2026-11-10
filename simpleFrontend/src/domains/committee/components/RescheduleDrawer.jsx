@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
@@ -20,6 +21,7 @@ import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import { formatGroupName } from '../../../lib/groupNames'
+import { getGroupColor } from '../../../lib/groupColors'
 import TimeSlotPicker from '../../../components/TimeSlotPicker'
 import useTerrainSlots from '../../../hooks/useTerrainSlots'
 import { buildTimeSlots } from '../../../lib/timeSlots'
@@ -35,6 +37,7 @@ export default function RescheduleDrawer({
   onOpenResult,
   isOpeningMatch = false,
   onToggleOpeningMatch,
+  orderedGroups = [],
 }) {
   const { t } = useTranslation()
   const { toast } = useToast()
@@ -141,6 +144,7 @@ export default function RescheduleDrawer({
   const groupOrRoundLabel = fixture.group?.name
     ? formatGroupName(fixture.group.name, { groupId: fixture.group.id, tournamentId: tournament?.id })
     : fixture.round?.name || (fixture.matchday ? `الجولة ${fixture.matchday}` : 'دور المجموعات')
+  const groupColor = fixture.group ? getGroupColor(fixture.group, orderedGroups) : null
 
   const save = async (override = false) => {
     setBusy(true)
@@ -242,9 +246,9 @@ export default function RescheduleDrawer({
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 pt-1">
               <div className="flex items-center gap-2.5 min-w-0">
                 <span className="truncate text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                  {fixture.home_team?.name || 'الفريق الأول'}
+                  {fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} onClick={() => onClose?.()} className="hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors">{fixture.home_team.name}</Link> : (fixture.home_team?.name || 'الفريق الأول')}
                 </span>
-                <TeamAvatar team={fixture.home_team} className="size-9 shrink-0" />
+                <TeamAvatar team={fixture.home_team} to={fixture.home_team?.id != null ? `/teams/${fixture.home_team.id}` : undefined} onClick={() => onClose?.()} className="size-9 shrink-0" />
               </div>
 
               <span className="rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-xs font-black text-[#65706A] dark:text-[#B2B9B3]">
@@ -252,9 +256,9 @@ export default function RescheduleDrawer({
               </span>
 
               <div className="flex items-center justify-end gap-2.5 min-w-0">
-                <TeamAvatar team={fixture.away_team} className="size-9 shrink-0" />
+                <TeamAvatar team={fixture.away_team} to={fixture.away_team?.id != null ? `/teams/${fixture.away_team.id}` : undefined} onClick={() => onClose?.()} className="size-9 shrink-0" />
                 <span className="truncate text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                  {fixture.away_team?.name || 'الفريق الثاني'}
+                  {fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} onClick={() => onClose?.()} className="hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors">{fixture.away_team.name}</Link> : (fixture.away_team?.name || 'الفريق الثاني')}
                 </span>
               </div>
             </div>
@@ -387,9 +391,16 @@ export default function RescheduleDrawer({
                 <Layers className="size-4 text-[#65706A] dark:text-[#B2B9B3]" />
                 <span>المجموعة</span>
               </div>
-              <span className="text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                {groupOrRoundLabel}
-              </span>
+              {groupColor ? (
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-black ${groupColor.badgeCls}`}>
+                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: groupColor.hex }} />
+                  <span>{groupOrRoundLabel}</span>
+                </span>
+              ) : (
+                <span className="text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                  {groupOrRoundLabel}
+                </span>
+              )}
             </div>
           </div>
 
@@ -478,7 +489,7 @@ export default function RescheduleDrawer({
             </div>
 
             <div className="flex items-center justify-center gap-3">
-              <TeamAvatar team={fixture.home_team} className="size-9 shrink-0" />
+              <TeamAvatar team={fixture.home_team} to={fixture.home_team?.id != null ? `/teams/${fixture.home_team.id}` : undefined} onClick={() => onClose?.()} className="size-9 shrink-0" />
               <input
                 type="number"
                 min="0"
@@ -496,7 +507,7 @@ export default function RescheduleDrawer({
                 onChange={(e) => setAwayScore(e.target.value)}
                 className="h-11 w-16 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-center text-lg font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums focus:outline-none focus:border-[#B8F000]"
               />
-              <TeamAvatar team={fixture.away_team} className="size-9 shrink-0" />
+              <TeamAvatar team={fixture.away_team} to={fixture.away_team?.id != null ? `/teams/${fixture.away_team.id}` : undefined} onClick={() => onClose?.()} className="size-9 shrink-0" />
             </div>
           </div>
 

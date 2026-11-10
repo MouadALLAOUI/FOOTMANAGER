@@ -4,11 +4,8 @@ import {
   ChevronLeft,
   Landmark,
   Loader2,
-  MapPin,
   Search,
   Shield,
-  Sparkles,
-  Target,
   Trophy,
   User,
   X,
@@ -77,7 +74,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
           setSuggestions(d)
         })
         .catch(() => {
-          // Fallback to general search endpoint
           api
             .get('/search', { params: { q, limit: 3 } })
             .then((res2) => {
@@ -137,13 +133,12 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
     } else if (type === 'stadium') {
       navigate(`/fields?search=${encodeURIComponent(item.name)}`)
     } else if (type === 'team') {
-      navigate(`/matches?team=${encodeURIComponent(item.name)}`)
+      navigate(item.id != null ? `/teams/${item.id}` : `/matches?team=${encodeURIComponent(item.name)}`)
     } else if (type === 'player') {
       navigate(`/players/${item.id}`)
     }
   }
 
-  // Proper Arabic plural rules for live matches
   const formatLiveMatchesText = (count) => {
     if (count <= 0) return ''
     if (count === 1) return 'مباراة واحدة مباشرة الآن'
@@ -152,7 +147,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
     return `${count} مباراة مباشرة الآن`
   }
 
-  // Organize tournament link: opens wizard or login if guest
   const organizeTournamentLink = user
     ? '/committee/tournaments/wizard'
     : '/login?redirect=' + encodeURIComponent('/committee/tournaments/wizard')
@@ -171,7 +165,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
         suggestOpen ? 'z-30' : 'z-0'
       }`}
     >
-      {/* 1. Background Picture */}
       <picture className="absolute inset-0 size-full overflow-hidden rounded-b-[24px]">
         <source srcSet="/hero-morocco-800w.webp" media="(max-width: 640px)" type="image/webp" />
         <source srcSet="/hero-morocco-1600w.webp" media="(min-width: 641px)" type="image/webp" />
@@ -188,20 +181,16 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
         />
       </picture>
 
-      {/* 2. Lightened Linear Gradient Overlay: 20% at top to 85% at bottom */}
       <div
         className="absolute inset-0 pointer-events-none z-1 bg-gradient-to-b from-black/25 via-black/55 to-black/85 dark:from-[#101211]/45 dark:via-[#101211]/75 dark:to-[#101211]/95 rounded-b-[24px]"
         aria-hidden="true"
       />
 
-      {/* 3. Integrated Platform Header (Transparent, directly over the mountain sunset sky) */}
       <div className="relative z-30 w-full">
         <MainHeader theme={theme} onToggleTheme={onToggleTheme} transparent={true} />
       </div>
 
-      {/* 4. Hero Interactive Content */}
       <div className="relative z-10 flex w-full max-w-4xl flex-col items-center px-4 pt-3 pb-8 sm:pt-6 sm:pb-14">
-        {/* Live Matches Badge */}
         {liveCount > 0 && (
           <div className="flex items-center justify-center mb-3 sm:mb-6">
             <Link
@@ -217,7 +206,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
           </div>
         )}
 
-        {/* Title in White with soft text shadow */}
         <h1
           style={{ textShadow: '0 2px 12px rgba(0,0,0,0.45)' }}
           className="leading-tight sm:leading-snug max-w-3xl tracking-tight text-white"
@@ -230,7 +218,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
           </span>
         </h1>
 
-        {/* Subtitle with text-wrap: balance */}
         <p
           style={{
             textShadow: '0 2px 12px rgba(0,0,0,0.45)',
@@ -241,7 +228,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
           كل ما يحتاجه المنظّم واللاعب في مكان واحد، وبأداء احترافي.
         </p>
 
-        {/* CTA Buttons */}
         <div className="mt-4 sm:mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 w-full max-w-md">
           <Link
             to="/stadiums"
@@ -258,11 +244,9 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
           </Link>
         </div>
 
-        {/* 4. Smart Search Bar with Flexible Responsive Sizing & Subtle Focus */}
         <div ref={searchContainerRef} className="relative z-30 mt-3.5 sm:mt-6 w-full max-w-lg mx-auto">
           <form onSubmit={handleSearch} role="search">
             <div className="relative flex h-12 sm:h-13 w-full items-center rounded-xl bg-white dark:bg-[#1B201D] ps-3.5 sm:ps-4 pe-20 sm:pe-24 border border-[#E1E5DF] dark:border-[#303832] shadow-sm transition-all focus-within:border-[#B8F000] focus-within:ring-2 focus-within:ring-[#B8F000]/30">
-              {/* Text Input with RTL Alignment & iOS zoom prevention (16px) */}
               <input
                 ref={inputRef}
                 type="text"
@@ -288,7 +272,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                 className="h-full w-full bg-transparent text-[16px] sm:text-sm font-bold text-[#111313] dark:text-[#F5F7F2] placeholder:text-[#65706A] dark:placeholder:text-[#B2B9B3] outline-none text-start"
               />
 
-              {/* Action Buttons on Left in RTL (end-*) */}
               {suggestLoading ? (
                 <div className="absolute end-12 sm:end-13 grid size-7 place-items-center text-emerald-600">
                   <Loader2 className="size-4 animate-spin" />
@@ -308,7 +291,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                 </button>
               ) : null}
 
-              {/* Green Circular Search Button */}
               <button
                 type="submit"
                 aria-label="بدء البحث"
@@ -319,7 +301,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
             </div>
           </form>
 
-          {/* 5. Floating Live Auto-Suggest Popover - Floats strictly on top of Statistics Bar (z-40) */}
           {suggestOpen && searchTerm.trim().length >= 1 && (
             <div
               id="search-suggestions-popover"
@@ -337,7 +318,7 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                 </div>
               ) : (
                 <div className="max-h-[min(52dvh,340px)] overflow-y-auto overscroll-contain divide-y divide-[#E1E5DF] dark:divide-[#303832] p-2 text-start">
-                  {/* قسم اللاعبين (Matching Reference Image) */}
+                  {/* قسم اللاعبين */}
                   {suggestions.players && suggestions.players.length > 0 && (
                     <div className="py-1.5">
                       <div className="flex items-center gap-1.5 px-3 py-1 text-[11px] font-black text-emerald-700 tracking-wider">
@@ -352,7 +333,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                           className="group flex w-full items-center justify-between gap-3 rounded-lg p-2.5 sm:p-3 text-start hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            {/* Player Avatar with Fallback Monogram */}
                             <div className="relative size-10 sm:size-11 shrink-0 overflow-hidden rounded-full border border-slate-200/80 bg-slate-100 grid place-items-center shadow-xs">
                               {pl.photo_thumbnail_url || pl.photo_url ? (
                                 <img
@@ -374,7 +354,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                               </span>
                             </div>
 
-                            {/* Player Info Column */}
                             <div className="min-w-0 flex flex-col">
                               <span className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] group-hover:text-[#16834A] dark:group-hover:text-[#42D889] transition-colors truncate">
                                 {pl.name}
@@ -389,7 +368,6 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                             </div>
                           </div>
 
-                          {/* Left Chevron Indicator */}
                           <ChevronLeft className="size-4 text-slate-400 group-hover:text-slate-600 group-hover:-translate-x-0.5 transition-all shrink-0" />
                         </button>
                       ))}
@@ -411,10 +389,10 @@ export default function HeroSection({ theme = 'dark', onSearchSubmit, onToggleTh
                           className="group flex w-full items-center justify-between gap-3 rounded-lg p-2.5 sm:p-3 text-start hover:bg-[#E9ECE7] dark:hover:bg-[#252B27] transition-colors cursor-pointer"
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-700 border border-sky-100 shadow-xs">
-                              {tm.logo_url || tm.logo_path ? (
+                            <div className="grid size-10 sm:size-11 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-700 border border-sky-100 shadow-xs overflow-hidden">
+                              {tm.logo_url || tm.logo_path || tm.image_url ? (
                                 <img
-                                  src={tm.logo_url || tm.logo_path}
+                                  src={tm.logo_url || tm.logo_path || tm.image_url}
                                   alt={tm.name}
                                   className="size-full rounded-2xl object-cover"
                                   onError={(e) => { e.currentTarget.style.display = 'none' }}

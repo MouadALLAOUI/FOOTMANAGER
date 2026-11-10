@@ -118,10 +118,15 @@ export function toMatchCard(m) {
 
 export function toLiveMatchCard(m) {
   const host = m.host_team || {}
+  const away = m.opponent_team || {}
   return {
     id: m.id,
+    homeId: host.id ?? null,
+    awayId: away.id ?? null,
     home: host.name || '—',
-    away: m.opponent_team?.name || '—',
+    away: away.name || '—',
+    homeTeam: host.id != null ? host : null,
+    awayTeam: away.id != null ? away : null,
     homeScore: 0,
     awayScore: 0,
     minute: m.minute ?? 0,
@@ -138,6 +143,7 @@ export function toTeamCard(m) {
     id: m.id,
     teamId: host.id,
     name: host.name || '—',
+    logo_url: host.logo_url || null,
     level: mapLevel(host.level),
     city: m.stadium?.city || host.city || '',
     day: m.match_datetime,

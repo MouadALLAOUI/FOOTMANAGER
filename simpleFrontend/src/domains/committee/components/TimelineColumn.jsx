@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import EventRow from './EventRow'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
 
@@ -13,8 +14,8 @@ export default function TimelineColumn({ team, events, freshKey, onEdit, onDelet
       {team && (
         <div className="mb-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
-            <TeamAvatar team={team.team} className="size-6" />
-            <span className="truncate text-xs font-black text-slate-800">{team.name}</span>
+            <TeamAvatar team={team.team} to={(team.team?.id ?? team.id) != null ? `/teams/${team.team?.id ?? team.id}` : undefined} target="_blank" className="size-6" />
+            <span className="truncate text-xs font-black text-slate-800">{(team.team?.id ?? team.id) != null ? <Link to={`/teams/${team.team?.id ?? team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{team.name}</Link> : team.name}</span>
           </div>
           <span className="text-base font-black tabular-nums text-slate-900">{team.score ?? 0}</span>
         </div>

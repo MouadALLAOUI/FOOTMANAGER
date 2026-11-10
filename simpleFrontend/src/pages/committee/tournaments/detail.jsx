@@ -117,7 +117,13 @@ export default function TournamentDetail() {
   }
 
   const bump = () => setRefresh((v) => v + 1)
-  const tabProps = { tournament: tour, refresh: bump, refreshKey: refresh, setActive }
+  const tabProps = {
+    tournament: tour,
+    refresh: bump,
+    refreshKey: refresh,
+    setActive,
+    onOpenExport: () => setExportOpen(true),
+  }
 
   if (loading && !tour) {
     return (
@@ -474,22 +480,56 @@ export default function TournamentDetail() {
               {pendingFixtures.map((fix) => {
                 const sub = fix.delegated_submission
                 return (
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     key={fix.id}
-                    type="button"
                     onClick={() => {
                       setPendingPickerOpen(false)
                       setReviewSubmissionFixture(fix)
                     }}
-                    className="w-full flex items-center justify-between p-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] transition-all text-start group shadow-2xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        setPendingPickerOpen(false)
+                        setReviewSubmissionFixture(fix)
+                      }
+                    }}
+                    className="w-full flex items-center justify-between p-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] transition-all text-start group shadow-2xs cursor-pointer"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 font-black text-xs text-[#111313] dark:text-[#F5F7F2]">
-                        <span>{fix.home_team?.name || 'المضيف'}</span>
+                        {fix.home_team?.id != null ? (
+                          <Link
+                            to={`/teams/${fix.home_team.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPendingPickerOpen(false)
+                            }}
+                            className="hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors"
+                          >
+                            {fix.home_team.name}
+                          </Link>
+                        ) : (
+                          <span>{fix.home_team?.name || 'المضيف'}</span>
+                        )}
                         <span className="rounded-md bg-[#111313] dark:bg-[#252B27] text-white px-2 py-0.5 text-xs tabular-nums font-mono">
                           {sub?.home_score ?? 0} - {sub?.away_score ?? 0}
                         </span>
-                        <span>{fix.away_team?.name || 'الضيف'}</span>
+                        {fix.away_team?.id != null ? (
+                          <Link
+                            to={`/teams/${fix.away_team.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setPendingPickerOpen(false)
+                            }}
+                            className="hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors"
+                          >
+                            {fix.away_team.name}
+                          </Link>
+                        ) : (
+                          <span>{fix.away_team?.name || 'الضيف'}</span>
+                        )}
                       </div>
                       <p className="text-[11px] font-semibold text-[#65706A] dark:text-[#B2B9B3] mt-1">
                         مسجلة بواسطة: <span className="text-[#111313] dark:text-[#F5F7F2] font-bold">{sub?.recorder_name || 'مندوب المباراة'}</span>
@@ -502,7 +542,7 @@ export default function TournamentDetail() {
                       </p>
                     </div>
                     <ArrowRight className="size-4 text-[#65706A] group-hover:text-[#1F9D55] dark:group-hover:text-[#D0FF38] rtl:rotate-180 transition-colors" />
-                  </button>
+                  </div>
                 )
               })}
             </div>

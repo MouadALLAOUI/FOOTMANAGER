@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   User,
@@ -1199,7 +1199,7 @@ export default function DelegatedMatchEntryPage() {
           <div className="bg-slate-50 rounded-2xl p-4 text-center mb-6 border border-slate-200/80">
             <p className="text-xs text-slate-500 font-bold mb-1">المباراة المفوضة</p>
             <p className="text-base font-black text-slate-900">
-              {fixture.home_team?.name} <span className="text-emerald-600 font-bold mx-1">ضد</span> {fixture.away_team?.name}
+              {fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{fixture.home_team?.name}</Link> : fixture.home_team?.name} <span className="text-emerald-600 font-bold mx-1">ضد</span> {fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{fixture.away_team?.name}</Link> : fixture.away_team?.name}
             </p>
           </div>
 
@@ -1263,7 +1263,7 @@ export default function DelegatedMatchEntryPage() {
         <div className="rounded-3xl bg-white border border-slate-200 p-5 my-4 max-w-sm w-full shadow-lg">
           <div className="text-xs font-bold text-slate-400 mb-2">النتيجة المسجلة:</div>
           <div className="text-3xl font-black text-slate-900">
-            {fixture.home_team?.name} <span className="text-emerald-600 mx-2">{displayScore.home} - {displayScore.away}</span> {fixture.away_team?.name}
+            {fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{fixture.home_team?.name}</Link> : fixture.home_team?.name} <span className="text-emerald-600 mx-2">{displayScore.home} - {displayScore.away}</span> {fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{fixture.away_team?.name}</Link> : fixture.away_team?.name}
           </div>
           <div className="mt-4 text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 rounded-xl p-2.5">
             الحالة: بانتظار اعتماد اللجنة المنظمة
@@ -1349,10 +1349,10 @@ export default function DelegatedMatchEntryPage() {
               {/* Home Team Card */}
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 text-center">
                 <div className="flex items-center justify-center gap-3">
-                  <TeamLogo team={homeTeam} name={homeName} className="size-12 rounded-2xl ring-1 ring-slate-100" />
+                  {homeId != null ? <Link to={`/teams/${homeId}`} target="_blank" rel="noopener noreferrer" className="shrink-0 hover:opacity-80 transition"><TeamLogo team={homeTeam} name={homeName} className="size-12 rounded-2xl ring-1 ring-slate-100" /></Link> : <TeamLogo team={homeTeam} name={homeName} className="size-12 rounded-2xl ring-1 ring-slate-100" />}
                   <div className="text-right">
                     <p className="text-xs font-bold text-slate-400">الفريق المضيف</p>
-                    <h3 className="text-base font-black text-slate-900">{homeName}</h3>
+                    <h3 className="text-base font-black text-slate-900">{homeId != null ? <Link to={`/teams/${homeId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{homeName}</Link> : homeName}</h3>
                   </div>
                 </div>
 
@@ -1415,10 +1415,10 @@ export default function DelegatedMatchEntryPage() {
               {/* Away Team Card */}
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 text-center">
                 <div className="flex items-center justify-center gap-3">
-                  <TeamLogo team={awayTeam} name={awayName} className="size-12 rounded-2xl ring-1 ring-slate-100" />
+                  {awayId != null ? <Link to={`/teams/${awayId}`} target="_blank" rel="noopener noreferrer" className="shrink-0 hover:opacity-80 transition"><TeamLogo team={awayTeam} name={awayName} className="size-12 rounded-2xl ring-1 ring-slate-100" /></Link> : <TeamLogo team={awayTeam} name={awayName} className="size-12 rounded-2xl ring-1 ring-slate-100" />}
                   <div className="text-right">
                     <p className="text-xs font-bold text-slate-400">الفريق الضيف</p>
-                    <h3 className="text-base font-black text-slate-900">{awayName}</h3>
+                    <h3 className="text-base font-black text-slate-900">{awayId != null ? <Link to={`/teams/${awayId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{awayName}</Link> : awayName}</h3>
                   </div>
                 </div>
 

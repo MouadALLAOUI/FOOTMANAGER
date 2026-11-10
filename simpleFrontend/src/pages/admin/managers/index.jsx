@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Users } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
@@ -33,7 +34,17 @@ export default function Managers() {
           render: (u) => (
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-700">
               <Users className="size-4 text-slate-400" />
-              {u.team?.name || 'بدون فريق'}
+              {u.team?.id != null && u.team?.name ? (
+                <Link
+                  to={`/teams/${u.team.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:text-green-600 transition-colors"
+                >
+                  {u.team.name}
+                </Link>
+              ) : (
+                u.team?.name || 'بدون فريق'
+              )}
             </span>
           ),
         },
@@ -51,9 +62,23 @@ export default function Managers() {
           <div className="rounded-3xl border border-slate-100 p-5">
             <p className="mb-4 text-[11px] font-black uppercase tracking-wider text-slate-400">معلومات الفريق</p>
             <div className="flex items-center gap-4">
-              <TeamLogo team={team} className="size-14" rounded="rounded-2xl" fontSize="text-lg" />
+              <TeamLogo
+                team={team}
+                to={team?.id != null ? `/teams/${team.id}` : undefined}
+                className="size-14"
+                rounded="rounded-2xl"
+                fontSize="text-lg"
+              />
               <div>
-                <p className="text-base font-black text-slate-900">{team.name}</p>
+                <p className="text-base font-black text-slate-900">
+                  {team?.id != null ? (
+                    <Link to={`/teams/${team.id}`} className="hover:text-green-600 transition-colors">
+                      {team.name}
+                    </Link>
+                  ) : (
+                    team.name
+                  )}
+                </p>
                 <p className="mt-0.5 text-xs text-slate-400">{team.city || '—'}</p>
               </div>
             </div>

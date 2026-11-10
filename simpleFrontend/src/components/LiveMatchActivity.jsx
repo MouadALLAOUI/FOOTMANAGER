@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Flame, MapPin, Radio, Shield, Sparkles } from 'lucide-react'
+import { Flame, MapPin, Radio, Sparkles } from 'lucide-react'
 import { Badge } from './dashboard/ui'
 import TeamLogo from './profile/TeamLogo'
-import { useProfileModal } from './profile/ProfileModalContext'
 import { LIVE_STATUSES } from '../data/fixtures'
 
 const EVENT_COLORS = {
@@ -29,7 +28,6 @@ function EventChip({ event, t }) {
 
 export default function LiveMatchActivity({ load, deps = [], pollMs = 15000, enabled = true }) {
   const { t } = useTranslation()
-  const { openTeam } = useProfileModal()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -83,16 +81,24 @@ export default function LiveMatchActivity({ load, deps = [], pollMs = 15000, ena
                 className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5"
               >
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <TeamLogo
-                      team={f.home_team}
-                      className="size-8 shrink-0"
-                      onClick={f.home_team?.id != null ? () => openTeam(f.home_team) : undefined}
-                    />
-                    <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                      {f.home_team?.name}
-                    </span>
-                  </div>
+                  {f.home_team?.id != null ? (
+                    <Link
+                      to={`/teams/${f.home_team.id}`}
+                      className="group flex min-w-0 items-center gap-2 hover:opacity-85 transition-opacity"
+                    >
+                      <TeamLogo team={f.home_team} className="size-8 shrink-0" />
+                      <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] group-hover:underline">
+                        {f.home_team?.name}
+                      </span>
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 items-center gap-2">
+                      <TeamLogo team={f.home_team} className="size-8 shrink-0" />
+                      <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {f.home_team?.name}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex flex-col items-center px-2">
                     <span
                       dir="ltr"
@@ -106,16 +112,24 @@ export default function LiveMatchActivity({ load, deps = [], pollMs = 15000, ena
                         : t(`status.${f.match?.status}`)}
                     </Badge>
                   </div>
-                  <div className="flex min-w-0 items-center justify-end gap-2">
-                    <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                      {f.away_team?.name}
-                    </span>
-                    <TeamLogo
-                      team={f.away_team}
-                      className="size-8 shrink-0"
-                      onClick={f.away_team?.id != null ? () => openTeam(f.away_team) : undefined}
-                    />
-                  </div>
+                  {f.away_team?.id != null ? (
+                    <Link
+                      to={`/teams/${f.away_team.id}`}
+                      className="group flex min-w-0 items-center justify-end gap-2 hover:opacity-85 transition-opacity"
+                    >
+                      <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] group-hover:underline">
+                        {f.away_team?.name}
+                      </span>
+                      <TeamLogo team={f.away_team} className="size-8 shrink-0" />
+                    </Link>
+                  ) : (
+                    <div className="flex min-w-0 items-center justify-end gap-2">
+                      <span className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {f.away_team?.name}
+                      </span>
+                      <TeamLogo team={f.away_team} className="size-8 shrink-0" />
+                    </div>
+                  )}
                 </div>
                 {f.stadium && (
                   <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
@@ -147,12 +161,32 @@ export default function LiveMatchActivity({ load, deps = [], pollMs = 15000, ena
                 key={f.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3 py-2"
               >
-                <div className="flex items-center gap-2 text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
-                  <span>{f.home_team?.name}</span>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+                  {f.home_team?.id != null ? (
+                    <Link
+                      to={`/teams/${f.home_team.id}`}
+                      className="inline-flex items-center gap-1.5 hover:text-[#179955] dark:hover:text-[#D0FF38] hover:underline"
+                    >
+                      <TeamLogo team={f.home_team} className="size-4.5 shrink-0" />
+                      <span>{f.home_team?.name}</span>
+                    </Link>
+                  ) : (
+                    <span>{f.home_team?.name}</span>
+                  )}
                   <span className="font-black text-[#179955] dark:text-[#D0FF38] tabular-nums">
                     {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
                   </span>
-                  <span>{f.away_team?.name}</span>
+                  {f.away_team?.id != null ? (
+                    <Link
+                      to={`/teams/${f.away_team.id}`}
+                      className="inline-flex items-center gap-1.5 hover:text-[#179955] dark:hover:text-[#D0FF38] hover:underline"
+                    >
+                      <span>{f.away_team?.name}</span>
+                      <TeamLogo team={f.away_team} className="size-4.5 shrink-0" />
+                    </Link>
+                  ) : (
+                    <span>{f.away_team?.name}</span>
+                  )}
                   {f.mvp?.player && (
                     <span className="ms-1 inline-flex items-center gap-1 rounded-full bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 px-2 py-0.5 text-[10px] font-bold text-[#111313] dark:text-[#D0FF38]">
                       <Flame className="size-3" /> MVP:{' '}

@@ -11,6 +11,8 @@ import {
 import { Button, Skeleton } from '../../../components/dashboard/ui'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
 import { matchDay, formatTime } from '../../../lib/adapters'
+import { formatGroupName } from '../../../lib/groupNames'
+import { getGroupColor } from '../../../lib/groupColors'
 import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import { LIVE_STATUSES, PILL_STYLES } from '../../../data/fixtures'
 import TournamentMatchCard from './TournamentMatchCard'
@@ -47,6 +49,7 @@ export default function MatchCard({
   teamById,
   onStageSlot,
   slotErrors,
+  orderedGroups = [],
 }) {
   const { t, i18n } = useTranslation()
   const [prevOpen, setPrevOpen] = useState(false)
@@ -76,9 +79,10 @@ export default function MatchCard({
           locked={locked}
           customRoundLabel={
             f.group?.name
-              ? `${t('committee.detail.groupName')} ${f.group.name} · ج ${f.matchday || number}`
+              ? `${formatGroupName(f.group.name, { groupId: f.group.id, tournamentId: tournament?.id })} · ج ${f.matchday || number}`
               : t('committee.detail.matchNumber', { n: number })
           }
+          orderedGroups={orderedGroups}
           onResult={onResult}
           onDetails={onDetails}
           onReschedule={onReschedule}
@@ -128,12 +132,27 @@ export default function MatchCard({
     )
   }
 
+  const slotGroupColor = f.group ? getGroupColor(f.group, orderedGroups) : null
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs">
+    <div
+      className={`overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs ${
+        slotGroupColor ? 'border-s-4' : ''
+      }`}
+      style={slotGroupColor ? { borderInlineStartColor: slotGroupColor.hex } : undefined}
+    >
       <div className="flex items-center justify-between gap-3 border-b border-[#E1E5DF] dark:border-[#303832] px-4 py-2">
-        <span className="text-[11px] font-black uppercase tracking-wide text-[#65706A] dark:text-[#B2B9B3]">
-          {t('committee.detail.matchNumber', { n: number })}
-        </span>
+        <div className="flex items-center gap-2 min-w-0">
+          {slotGroupColor && (
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${slotGroupColor.badgeCls}`}>
+              <span className="size-1.5 rounded-full" style={{ backgroundColor: slotGroupColor.hex }} />
+              <span>{formatGroupName(f.group.name, { groupId: f.group.id, tournamentId: tournament?.id })}</span>
+            </span>
+          )}
+          <span className="text-[11px] font-black uppercase tracking-wide text-[#65706A] dark:text-[#B2B9B3]">
+            {t('committee.detail.matchNumber', { n: number })}
+          </span>
+        </div>
         <span className="flex items-center gap-2">
           {isDraftReservation && (
             <span className="inline-flex items-center rounded-full bg-[#D97706]/15 px-2.5 py-1 text-[10px] font-black text-[#D97706]">
@@ -266,6 +285,7 @@ export default function MatchCard({
 
 function PrevResultRow({ f, tournament }) {
   const { t } = useTranslation()
+  const { openTeam } = useProfileModal()
   const st = fixtureStatus(f)
   const homeName = f.home_team?.name || f.slots?.home || t('committee.detail.tbd')
   const awayName = f.away_team?.name || f.slots?.away || t('committee.detail.tbd')
@@ -277,8 +297,12 @@ function PrevResultRow({ f, tournament }) {
   return (
     <div className="flex items-center gap-2 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3 py-2">
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
-        <TeamAvatar team={f.home_team} className="size-6" />
-        <span className="min-w-0 truncate text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">{homeName}</span>
+        <TeamAvatar
+          team={f.home_team}
+          className="size-6"
+          onClick={f.home_team?.id != null ? () => openTeam(f.home_team) : undefined}
+        />
+        {f.home_team?.id != null ? <button type="button" onClick={() => openTeam(f.home_team)} className="min-w-0 truncate text-start text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2] hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{homeName}</button> : <span className="min-w-0 truncate text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">{homeName}</span>}
       </span>
       {isFinished && points ? (
         <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#1F9D55]/15 px-2.5 py-0.5 text-[11px] font-black text-[#1F9D55] dark:text-[#30D158]">
@@ -290,8 +314,12 @@ function PrevResultRow({ f, tournament }) {
         </span>
       )}
       <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
-        <span className="min-w-0 truncate text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">{awayName}</span>
-        <TeamAvatar team={f.away_team} className="size-6" />
+        {f.away_team?.id != null ? <button type="button" onClick={() => openTeam(f.away_team)} className="min-w-0 truncate text-end text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2] hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{awayName}</button> : <span className="min-w-0 truncate text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">{awayName}</span>}
+        <TeamAvatar
+          team={f.away_team}
+          className="size-6"
+          onClick={f.away_team?.id != null ? () => openTeam(f.away_team) : undefined}
+        />
       </span>
     </div>
   )
@@ -398,6 +426,7 @@ function FixtureSlots({ f, isGroup, busy, draft, teamById, onStageSlot, slotErro
 }
 
 function SlotZone({ team, busy, onDropTeam, onClear, t, error }) {
+  const { openTeam } = useProfileModal()
   const [over, setOver] = useState(false)
   const base = error
     ? 'border-[#D92D20] bg-[#D92D20]/10'
@@ -430,8 +459,12 @@ function SlotZone({ team, busy, onDropTeam, onClear, t, error }) {
     >
       {team ? (
         <div className="flex items-center justify-center gap-2">
-          <TeamAvatar team={team} className="size-7" />
-          <span className="min-w-0 truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">{team.name}</span>
+          <TeamAvatar
+            team={team}
+            className="size-7"
+            onClick={team?.id != null ? (e) => { e?.stopPropagation?.(); openTeam(team) } : undefined}
+          />
+          {team?.id != null ? <button type="button" onClick={(e) => { e.stopPropagation(); openTeam(team) }} className="min-w-0 truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2] hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{team.name}</button> : <span className="min-w-0 truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">{team.name}</span>}
           <button
             type="button"
             title={t('committee.detail.clearSlot')}

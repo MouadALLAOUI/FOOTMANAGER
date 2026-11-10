@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { ArrowUpRight, CheckCircle2, Crown, Loader2, Lock, Play } from 'lucide-react'
 import { Card } from '../../../components/dashboard/ui'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
 import { stageLabel } from '../lib/stages'
 
@@ -13,6 +14,7 @@ const STATE_META = {
 
 export default function CommitteeBracket({ rounds }) {
   const { t } = useTranslation()
+  const { openTeam } = useProfileModal()
 
   if (!rounds || rounds.length === 0) return null
 
@@ -35,9 +37,13 @@ export default function CommitteeBracket({ rounds }) {
   const renderBye = (f) => (
     <div className="flex items-center justify-between gap-2 px-4 py-3">
       <div className="flex min-w-0 items-center gap-2">
-        <TeamAvatar team={f.bye_team} className="size-7" />
+        <TeamAvatar
+          team={f.bye_team}
+          className="size-7"
+          onClick={f.bye_team?.id != null ? () => openTeam(f.bye_team) : undefined}
+        />
         <div className="min-w-0">
-          <p className="truncate text-xs font-bold text-slate-900">{f.bye_team?.name}</p>
+          <p className="truncate text-xs font-bold text-slate-900">{f.bye_team?.id != null ? <button type="button" onClick={() => openTeam(f.bye_team)} className="max-w-full truncate text-start hover:text-emerald-600 transition-colors cursor-pointer">{f.bye_team.name}</button> : f.bye_team?.name}</p>
           <p className="text-[10px] text-slate-400">{t('committee.detail.knockout6.byeAdvance')}</p>
         </div>
       </div>
@@ -82,8 +88,12 @@ export default function CommitteeBracket({ rounds }) {
                   <div key={f.id} className="overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50/60">
                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3">
                       <div className={`flex min-w-0 items-center gap-2 ${winner && winner === f.home_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
-                        <TeamAvatar team={f.home_team} className="size-7" />
-                        <span className="truncate text-xs font-bold">{f.home_team?.name || t('committee.detail.tbd')}</span>
+                        <TeamAvatar
+                          team={f.home_team}
+                          className="size-7"
+                          onClick={f.home_team?.id != null ? () => openTeam(f.home_team) : undefined}
+                        />
+                        {f.home_team?.id != null ? <button type="button" onClick={() => openTeam(f.home_team)} className="min-w-0 truncate text-start text-xs font-bold hover:text-emerald-600 transition-colors cursor-pointer">{f.home_team.name}</button> : <span className="truncate text-xs font-bold">{f.home_team?.name || t('committee.detail.tbd')}</span>}
                         {winner === f.home_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
                       </div>
                       <span className="text-base font-black text-slate-900">
@@ -91,8 +101,12 @@ export default function CommitteeBracket({ rounds }) {
                       </span>
                       <div className={`flex min-w-0 items-center justify-end gap-2 ${winner && winner === f.away_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
                         {winner === f.away_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
-                        <span className="truncate text-xs font-bold">{f.away_team?.name || t('committee.detail.tbd')}</span>
-                        <TeamAvatar team={f.away_team} className="size-7" />
+                        {f.away_team?.id != null ? <button type="button" onClick={() => openTeam(f.away_team)} className="min-w-0 truncate text-end text-xs font-bold hover:text-emerald-600 transition-colors cursor-pointer">{f.away_team.name}</button> : <span className="truncate text-xs font-bold">{f.away_team?.name || t('committee.detail.tbd')}</span>}
+                        <TeamAvatar
+                          team={f.away_team}
+                          className="size-7"
+                          onClick={f.away_team?.id != null ? () => openTeam(f.away_team) : undefined}
+                        />
                       </div>
                     </div>
                     {(f.source_home_fixture_id || f.source_away_fixture_id) && (

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Committee;
 
+use App\Domains\Competition\Models\Group;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Shared\Support\ArabicPlural;
@@ -161,11 +162,16 @@ class TournamentController extends Controller
     {
         $this->authorize('manage', $tournament);
 
-        if ($tournament->isCompleted() || $tournament->isCancelled() || $tournament->hasSettledResult()) {
-            throw new DomainException('لا يمكن تعديل البطولة بعد تسجيل أول نتيجة');
+        if ($tournament->isCompleted() || $tournament->isCancelled()) {
+            throw new DomainException('لا يمكن تعديل البطولة بعد اكتمالها أو إلغائها');
         }
 
         $data = $request->validated();
+        $onlyPlanUpdate = array_keys($data) === ['plan'];
+
+        if (! $onlyPlanUpdate && $tournament->hasSettledResult()) {
+            throw new DomainException('لا يمكن تعديل البطولة بعد تسجيل أول نتيجة');
+        }
 
         $structural = [
             'teams_count',
@@ -221,6 +227,19 @@ class TournamentController extends Controller
         }
 
         $tournament->update($data);
+
+        if (isset($data['plan']['group_names']) && is_array($data['plan']['group_names'])) {
+            foreach ($data['plan']['group_names'] as $groupId => $customName) {
+                $trimmedName = trim((string) $customName);
+                if ($trimmedName !== '' && is_numeric($groupId)) {
+                    Group::query()
+                        ->where('competition_id', $tournament->competition_id)
+                        ->where('season_id', $tournament->season_id)
+                        ->where('id', (int) $groupId)
+                        ->update(['name' => $trimmedName]);
+                }
+            }
+        }
 
         return response()->json(['data' => new TournamentDetailResource($tournament->load('organizer'))]);
     }

@@ -19,6 +19,7 @@ import { useApi } from '../../hooks/useApi'
 import useSeo from '../../hooks/useSeo'
 import { Skeleton } from '../../components/dashboard/ui'
 import { StandingsTable, BracketView } from './shared'
+import { syncTournamentGroupNames } from '../../lib/groupNames'
 import TournamentStageBar from '../../components/tournaments/TournamentStageBar'
 import Hero from './sections/Hero'
 import RegistrationSection from './sections/RegistrationSection'
@@ -56,6 +57,7 @@ export default function PublicTournamentDetail() {
 
   const detailQuery = useApi(() => api.get(`/v1/tournaments/${slug}`).then((r) => r.data.data), [slug], { staleTime: 0 })
   const tour = detailQuery.data
+  syncTournamentGroupNames(tour)
 
   useSeo({
     title: tour?.name ? `${tour.name} — بطولة كرة قدم` : 'تفاصيل البطولة',

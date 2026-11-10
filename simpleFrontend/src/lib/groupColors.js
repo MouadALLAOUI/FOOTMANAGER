@@ -1,4 +1,4 @@
-import { formatGroupName } from './groupNames'
+import { formatGroupName, resolvePersistedGroupName } from './groupNames'
 
 export const GROUP_COLOR_PALETTE = [
   {
@@ -213,7 +213,8 @@ export function sortOrderedGroups(groups = []) {
   for (const g of groups || []) {
     if (!g) continue
     const gid = normalizeId(g.id ?? g.group_id ?? g.key)
-    const gname = String(g.name ?? g.group_name ?? '').trim()
+    const rawName = String(g.name ?? g.group_name ?? '').trim()
+    const gname = resolvePersistedGroupName(rawName, { groupId: gid }) || rawName
     const key = gid != null ? `id:${gid}` : gname ? `name:${gname}` : null
     if (!key || seen.has(key)) continue
     seen.set(key, {
@@ -260,8 +261,10 @@ export function resolveGroupColorIndex(groupOrKey, orderedGroups = []) {
       ? groupOrKey
       : null
 
+  const effectiveName = resolvePersistedGroupName(rawName, { groupId }) || rawName
+
   // 1. Match explicit short group codes (A/B/C/1/2/3/أ/ب...) so Group A is always Blue, Group B is always Green
-  const stripped = stripGroupPrefix(rawName)
+  const stripped = stripGroupPrefix(effectiveName)
   if (stripped) {
     const firstToken = stripped.toUpperCase()
     if (firstToken in CODE_INDEX_MAP) {
@@ -281,9 +284,9 @@ export function resolveGroupColorIndex(groupOrKey, orderedGroups = []) {
   }
 
   // 3. Fallback by name position inside orderedGroups
-  if (rawName && sorted.length > 0) {
+  if (effectiveName && sorted.length > 0) {
     const byName = sorted.findIndex(
-      (g) => g.name === rawName || stripGroupPrefix(g.name) === stripped,
+      (g) => g.name === effectiveName || stripGroupPrefix(g.name) === stripped,
     )
     if (byName >= 0) return byName % GROUP_COLOR_PALETTE.length
   }
@@ -328,10 +331,12 @@ export function getGroupColor(groupOrKey, orderedGroups = []) {
       ? groupOrKey?.id ?? groupOrKey?.group_id ?? groupOrKey?.key
       : undefined
 
+  const effectiveName = resolvePersistedGroupName(rawName, { groupId }) || rawName
+
   return {
     ...paletteItem,
     index,
-    shortCode: extractGroupShortCode(rawName, index),
-    label: formatGroupName(rawName, { groupId, emptyLabel: '' }),
+    shortCode: extractGroupShortCode(effectiveName, index),
+    label: formatGroupName(effectiveName, { groupId, emptyLabel: '' }),
   }
 }

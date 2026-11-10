@@ -14,12 +14,15 @@ import {
   Users,
 } from 'lucide-react'
 import api from '../../../../api/client'
+import { queryClient } from '../../../../api/queryClient'
 import { useApi } from '../../../../hooks/useApi'
 import { Badge, Button, Card, Empty, Modal, Skeleton } from '../../../../components/dashboard/ui'
 import { TeamAvatar } from '../../../tournaments/shared'
 import { useToast } from '../../../../components/ui/Toast'
+import { useProfileModal } from '../../../../components/profile/ProfileModalContext'
 import { toastApiError } from '../../../../lib/errors'
-import { formatGroupName, setCustomGroupName } from '../../../../lib/groupNames'
+import { formatGroupName } from '../../../../lib/groupNames'
+import { getGroupColor } from '../../../../lib/groupColors'
 import { commitMove, deriveDisplayGroups, isNewGroup, membersOf, nextGroupLabel } from './drawLogic'
 import GroupColumn from './GroupColumn'
 import TeamPool from './TeamPool'
@@ -28,6 +31,7 @@ import RenameGroupModal from './RenameGroupModal'
 export default function DrawBoard({ tournament, refresh, refreshKey, setActive }) {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const { openTeam } = useProfileModal()
   const [busy, setBusy] = useState(null)
   const [drag, setDrag] = useState(null)
   const [local, setLocal] = useState(null)
@@ -38,25 +42,33 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
   const [expandedGroups, setExpandedGroups] = useState({})
   const [editingGroup, setEditingGroup] = useState(null)
   const [renamingGroup, setRenamingGroup] = useState(null)
-  const [, setGroupNameTick] = useState(0)
   const seqRef = useRef(0)
 
   const { data: serverTeams, loading } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/teams`).then((r) => r.data.data),
     [tournament.id, refreshKey],
+    { keepPrevious: true, staleTime: 0 },
   )
 
   const { data: serverGroups } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/draw`).then((r) => r.data.data),
     [tournament.id, refreshKey],
+    { keepPrevious: true, staleTime: 0 },
   )
 
   useEffect(() => {
     if (serverGroups) {
-      const mapped = serverGroups.map((g) => ({ id: g.group_id, name: g.name }))
+      const mapped = serverGroups.map((g) => ({
+        id: g.group_id,
+        name: g.name,
+        team_count: g.team_count ?? 0,
+      }))
       setWideGroups(mapped)
-      if (mapped.length > 0) {
-        setExpandedGroups((prev) => (Object.keys(prev).length > 0 ? prev : { [mapped[0].id]: true }))
+      const firstNonEmpty = mapped.find((g) => (g.team_count ?? 0) > 0) || mapped[0]
+      if (firstNonEmpty) {
+        setExpandedGroups((prev) =>
+          Object.keys(prev).length > 0 ? prev : { [firstNonEmpty.id]: true },
+        )
       }
     }
   }, [serverGroups])
@@ -66,7 +78,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
     setDirty(false)
   }, [serverTeams])
 
-  const teams = local || serverTeams || []
+  const teams = useMemo(() => local || serverTeams || [], [local, serverTeams])
   const pool = teams.filter((p) => !p.group)
   const total = teams.length
   const assigned = total - pool.length
@@ -86,27 +98,28 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
     tournament.settings_editable ?? ['draft', 'open_for_registration', 'registration_closed'].includes(tournament.status)
   const canEdit = editableStatus && !confirmed
   const canUnlock = editableStatus && confirmed
+  // Backend allows renaming in all non-completed, non-cancelled tournaments (even after confirm/in_progress)
+  const canRename = !['completed', 'cancelled'].includes(tournament.status)
   const freeMode = tournament.group_mode === 'free'
   const cap = freeMode ? null : tournament.teams_per_group || 4
 
-  const baseGroups = (serverGroups || []).map((g) => ({ id: g.group_id, name: g.name }))
+  const baseGroups = (serverGroups || []).map((g) => ({
+    id: g.group_id,
+    name: g.name,
+    team_count: g.team_count ?? 0,
+  }))
   const currentGroups = wideGroups || baseGroups
   const displayGroups = useMemo(() => {
     if (freeMode) return deriveDisplayGroups(teams, currentGroups)
     return currentGroups
   }, [teams, currentGroups, freeMode])
 
-  // Requirement 3: HIDE EMPTY GROUPS
-  // - Groups containing at least one assigned team are displayed.
-  // - Groups containing zero teams are hidden from cards, counts, and navigation.
-  const visibleGroups = useMemo(() => {
-    const withTeams = (displayGroups || []).filter((g) => membersOf(teams, g.id).length > 0)
-    // If no teams are drawn yet anywhere (initial empty state), show all groups so organizer can start
-    if (withTeams.length === 0 && assigned === 0) {
-      return displayGroups
-    }
-    return withTeams
-  }, [displayGroups, teams, assigned])
+  // Requirement 3: Strictly hide groups with 0 teams (except newly created unsaved placeholders).
+  // Do NOT delete database groups; only filter UI display, counts, preview, and navigation.
+  const visibleGroups = useMemo(
+    () => (displayGroups || []).filter((g) => membersOf(teams, g.id).length > 0 || isNewGroup(g)),
+    [displayGroups, teams],
+  )
 
   const allDrawn = total > 0 && assigned === total
 
@@ -121,8 +134,12 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
       throw new Error('اسم المجموعة لا يمكن أن يكون فارغاً')
     }
 
-    const duplicate = displayGroups.some(
-      (g) => g.id !== groupObj.id && String(g.name || '').trim().toLowerCase() === trimmed.toLowerCase(),
+    const normalized = trimmed.toLowerCase()
+    const duplicate = currentGroups.some(
+      (g) =>
+        g.id !== groupObj.id &&
+        (String(g.name || '').trim().toLowerCase() === normalized ||
+          formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id }).trim().toLowerCase() === normalized),
     )
     if (duplicate) {
       const msg = 'اسم المجموعة مستخدم بالفعل في هذه البطولة'
@@ -132,10 +149,15 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
 
     if (isNewGroup(groupObj)) {
       setWideGroups((prev) =>
-        (prev || displayGroups).map((g) => (g.id === groupObj.id ? { ...g, name: trimmed } : g)),
+        (prev || currentGroups).map((g) => (g.id === groupObj.id ? { ...g, name: trimmed } : g)),
       )
-      setCustomGroupName(groupObj.id, trimmed, tournament.id)
-      setGroupNameTick((n) => n + 1)
+      setLocal((prev) =>
+        prev
+          ? prev.map((p) =>
+              p.group?.id === groupObj.id ? { ...p, group: { ...p.group, name: trimmed } } : p,
+            )
+          : prev,
+      )
       toast.success(`تم تحديث اسم المجموعة إلى "${trimmed}"`)
       return
     }
@@ -146,12 +168,31 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
         name: trimmed,
       })
       const updatedName = res.data?.data?.name || trimmed
-      setWideGroups((prev) =>
-        (prev || displayGroups).map((g) => (g.id === groupObj.id ? { ...g, name: updatedName } : g)),
+
+      if (Array.isArray(res.data?.draw)) {
+        const synced = res.data.draw.map((g) => ({
+          id: g.group_id,
+          name: g.name,
+          team_count: g.team_count ?? 0,
+        }))
+        const placeholders = (wideGroups || []).filter(isNewGroup)
+        setWideGroups([...synced, ...placeholders])
+      } else {
+        setWideGroups((prev) =>
+          (prev || currentGroups).map((g) => (g.id === groupObj.id ? { ...g, name: updatedName } : g)),
+        )
+      }
+
+      setLocal((prev) =>
+        prev
+          ? prev.map((p) =>
+              p.group?.id === groupObj.id ? { ...p, group: { ...p.group, name: updatedName } } : p,
+            )
+          : prev,
       )
-      setCustomGroupName(groupObj.id, updatedName, tournament.id)
-      setGroupNameTick((n) => n + 1)
+
       toast.success(res.data?.message || `تم تحديث اسم المجموعة إلى "${updatedName}"`)
+      queryClient.invalidateQueries({ refetchType: 'none' })
       refresh?.()
     } catch (e) {
       toastApiError(e, t)
@@ -163,18 +204,23 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
 
   const movePivotToTarget = (pivotId, target) => {
     if (!canEdit || busy) return
+    const targetPoolGroups = currentGroups.length > 0 ? currentGroups : displayGroups
     const result = commitMove(teams, pivotId, target, {
-      groups: displayGroups,
+      groups: targetPoolGroups,
       mode: tournament.group_mode,
       cap: cap ?? Infinity,
     })
     setLocal(result.teams)
     if (freeMode) {
-      setWideGroups(deriveDisplayGroups(result.teams, displayGroups, seqRef))
+      setWideGroups(deriveDisplayGroups(result.teams, targetPoolGroups, seqRef))
     }
     setDirty(true)
     if (result.redirectedTo) {
-      toast.info(t('committee.detail.groupFullRedirect', { group: result.redirectedTo }))
+      toast.info(
+        t('committee.detail.groupFullRedirect', {
+          group: formatGroupName(result.redirectedTo, { tournamentId: tournament.id }),
+        }),
+      )
     }
   }
 
@@ -201,8 +247,9 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
     if (!canEdit || busy) return
     seqRef.current += 1
     const newId = `__new__${seqRef.current}`
-    const newName = nextGroupLabel(displayGroups)
-    const nextGroups = [...displayGroups, { id: newId, name: newName, isNew: true }]
+    const source = currentGroups.length > 0 ? currentGroups : displayGroups
+    const newName = nextGroupLabel(source)
+    const nextGroups = [...source, { id: newId, name: newName, isNew: true }]
     setWideGroups(nextGroups)
     setExpandedGroups((prev) => ({ ...prev, [newId]: true }))
     setDirty(true)
@@ -274,6 +321,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
       })
       setDirty(false)
       toast.success(t('committee.detail.drawSaved') || 'تم حفظ توزيع المجموعات بنجاح')
+      queryClient.invalidateQueries({ refetchType: 'none' })
       refresh()
       return true
     } catch (e) {
@@ -291,6 +339,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
       setLocal(null)
       setDirty(false)
       toast.success(t('committee.detail.drawComplete') || 'تم التوزيع العشوائي بنجاح')
+      queryClient.invalidateQueries({ refetchType: 'none' })
       refresh()
     } catch (e) {
       toastApiError(e, t)
@@ -326,6 +375,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
       await api.post(`/committee/tournaments/${tournament.id}/draw/confirm`)
       setPreviewOpen(false)
       toast.success(t('committee.detail.drawConfirmed') || 'تم اعتماد المجموعات بنجاح')
+      queryClient.invalidateQueries({ refetchType: 'none' })
       refresh()
       setActive?.('fixtures')
     } catch (e) {
@@ -341,6 +391,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
     try {
       await api.delete(`/committee/tournaments/${tournament.id}/draw/confirm`)
       toast.success(t('committee.detail.drawUnlocked') || 'تم إلغاء الاعتماد لتمكين التعديل')
+      queryClient.invalidateQueries({ refetchType: 'none' })
       refresh()
     } catch (e) {
       toastApiError(e, t)
@@ -378,7 +429,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
 
   return (
     <div className="space-y-4 pb-8">
-      {/* B. Compact 3-Column Summary Card (Matches Reference Image 2) */}
+      {/* Compact 3-Column Summary Card */}
       <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3.5 sm:p-4 shadow-2xs">
         <div className="grid grid-cols-3 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] text-center">
           <div className="flex flex-col items-center justify-center px-2">
@@ -423,7 +474,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
         </div>
       </div>
 
-      {/* C. Organization Mode Selector & Quick Actions ("إدارة المجموعات") */}
+      {/* Organization Mode Selector & Quick Actions */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
@@ -487,7 +538,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
           </button>
         </div>
 
-        {/* Quick Action Pills Row (+ إضافة مجموعة | توزيع عشوائي | إعادة التوزيع) */}
+        {/* Quick Action Pills Row */}
         {canEdit && (
           <div className="flex flex-wrap items-center gap-2">
             {(freeMode || orgMode === 'manual') && (
@@ -540,55 +591,70 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
       {/* Unassigned Teams Pool */}
       {canEdit && pool.length > 0 && (
         <TeamPool
-          title={t('committee.detail.teamPool') || 'الفرق غير الموزعة'}
+          title={t('committee.detail.teamPool', { defaultValue: 'الفرق غير الموزعة' })}
           hint="اضغط على الفريق لتعيينه للمجموعة المتاحة أو اسحبه إلى أي مجموعة"
-          allDrawnText={t('committee.detail.poolEmpty') || 'تم توزيع جميع الفرق'}
+          allDrawnText={t('committee.detail.poolEmpty', { defaultValue: 'تم توزيع جميع الفرق' })}
           entries={pool}
           onDragStart={onDragStart}
           onDrop={onDropPool}
           locked={!canEdit}
           onSelectTeam={(entry) => {
-            const availGroup = displayGroups.find((g) => {
+            const targetPool = currentGroups.length > 0 ? currentGroups : displayGroups
+            const availGroup = targetPool.find((g) => {
               const m = membersOf(teams, g.id)
               return cap == null || m.length < cap
             })
             if (availGroup) {
+              setExpandedGroups((prev) => ({ ...prev, [availGroup.id]: true }))
               movePivotToTarget(entry.id, { type: 'group', id: availGroup.id })
-            } else if (displayGroups[0]) {
-              setEditingGroup(displayGroups[0])
+            } else {
+              addGroup()
             }
           }}
         />
       )}
 
-      {/* D. Expandable Group Cards List */}
+      {/* Expandable Group Cards List (Empty DB groups hidden) */}
       <div className="space-y-2.5">
-        {visibleGroups.map((g) => {
-          const groupTitle = formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id })
-          return (
-            <GroupColumn
-              key={g.id}
-              title={groupTitle}
-              groupName={g.name}
-              groupObj={g}
-              members={membersOf(teams, g.id)}
-              capacity={cap}
-              locked={!canEdit}
-              expanded={Boolean(expandedGroups[g.id])}
-              onToggleExpand={() => toggleGroupExpand(g.id)}
-              onDragStart={onDragStart}
-              onDrop={onDropGroup(g)}
-              onRemoveTeam={(teamId) => moveTeamByTeamId(teamId, null)}
-              onDeleteGroup={canEdit ? () => emptyOrDeleteGroup(g) : null}
-              onRenameGroup={canEdit ? (nextName) => renameGroup(g, nextName) : null}
-              onOpenRenameModal={canEdit ? () => setRenamingGroup(g) : null}
-              onEditTeams={canEdit ? () => setEditingGroup(g) : null}
-            />
-          )
-        })}
+        {visibleGroups.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-4 py-8 text-center">
+            <p className="text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+              لا توجد مجموعات مفعّلة بعد
+            </p>
+            <p className="mt-1 text-xs font-semibold text-[#65706A] dark:text-[#B2B9B3]">
+              {canEdit
+                ? 'اضغط على «توزيع عشوائي» لتوزيع الفرق تلقائياً، أو اضغط على أي فريق أعلاه لبدء التكوين.'
+                : 'لم يتم توزيع الفرق على المجموعات بعد.'}
+            </p>
+          </div>
+        ) : (
+          visibleGroups.map((g) => {
+            const groupTitle = formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id })
+            return (
+              <GroupColumn
+                key={g.id}
+                title={groupTitle}
+                groupName={g.name}
+                groupObj={g}
+                orderedGroups={visibleGroups}
+                members={membersOf(teams, g.id)}
+                capacity={cap}
+                locked={!canEdit}
+                expanded={Boolean(expandedGroups[g.id])}
+                onToggleExpand={() => toggleGroupExpand(g.id)}
+                onDragStart={onDragStart}
+                onDrop={onDropGroup(g)}
+                onRemoveTeam={(teamId) => moveTeamByTeamId(teamId, null)}
+                onDeleteGroup={canEdit ? () => emptyOrDeleteGroup(g) : null}
+                onOpenRenameModal={canRename ? () => setRenamingGroup(g) : null}
+                onEditTeams={canEdit ? () => setEditingGroup(g) : null}
+              />
+            )
+          })
+        )}
       </div>
 
-      {/* E. Bottom Primary Confirmation Button (Matches Reference Image 2) */}
+      {/* Bottom Primary Confirmation Button */}
       <div className="pt-2">
         <button
           type="button"
@@ -607,7 +673,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
         </button>
       </div>
 
-      {/* Mobile-Friendly Group Teams Picker Modal ("تعديل الفرق") */}
+      {/* Mobile-Friendly Group Teams Picker Modal */}
       {editingGroup && (
         <Modal
           open={Boolean(editingGroup)}
@@ -633,9 +699,16 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
                   ? formatGroupName(pivot.group.name, { groupId: pivot.group.id, tournamentId: tournament.id })
                   : ''
                 return (
-                  <button
+                  <div
                     key={pivot.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        toggleTeamInGroupModal(pivot, editingGroup)
+                      }
+                    }}
                     onClick={() => toggleTeamInGroupModal(pivot, editingGroup)}
                     className={`w-full flex items-center justify-between gap-3 rounded-xl border p-3 text-start transition cursor-pointer ${
                       inThisGroup
@@ -644,10 +717,20 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <TeamAvatar team={pivot.team} className="size-8 shrink-0" />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (pivot.team) { setEditingGroup(null); openTeam(pivot.team) }
+                        }}
+                        className="shrink-0 cursor-pointer hover:opacity-80"
+                        title="عرض معلومات الفريق"
+                      >
+                        <TeamAvatar team={pivot.team} className="size-8 shrink-0 pointer-events-none" />
+                      </button>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
-                          {pivot.team?.name}
+                          {pivot.team?.id != null ? <button type="button" onClick={(e) => { e.stopPropagation(); setEditingGroup(null); openTeam(pivot.team) }} className="max-w-full truncate text-start hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{pivot.team.name}</button> : pivot.team?.name}
                         </p>
                         {inOtherGroup && (
                           <p className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
@@ -670,7 +753,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
                         </span>
                       )}
                     </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -711,25 +794,35 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
             {visibleGroups.map((g) => {
               const members = membersOf(teams, g.id)
               const gTitle = formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id })
+              const gColor = getGroupColor(g, visibleGroups)
               return (
-                <div key={g.id} className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4">
+                <div
+                  key={g.id}
+                  className="rounded-2xl border border-s-4 border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-4"
+                  style={{ borderInlineStartColor: gColor.hex }}
+                >
                   <div className="flex items-center justify-between gap-2">
-                    <h4 className="text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2]">{gTitle}</h4>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: gColor.hex }} />
+                      <h4 className="text-sm font-extrabold text-[#111313] dark:text-[#F5F7F2] truncate">{gTitle}</h4>
+                    </div>
                     <Badge variant={cap && members.length >= cap ? 'success' : 'neutral'}>
                       {freeMode ? members.length : `${members.length}/${cap}`}
                     </Badge>
                   </div>
                   <div className="mt-3 space-y-2">
                     {members.map((p) => (
-                      <div
+                      <button
                         key={p.id}
-                        className="flex items-center gap-2.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3 py-2"
+                        type="button"
+                        onClick={() => { if (p.team) { setPreviewOpen(false); openTeam(p.team) } }}
+                        className="flex w-full items-center gap-2.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3 py-2 text-start cursor-pointer hover:border-[#B8F000]"
                       >
                         <TeamAvatar team={p.team} className="size-7" />
                         <span className="truncate text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
                           {p.team?.name || '-'}
                         </span>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -754,7 +847,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
         onClose={() => setRenamingGroup(null)}
         group={renamingGroup}
         tournamentId={tournament.id}
-        existingGroups={displayGroups}
+        existingGroups={currentGroups}
         onSave={(nextName) => renameGroup(renamingGroup, nextName)}
       />
     </div>

@@ -1,48 +1,12 @@
-const STORAGE_KEY = 'aji_custom_group_names_v1'
+// Persistent group names come directly from the database via API payloads.
+// Never override persisted backend names with stale client storage.
 
-function readStore() {
-  if (typeof window === 'undefined') return {}
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
+export function getCustomGroupName() {
+  return null
 }
 
-function writeStore(store) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
-    window.dispatchEvent(new CustomEvent('aji:group-names-updated'))
-  } catch {
-    // ignore storage errors
-  }
-}
-
-export function getCustomGroupName(groupId, tournamentId = null) {
-  if (groupId == null) return null
-  const store = readStore()
-  if (tournamentId != null && store[`${tournamentId}:${groupId}`]) {
-    return store[`${tournamentId}:${groupId}`]
-  }
-  return store[String(groupId)] || null
-}
-
-export function setCustomGroupName(groupId, name, tournamentId = null) {
-  if (groupId == null) return
-  const trimmed = String(name || '').trim()
-  const store = readStore()
-  const scopedKey = tournamentId != null ? `${tournamentId}:${groupId}` : null
-
-  if (!trimmed) {
-    if (scopedKey) delete store[scopedKey]
-    delete store[String(groupId)]
-  } else {
-    if (scopedKey) store[scopedKey] = trimmed
-    store[String(groupId)] = trimmed
-  }
-  writeStore(store)
+export function setCustomGroupName() {
+  // No-op: group renaming persists in the backend database.
 }
 
 /**
@@ -50,9 +14,8 @@ export function setCustomGroupName(groupId, name, tournamentId = null) {
  * or a custom group name ("مجموعة الأطلس", "مجموعة الصقور", "Groupe Atlas", "المجموعة الأولى").
  */
 export function formatGroupName(rawName, options = {}) {
-  const { groupId = null, tournamentId = null, prefix = 'المجموعة', emptyLabel = 'جدول الترتيب' } = options
-  const custom = getCustomGroupName(groupId, tournamentId)
-  const effective = String(custom || rawName || '').trim()
+  const { prefix = 'المجموعة', emptyLabel = 'جدول الترتيب' } = options
+  const effective = String(rawName || '').trim()
 
   if (!effective) return emptyLabel
 

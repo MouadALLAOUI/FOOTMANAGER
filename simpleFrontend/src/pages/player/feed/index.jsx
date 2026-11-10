@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { CalendarDays, Clock, MapPin, Users, Shield, Swords, Target, HandMetal, ChevronLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import api from '../../../api/client'
@@ -119,9 +119,28 @@ export default function Feed() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-3">
-                      <TeamLogo team={team} className="size-11" rounded="rounded-2xl" fontSize="text-sm" />
+                      <TeamLogo
+                        team={team}
+                        to={team?.id != null ? `/teams/${team.id}` : undefined}
+                        onClick={(e) => e.stopPropagation()}
+                        className="size-11"
+                        rounded="rounded-2xl"
+                        fontSize="text-sm"
+                      />
                       <div className="min-w-0">
-                        <p className="truncate text-base font-extrabold text-slate-900">{team?.name || t('player.feed.team')}</p>
+                        <p className="truncate text-base font-extrabold text-slate-900">
+                          {team?.id != null && team?.name ? (
+                            <Link
+                              to={`/teams/${team.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="hover:text-green-600 transition-colors"
+                            >
+                              {team.name}
+                            </Link>
+                          ) : (
+                            team?.name || t('player.feed.team')
+                          )}
+                        </p>
                         <p className="text-xs text-slate-500">
                           {team?.city || t('player.feed.noCity')} • {team?.category || t('player.feed.noCategory')}
                         </p>

@@ -113,7 +113,8 @@ export default function AvailableFields({ theme = 'dark' }) {
   const cards = (data?.top_stadiums || []).map(toStadiumCard)
 
   const toggleLike = (card) => {
-    setLiked((prev) => ({ ...prev, [card.name]: !prev[card.name] }))
+    const key = card.id ?? card.name
+    setLiked((prev) => ({ ...prev, [key]: !prev[key] }))
   }
 
   const isDark = theme === 'dark' || document.documentElement.classList.contains('dark')
@@ -155,11 +156,11 @@ export default function AvailableFields({ theme = 'dark' }) {
               />
             ))
           ) : (
-            cards.map((card) => (
+            cards.map((card, idx) => (
               <FieldCard
-                key={card.name}
+                key={card.id ?? `${card.name}-${idx}`}
                 card={card}
-                liked={Boolean(liked[card.name])}
+                liked={Boolean(liked[card.id ?? card.name])}
                 onToggleLike={toggleLike}
                 onBook={openBooking}
                 isDark={isDark}

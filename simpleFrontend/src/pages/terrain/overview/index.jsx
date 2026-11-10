@@ -366,9 +366,33 @@ export default function Overview() {
               {pending.map((b) => (
                 <div key={b.id} className="rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
                   <div className="flex items-start justify-between gap-3">
-                    <button type="button" className="min-w-0 flex-1 text-start" onClick={() => setSelected(b)}>
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="min-w-0 flex-1 cursor-pointer text-start"
+                      onClick={(e) => {
+                        if (e.target.closest('button, a')) return
+                        setSelected(b)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          setSelected(b)
+                        }
+                      }}
+                    >
                       <p className="truncate text-sm font-extrabold text-slate-900">
-                        {b.guest_name || b.manager?.name || b.team?.name || t('terrain.overview.pending.unknownBooker')}
+                        {!b.guest_name && !b.manager?.name && !b.is_guest && b.team?.id != null && b.team?.name ? (
+                          <Link
+                            to={`/teams/${b.team.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="hover:text-green-600 transition-colors"
+                          >
+                            {b.team.name}
+                          </Link>
+                        ) : (
+                          b.guest_name || b.manager?.name || b.team?.name || t('terrain.overview.pending.unknownBooker')
+                        )}
                         {b.is_guest && (
                           <span className="ms-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-700">{t('dash.guest')}</span>
                         )}
@@ -387,7 +411,7 @@ export default function Overview() {
                           </>
                         )}
                       </p>
-                    </button>
+                    </div>
                     <div className="shrink-0 rounded-xl bg-white px-2.5 py-1 text-center shadow-sm ring-1 ring-slate-200">
                       <p className="text-xs font-black text-green-700">{Number(b.price || 0).toLocaleString(locale)}</p>
                       <p className="text-[8px] font-bold text-slate-400">{t('dash.mad')}</p>
@@ -585,7 +609,15 @@ export default function Overview() {
                       {displayName.slice(0, 1)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-extrabold text-slate-900">{displayName}</p>
+                      <p className="truncate text-sm font-extrabold text-slate-900">
+                        {!isGuest && !b.manager?.name && b.team?.id != null && b.team?.name ? (
+                          <Link to={`/teams/${b.team.id}`} className="hover:text-green-600 transition-colors">
+                            {b.team.name}
+                          </Link>
+                        ) : (
+                          displayName
+                        )}
+                      </p>
                       <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-semibold text-slate-500">
                         <span className="truncate">{typeof b.terrain?.name === 'string' ? b.terrain.name : t('ov.common.terrain')}</span>
                         {b.start_time && (

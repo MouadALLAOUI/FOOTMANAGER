@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Link2,
   Copy,
@@ -139,7 +140,7 @@ export default function DelegatedMatchLinkModal({
         <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-center">
           <p className="text-xs font-bold text-slate-500">مباراة</p>
           <p className="text-sm font-black text-slate-900 mt-0.5">
-            {homeName} <span className="text-slate-400 font-bold mx-1">ضد</span> {awayName}
+            {fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{homeName}</Link> : homeName} <span className="text-slate-400 font-bold mx-1">ضد</span> {fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{awayName}</Link> : awayName}
           </p>
         </div>
 

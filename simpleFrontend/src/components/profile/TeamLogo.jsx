@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { logoThumb } from '../../lib/thumb'
 import { brandFrom } from '../../lib/brandColors'
 
@@ -17,6 +18,9 @@ export default function TeamLogo({
   ring = '',
   bg = '',
   onClick,
+  to,
+  target,
+  rel,
   alt = '',
 }) {
   const displayName = name ?? team?.name ?? ''
@@ -53,10 +57,33 @@ export default function TeamLogo({
     </span>
   )
 
+  if (to) {
+    const fillCls = /\b(?:size-full|w-full|h-full)\b/.test(className)
+      ? ' flex size-full items-center justify-center'
+      : ' inline-flex items-center justify-center'
+    return (
+      <Link
+        to={to}
+        target={target}
+        rel={rel || (target === '_blank' ? 'noopener noreferrer' : undefined)}
+        onClick={onClick}
+        aria-label={displayName || 'logo'}
+        className={`shrink-0 leading-none cursor-pointer touch-manipulation transition-transform hover:opacity-85 active:scale-95 ${rounded}${fillCls}`}
+      >
+        {inner}
+      </Link>
+    )
+  }
+
   if (!onClick) return inner
 
   return (
-    <button type="button" onClick={onClick} aria-label={displayName || 'logo'} className="shrink-0 leading-none">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={displayName || 'logo'}
+      className="shrink-0 leading-none cursor-pointer touch-manipulation transition-transform hover:opacity-85 active:scale-95 rounded-xl"
+    >
       {inner}
     </button>
   )

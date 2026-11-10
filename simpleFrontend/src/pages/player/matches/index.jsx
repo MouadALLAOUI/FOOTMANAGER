@@ -1,4 +1,5 @@
 import { CalendarDays, Clock, MapPin } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
@@ -30,7 +31,15 @@ export default function Matches() {
           {matches.map((m) => (
             <Card key={m.id}>
               <div className="flex items-center justify-between gap-3">
-                <p className="truncate text-base font-extrabold text-slate-900">{m.host_team?.name || t('player.feed.team')}</p>
+                <p className="truncate text-base font-extrabold text-slate-900">
+                  {m.host_team?.id != null && m.host_team?.name ? (
+                    <Link to={`/teams/${m.host_team.id}`} className="hover:text-green-600 transition-colors">
+                      {m.host_team.name}
+                    </Link>
+                  ) : (
+                    m.host_team?.name || t('player.feed.team')
+                  )}
+                </p>
                 <StatusBadge status={m.status} />
               </div>
               <div className="mt-3 space-y-2 text-[12px] font-semibold text-slate-500">

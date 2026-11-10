@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CheckCircle2,
@@ -31,6 +32,14 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
   const oppTeamId = Number(match.opponent_team_id || match.opponent_team?.id)
   const hostTeamName = match.host_team?.name || 'الفريق المضيف'
   const oppTeamName = match.opponent_team?.name || 'الفريق الضيف'
+  const teamLink = (id, name, isGuestSide = false, cls = 'hover:text-emerald-600 transition-colors') =>
+    !isGuestSide && Number.isFinite(id) && id > 0 ? (
+      <Link to={`/teams/${id}`} target="_blank" rel="noopener noreferrer" className={cls}>
+        {name}
+      </Link>
+    ) : (
+      name
+    )
 
   const [hostPlayers, setHostPlayers] = useState([])
   const [oppPlayers, setOppPlayers] = useState([])
@@ -255,7 +264,9 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
 
             <div className="grid grid-cols-2 items-center gap-4">
               <div className="rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
-                <label className="mb-1 block truncate text-xs font-bold text-slate-700">{hostTeamName}</label>
+                <label className="mb-1 block truncate text-xs font-bold text-slate-700">
+                  {teamLink(hostTeamId, hostTeamName)}
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -270,7 +281,9 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-3 text-center shadow-sm">
-                <label className="mb-1 block truncate text-xs font-bold text-slate-700">{oppTeamName}</label>
+                <label className="mb-1 block truncate text-xs font-bold text-slate-700">
+                  {teamLink(oppTeamId, oppTeamName, Boolean(match.is_guest))}
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -504,7 +517,9 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
                                 isHost ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'
                               }`}
                             >
-                              {isHost ? hostTeamName : oppTeamName}
+                              {isHost
+                                ? teamLink(hostTeamId, hostTeamName)
+                                : teamLink(oppTeamId, oppTeamName, Boolean(match.is_guest))}
                             </span>
                             <span className="text-[10px] font-medium text-slate-400">
                               ({typeObj?.label || ev.type})
@@ -554,14 +569,18 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
           {/* Big Score Header */}
           <div className="flex items-center justify-center gap-6 rounded-2xl bg-slate-900 py-6 text-white shadow-inner">
             <div className="text-center">
-              <p className="max-w-[110px] truncate text-xs font-bold text-slate-300">{hostTeamName}</p>
+              <p className="max-w-[110px] truncate text-xs font-bold text-slate-300">
+                {teamLink(hostTeamId, hostTeamName, false, 'hover:text-emerald-300 transition-colors')}
+              </p>
               <span className="text-4xl font-black">{match.host_score ?? '–'}</span>
             </div>
             <span className="grid size-10 place-items-center rounded-full bg-white/10 text-slate-300">
               <Swords className="size-5" />
             </span>
             <div className="text-center">
-              <p className="max-w-[110px] truncate text-xs font-bold text-slate-300">{oppTeamName}</p>
+              <p className="max-w-[110px] truncate text-xs font-bold text-slate-300">
+                {teamLink(oppTeamId, oppTeamName, Boolean(match.is_guest), 'hover:text-emerald-300 transition-colors')}
+              </p>
               <span className="text-4xl font-black">{match.opponent_score ?? '–'}</span>
             </div>
           </div>
@@ -588,7 +607,9 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
                           )}
                         </div>
                         <span className="text-[10px] font-bold text-slate-400">
-                          {Number(ev.team_id) === hostTeamId ? hostTeamName : oppTeamName}
+                          {Number(ev.team_id) === hostTeamId
+                            ? teamLink(hostTeamId, hostTeamName)
+                            : teamLink(oppTeamId, oppTeamName, Boolean(match.is_guest))}
                         </span>
                       </div>
                     ))}
@@ -614,7 +635,9 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
                           )}
                         </div>
                         <span className="text-[10px] font-bold text-slate-400">
-                          {Number(ev.team_id) === hostTeamId ? hostTeamName : oppTeamName}
+                          {Number(ev.team_id) === hostTeamId
+                            ? teamLink(hostTeamId, hostTeamName)
+                            : teamLink(oppTeamId, oppTeamName, Boolean(match.is_guest))}
                         </span>
                       </div>
                     ))}
@@ -639,7 +662,9 @@ export default function ScoreModal({ match, onClose, onSaved, mode = 'submit' })
                           </span>
                         </div>
                         <span className="text-[10px] font-bold text-slate-400">
-                          {Number(ev.team_id) === hostTeamId ? hostTeamName : oppTeamName}
+                          {Number(ev.team_id) === hostTeamId
+                            ? teamLink(hostTeamId, hostTeamName)
+                            : teamLink(oppTeamId, oppTeamName, Boolean(match.is_guest))}
                         </span>
                       </div>
                     ))}

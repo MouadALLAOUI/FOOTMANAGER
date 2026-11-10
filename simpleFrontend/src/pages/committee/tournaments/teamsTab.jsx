@@ -32,30 +32,14 @@ import EditFreeTeamModal from './editFreeTeamModal'
 import QuickShareCard from '../../../components/tournaments/QuickShareCard'
 import { matchesArabicSearch } from '../../../lib/searchUtils'
 import { formatGroupName } from '../../../lib/groupNames'
+import { getGroupColor } from '../../../lib/groupColors'
 
-function getGroupBadge(groupName) {
-  if (!groupName) {
-    return {
-      letter: '—',
-      colorClass: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
-    }
-  }
-  const clean = groupName.replace(/^(المجموعة|مجموعة|Groupe|Group)\s+/i, '').trim()
-  const first = clean ? clean.charAt(0).toUpperCase() : '?'
-
-  const palette = {
-    A: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
-    B: 'bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
-    C: 'bg-purple-100 text-purple-800 dark:bg-purple-950/70 dark:text-purple-300 border border-purple-200 dark:border-purple-800',
-    D: 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200 dark:border-amber-800',
-    E: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-950/70 dark:text-fuchsia-300 border border-fuchsia-200 dark:border-fuchsia-800',
-    F: 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 border border-rose-200 dark:border-rose-800',
-    G: 'bg-teal-100 text-teal-800 dark:bg-teal-950/70 dark:text-teal-300 border border-teal-200 dark:border-teal-800',
-  }
-
+function getGroupBadge(group, orderedGroups = []) {
+  const color = getGroupColor(group, orderedGroups)
   return {
-    letter: clean.length <= 2 ? clean : first,
-    colorClass: palette[first] || 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700',
+    letter: color.shortCode || '—',
+    colorClass: color.badgeCls,
+    hex: color.hex,
   }
 }
 
@@ -407,18 +391,20 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
             {uniqueGroups.map((g) => {
               const active = selectedGroupFilter === g.id
               const gTitle = formatGroupName(g.name, { groupId: g.id, tournamentId: tournament.id })
+              const gColor = getGroupColor(g, uniqueGroups)
               return (
                 <button
                   key={g.id}
                   type="button"
                   onClick={() => setSelectedGroupFilter(g.id)}
-                  className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-black transition active:scale-95 cursor-pointer ${
+                  className={`inline-flex shrink-0 items-center gap-1.5 h-8 px-3.5 rounded-full text-xs font-black transition active:scale-95 cursor-pointer border ${
                     active
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-white dark:bg-[#1B201D] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                      ? gColor.activePillCls
+                      : 'bg-white dark:bg-[#1B201D] text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-slate-300'
                   }`}
                 >
-                  {gTitle}
+                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: gColor.hex }} />
+                  <span>{gTitle}</span>
                 </button>
               )
             })}
@@ -458,10 +444,14 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
               {pending.map((r) => (
                 <div key={r.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 rounded-2xl border border-amber-200/70 bg-white p-3.5 shadow-xs">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <TeamAvatar team={r.team} className="size-12 shrink-0 shadow-xs" />
+                    <TeamAvatar
+                      team={r.team}
+                      className="size-12 shrink-0 shadow-xs"
+                      onClick={r.team?.id != null ? (e) => { e?.stopPropagation?.(); openTeam(r.team) } : undefined}
+                    />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="truncate text-sm font-black text-slate-900">{r.team?.name || '—'}</p>
+                        <p className="truncate text-sm font-black text-slate-900">{r.team?.id != null ? <button type="button" onClick={(e) => { e.stopPropagation(); openTeam(r.team) }} className="max-w-full truncate text-start hover:text-emerald-600 transition-colors cursor-pointer">{r.team.name}</button> : (r.team?.name || '—')}</p>
                         <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-[10px] font-bold">
                           طلب جديد
                         </span>
@@ -573,7 +563,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
               const targetId = teamId || p.id
               const checked = bulkSelected.includes(targetId)
               const isDeleted = Boolean(p.team?.is_deleted || !p.team)
-              const badgeInfo = getGroupBadge(p.group?.name)
+              const badgeInfo = getGroupBadge(p.group, uniqueGroups)
 
               return (
                 <div
@@ -604,13 +594,17 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                         {checked && <Check className="size-4" />}
                       </button>
                     ) : (
-                      <TeamAvatar team={p.team} className="size-10 shrink-0 rounded-xl" />
+                      <TeamAvatar
+                        team={p.team}
+                        className="size-10 shrink-0 rounded-xl"
+                        onClick={!isDeleted && p.team?.id != null ? (e) => { e?.stopPropagation?.(); openTeam(p.team) } : undefined}
+                      />
                     )}
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <p className="truncate text-sm font-black text-slate-900 dark:text-white">
-                          {p.team?.name || (isDeleted ? 'فريق محذوف' : '—')}
+                          {!isDeleted && p.team?.id != null ? <button type="button" onClick={(e) => { e.stopPropagation(); openTeam(p.team) }} className="max-w-full truncate text-start hover:text-emerald-600 dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{p.team.name}</button> : (p.team?.name || (isDeleted ? 'فريق محذوف' : '—'))}
                         </p>
                         {isDeleted && <Badge variant="danger" size="xs">محذوف</Badge>}
                         {p.team?.is_free && <Badge variant="info" size="xs">حر</Badge>}
@@ -635,7 +629,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     {/* Group Badge */}
                     <span
                       className={`grid size-7 place-items-center rounded-full text-xs font-black ${badgeInfo.colorClass}`}
-                      title={p.group?.name || 'غير محدد'}
+                      title={p.group?.name ? formatGroupName(p.group.name, { groupId: p.group.id, tournamentId: tournament.id }) : 'غير محدد'}
                     >
                       {badgeInfo.letter}
                     </span>
@@ -758,20 +752,34 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                       {checked && <Check className="size-4" />}
                     </button>
                   ) : (
-                    <TeamAvatar team={p.team} className="size-10" />
+                    <TeamAvatar
+                      team={p.team}
+                      className="size-10"
+                      onClick={!isDeleted && p.team?.id != null ? (e) => { e?.stopPropagation?.(); openTeam(p.team) } : undefined}
+                    />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{p.team?.name || (isDeleted ? 'فريق محذوف' : '—')}</p>
+                      <p className="truncate text-sm font-extrabold text-slate-900 dark:text-white">{!isDeleted && p.team?.id != null ? <button type="button" onClick={(e) => { e.stopPropagation(); openTeam(p.team) }} className="max-w-full truncate text-start hover:text-emerald-600 dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{p.team.name}</button> : (p.team?.name || (isDeleted ? 'فريق محذوف' : '—'))}</p>
                       {isDeleted && <Badge variant="danger">محذوف</Badge>}
                       {p.team?.is_free && <Badge variant="info">{t('committee.detail.freeBadge')}</Badge>}
                       {p.status === 'withdrawn' && <Badge variant="warning">منسحب</Badge>}
                       {p.status === 'disqualified' && <Badge variant="danger">مُقصى</Badge>}
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
-                      <span className="text-[11px] font-semibold text-slate-400">
-                        {p.group?.name || t('committee.detail.unassigned')}
-                      </span>
+                      {p.group?.name ? (() => {
+                        const gColor = getGroupColor(p.group, uniqueGroups)
+                        return (
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${gColor.badgeCls}`}>
+                            <span className="size-1.5 shrink-0 rounded-full" style={{ backgroundColor: gColor.hex }} />
+                            <span>{formatGroupName(p.group.name, { groupId: p.group.id, tournamentId: tournament.id })}</span>
+                          </span>
+                        )
+                      })() : (
+                        <span className="text-[11px] font-semibold text-slate-400">
+                          {t('committee.detail.unassigned')}
+                        </span>
+                      )}
                       {p.team?.manager_name && (
                         <span className="font-semibold text-slate-700 dark:text-slate-300">
                           المسير: <span className="font-bold">{p.team.manager_name}</span>
@@ -921,9 +929,9 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <TeamAvatar team={team} className="size-9" />
+                      <TeamAvatar team={team} className="size-9" onClick={team?.id != null ? (e) => { e?.stopPropagation?.(); setOpen(false); openTeam(team) } : undefined} />
                       <div className="min-w-0">
-                        <p className="text-sm font-extrabold text-slate-900 truncate">{team.name}</p>
+                        <p className="text-sm font-extrabold text-slate-900 truncate">{team?.id != null ? <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(false); openTeam(team) }} className="max-w-full truncate text-start hover:text-emerald-600 transition-colors cursor-pointer">{team.name}</button> : team.name}</p>
                         {team.city && <p className="text-xs text-slate-500">{team.city}</p>}
                       </div>
                     </div>
@@ -957,7 +965,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                 onClick={() => moveToGroup(g.group_id)}
                 className="flex items-center justify-between rounded-2xl border border-slate-200/70 p-3 text-start hover:border-green-400 hover:bg-green-50/50 transition cursor-pointer"
               >
-                <span className="text-sm font-bold text-slate-800">{g.name}</span>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-100">{formatGroupName(g.name, { groupId: g.group_id, tournamentId: tournament.id })}</span>
                 <Badge variant="soft">{g.team_count}</Badge>
               </button>
             ))}

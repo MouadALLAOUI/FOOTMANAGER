@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
-  ArrowRight,
-  ArrowUpRight,
   Bell,
   CalendarDays,
   Check,
@@ -11,9 +9,7 @@ import {
   Flame,
   Loader2,
   MapPin,
-  Radio,
   Share2,
-  Sparkles,
   Trophy,
   Zap,
 } from 'lucide-react'
@@ -21,9 +17,10 @@ import { shareOrDownloadMatchCard } from '../../lib/cardExportUtils'
 import api from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import TeamLogo from '../../components/profile/TeamLogo'
+import { formatGroupName } from '../../lib/groupNames'
 import { useToast } from '../../components/ui/Toast'
 
-// Dynamic Match-Status & Theme Color Palettes (متناسقة تماماً مع الهوية الكحلية والزمردية)
+// Dynamic Match-Status & Theme Color Palettes
 const COLOR_THEMES = [
   {
     name: 'الأخضر الزمردي',
@@ -114,10 +111,14 @@ const COLOR_THEMES = [
 
 // Ticker Item for genuine match results
 function TickerItem({ item, isDark }) {
-  const hName = item.home_team?.name || item.homeTeam?.name || item.host_team?.name || 'فريق أ'
-  const aName = item.away_team?.name || item.awayTeam?.name || 'فريق ب'
-  const hLogo = item.home_team?.logo_url || item.homeTeam?.logo_url || item.host_team?.logo_url
-  const aLogo = item.away_team?.logo_url || item.awayTeam?.logo_url
+  const hTeam = item.home_team || item.homeTeam || item.host_team
+  const aTeam = item.away_team || item.awayTeam || item.opponent_team
+  const hId = hTeam?.id ?? item.home_team_id ?? item.host_team_id
+  const aId = aTeam?.id ?? item.away_team_id ?? item.opponent_team_id
+  const hName = hTeam?.name || 'فريق أ'
+  const aName = aTeam?.name || 'فريق ب'
+  const hLogo = hTeam?.logo_url
+  const aLogo = aTeam?.logo_url
 
   const scoreText = item.match
     ? `${item.match.home_score ?? 0} - ${item.match.away_score ?? 0}`
@@ -128,52 +129,68 @@ function TickerItem({ item, isDark }) {
   const [hErr, setHErr] = useState(false)
   const [aErr, setAErr] = useState(false)
 
+  const homeNode = (
+    <>
+      {hLogo && !hErr ? (
+        <img
+          src={hLogo}
+          alt={hName}
+          onError={() => setHErr(true)}
+          className="size-5 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0 bg-slate-800"
+        />
+      ) : (
+        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#1F7A4D] text-[9px] font-black text-white">
+          {hName.slice(0, 2)}
+        </span>
+      )}
+      <span className={`text-xs font-extrabold truncate max-w-[100px] ${isDark ? 'text-slate-100' : 'text-slate-800'} group-hover/t:underline`}>
+        {hName}
+      </span>
+    </>
+  )
+
+  const awayNode = (
+    <>
+      <span className={`text-xs font-extrabold truncate max-w-[100px] ${isDark ? 'text-slate-100' : 'text-slate-800'} group-hover/t:underline`}>
+        {aName}
+      </span>
+      {aLogo && !aErr ? (
+        <img
+          src={aLogo}
+          alt={aName}
+          onError={() => setAErr(true)}
+          className="size-5 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0 bg-slate-800"
+        />
+      ) : (
+        <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#1F7A4D] text-[9px] font-black text-white">
+          {aName.slice(0, 2)}
+        </span>
+      )}
+    </>
+  )
+
   return (
     <div className="inline-flex items-center gap-2.5 shrink-0 px-3 py-1 rounded-xl bg-slate-900/30 hover:bg-emerald-500/10 transition-colors border border-slate-700/30 hover:border-emerald-500/40">
-      {/* الفريق الأول مع شعاره المصغر */}
-      <div className="flex items-center gap-1.5 min-w-0">
-        {hLogo && !hErr ? (
-          <img
-            src={hLogo}
-            alt={hName}
-            onError={() => setHErr(true)}
-            className="size-5 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0 bg-slate-800"
-          />
-        ) : (
-          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#1F7A4D] text-[9px] font-black text-white">
-            {hName.slice(0, 2)}
-          </span>
-        )}
-        <span className={`text-xs font-extrabold truncate max-w-[100px] ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
-          {hName}
-        </span>
-      </div>
+      {hId != null ? (
+        <Link to={`/teams/${hId}`} className="group/t flex items-center gap-1.5 min-w-0 hover:opacity-90">
+          {homeNode}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-1.5 min-w-0">{homeNode}</div>
+      )}
 
-      {/* شارة النتيجة */}
       <span className="rounded-md bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-xs font-black text-emerald-400 tabular-nums shadow-xs">
         {scoreText}
       </span>
 
-      {/* الفريق الثاني مع شعاره المصغر */}
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span className={`text-xs font-extrabold truncate max-w-[100px] ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>
-          {aName}
-        </span>
-        {aLogo && !aErr ? (
-          <img
-            src={aLogo}
-            alt={aName}
-            onError={() => setAErr(true)}
-            className="size-5 rounded-full object-cover ring-1 ring-emerald-500/40 shrink-0 bg-slate-800"
-          />
-        ) : (
-          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[#1F7A4D] text-[9px] font-black text-white">
-            {aName.slice(0, 2)}
-          </span>
-        )}
-      </div>
+      {aId != null ? (
+        <Link to={`/teams/${aId}`} className="group/t flex items-center gap-1.5 min-w-0 hover:opacity-90">
+          {awayNode}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-1.5 min-w-0">{awayNode}</div>
+      )}
 
-      {/* فاصل جمالي بين المباريات */}
       <span className="size-1 rounded-full bg-emerald-500/40 mx-1 shrink-0" />
     </div>
   )
@@ -194,11 +211,9 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   const [activeReminders, setActiveReminders] = useState(new Set())
   const [remindLoadingId, setRemindLoadingId] = useState(null)
 
-  // Touch Swipe State for Mobile Horizontal Swiping
   const touchStartX = useRef(0)
   const touchEndX = useRef(0)
 
-  // Fetch active reminders for authenticated user
   useEffect(() => {
     if (!user) {
       setActiveReminders(new Set())
@@ -212,16 +227,13 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
         const ids = res.data?.active_fixture_ids || []
         setActiveReminders(new Set(ids))
       })
-      .catch(() => {
-        // Non-blocking for guests or transient errors
-      })
+      .catch(() => {})
 
     return () => {
       isSubscribed = false
     }
   }, [user])
 
-  // Toggle or cancel 12-hour reminder
   const handleToggleReminder = async (fixtureId) => {
     if (!fixtureId) return
 
@@ -297,27 +309,21 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   }, [])
 
   const isDark = theme === 'dark' || document.documentElement.classList.contains('dark')
-
-  // Live match if currently running
   const liveMatch = liveData?.live?.[0] || null
 
-  // Display confirmed results only, exclude 0-0, deduplicate
   const displayRecent = useMemo(() => {
     const list = recentMatches && Array.isArray(recentMatches) ? recentMatches : []
     const seen = new Set()
     return list.filter((item) => {
       if (!item) return false
-      // Only confirmed/finished/completed results
       const status = item.status || item.match?.status
       if (status && !['completed', 'finished'].includes(status)) return false
 
-      // Score check: omit 0 - 0 scores
       const hScore = item.match ? item.match.home_score : item.home_score
       const aScore = item.match ? item.match.away_score : item.away_score
       if (hScore === undefined || aScore === undefined) return false
       if (Number(hScore) === 0 && Number(aScore) === 0) return false
 
-      // Deduplicate
       const key = item.id ? String(item.id) : `${item.home_team_id || item.host_team_id}-${item.away_team_id}-${item.match_datetime || item.date}`
       if (seen.has(key)) return false
       seen.add(key)
@@ -325,7 +331,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     })
   }, [recentMatches])
 
-  // Upcoming matches strictly from real database API data, scheduled within next 7 days
   const rawUpcoming = useMemo(() => {
     const now = Date.now() - 6 * 60 * 60 * 1000
     const maxWindow = Date.now() + 8 * 24 * 60 * 60 * 1000
@@ -353,7 +358,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
       })
   }, [liveData])
 
-  // Check if active tournaments include scheduled matches within next 7 days
   const realTournamentUpcoming = useMemo(() => {
     const now = Date.now() - 6 * 60 * 60 * 1000
     const maxWindow = Date.now() + 8 * 24 * 60 * 60 * 1000
@@ -390,12 +394,10 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
   const currentMatch = upcomingList[upcomingIndex] || upcomingList[0] || null
   const totalUpcoming = upcomingList.length
 
-  // Select dynamic theme according to index % COLOR_THEMES.length
   const colorTheme = COLOR_THEMES[upcomingIndex % COLOR_THEMES.length]
   const prevTheme = COLOR_THEMES[(upcomingIndex - 1 + COLOR_THEMES.length) % COLOR_THEMES.length]
   const nextTheme = COLOR_THEMES[(upcomingIndex + 1) % COLOR_THEMES.length]
 
-  // Touch Swipe Handlers for Smooth Mobile Navigation
   const handleTouchStart = (e) => {
     touchStartX.current = e.targetTouches[0].clientX
   }
@@ -409,17 +411,14 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     const diff = touchStartX.current - touchEndX.current
     const isRtl = document.documentElement.dir === 'rtl'
 
-    // Threshold of 45px for swipe detection
     if (Math.abs(diff) > 45) {
       if (diff > 0) {
-        // Swiped left
         if (isRtl) {
           setUpcomingIndex((p) => (p < totalUpcoming - 1 ? p + 1 : 0))
         } else {
           setUpcomingIndex((p) => (p > 0 ? p - 1 : totalUpcoming - 1))
         }
       } else {
-        // Swiped right
         if (isRtl) {
           setUpcomingIndex((p) => (p > 0 ? p - 1 : totalUpcoming - 1))
         } else {
@@ -432,7 +431,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     touchEndX.current = 0
   }
 
-  // Share Card Handler (html-to-image + Web Share / Clipboard)
   const handleShare = async () => {
     if (sharing || !cardRef.current) return
     setSharing(true)
@@ -458,9 +456,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     }
   }
 
-
-
-  // Format Date in Pure Arabic
   const formatMatchDate = (dateStr) => {
     if (!dateStr) return 'الموعد يحدد لاحقاً'
     try {
@@ -497,7 +492,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     }
     if (typeof m.round === 'string' && m.round) return m.round
     if (m.matchday) return `الجولة ${m.matchday}`
-    if (typeof m.group === 'object' && m.group?.name) return `المجموعة ${m.group.name}`
+    if (typeof m.group === 'object' && m.group?.name) return formatGroupName(m.group.name, { groupId: m.group.id })
     return 'الجولة 5'
   }
 
@@ -552,9 +547,14 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     )
   }
 
+  const liveHomeId = liveMatch?.home_team?.id ?? liveMatch?.home_team_id
+  const liveAwayId = liveMatch?.away_team?.id ?? liveMatch?.away_team_id
+  const curHomeId = currentMatch?.home_team?.id ?? currentMatch?.home_team_id ?? currentMatch?.host_team_id
+  const curAwayId = currentMatch?.away_team?.id ?? currentMatch?.away_team_id ?? currentMatch?.opponent_team_id
+
   return (
     <section aria-labelledby="live-featured-heading" className="mx-auto w-full max-w-6xl px-4 sm:px-6 my-4 sm:my-6">
-      {/* 1. Live Match Card (عند وجود مباراة جارية مباشرة) */}
+      {/* 1. Live Match Card */}
       {liveMatch && (
         <div className="mb-6 overflow-hidden rounded-xl border border-[#D93636]/40 bg-[#101211] p-5 sm:p-6 text-white shadow-md">
           <div className="flex items-center justify-between gap-3 border-b border-rose-500/20 pb-3 mb-4">
@@ -577,12 +577,21 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
           </div>
 
           <div className="grid grid-cols-3 items-center gap-2 text-center py-2">
-            <div className="flex flex-col items-center gap-1">
-              <TeamLogo team={liveMatch.home_team} size="md" />
-              <p className="text-xs sm:text-sm font-black text-white truncate max-w-full">
-                {getTeamName(liveMatch.home_team, 'المستضيف')}
-              </p>
-            </div>
+            {liveHomeId != null ? (
+              <Link to={`/teams/${liveHomeId}`} className="group flex flex-col items-center gap-1 hover:opacity-90">
+                <TeamLogo team={liveMatch.home_team} size="md" />
+                <p className="text-xs sm:text-sm font-black text-white truncate max-w-full group-hover:underline">
+                  {getTeamName(liveMatch.home_team, 'المستضيف')}
+                </p>
+              </Link>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <TeamLogo team={liveMatch.home_team} size="md" />
+                <p className="text-xs sm:text-sm font-black text-white truncate max-w-full">
+                  {getTeamName(liveMatch.home_team, 'المستضيف')}
+                </p>
+              </div>
+            )}
             <div className="flex flex-col items-center justify-center">
               <div className="flex items-center gap-2 text-3xl sm:text-4xl font-black text-rose-400 font-mono">
                 <span>{liveMatch.match?.home_score ?? 0}</span>
@@ -593,17 +602,26 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                 {getStadiumName(liveMatch)}
               </span>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <TeamLogo team={liveMatch.away_team} size="md" />
-              <p className="text-xs sm:text-sm font-black text-white truncate max-w-full">
-                {getTeamName(liveMatch.away_team, 'الضيف')}
-              </p>
-            </div>
+            {liveAwayId != null ? (
+              <Link to={`/teams/${liveAwayId}`} className="group flex flex-col items-center gap-1 hover:opacity-90">
+                <TeamLogo team={liveMatch.away_team} size="md" />
+                <p className="text-xs sm:text-sm font-black text-white truncate max-w-full group-hover:underline">
+                  {getTeamName(liveMatch.away_team, 'الضيف')}
+                </p>
+              </Link>
+            ) : (
+              <div className="flex flex-col items-center gap-1">
+                <TeamLogo team={liveMatch.away_team} size="md" />
+                <p className="text-xs sm:text-sm font-black text-white truncate max-w-full">
+                  {getTeamName(liveMatch.away_team, 'الضيف')}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* 2. بطاقة "المباريات القادمة" السنيمائية والمطابقة للمرجع مع البيئة الثلاثية الأبعاد */}
+      {/* 2. Upcoming Match Carousel Card */}
       {currentMatch && (
         <div
           className="relative w-full overflow-hidden py-3 sm:py-5 flex flex-col items-center select-none"
@@ -611,9 +629,7 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
         >
-          {/* Carousel Viewport with Side Card Peek Effect */}
           <div className="relative w-full flex items-center justify-center">
-            {/* Previous Card Peek (Right side in RTL) */}
             {totalUpcoming > 1 && (
               <div
                 onClick={() => setUpcomingIndex((p) => (p > 0 ? p - 1 : totalUpcoming - 1))}
@@ -634,12 +650,10 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
               </div>
             )}
 
-            {/* Central Main Cinematic Card */}
             <article
               ref={cardRef}
               className={`relative z-10 w-full max-w-3xl overflow-hidden rounded-xl border border-[#303832] p-4 sm:p-6 text-white shadow-xl transition-all duration-300`}
             >
-              {/* Layer 1: Stadium Background Asset */}
               <div
                 className="absolute inset-0 bg-cover bg-no-repeat transition-all duration-700 pointer-events-none"
                 style={{
@@ -649,7 +663,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                 aria-hidden="true"
               />
 
-              {/* Layer 2: Green-to-Blue Cinematic Radial Lighting */}
               <div
                 className="absolute inset-0 pointer-events-none transition-all duration-700"
                 style={{
@@ -658,17 +671,13 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                 aria-hidden="true"
               />
 
-              {/* Layer 3: Dark Vignette & Readability Gradient */}
               <div
                 className="absolute inset-0 pointer-events-none bg-gradient-to-b from-slate-950/45 via-slate-950/70 to-slate-950/95"
                 aria-hidden="true"
               />
 
-              {/* Functional Content Layers */}
               <div className="relative z-10">
-                {/* 1. Upper Zone: Badge (Right in RTL), Tournament in Center, Carousel Counter (Left in RTL) */}
                 <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-3.5 mb-5 sm:mb-6">
-                  {/* Status Badge: 🔥 المباراة القادمة */}
                   <span
                     className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-wider border backdrop-blur-md transition-all duration-500 shadow-md ${colorTheme.badge}`}
                   >
@@ -676,7 +685,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                     <span>المباراة القادمة</span>
                   </span>
 
-                  {/* Tournament Title & Round (Center Top) */}
                   <div className="flex flex-col items-center justify-center text-center px-2">
                     <Trophy className="size-5 text-amber-400 drop-shadow-[0_2px_8px_rgba(245,158,11,0.5)] mb-1" />
                     <span className="text-xs sm:text-sm font-black text-white truncate max-w-[150px] sm:max-w-xs drop-shadow-sm">
@@ -687,7 +695,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                     </span>
                   </div>
 
-                  {/* Carousel Counter Pill: ‹ 1/17 › */}
                   <div className="flex items-center gap-1.5 rounded-full bg-slate-950/65 backdrop-blur-md px-2.5 sm:px-3 py-1 text-xs font-mono font-bold text-white border border-white/10 shadow-md">
                     <button
                       type="button"
@@ -711,29 +718,48 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                   </div>
                 </div>
 
-                {/* 2. Central Zone: Team Crests (Jerseys Removed) & VS Treatment */}
+                {/* Central Zone: Team Crests & Names */}
                 <div className="my-3 sm:my-5">
                   <div className="grid grid-cols-3 items-center gap-2 sm:gap-4 text-center">
-                    {/* Home Team (المستضيف) */}
+                    {/* Home Team */}
                     <div className="flex flex-col items-center gap-2 min-w-0">
-                      <div className="size-20 sm:size-24 rounded-[22px] sm:rounded-[26px] bg-white p-2.5 sm:p-3 shadow-[0_12px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/20 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105">
-                        <TeamLogo
-                          team={currentMatch.home_team}
-                          name={currentMatch.home_team?.name}
-                          className="size-full"
-                          bg="bg-transparent"
-                          rounded="rounded-none"
-                        />
-                      </div>
-                      <p className="text-xs sm:text-base font-black text-white truncate max-w-full drop-shadow-md">
-                        {getTeamName(currentMatch.home_team, 'فريق المستضيف')}
-                      </p>
+                      {curHomeId != null ? (
+                        <Link to={`/teams/${curHomeId}`} className="group/team flex flex-col items-center gap-2 min-w-0 w-full">
+                          <div className="size-20 sm:size-24 rounded-[22px] sm:rounded-[26px] bg-white p-2.5 sm:p-3 shadow-[0_12px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/20 flex items-center justify-center overflow-hidden transition-transform duration-300 group-hover/team:scale-105">
+                            <TeamLogo
+                              team={currentMatch.home_team}
+                              name={currentMatch.home_team?.name}
+                              className="size-full"
+                              bg="bg-transparent"
+                              rounded="rounded-none"
+                            />
+                          </div>
+                          <p className="text-xs sm:text-base font-black text-white truncate max-w-full drop-shadow-md group-hover/team:text-emerald-300 group-hover/team:underline">
+                            {getTeamName(currentMatch.home_team, 'فريق المستضيف')}
+                          </p>
+                        </Link>
+                      ) : (
+                        <>
+                          <div className="size-20 sm:size-24 rounded-[22px] sm:rounded-[26px] bg-white p-2.5 sm:p-3 shadow-[0_12px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/20 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105">
+                            <TeamLogo
+                              team={currentMatch.home_team}
+                              name={currentMatch.home_team?.name}
+                              className="size-full"
+                              bg="bg-transparent"
+                              rounded="rounded-none"
+                            />
+                          </div>
+                          <p className="text-xs sm:text-base font-black text-white truncate max-w-full drop-shadow-md">
+                            {getTeamName(currentMatch.home_team, 'فريق المستضيف')}
+                          </p>
+                        </>
+                      )}
                       <span className="rounded-full bg-slate-950/60 backdrop-blur-xs border border-white/10 px-2.5 sm:px-3 py-0.5 text-[10px] sm:text-[11px] font-bold text-slate-300 shadow-xs">
                         الفريق المستضيف
                       </span>
                     </div>
 
-                    {/* Middle: Prominent Glowing "VS" + Context Pill */}
+                    {/* Middle VS */}
                     <div className="flex flex-col items-center justify-center">
                       <span className={`text-2xl sm:text-4xl font-black font-sans tracking-widest transition-all duration-500 ${colorTheme.vsGlow}`}>
                         VS
@@ -743,20 +769,39 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                       </span>
                     </div>
 
-                    {/* Away Team (الضيف) */}
+                    {/* Away Team */}
                     <div className="flex flex-col items-center gap-2 min-w-0">
-                      <div className="size-20 sm:size-24 rounded-[22px] sm:rounded-[26px] bg-white p-2.5 sm:p-3 shadow-[0_12px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/20 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105">
-                        <TeamLogo
-                          team={currentMatch.away_team}
-                          name={currentMatch.away_team?.name}
-                          className="size-full"
-                          bg="bg-transparent"
-                          rounded="rounded-none"
-                        />
-                      </div>
-                      <p className="text-xs sm:text-base font-black text-white truncate max-w-full drop-shadow-md">
-                        {getTeamName(currentMatch.away_team, 'فريق الضيف')}
-                      </p>
+                      {curAwayId != null ? (
+                        <Link to={`/teams/${curAwayId}`} className="group/team flex flex-col items-center gap-2 min-w-0 w-full">
+                          <div className="size-20 sm:size-24 rounded-[22px] sm:rounded-[26px] bg-white p-2.5 sm:p-3 shadow-[0_12px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/20 flex items-center justify-center overflow-hidden transition-transform duration-300 group-hover/team:scale-105">
+                            <TeamLogo
+                              team={currentMatch.away_team}
+                              name={currentMatch.away_team?.name}
+                              className="size-full"
+                              bg="bg-transparent"
+                              rounded="rounded-none"
+                            />
+                          </div>
+                          <p className="text-xs sm:text-base font-black text-white truncate max-w-full drop-shadow-md group-hover/team:text-emerald-300 group-hover/team:underline">
+                            {getTeamName(currentMatch.away_team, 'فريق الضيف')}
+                          </p>
+                        </Link>
+                      ) : (
+                        <>
+                          <div className="size-20 sm:size-24 rounded-[22px] sm:rounded-[26px] bg-white p-2.5 sm:p-3 shadow-[0_12px_28px_rgba(0,0,0,0.45)] ring-1 ring-white/20 flex items-center justify-center overflow-hidden transition-transform duration-300 hover:scale-105">
+                            <TeamLogo
+                              team={currentMatch.away_team}
+                              name={currentMatch.away_team?.name}
+                              className="size-full"
+                              bg="bg-transparent"
+                              rounded="rounded-none"
+                            />
+                          </div>
+                          <p className="text-xs sm:text-base font-black text-white truncate max-w-full drop-shadow-md">
+                            {getTeamName(currentMatch.away_team, 'فريق الضيف')}
+                          </p>
+                        </>
+                      )}
                       <span className="rounded-full bg-slate-950/60 backdrop-blur-xs border border-white/10 px-2.5 sm:px-3 py-0.5 text-[10px] sm:text-[11px] font-bold text-slate-300 shadow-xs">
                         الفريق الضيف
                       </span>
@@ -764,10 +809,9 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                   </div>
                 </div>
 
-                {/* 3. Lower Zone: Glassmorphism Match Details Panel (التاريخ، الساعة، الملعب) */}
+                {/* Lower Zone */}
                 <div className="mt-3.5 sm:mt-6 rounded-xl border border-white/10 bg-black/60 p-2.5 sm:p-4 shadow-md backdrop-blur-md">
                   <div className="grid grid-cols-3 divide-x divide-slate-700/40 rtl:divide-x-reverse text-center">
-                    {/* التاريخ (Date) */}
                     <div className="flex flex-col items-center justify-center px-1 sm:px-3">
                       <div className="flex items-center gap-1 text-slate-400 mb-0.5 sm:mb-1">
                         <CalendarDays className="size-3 sm:size-4 text-emerald-400 shrink-0" />
@@ -778,7 +822,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                       </span>
                     </div>
 
-                    {/* الساعة (Time) */}
                     <div className="flex flex-col items-center justify-center px-1 sm:px-3">
                       <div className="flex items-center gap-1 text-slate-400 mb-0.5 sm:mb-1">
                         <Clock className="size-3 sm:size-4 text-emerald-400 shrink-0" />
@@ -789,7 +832,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                       </span>
                     </div>
 
-                    {/* الملعب (Venue) */}
                     <div className="flex flex-col items-center justify-center px-1 sm:px-3">
                       <div className="flex items-center gap-1 text-slate-400 mb-0.5 sm:mb-1">
                         <MapPin className="size-3 sm:size-4 text-emerald-400 shrink-0" />
@@ -802,9 +844,8 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                   </div>
                 </div>
 
-                {/* 4. Bottom Action Bar: Share Match Card & Remind Me Buttons */}
+                {/* Bottom Action Bar */}
                 <div className="mt-3.5 sm:mt-5 flex items-center gap-2 sm:gap-3 no-share-capture">
-                  {/* Secondary Approved Style Share Button */}
                   <button
                     type="button"
                     onClick={handleShare}
@@ -815,7 +856,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
                     <Share2 className="size-3.5 sm:size-4 shrink-0 text-[#111313]" />
                   </button>
 
-                  {/* Real 12-Hour Kickoff Remind Me Button */}
                   <button
                     type="button"
                     onClick={() => handleToggleReminder(currentMatch.id)}
@@ -853,7 +893,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
               </div>
             </article>
 
-            {/* Next Card Peek (Left side in RTL) */}
             {totalUpcoming > 1 && (
               <div
                 onClick={() => setUpcomingIndex((p) => (p < totalUpcoming - 1 ? p + 1 : 0))}
@@ -875,7 +914,6 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
             )}
           </div>
 
-          {/* Carousel Pagination Dots */}
           {totalUpcoming > 1 && (
             <div className="mt-4 flex items-center justify-center gap-2 no-share-capture">
               {upcomingList.map((m, i) => {
@@ -901,30 +939,25 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
         </div>
       )}
 
-      {/* 3. شريط آخر النتائج المكتملة (News Results Ticker with Compact Logos & Continuous Loop) */}
+      {/* 3. Recent Match Results Ticker */}
       {displayRecent.length > 0 && (
         <div
           className="ticker-container mt-2.5 flex items-center gap-2 overflow-hidden rounded-2xl border px-3 py-1.5 transition-colors relative bg-white dark:bg-[#1B201D] border-[#E1E5DF] dark:border-[#303832] text-[#65706A] dark:text-[#B2B9B3] shadow-xs"
           title="مرر الفأرة فوق الشريط للتوقف وقراءة النتائج"
         >
-          {/* شارة ثابتة في البداية: آخر النتائج */}
           <div className="relative z-10 flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-[#10B981] px-2.5 py-1 text-[11px] font-black text-white shadow-sm select-none">
             <Zap className="size-3.5 fill-white" />
             <span className="whitespace-nowrap">آخر النتائج</span>
           </div>
 
-          {/* تدرج تلاشي ناعم في الأطراف */}
           <div className="pointer-events-none absolute inset-y-0 start-[105px] w-6 z-1 bg-gradient-to-l from-transparent to-white dark:to-[#1B201D]" />
           <div className="pointer-events-none absolute inset-y-0 end-0 w-8 z-1 bg-gradient-to-r from-transparent to-white dark:to-[#1B201D]" />
 
-          {/* المسار المتحرك باستمرار وبسلاسة مع ميزة التوقف عند تمرير الفأرة */}
           <div className="flex-1 overflow-hidden relative">
             <div className="animate-ticker-marquee flex items-center gap-3 py-0.5 whitespace-nowrap cursor-default">
-              {/* المجموعة الأولى */}
               {displayRecent.map((item, idx) => (
                 <TickerItem key={`rec-a-${item.id || idx}`} item={item} isDark={isDark} />
               ))}
-              {/* المجموعة المكررة لضمان حركة مستمرة وانسيابية لا نهائية */}
               {displayRecent.map((item, idx) => (
                 <TickerItem key={`rec-b-${item.id || idx}`} item={item} isDark={isDark} />
               ))}
@@ -935,5 +968,3 @@ export default function LiveTournamentCard({ theme = 'dark' }) {
     </section>
   )
 }
-
-

@@ -82,6 +82,7 @@ export default function ProductionSuggestedTeams() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {displayTeams.map((tItem, idx) => {
             const teamObj = tItem.host_team || tItem
+            const teamId = tItem.host_team?.id ?? tItem.host_team_id ?? null
             const tName = teamObj.name || (isRtl ? 'فريق رياضي' : 'Team')
             const tCity = teamObj.city || (isRtl ? 'المغرب' : 'Morocco')
             const rating = teamObj.rating ? Number(teamObj.rating).toFixed(1) : null
@@ -93,11 +94,24 @@ export default function ProductionSuggestedTeams() {
               >
                 <div>
                   <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-slate-50 p-1 border border-slate-200 shadow-2xs group-hover:scale-105 transition-transform">
-                    <TeamLogo team={teamObj} name={tName} className="size-9" rounded="rounded-xl" fontSize="text-sm" />
+                    <TeamLogo
+                      team={teamObj}
+                      name={tName}
+                      to={teamId != null ? `/teams/${teamId}` : undefined}
+                      className="size-9"
+                      rounded="rounded-xl"
+                      fontSize="text-sm"
+                    />
                   </div>
 
                   <h3 className="mt-2 text-xs font-black text-slate-900 line-clamp-1">
-                    {tName}
+                    {teamId != null ? (
+                      <Link to={`/teams/${teamId}`} className="hover:text-emerald-600 transition-colors">
+                        {tName}
+                      </Link>
+                    ) : (
+                      tName
+                    )}
                   </h3>
 
                   <p className="text-[10px] font-semibold text-slate-400">

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarCheck, CircleDollarSign, Clock, History, Search, Swords } from 'lucide-react'
 import { Button, Empty, SectionTitle, SkeletonCards, StatusBadge } from '../../../components/dashboard/ui'
@@ -346,8 +347,30 @@ export default function Bookings() {
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-extrabold text-slate-900">
-                        {m.host_team?.name || t('terrain.bookings.teamN', { id: m.host_team_id })}
-                        {m.opponent_team?.name ? <span className="text-slate-400"> {t('terrain.bookings.vs')} {m.opponent_team.name}</span> : ''}
+                        {(() => {
+                          const hostId = m.host_team?.id ?? m.host_team_id
+                          const hostLabel = m.host_team?.name || t('terrain.bookings.teamN', { id: m.host_team_id })
+                          return hostId != null ? (
+                            <Link to={`/teams/${hostId}`} className="hover:text-green-600 transition-colors">
+                              {hostLabel}
+                            </Link>
+                          ) : hostLabel
+                        })()}
+                        {m.opponent_team?.name ? (
+                          <span className="text-slate-400">
+                            {' '}{t('terrain.bookings.vs')}{' '}
+                            {!m.is_guest && (m.opponent_team?.id ?? m.opponent_team_id) != null ? (
+                              <Link
+                                to={`/teams/${m.opponent_team?.id ?? m.opponent_team_id}`}
+                                className="hover:text-green-600 transition-colors"
+                              >
+                                {m.opponent_team.name}
+                              </Link>
+                            ) : (
+                              m.opponent_team.name
+                            )}
+                          </span>
+                        ) : ''}
                       </p>
                       <p className="text-[11px] font-semibold text-slate-400">
                         {formatDate(m.match_datetime, i18n.language)}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   CalendarDays,
@@ -73,11 +74,21 @@ export default function OpponentProfileModal({ teamId, open, onClose }) {
             <TeamLogo
               team={team}
               src={team.logo_thumbnail_url || team.logo_url}
+              to={team?.id != null ? `/teams/${team.id}` : undefined}
+              onClick={onClose}
               className="size-16 rounded-2xl shadow-sm"
               fontSize="text-xl"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-base font-black text-slate-900">{team.name}</p>
+              <p className="truncate text-base font-black text-slate-900">
+                {team?.id != null ? (
+                  <Link to={`/teams/${team.id}`} onClick={onClose} className="hover:text-emerald-600 transition-colors">
+                    {team.name}
+                  </Link>
+                ) : (
+                  team.name
+                )}
+              </p>
               <p className="flex items-center gap-2 text-xs font-semibold text-slate-500">
                 <span>{team.category === 'adult' ? 'كبار' : team.category === 'teenager' ? 'شباب' : 'براعم'}</span>
                 {team.city && (
@@ -220,7 +231,14 @@ export default function OpponentProfileModal({ teamId, open, onClose }) {
                           {won ? 'فوز' : draw ? 'تعادل' : 'خسارة'}
                         </span>
                         <span className="truncate font-bold text-slate-800">
-                          ضد {oppTeam?.name || 'فريق'}
+                          ضد{' '}
+                          {oppTeam?.id != null && oppTeam?.name ? (
+                            <Link to={`/teams/${oppTeam.id}`} onClick={onClose} className="hover:text-emerald-600 transition-colors">
+                              {oppTeam.name}
+                            </Link>
+                          ) : (
+                            oppTeam?.name || 'فريق'
+                          )}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 font-black tabular-nums text-slate-900">

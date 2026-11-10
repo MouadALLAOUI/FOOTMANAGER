@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays, CheckCircle2, ChevronDown, Loader2, ScrollText, Trophy, Users, Wallet, X } from 'lucide-react'
 import api from '../../../api/client'
@@ -113,9 +114,27 @@ export default function RegisterModal({ open, onClose, tour, availability, team,
         ) : (
           <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6 pt-3">
             <div className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-              <TeamAvatar team={team} className="size-12" />
+              <TeamAvatar
+                team={team}
+                to={team?.id != null ? `/teams/${team.id}` : undefined}
+                target="_blank"
+                className="size-12"
+              />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-black text-slate-900">{team?.name || '—'}</p>
+                <p className="truncate text-sm font-black text-slate-900">
+                  {team?.id != null ? (
+                    <Link
+                      to={`/teams/${team.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-emerald-600 hover:underline transition-colors"
+                    >
+                      {team?.name || '—'}
+                    </Link>
+                  ) : (
+                    team?.name || '—'
+                  )}
+                </p>
                 {team?.category && <p className="text-[11px] font-semibold text-slate-400">{team.category}</p>}
               </div>
               <span className="rounded-full bg-green-50 px-3 py-1 text-[11px] font-black text-green-700 ring-1 ring-green-200">

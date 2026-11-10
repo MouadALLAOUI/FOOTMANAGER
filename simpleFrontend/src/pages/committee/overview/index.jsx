@@ -599,13 +599,14 @@ export default function Overview({ onActiveTournamentChange = null }) {
               <div className="relative">
                 <TeamLogo
                   team={upcomingMatch.home_team || upcomingMatch.homeTeam}
+                  to={(upcomingMatch.home_team || upcomingMatch.homeTeam)?.id != null ? `/teams/${(upcomingMatch.home_team || upcomingMatch.homeTeam).id}` : undefined}
                   name={upcomingMatch.home_team?.name || upcomingMatch.homeTeam?.name || 'الفريق المضيف'}
                   className="size-16 sm:size-20 rounded-2xl bg-white/10 p-2 shadow-lg ring-2 ring-white/15"
                   fontSize="text-xl font-bold"
                 />
               </div>
               <h3 className="mt-3 text-base sm:text-lg font-bold text-white line-clamp-1 max-w-[180px]">
-                {upcomingMatch.home_team?.name || upcomingMatch.homeTeam?.name || 'الفريق المضيف'}
+                {(upcomingMatch.home_team || upcomingMatch.homeTeam)?.id != null ? <Link to={`/teams/${(upcomingMatch.home_team || upcomingMatch.homeTeam).id}`} className="hover:text-[#0F9D58] transition-colors">{upcomingMatch.home_team?.name || upcomingMatch.homeTeam?.name || 'الفريق المضيف'}</Link> : (upcomingMatch.home_team?.name || upcomingMatch.homeTeam?.name || 'الفريق المضيف')}
               </h3>
               <span className="text-xs sm:text-sm text-white/70 font-medium mt-0.5">الفريق المضيف</span>
             </div>
@@ -626,13 +627,14 @@ export default function Overview({ onActiveTournamentChange = null }) {
               <div className="relative">
                 <TeamLogo
                   team={upcomingMatch.away_team || upcomingMatch.awayTeam}
+                  to={(upcomingMatch.away_team || upcomingMatch.awayTeam)?.id != null ? `/teams/${(upcomingMatch.away_team || upcomingMatch.awayTeam).id}` : undefined}
                   name={upcomingMatch.away_team?.name || upcomingMatch.awayTeam?.name || 'الفريق الضيف'}
                   className="size-16 sm:size-20 rounded-2xl bg-white/10 p-2 shadow-lg ring-2 ring-white/15"
                   fontSize="text-xl font-bold"
                 />
               </div>
               <h3 className="mt-3 text-base sm:text-lg font-bold text-white line-clamp-1 max-w-[180px]">
-                {upcomingMatch.away_team?.name || upcomingMatch.awayTeam?.name || 'الفريق الضيف'}
+                {(upcomingMatch.away_team || upcomingMatch.awayTeam)?.id != null ? <Link to={`/teams/${(upcomingMatch.away_team || upcomingMatch.awayTeam).id}`} className="hover:text-[#0F9D58] transition-colors">{upcomingMatch.away_team?.name || upcomingMatch.awayTeam?.name || 'الفريق الضيف'}</Link> : (upcomingMatch.away_team?.name || upcomingMatch.awayTeam?.name || 'الفريق الضيف')}
               </h3>
               <span className="text-xs sm:text-sm text-white/70 font-medium mt-0.5">الفريق الضيف</span>
             </div>
@@ -1005,11 +1007,13 @@ export default function Overview({ onActiveTournamentChange = null }) {
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       <TeamLogo
                         team={fixture.home_team || fixture.homeTeam}
+                        to={(fixture.home_team || fixture.homeTeam)?.id != null ? `/teams/${(fixture.home_team || fixture.homeTeam).id}` : undefined}
+                        onClick={(e) => e.stopPropagation()}
                         className="size-8 rounded-lg bg-white p-0.5 shadow-2xs"
                         fontSize="text-xs font-bold"
                       />
                       <span className="text-sm sm:text-base font-bold text-[#0F172A] truncate">
-                        {fixture.home_team?.name || fixture.homeTeam?.name}
+                        {(fixture.home_team || fixture.homeTeam)?.id != null ? <Link to={`/teams/${(fixture.home_team || fixture.homeTeam).id}`} onClick={(e) => e.stopPropagation()} className="hover:text-[#0F9D58] transition-colors">{fixture.home_team?.name || fixture.homeTeam?.name}</Link> : (fixture.home_team?.name || fixture.homeTeam?.name)}
                       </span>
                     </div>
 
@@ -1024,10 +1028,12 @@ export default function Overview({ onActiveTournamentChange = null }) {
 
                     <div className="flex items-center justify-end gap-3 flex-1 min-w-0 text-end">
                       <span className="text-sm sm:text-base font-bold text-[#0F172A] truncate">
-                        {fixture.away_team?.name || fixture.awayTeam?.name}
+                        {(fixture.away_team || fixture.awayTeam)?.id != null ? <Link to={`/teams/${(fixture.away_team || fixture.awayTeam).id}`} onClick={(e) => e.stopPropagation()} className="hover:text-[#0F9D58] transition-colors">{fixture.away_team?.name || fixture.awayTeam?.name}</Link> : (fixture.away_team?.name || fixture.awayTeam?.name)}
                       </span>
                       <TeamLogo
                         team={fixture.away_team || fixture.awayTeam}
+                        to={(fixture.away_team || fixture.awayTeam)?.id != null ? `/teams/${(fixture.away_team || fixture.awayTeam).id}` : undefined}
+                        onClick={(e) => e.stopPropagation()}
                         className="size-8 rounded-lg bg-white p-0.5 shadow-2xs"
                         fontSize="text-xs font-bold"
                       />
@@ -1079,11 +1085,13 @@ export default function Overview({ onActiveTournamentChange = null }) {
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <TeamLogo
                           team={fixture.home_team || fixture.homeTeam}
+                          to={(fixture.home_team || fixture.homeTeam)?.id != null ? `/teams/${(fixture.home_team || fixture.homeTeam).id}` : undefined}
+                          onClick={(e) => e.stopPropagation()}
                           className="size-7 rounded-md bg-white p-0.5"
                           fontSize="text-[10px] font-bold"
                         />
                         <span className="text-sm sm:text-base font-bold text-[#0F172A] truncate">
-                          {fixture.home_team?.name || fixture.homeTeam?.name || 'فريق مضيف'}
+                          {(fixture.home_team || fixture.homeTeam)?.id != null ? <Link to={`/teams/${(fixture.home_team || fixture.homeTeam).id}`} className="hover:text-[#0F9D58] transition-colors">{fixture.home_team?.name || fixture.homeTeam?.name || 'فريق مضيف'}</Link> : (fixture.home_team?.name || fixture.homeTeam?.name || 'فريق مضيف')}
                         </span>
                       </div>
 
@@ -1092,11 +1100,13 @@ export default function Overview({ onActiveTournamentChange = null }) {
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         <TeamLogo
                           team={fixture.away_team || fixture.awayTeam}
+                          to={(fixture.away_team || fixture.awayTeam)?.id != null ? `/teams/${(fixture.away_team || fixture.awayTeam).id}` : undefined}
+                          onClick={(e) => e.stopPropagation()}
                           className="size-7 rounded-md bg-white p-0.5"
                           fontSize="text-[10px] font-bold"
                         />
                         <span className="text-sm sm:text-base font-bold text-[#0F172A] truncate">
-                          {fixture.away_team?.name || fixture.awayTeam?.name || 'فريق ضيف'}
+                          {(fixture.away_team || fixture.awayTeam)?.id != null ? <Link to={`/teams/${(fixture.away_team || fixture.awayTeam).id}`} className="hover:text-[#0F9D58] transition-colors">{fixture.away_team?.name || fixture.awayTeam?.name || 'فريق ضيف'}</Link> : (fixture.away_team?.name || fixture.awayTeam?.name || 'فريق ضيف')}
                         </span>
                       </div>
                     </div>

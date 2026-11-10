@@ -5,7 +5,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faArrowLeft,
   faCalendarDays,
-  faCheck,
   faClock,
   faMapPin,
   faRadio,
@@ -17,7 +16,6 @@ import { shareOrDownloadMatchCard } from '../../lib/cardExportUtils'
 import api from '../../api/client'
 import { matchDay, formatTime } from '../../lib/adapters'
 import TeamLogo from '../../components/profile/TeamLogo'
-import { useToast } from '../../components/ui/Toast'
 
 const EVENT_META = {
   goal: '⚽',
@@ -71,7 +69,37 @@ function ShareButton({ cardRef, title, text, t }) {
   )
 }
 
-function LiveCard({ f, t, i18n }) {
+function TeamBadgeLink({ team, fallbackName, alignClass = '' }) {
+  const inner = (
+    <>
+      <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-lg ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105 group-hover/team:scale-105">
+        <TeamLogo team={team} name={team?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
+      </div>
+      <span className="bidi-plaintext max-w-[140px] truncate text-center text-xs sm:text-sm font-extrabold uppercase tracking-wide text-white group-hover/team:text-emerald-300 group-hover/team:underline">
+        {team?.name || fallbackName || '—'}
+      </span>
+    </>
+  )
+
+  if (team?.id != null) {
+    return (
+      <Link
+        to={`/teams/${team.id}`}
+        className={`group/team flex flex-col items-center gap-2.5 text-center transition-opacity hover:opacity-90 ${alignClass}`}
+      >
+        {inner}
+      </Link>
+    )
+  }
+
+  return (
+    <div className={`flex flex-col items-center gap-2.5 text-center ${alignClass}`}>
+      {inner}
+    </div>
+  )
+}
+
+function LiveCard({ f, t }) {
   const cardRef = useRef(null)
   const m = f.match || {}
   const tournaments = f.tournament
@@ -118,25 +146,8 @@ function LiveCard({ f, t, i18n }) {
           </div>
         </div>
 
-        {/* Home Team */}
-        <div className="flex flex-col items-center gap-2.5 pe-6 text-center">
-          <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-lg ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
-            <TeamLogo team={home} name={home?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
-          </div>
-          <span className="bidi-plaintext max-w-[140px] truncate text-center text-xs sm:text-sm font-extrabold uppercase tracking-wide text-white">
-            {home?.name || '—'}
-          </span>
-        </div>
-
-        {/* Away Team */}
-        <div className="flex flex-col items-center gap-2.5 ps-6 text-center">
-          <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-lg ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
-            <TeamLogo team={away} name={away?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
-          </div>
-          <span className="bidi-plaintext max-w-[140px] truncate text-center text-xs sm:text-sm font-extrabold uppercase tracking-wide text-white">
-            {away?.name || '—'}
-          </span>
-        </div>
+        <TeamBadgeLink team={home} alignClass="pe-6" />
+        <TeamBadgeLink team={away} alignClass="ps-6" />
       </div>
 
       {/* Glowing Share Button */}
@@ -264,25 +275,8 @@ function NextCard({ f, t, i18n, index = 0, total = 1, onPrev, onNext }) {
           </span>
         </div>
 
-        {/* Home Team */}
-        <div className="flex flex-col items-center gap-2.5 pe-6 text-center">
-          <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-lg ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
-            <TeamLogo team={home} name={home?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
-          </div>
-          <span className="bidi-plaintext max-w-[140px] truncate text-center text-xs sm:text-sm font-extrabold uppercase tracking-wide text-white">
-            {home?.name || '—'}
-          </span>
-        </div>
-
-        {/* Away Team */}
-        <div className="flex flex-col items-center gap-2.5 ps-6 text-center">
-          <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-lg ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
-            <TeamLogo team={away} name={away?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
-          </div>
-          <span className="bidi-plaintext max-w-[140px] truncate text-center text-xs sm:text-sm font-extrabold uppercase tracking-wide text-white">
-            {away?.name || '—'}
-          </span>
-        </div>
+        <TeamBadgeLink team={home} alignClass="pe-6" />
+        <TeamBadgeLink team={away} alignClass="ps-6" />
       </div>
 
       {/* Glowing Share Button */}
@@ -431,7 +425,7 @@ export default function LiveAndNext() {
                   </div>
                 )}
                 {live.map((f) => (
-                  <LiveCard key={f.id} f={f} t={t} i18n={i18n} />
+                  <LiveCard key={f.id} f={f} t={t} />
                 ))}
               </div>
 

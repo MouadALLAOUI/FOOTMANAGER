@@ -10,6 +10,7 @@ import CommitteeBracket from '../../../domains/committee/components/CommitteeBra
 import KnockoutOptionModal from '../../../domains/committee/components/KnockoutOptionModal'
 import TournamentStageBar from '../../../components/tournaments/TournamentStageBar'
 import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
+import { formatGroupName } from '../../../lib/groupNames'
 
 export default function BracketTab({ tournament, refresh, refreshKey, setActive }) {
   const { t } = useTranslation()
@@ -190,7 +191,7 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {meta.groups.map((group) => (
               <div key={group.id} className="rounded-xl bg-white/70 p-3 ring-1 ring-blue-100">
-                <p className="text-[10px] font-black uppercase tracking-wider text-blue-500">{t('committee.detail.knockout6.groupLabel', { group: group.name })}</p>
+                <p className="text-[10px] font-black uppercase tracking-wider text-blue-500">{formatGroupName(group.name, { groupId: group.id, tournamentId: tournament.id })}</p>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {group.teams.map((team) => (
                     <span key={team.id} className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-2 py-1 text-[11px] font-bold text-blue-900">

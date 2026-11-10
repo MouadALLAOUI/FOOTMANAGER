@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowRight, Check, Loader2, Search, User, X } from 'lucide-react'
 import api from '../../../api/client'
 import TeamLogo from '../../../components/profile/TeamLogo'
@@ -156,9 +157,9 @@ export default function CumulativePenaltyModal({
                   {/* Offender */}
                   <div className="flex-1 flex flex-col items-center text-center">
                     <div className="size-12 rounded-2xl ring-2 ring-amber-400 bg-white p-1 flex items-center justify-center shadow-sm">
-                      <TeamLogo team={offenderTeam} name={offenderName} className="size-full object-contain" />
+                      <TeamLogo team={offenderTeam} name={offenderName} to={(data?.offenderId || offenderTeam?.id) != null ? `/teams/${data?.offenderId || offenderTeam?.id}` : undefined} target="_blank" className="size-full object-contain" />
                     </div>
-                    <span className="mt-1.5 text-xs font-black text-slate-800 line-clamp-1">{offenderName}</span>
+                    <span className="mt-1.5 text-xs font-black text-slate-800 line-clamp-1">{(data?.offenderId || offenderTeam?.id) != null ? <Link to={`/teams/${data?.offenderId || offenderTeam?.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{offenderName}</Link> : offenderName}</span>
                     <span className="text-[10px] font-black text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full mt-1 border border-amber-300">
                       المرتكب للخطأ ({threshold})
                     </span>
@@ -175,9 +176,9 @@ export default function CumulativePenaltyModal({
                   {/* Beneficiary */}
                   <div className="flex-1 flex flex-col items-center text-center">
                     <div className="size-12 rounded-2xl ring-2 ring-emerald-500 bg-white p-1 flex items-center justify-center shadow-sm">
-                      <TeamLogo team={beneficiaryTeam} name={beneficiaryName} className="size-full object-contain" />
+                      <TeamLogo team={beneficiaryTeam} name={beneficiaryName} to={(beneficiaryId || beneficiaryTeam?.id) != null ? `/teams/${beneficiaryId || beneficiaryTeam?.id}` : undefined} target="_blank" className="size-full object-contain" />
                     </div>
-                    <span className="mt-1.5 text-xs font-black text-slate-800 line-clamp-1">{beneficiaryName}</span>
+                    <span className="mt-1.5 text-xs font-black text-slate-800 line-clamp-1">{(beneficiaryId || beneficiaryTeam?.id) != null ? <Link to={`/teams/${beneficiaryId || beneficiaryTeam?.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{beneficiaryName}</Link> : beneficiaryName}</span>
                     <span className="text-[10px] font-black text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full mt-1 border border-emerald-300">
                       المسدد للركلة
                     </span>
@@ -249,9 +250,9 @@ export default function CumulativePenaltyModal({
                   <span>رجوع</span>
                 </button>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-slate-800 line-clamp-1">{beneficiaryName}</span>
+                  <span className="text-xs font-black text-slate-800 line-clamp-1">{(beneficiaryId || beneficiaryTeam?.id) != null ? <Link to={`/teams/${beneficiaryId || beneficiaryTeam?.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{beneficiaryName}</Link> : beneficiaryName}</span>
                   <div className="size-6 rounded-lg bg-slate-100 p-0.5 overflow-hidden">
-                    <TeamLogo team={beneficiaryTeam} name={beneficiaryName} className="size-full object-contain" />
+                    <TeamLogo team={beneficiaryTeam} name={beneficiaryName} to={(beneficiaryId || beneficiaryTeam?.id) != null ? `/teams/${beneficiaryId || beneficiaryTeam?.id}` : undefined} target="_blank" className="size-full object-contain" />
                   </div>
                 </div>
               </div>

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays, MapPin, Ruler, Star, Users } from 'lucide-react'
 import {
@@ -44,7 +45,7 @@ function Field({ icon: Icon, label, value }) {
   )
 }
 
-function ManagerBody({ id }) {
+function ManagerBody({ id, onClose }) {
   const { t } = useTranslation()
   const { data, isLoading, isError } = usePublicManagerProfile(id, { enabled: !!id })
   if (isLoading) return <LoadingBody />
@@ -76,28 +77,52 @@ function ManagerBody({ id }) {
             <Users className="size-3.5" />
             {t('profile.public.team')}
           </p>
-          <div className="flex items-center gap-3">
-            <TeamLogo team={team} className="size-12" rounded="rounded-2xl" ring="ring-1 ring-slate-100" fontSize="text-sm" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-extrabold text-slate-900">{team.name}</p>
-              <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
-                {[team.city, team.category].filter(Boolean).join(' • ')}
-              </p>
+          {team.id != null ? (
+            <Link
+              to={`/teams/${team.id}`}
+              onClick={onClose}
+              className="group flex items-center gap-3 rounded-xl p-1.5 -m-1.5 transition-colors hover:bg-white"
+            >
+              <TeamLogo team={team} className="size-12" rounded="rounded-2xl" ring="ring-1 ring-slate-100" fontSize="text-sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-extrabold text-slate-900 group-hover:text-emerald-600 group-hover:underline transition-colors">
+                  {team.name}
+                </p>
+                <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
+                  {[team.city, team.category].filter(Boolean).join(' • ')}
+                </p>
+              </div>
+              {team.players_count != null && (
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-200">
+                  <Users className="size-3 text-slate-400" />
+                  {team.players_count}
+                </span>
+              )}
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3">
+              <TeamLogo team={team} className="size-12" rounded="rounded-2xl" ring="ring-1 ring-slate-100" fontSize="text-sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-extrabold text-slate-900">{team.name}</p>
+                <p className="mt-0.5 truncate text-[11px] font-semibold text-slate-400">
+                  {[team.city, team.category].filter(Boolean).join(' • ')}
+                </p>
+              </div>
+              {team.players_count != null && (
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-200">
+                  <Users className="size-3 text-slate-400" />
+                  {team.players_count}
+                </span>
+              )}
             </div>
-            {team.players_count != null && (
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-black text-slate-600 ring-1 ring-slate-200">
-                <Users className="size-3 text-slate-400" />
-                {team.players_count}
-              </span>
-            )}
-          </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-function PlayerBody({ id }) {
+function PlayerBody({ id, onClose }) {
   const { t, i18n } = useTranslation()
   const { data, isLoading, isError } = usePublicPlayerProfile(id, { enabled: !!id })
   if (isLoading) return <LoadingBody />
@@ -150,22 +175,47 @@ function PlayerBody({ id }) {
       </div>
 
       {team && (
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-          <TeamLogo team={team} className="size-11" rounded="rounded-xl" ring="ring-1 ring-slate-100" fontSize="text-sm" />
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-              <Users className="size-3.5" />
-              {t('profile.public.team')}
-            </p>
-            <p className="truncate text-sm font-extrabold text-slate-900">{team.name}</p>
-            {team.city && (
-              <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
-                <MapPin className="size-3" />
-                {team.city}
+        team.id != null ? (
+          <Link
+            to={`/teams/${team.id}`}
+            onClick={onClose}
+            className="group flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4 transition-colors hover:border-emerald-200 hover:bg-emerald-50/40"
+          >
+            <TeamLogo team={team} className="size-11" rounded="rounded-xl" ring="ring-1 ring-slate-100" fontSize="text-sm" />
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <Users className="size-3.5" />
+                {t('profile.public.team')}
               </p>
-            )}
+              <p className="truncate text-sm font-extrabold text-slate-900 group-hover:text-emerald-600 group-hover:underline transition-colors">
+                {team.name}
+              </p>
+              {team.city && (
+                <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+                  <MapPin className="size-3" />
+                  {team.city}
+                </p>
+              )}
+            </div>
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+            <TeamLogo team={team} className="size-11" rounded="rounded-xl" ring="ring-1 ring-slate-100" fontSize="text-sm" />
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <Users className="size-3.5" />
+                {t('profile.public.team')}
+              </p>
+              <p className="truncate text-sm font-extrabold text-slate-900">{team.name}</p>
+              {team.city && (
+                <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+                  <MapPin className="size-3" />
+                  {team.city}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        )
       )}
     </div>
   )
@@ -255,8 +305,8 @@ function CommitteeBody({ id }) {
 export default function UserProfileModal({ user, onClose }) {
   const { t } = useTranslation()
   const body = user ? (
-    user.type === 'manager' ? <ManagerBody id={user.id} />
-      : user.type === 'player' ? <PlayerBody id={user.id} />
+    user.type === 'manager' ? <ManagerBody id={user.id} onClose={onClose} />
+      : user.type === 'player' ? <PlayerBody id={user.id} onClose={onClose} />
         : user.type === 'owner' ? <OwnerBody id={user.id} />
           : user.type === 'committee' ? <CommitteeBody id={user.id} />
             : null

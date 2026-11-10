@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Activity, MapPin } from 'lucide-react'
 import { Skeleton } from '../../../components/dashboard/ui'
@@ -54,10 +55,21 @@ export default function ActivityFeed() {
             const home = m.host_team || {}
             const away = m.opponent_team || null
             return (
-              <button
+              <div
                 key={m.id}
-                onClick={() => openMatch(m)}
-                className="w-52 shrink-0 rounded-2xl border border-slate-100 bg-white p-3 text-start transition-colors hover:border-green-200"
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  if (e.target.closest('button, a')) return
+                  openMatch(m)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openMatch(m)
+                  }
+                }}
+                className="w-52 shrink-0 cursor-pointer rounded-2xl border border-slate-100 bg-white p-3 text-start transition-colors hover:border-green-200"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className={`rounded-full px-2 py-0.5 text-[9px] font-black ${statusTint(m.status)}`}>
@@ -68,19 +80,63 @@ export default function ActivityFeed() {
                   )}
                 </div>
                 <div className="mt-2.5 flex items-center gap-2">
-                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-50 text-[10px] font-black text-emerald-600">
-                    {initials(home.name)}
-                  </span>
-                  <p className="min-w-0 flex-1 truncate text-xs font-extrabold text-slate-800">{home.name || t('ov.common.team')}</p>
+                  {home?.id != null ? (
+                    <Link
+                      to={`/teams/${home.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-50 text-[10px] font-black text-emerald-600"
+                    >
+                      {initials(home.name)}
+                    </Link>
+                  ) : (
+                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-50 text-[10px] font-black text-emerald-600">
+                      {initials(home.name)}
+                    </span>
+                  )}
+                  <p className="min-w-0 flex-1 truncate text-xs font-extrabold text-slate-800">
+                    {home?.id != null && home?.name ? (
+                      <Link
+                        to={`/teams/${home.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:text-green-600 transition-colors"
+                      >
+                        {home.name}
+                      </Link>
+                    ) : (
+                      home.name || t('ov.common.team')
+                    )}
+                  </p>
                   {typeof m.home_score === 'number' && <span className="text-xs font-black text-slate-800">{m.home_score}</span>}
                 </div>
                 <div className="mt-1.5 flex items-center gap-2">
                   {away ? (
                     <>
-                      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-rose-50 text-[10px] font-black text-rose-500">
-                        {initials(away.name)}
-                      </span>
-                      <p className="min-w-0 flex-1 truncate text-xs font-extrabold text-slate-800">{away.name || t('ov.common.opponent')}</p>
+                      {away?.id != null ? (
+                        <Link
+                          to={`/teams/${away.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="grid size-7 shrink-0 place-items-center rounded-full bg-rose-50 text-[10px] font-black text-rose-500"
+                        >
+                          {initials(away.name)}
+                        </Link>
+                      ) : (
+                        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-rose-50 text-[10px] font-black text-rose-500">
+                          {initials(away.name)}
+                        </span>
+                      )}
+                      <p className="min-w-0 flex-1 truncate text-xs font-extrabold text-slate-800">
+                        {away?.id != null && away?.name ? (
+                          <Link
+                            to={`/teams/${away.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="hover:text-green-600 transition-colors"
+                          >
+                            {away.name}
+                          </Link>
+                        ) : (
+                          away.name || t('ov.common.opponent')
+                        )}
+                      </p>
                       {typeof m.away_score === 'number' && (
                         <span className="text-xs font-black text-slate-800">{m.away_score}</span>
                       )}
@@ -93,7 +149,7 @@ export default function ActivityFeed() {
                   <MapPin className="size-3 text-green-500" />
                   {m.stadium?.name || m.custom_terrain_name || t('ov.common.unspecifiedStadium')}
                 </p>
-              </button>
+              </div>
             )
           })}
         </div>

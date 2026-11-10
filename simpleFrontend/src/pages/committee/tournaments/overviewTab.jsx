@@ -52,14 +52,24 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
     [tournament.id, refreshKey],
   )
 
+  const isLeague = tournament.tournament_format === 'league'
+  const { data: drawGroups } = useApi(
+    () => api.get(`/committee/tournaments/${tournament.id}/draw`).then((r) => r.data.data),
+    [tournament.id, refreshKey],
+    { enabled: !isLeague },
+  )
+
   const pending = (registrations || []).filter((r) => r.status === 'pending')
 
   const registered = tournament.stats?.registered_teams ?? 0
   const maxTeams = tournament.teams_count ?? 0
   const remaining = Math.max(0, maxTeams - registered)
   const requiresFee = tournament.requires_registration_fee ?? false
-  const isLeague = tournament.tournament_format === 'league'
-  const groupsCount = tournament.stats?.groups ?? 0
+  const groupsCount = isLeague
+    ? 0
+    : Array.isArray(drawGroups)
+      ? drawGroups.filter((g) => (g.team_count ?? g.teams?.length ?? 0) > 0).length
+      : (tournament.stats?.groups ?? 0)
   const fixturesCount = tournament.stats?.fixtures ?? 0
   const finishedCount = tournament.stats?.finished_matches ?? 0
 
@@ -430,7 +440,7 @@ export default function OverviewTab({ tournament, refresh, refreshKey, editable,
                   className="flex items-center gap-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-3.5 py-3"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-[#111313] dark:text-[#F5F7F2]">{r.team?.name}</p>
+                    <p className="truncate text-sm font-bold text-[#111313] dark:text-[#F5F7F2]">{r.team?.id != null ? <Link to={`/teams/${r.team.id}`} className="hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors">{r.team.name}</Link> : r.team?.name}</p>
                     {r.team?.city && <p className="text-[11px] text-[#65706A] dark:text-[#B2B9B3]">{r.team.city}</p>}
                   </div>
                   <Button

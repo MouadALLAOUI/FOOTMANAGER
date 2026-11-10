@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Calendar, ChevronLeft, MapPin, Shield, Tag, UserCheck, Users } from 'lucide-react'
+import { Calendar, ChevronLeft, MapPin, Tag, UserCheck, Users } from 'lucide-react'
 import TeamLogo from '../../../components/profile/TeamLogo'
 
 export default function PlayerTeamCard({ player }) {
@@ -18,46 +18,84 @@ export default function PlayerTeamCard({ player }) {
 
       {team ? (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <TeamLogo team={team} className="size-14 rounded-2xl" />
+          {team.id != null ? (
+            <Link
+              to={`/teams/${team.id}`}
+              className="group flex items-center gap-3.5 min-w-0 hover:opacity-90 transition-opacity"
+            >
+              <TeamLogo team={team} className="size-14 rounded-2xl shrink-0" />
 
-            <div className="min-w-0">
-              <h3 className="text-base font-black text-white truncate">
-                {team.name}
-              </h3>
+              <div className="min-w-0">
+                <h3 className="text-base font-black text-white truncate group-hover:text-emerald-400 group-hover:underline transition-colors">
+                  {team.name}
+                </h3>
 
-              <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-400">
-                {team.city && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="size-3 text-rose-400 shrink-0" />
-                    <span>{team.city}</span>
-                  </span>
-                )}
-                {team.category && (
-                  <span className="flex items-center gap-1">
-                    <Tag className="size-3 text-sky-400 shrink-0" />
-                    <span>فئة: {team.category}</span>
-                  </span>
-                )}
-                {player.joined_at && (
-                  <span className="flex items-center gap-1">
-                    <Calendar className="size-3 text-amber-400 shrink-0" />
-                    <span>انضم في: {player.joined_at}</span>
-                  </span>
-                )}
+                <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-400">
+                  {team.city && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="size-3 text-rose-400 shrink-0" />
+                      <span>{team.city}</span>
+                    </span>
+                  )}
+                  {team.category && (
+                    <span className="flex items-center gap-1">
+                      <Tag className="size-3 text-sky-400 shrink-0" />
+                      <span>فئة: {team.category}</span>
+                    </span>
+                  )}
+                  {player.joined_at && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="size-3 text-amber-400 shrink-0" />
+                      <span>انضم في: {player.joined_at}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3.5 min-w-0">
+              <TeamLogo team={team} className="size-14 rounded-2xl shrink-0" />
+
+              <div className="min-w-0">
+                <h3 className="text-base font-black text-white truncate">
+                  {team.name}
+                </h3>
+
+                <div className="flex flex-wrap items-center gap-3 mt-1 text-xs text-slate-400">
+                  {team.city && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="size-3 text-rose-400 shrink-0" />
+                      <span>{team.city}</span>
+                    </span>
+                  )}
+                  {team.category && (
+                    <span className="flex items-center gap-1">
+                      <Tag className="size-3 text-sky-400 shrink-0" />
+                      <span>فئة: {team.category}</span>
+                    </span>
+                  )}
+                  {player.joined_at && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="size-3 text-amber-400 shrink-0" />
+                      <span>انضم في: {player.joined_at}</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          <div className="w-full sm:w-auto flex justify-end shrink-0">
-            <Link
-              to={`/matches?team=${encodeURIComponent(team.name)}`}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-emerald-600 hover:border-emerald-500 hover:text-white px-3.5 py-2 text-xs font-bold text-slate-200 transition-all shadow-xs"
-            >
-              <span>مباريات الفريق</span>
-              <ChevronLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
-            </Link>
-          </div>
+          {team.id != null && (
+            <div className="w-full sm:w-auto flex justify-end shrink-0">
+              <Link
+                to={`/teams/${team.id}`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 hover:bg-emerald-600 hover:border-emerald-500 hover:text-white px-3.5 py-2 text-xs font-bold text-slate-200 transition-all shadow-xs"
+              >
+                <span>ملف الفريق</span>
+                <ChevronLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+              </Link>
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col sm:flex-row items-center gap-4 rounded-2xl border border-dashed border-sky-500/30 bg-sky-950/20 p-5 text-center sm:text-start">

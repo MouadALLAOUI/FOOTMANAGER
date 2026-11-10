@@ -93,7 +93,19 @@ export default function PlayerActiveTournaments({ tournaments = [] }) {
                       {t.team_name && (
                         <span className="flex items-center gap-1.5 font-bold text-slate-300">
                           <Users className="size-3 text-emerald-400 shrink-0" />
-                          <span>يمثل فريق: <strong className="text-white">{t.team_name}</strong></span>
+                          <span>
+                            يمثل فريق:{' '}
+                            {(t.team_id ?? t.team?.id) != null ? (
+                              <Link
+                                to={`/teams/${t.team_id ?? t.team?.id}`}
+                                className="font-black text-white hover:text-emerald-400 hover:underline transition-colors"
+                              >
+                                {t.team_name}
+                              </Link>
+                            ) : (
+                              <strong className="text-white">{t.team_name}</strong>
+                            )}
+                          </span>
                         </span>
                       )}
                     </div>

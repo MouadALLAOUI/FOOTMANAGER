@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import api from '../../../api/client'
 import MatchGlassModal from '../../../components/matches/MatchGlassModal'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import { LIVE_STATUSES } from '../../../data/fixtures'
 
 const mapEvent = (e) => {
@@ -35,6 +36,7 @@ const mapEvent = (e) => {
 }
 
 export default function MatchDetailsModal({ fixture, tournament, onClose }) {
+  const { openTeam } = useProfileModal()
   const st = (() => {
     const m = fixture?.match
     if (fixture?.status === 'cancelled' || m?.status === 'cancelled') return 'cancelled'
@@ -88,6 +90,12 @@ export default function MatchDetailsModal({ fixture, tournament, onClose }) {
       onClose={onClose}
       match={combinedMatch}
       loading={eventsStatus === 'loading'}
+      onTeamClick={(team) => {
+        if (team?.id != null) {
+          onClose?.()
+          openTeam(team)
+        }
+      }}
     />
   )
 }

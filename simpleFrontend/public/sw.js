@@ -1,6 +1,6 @@
 /* Service Worker — أجي نقصرو (Aji Nqssro) PWA & Push Notifications */
 
-const CACHE_VERSION = 'aji-v1.0.0'
+const CACHE_VERSION = 'aji-v1.0.1'
 const STATIC_CACHE_NAME = `aji-static-${CACHE_VERSION}`
 const IMAGE_CACHE_NAME = `aji-images-${CACHE_VERSION}`
 const DYNAMIC_CACHE_NAME = `aji-dynamic-${CACHE_VERSION}`
@@ -40,8 +40,10 @@ const NEVER_CACHE_PATTERNS = [
   /\/api\/genie/i
 ]
 
-function shouldNeverCache(url, method) {
+function shouldNeverCache(url, method, request) {
   if (method !== 'GET') return true
+  if (request && request.headers && request.headers.has('Authorization')) return true
+  if (/\/api\//i.test(url)) return true
   return NEVER_CACHE_PATTERNS.some((pattern) => pattern.test(url))
 }
 
@@ -96,7 +98,7 @@ self.addEventListener('message', (event) => {
   }
 })
 
-// 4. Fetch event: StaleWhileRevalidate for images, NetworkFirst (4s timeout) for pages/API
+// 4. Fetch event: StaleWhileRevalidate for images, NetworkFirst (4s timeout) for pages
 self.addEventListener('fetch', (event) => {
   const request = event.request
   const url = new URL(request.url)
@@ -104,8 +106,8 @@ self.addEventListener('fetch', (event) => {
   // Disregard non-HTTP/HTTPS schemes (e.g., chrome-extension://)
   if (!url.protocol.startsWith('http')) return
 
-  // Disregard mutations and sensitive paths
-  if (shouldNeverCache(url.pathname, request.method)) {
+  // Disregard mutations, authenticated requests, API endpoints, and sensitive paths
+  if (shouldNeverCache(url.pathname, request.method, request)) {
     return
   }
 
@@ -135,58 +137,67 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Handle HTML Page Navigations and API GET Requests: NetworkFirst with 4s timeout
+  // Handle HTML Page Navigations and public GET Requests: NetworkFirst with safe 4s cache fallback
   const isNavigate = request.mode === 'navigate' || request.destination === 'document'
 
   event.respondWith(
     new Promise((resolve) => {
-      let didTimeout = false
+      let settled = false
+      const settle = (res) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeoutId)
+        resolve(res)
+      }
 
-      // 4-second timeout timer
+      // 4-second timeout timer: resolve early ONLY if a cached/offline fallback exists
       const timeoutId = setTimeout(async () => {
-        didTimeout = true
-        // Try fallback to cache on timeout
-        const cached = await caches.match(request)
-        if (cached) {
-          resolve(cached)
-        } else if (isNavigate) {
-          const offlinePage = await caches.match('/offline.html')
-          if (offlinePage) resolve(offlinePage)
+        try {
+          const cached = await caches.match(request)
+          if (cached) {
+            settle(cached)
+            return
+          }
+          if (isNavigate) {
+            const offlinePage = await caches.match('/offline.html')
+            if (offlinePage) {
+              settle(offlinePage)
+            }
+          }
+        } catch {
+          // Ignore cache lookup failures and let network request finish
         }
       }, NETWORK_TIMEOUT_MS)
 
       fetch(request)
-        .then(async (networkResponse) => {
-          clearTimeout(timeoutId)
-          if (!didTimeout) {
-            // Cache successful GET responses in dynamic cache
-            if (networkResponse && networkResponse.status === 200) {
-              const cache = await caches.open(DYNAMIC_CACHE_NAME)
-              await cache.put(request, networkResponse.clone())
-            }
-            resolve(networkResponse)
+        .then((networkResponse) => {
+          const clone = networkResponse && networkResponse.status === 200 ? networkResponse.clone() : null
+          settle(networkResponse)
+          if (clone) {
+            caches
+              .open(DYNAMIC_CACHE_NAME)
+              .then((cache) => cache.put(request, clone))
+              .catch(() => {})
           }
         })
         .catch(async () => {
-          clearTimeout(timeoutId)
-          if (!didTimeout) {
-            // Network failed: Check cache
+          try {
             const cached = await caches.match(request)
             if (cached) {
-              resolve(cached)
+              settle(cached)
               return
             }
-            // If page navigation and not in cache, show offline.html
             if (isNavigate) {
               const offlinePage = await caches.match('/offline.html')
               if (offlinePage) {
-                resolve(offlinePage)
+                settle(offlinePage)
                 return
               }
             }
-            // Return network error response
-            resolve(new Response('Network error occurred', { status: 503, statusText: 'Offline' }))
+          } catch {
+            // Ignore cache lookup failures
           }
+          settle(new Response('Network error occurred', { status: 503, statusText: 'Offline' }))
         })
     })
   )

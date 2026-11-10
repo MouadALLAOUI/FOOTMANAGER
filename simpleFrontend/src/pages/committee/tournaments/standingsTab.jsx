@@ -25,7 +25,8 @@ export default function StandingsTab({ tournament, refreshKey }) {
     )
   }
 
-  if (!data?.groups?.length) {
+  const nonEmptyGroups = (data?.groups || []).filter((g) => (g.rows || g.teams || []).length > 0)
+  if (!nonEmptyGroups.length) {
     return <Empty icon={Trophy} title={t('committee.detail.noStandings')} description={t('committee.detail.noStandingsDesc')} />
   }
 
@@ -59,7 +60,7 @@ export default function StandingsTab({ tournament, refreshKey }) {
         </div>
       )}
 
-      <StandingsTable groups={data.groups} />
+      <StandingsTable groups={nonEmptyGroups} />
 
       {matrixModalOpen && (
         <LeagueResultsMatrixExportModal

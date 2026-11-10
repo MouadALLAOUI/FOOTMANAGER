@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import {
   CheckCircle2,
   XCircle,
@@ -399,13 +400,13 @@ export default function DelegatedSubmissionReviewModal({
           <div className="text-xs font-bold text-slate-400 mb-2">النتيجة المسجلة عبر الرابط السري</div>
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1 text-end">
-              <p className="text-sm font-black text-slate-900">{homeName}</p>
+              <p className="text-sm font-black text-slate-900">{homeTeamId > 0 ? <Link to={`/teams/${homeTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{homeName}</Link> : homeName}</p>
             </div>
             <div className="rounded-2xl bg-slate-900 px-5 py-2 text-2xl font-black text-white shadow-xs tracking-wider tabular-nums">
               {sub.home_score} - {sub.away_score}
             </div>
             <div className="flex-1 text-start">
-              <p className="text-sm font-black text-slate-900">{awayName}</p>
+              <p className="text-sm font-black text-slate-900">{awayTeamId > 0 ? <Link to={`/teams/${awayTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{awayName}</Link> : awayName}</p>
             </div>
           </div>
           {sub.extra_time && (
@@ -449,7 +450,7 @@ export default function DelegatedSubmissionReviewModal({
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className={`rounded-xl p-2.5 border ${homeFouls >= 6 ? 'border-rose-300 bg-rose-50 text-rose-900' : 'border-slate-100 bg-slate-50 text-slate-800'}`}>
                 <div className="flex items-center justify-between font-bold">
-                  <span>{homeName}</span>
+                  <span>{homeTeamId > 0 ? <Link to={`/teams/${homeTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{homeName}</Link> : homeName}</span>
                   <span className="font-black">{homeFouls} أخطاء</span>
                 </div>
                 {homeFouls >= 6 && (
@@ -461,7 +462,7 @@ export default function DelegatedSubmissionReviewModal({
 
               <div className={`rounded-xl p-2.5 border ${awayFouls >= 6 ? 'border-rose-300 bg-rose-50 text-rose-900' : 'border-slate-100 bg-slate-50 text-slate-800'}`}>
                 <div className="flex items-center justify-between font-bold">
-                  <span>{awayName}</span>
+                  <span>{awayTeamId > 0 ? <Link to={`/teams/${awayTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{awayName}</Link> : awayName}</span>
                   <span className="font-black">{awayFouls} أخطاء</span>
                 </div>
                 {awayFouls >= 6 && (
@@ -562,11 +563,11 @@ export default function DelegatedSubmissionReviewModal({
             </div>
             <div className="flex flex-wrap items-center gap-4 text-[11px] font-bold text-slate-600 pe-1">
               <span className="text-emerald-700">
-                {homeName}: {sub.client_meta.presence.home?.length || 0} لاعب حاضر
+                {homeTeamId > 0 ? <Link to={`/teams/${homeTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{homeName}</Link> : homeName}: {sub.client_meta.presence.home?.length || 0} لاعب حاضر
               </span>
               <span>•</span>
               <span className="text-sky-700">
-                {awayName}: {sub.client_meta.presence.away?.length || 0} لاعب حاضر
+                {awayTeamId > 0 ? <Link to={`/teams/${awayTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{awayName}</Link> : awayName}: {sub.client_meta.presence.away?.length || 0} لاعب حاضر
               </span>
             </div>
           </div>

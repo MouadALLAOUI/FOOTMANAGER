@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Check,
@@ -162,7 +163,13 @@ export default function MatchProposalsModal({ open, onClose, match, onConfirmed 
                     {/* Opponent Info */}
                     <div className="flex items-center gap-3">
                       {isRegistered ? (
-                        <TeamLogo team={p.team} src={logoThumb(p.team)} className="size-11" />
+                        <TeamLogo
+                          team={p.team}
+                          src={logoThumb(p.team)}
+                          to={p.team?.id != null ? `/teams/${p.team.id}` : undefined}
+                          onClick={() => onClose?.()}
+                          className="size-11"
+                        />
                       ) : (
                         <div className="grid size-11 place-items-center rounded-2xl bg-amber-100 font-black text-amber-700">
                           <User className="size-5" />
@@ -170,7 +177,19 @@ export default function MatchProposalsModal({ open, onClose, match, onConfirmed 
                       )}
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-black text-slate-900">{oppName}</p>
+                          <p className="text-sm font-black text-slate-900">
+                            {isRegistered && p.team?.id != null && oppName ? (
+                              <Link
+                                to={`/teams/${p.team.id}`}
+                                onClick={() => onClose?.()}
+                                className="hover:text-emerald-600 transition-colors"
+                              >
+                                {oppName}
+                              </Link>
+                            ) : (
+                              oppName
+                            )}
+                          </p>
                           {isRegistered ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                               <Shield className="size-3" />

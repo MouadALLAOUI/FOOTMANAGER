@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AlertTriangle, Check, ShieldAlert, X } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
 import { EVENT_META, absoluteMinute, minuteText } from '../constants'
@@ -24,7 +25,7 @@ function GoalRow({ ev, teamName, own, minute, t }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[11px] font-black text-slate-800">{ev.player || t('committee.result.player')}</p>
-        <p className="truncate text-[10px] font-semibold text-slate-400">{teamName}{own ? ` • ${t('committee.result.ev.ownGoal')}` : ''}</p>
+        <p className="truncate text-[10px] font-semibold text-slate-400">{ev.team_id != null ? <Link to={`/teams/${ev.team_id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{teamName}</Link> : teamName}{own ? ` • ${t('committee.result.ev.ownGoal')}` : ''}</p>
         {ev.assist_player && (
           <p className="truncate text-[10px] font-semibold text-emerald-600">{t('committee.result.assist')}: {ev.assist_player}</p>
         )}
@@ -43,7 +44,7 @@ function CardRow({ ev, teamName, minute, t }) {
       <span className="text-sm leading-none">{meta.icon}</span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[11px] font-black text-slate-800">{ev.player || t('committee.result.player')}</p>
-        <p className="truncate text-[10px] font-semibold text-slate-400">{teamName}{ev.reason ? ` • ${ev.reason}` : ''}</p>
+        <p className="truncate text-[10px] font-semibold text-slate-400">{ev.team_id != null ? <Link to={`/teams/${ev.team_id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{teamName}</Link> : teamName}{ev.reason ? ` • ${ev.reason}` : ''}</p>
       </div>
     </li>
   )
@@ -152,11 +153,11 @@ export default function ConfirmResultModal({
             <p className="text-center text-[10px] font-black uppercase tracking-wider text-emerald-100">{t('committee.result.reviewScore')}</p>
             <div className="mt-2 flex items-center justify-center gap-3">
               <div className="min-w-0 flex-1 text-end">
-                <p className="truncate text-sm font-black">{homeName}</p>
+                <p className="truncate text-sm font-black">{homeId != null ? <Link to={`/teams/${homeId}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{homeName}</Link> : homeName}</p>
               </div>
               <p className="shrink-0 text-4xl font-black tabular-nums">{score.home}<span className="mx-1 text-xl font-black text-emerald-200">-</span>{score.away}</p>
               <div className="min-w-0 flex-1 text-start">
-                <p className="truncate text-sm font-black">{awayName}</p>
+                <p className="truncate text-sm font-black">{awayId != null ? <Link to={`/teams/${awayId}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{awayName}</Link> : awayName}</p>
               </div>
             </div>
             {isKnockout && homePen != null && awayPen != null && (
@@ -177,7 +178,7 @@ export default function ConfirmResultModal({
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   {homeGoals.length > 0 && (
-                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{homeName}</p>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{homeId != null ? <Link to={`/teams/${homeId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{homeName}</Link> : homeName}</p>
                   )}
                   {homeGoals.map((ev) => (
                     <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own={ev.type === 'own_goal'} minute={evMinute(ev)} t={t} />
@@ -188,7 +189,7 @@ export default function ConfirmResultModal({
                 </div>
                 <div className="space-y-1.5">
                   {awayGoals.length > 0 && (
-                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{awayName}</p>
+                    <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">{awayId != null ? <Link to={`/teams/${awayId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{awayName}</Link> : awayName}</p>
                   )}
                   {awayGoals.map((ev) => (
                     <GoalRow key={ev._key} ev={ev} teamName={teamNameOf(ev.team_id)} own={ev.type === 'own_goal'} minute={evMinute(ev)} t={t} />

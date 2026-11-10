@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
   Calendar,
@@ -374,18 +374,37 @@ export default function PublicLiveMatchPage() {
           <div className="grid grid-cols-3 items-center py-2 gap-2">
             {/* Home Team (Right Side in RTL) */}
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center overflow-hidden mb-2">
-                {homeTeam?.logo_url ? (
-                  <img src={homeTeam.logo_url} alt={homeTeam.name} className="w-full h-full object-contain rounded-full" />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-emerald-600 flex items-center justify-center text-white">
-                    <Shield className="size-7" />
+              {homeTeam?.id != null ? (
+                <Link to={`/teams/${homeTeam.id}`} className="group flex flex-col items-center text-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center overflow-hidden mb-2 transition-transform group-hover:scale-105">
+                    {homeTeam?.logo_url ? (
+                      <img src={homeTeam.logo_url} alt={homeTeam.name} className="w-full h-full object-contain rounded-full" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-emerald-600 flex items-center justify-center text-white">
+                        <Shield className="size-7" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <h3 className="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1 min-h-[2rem] flex items-center justify-center">
-                {homeTeam?.name || 'الفريق الأول'}
-              </h3>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1 min-h-[2rem] flex items-center justify-center group-hover:underline">
+                    {homeTeam?.name || 'الفريق الأول'}
+                  </h3>
+                </Link>
+              ) : (
+                <>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center overflow-hidden mb-2">
+                    {homeTeam?.logo_url ? (
+                      <img src={homeTeam.logo_url} alt={homeTeam.name} className="w-full h-full object-contain rounded-full" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-emerald-600 flex items-center justify-center text-white">
+                        <Shield className="size-7" />
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1 min-h-[2rem] flex items-center justify-center">
+                    {homeTeam?.name || 'الفريق الأول'}
+                  </h3>
+                </>
+              )}
               {/* Dedicated Home Score Badge attached directly to Home Team */}
               <div className="mt-2 inline-flex items-center justify-center min-w-10 h-8 px-2.5 rounded-xl bg-white/15 border border-white/25 text-white font-black text-lg sm:text-xl tabular-nums shadow-xs">
                 {homeScore}
@@ -425,18 +444,37 @@ export default function PublicLiveMatchPage() {
 
             {/* Away Team (Left Side in RTL) */}
             <div className="flex flex-col items-center text-center">
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center overflow-hidden mb-2">
-                {awayTeam?.logo_url ? (
-                  <img src={awayTeam.logo_url} alt={awayTeam.name} className="w-full h-full object-contain rounded-full" />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-slate-700 flex items-center justify-center text-white">
-                    <Shield className="size-7" />
+              {awayTeam?.id != null ? (
+                <Link to={`/teams/${awayTeam.id}`} className="group flex flex-col items-center text-center">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center overflow-hidden mb-2 transition-transform group-hover:scale-105">
+                    {awayTeam?.logo_url ? (
+                      <img src={awayTeam.logo_url} alt={awayTeam.name} className="w-full h-full object-contain rounded-full" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-slate-700 flex items-center justify-center text-white">
+                        <Shield className="size-7" />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              <h3 className="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1 min-h-[2rem] flex items-center justify-center">
-                {awayTeam?.name || 'الفريق الثاني'}
-              </h3>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1 min-h-[2rem] flex items-center justify-center group-hover:underline">
+                    {awayTeam?.name || 'الفريق الثاني'}
+                  </h3>
+                </Link>
+              ) : (
+                <>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white p-1.5 shadow-lg flex items-center justify-center overflow-hidden mb-2">
+                    {awayTeam?.logo_url ? (
+                      <img src={awayTeam.logo_url} alt={awayTeam.name} className="w-full h-full object-contain rounded-full" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-slate-700 flex items-center justify-center text-white">
+                        <Shield className="size-7" />
+                      </div>
+                    )}
+                  </div>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-white line-clamp-2 px-1 min-h-[2rem] flex items-center justify-center">
+                    {awayTeam?.name || 'الفريق الثاني'}
+                  </h3>
+                </>
+              )}
               {/* Dedicated Away Score Badge attached directly to Away Team */}
               <div className="mt-2 inline-flex items-center justify-center min-w-10 h-8 px-2.5 rounded-xl bg-white/15 border border-white/25 text-white font-black text-lg sm:text-xl tabular-nums shadow-xs">
                 {awayScore}
@@ -485,7 +523,13 @@ export default function PublicLiveMatchPage() {
 
             <div className="grid grid-cols-2 gap-2.5 text-center">
               <div className={`p-2.5 rounded-xl border transition-colors ${fouls.home_penalty ? 'bg-rose-50 border-rose-300' : fouls.home_warning ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-100'}`}>
-                <span className="text-[11px] font-extrabold text-slate-700 block truncate">{homeTeam?.name}</span>
+                {homeTeam?.id != null ? (
+                  <Link to={`/teams/${homeTeam.id}`} className="text-[11px] font-extrabold text-slate-700 block truncate hover:underline">
+                    {homeTeam?.name}
+                  </Link>
+                ) : (
+                  <span className="text-[11px] font-extrabold text-slate-700 block truncate">{homeTeam?.name}</span>
+                )}
                 <div className="flex items-center justify-center gap-1 mt-1">
                   <span className={`text-xl font-black tabular-nums ${fouls.home_penalty ? 'text-rose-600' : fouls.home_warning ? 'text-amber-600' : 'text-slate-800'}`}>
                     {fouls.home_count}
@@ -497,7 +541,13 @@ export default function PublicLiveMatchPage() {
               </div>
 
               <div className={`p-2.5 rounded-xl border transition-colors ${fouls.away_penalty ? 'bg-rose-50 border-rose-300' : fouls.away_warning ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-100'}`}>
-                <span className="text-[11px] font-extrabold text-slate-700 block truncate">{awayTeam?.name}</span>
+                {awayTeam?.id != null ? (
+                  <Link to={`/teams/${awayTeam.id}`} className="text-[11px] font-extrabold text-slate-700 block truncate hover:underline">
+                    {awayTeam?.name}
+                  </Link>
+                ) : (
+                  <span className="text-[11px] font-extrabold text-slate-700 block truncate">{awayTeam?.name}</span>
+                )}
                 <div className="flex items-center justify-center gap-1 mt-1">
                   <span className={`text-xl font-black tabular-nums ${fouls.away_penalty ? 'text-rose-600' : fouls.away_warning ? 'text-amber-600' : 'text-slate-800'}`}>
                     {fouls.away_count}
@@ -591,6 +641,16 @@ export default function PublicLiveMatchPage() {
               {events.length > 0 ? (
                 events.map((ev) => {
                   const evTeam = getEventTeam(ev, homeTeam, awayTeam)
+                  const teamLabel = (
+                    <>
+                      {evTeam.logo && (
+                        <img src={evTeam.logo} alt="" className="w-3.5 h-3.5 rounded-full object-contain inline-block shrink-0" />
+                      )}
+                      <span className="truncate text-emerald-800 font-extrabold">
+                        {evTeam.name || ev.team_name}
+                      </span>
+                    </>
+                  )
                   return (
                     <div
                       key={getEventKey(ev)}
@@ -628,12 +688,13 @@ export default function PublicLiveMatchPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 mt-0.5">
-                          {evTeam.logo && (
-                            <img src={evTeam.logo} alt="" className="w-3.5 h-3.5 rounded-full object-contain inline-block shrink-0" />
+                          {evTeam.id != null ? (
+                            <Link to={`/teams/${evTeam.id}`} className="inline-flex min-w-0 items-center gap-1.5 hover:underline">
+                              {teamLabel}
+                            </Link>
+                          ) : (
+                            teamLabel
                           )}
-                          <span className="truncate text-emerald-800 font-extrabold">
-                            {evTeam.name || ev.team_name}
-                          </span>
                           {ev.assist_player_name && <span>• تمريرة: {ev.assist_player_name}</span>}
                         </div>
                       </div>
@@ -658,9 +719,21 @@ export default function PublicLiveMatchPage() {
                     <span className="text-xs font-black text-emerald-950 block">نهاية المباراة</span>
                     <div className="text-[11px] font-bold text-emerald-800 flex items-center gap-1.5 mt-0.5" dir="rtl">
                       <span>النتيجة النهائية:</span>
-                      <span className="font-extrabold">{homeTeam?.name} ({homeScore})</span>
+                      {homeTeam?.id != null ? (
+                        <Link to={`/teams/${homeTeam.id}`} className="font-extrabold hover:underline">
+                          {homeTeam?.name} ({homeScore})
+                        </Link>
+                      ) : (
+                        <span className="font-extrabold">{homeTeam?.name} ({homeScore})</span>
+                      )}
                       <span>-</span>
-                      <span className="font-extrabold">({awayScore}) {awayTeam?.name}</span>
+                      {awayTeam?.id != null ? (
+                        <Link to={`/teams/${awayTeam.id}`} className="font-extrabold hover:underline">
+                          ({awayScore}) {awayTeam?.name}
+                        </Link>
+                      ) : (
+                        <span className="font-extrabold">({awayScore}) {awayTeam?.name}</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -737,14 +810,29 @@ export default function PublicLiveMatchPage() {
                 {(lineupTeamFilter === 'all' || lineupTeamFilter === 'home') && (
                   <div className="rounded-2xl border border-slate-200/80 p-3 bg-slate-50/50">
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
-                      <div className="w-7 h-7 rounded-full bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
-                        {homeTeam?.logo_url ? (
-                          <img src={homeTeam.logo_url} alt="" className="w-full h-full object-contain rounded-full" />
-                        ) : (
-                          <Shield className="size-4 text-emerald-600" />
-                        )}
-                      </div>
-                      <span className="text-xs font-black text-slate-800 truncate">{homeTeam?.name}</span>
+                      {homeTeam?.id != null ? (
+                        <Link to={`/teams/${homeTeam.id}`} className="flex min-w-0 items-center gap-2 hover:underline">
+                          <div className="w-7 h-7 rounded-full bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                            {homeTeam?.logo_url ? (
+                              <img src={homeTeam.logo_url} alt="" className="w-full h-full object-contain rounded-full" />
+                            ) : (
+                              <Shield className="size-4 text-emerald-600" />
+                            )}
+                          </div>
+                          <span className="text-xs font-black text-slate-800 truncate">{homeTeam?.name}</span>
+                        </Link>
+                      ) : (
+                        <>
+                          <div className="w-7 h-7 rounded-full bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                            {homeTeam?.logo_url ? (
+                              <img src={homeTeam.logo_url} alt="" className="w-full h-full object-contain rounded-full" />
+                            ) : (
+                              <Shield className="size-4 text-emerald-600" />
+                            )}
+                          </div>
+                          <span className="text-xs font-black text-slate-800 truncate">{homeTeam?.name}</span>
+                        </>
+                      )}
                       <span className="ms-auto text-[10px] font-bold text-slate-400">
                         {lineup.home.all.length} لاعب حاضر
                       </span>
@@ -792,14 +880,29 @@ export default function PublicLiveMatchPage() {
                 {(lineupTeamFilter === 'all' || lineupTeamFilter === 'away') && (
                   <div className="rounded-2xl border border-slate-200/80 p-3 bg-slate-50/50">
                     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
-                      <div className="w-7 h-7 rounded-full bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
-                        {awayTeam?.logo_url ? (
-                          <img src={awayTeam.logo_url} alt="" className="w-full h-full object-contain rounded-full" />
-                        ) : (
-                          <Shield className="size-4 text-slate-600" />
-                        )}
-                      </div>
-                      <span className="text-xs font-black text-slate-800 truncate">{awayTeam?.name}</span>
+                      {awayTeam?.id != null ? (
+                        <Link to={`/teams/${awayTeam.id}`} className="flex min-w-0 items-center gap-2 hover:underline">
+                          <div className="w-7 h-7 rounded-full bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                            {awayTeam?.logo_url ? (
+                              <img src={awayTeam.logo_url} alt="" className="w-full h-full object-contain rounded-full" />
+                            ) : (
+                              <Shield className="size-4 text-slate-600" />
+                            )}
+                          </div>
+                          <span className="text-xs font-black text-slate-800 truncate">{awayTeam?.name}</span>
+                        </Link>
+                      ) : (
+                        <>
+                          <div className="w-7 h-7 rounded-full bg-white p-1 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
+                            {awayTeam?.logo_url ? (
+                              <img src={awayTeam.logo_url} alt="" className="w-full h-full object-contain rounded-full" />
+                            ) : (
+                              <Shield className="size-4 text-slate-600" />
+                            )}
+                          </div>
+                          <span className="text-xs font-black text-slate-800 truncate">{awayTeam?.name}</span>
+                        </>
+                      )}
                       <span className="ms-auto text-[10px] font-bold text-slate-400">
                         {lineup.away.all.length} لاعب حاضر
                       </span>

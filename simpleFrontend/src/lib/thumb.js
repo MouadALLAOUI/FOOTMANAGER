@@ -20,7 +20,12 @@ export function thumb(record, field, fallback = '') {
 }
 
 export function logoThumb(team, fallback = '') {
-  return thumb(team, 'logo_url', fallback);
+  return (
+    thumb(team, 'logo_url', '') ||
+    normalizeImageUrl(team?.logo_path || team?.image_url || '') ||
+    fallback ||
+    ''
+  );
 }
 
 export function photoThumb(profile, fallback = '') {

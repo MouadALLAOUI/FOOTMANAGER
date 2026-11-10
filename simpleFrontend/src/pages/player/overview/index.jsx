@@ -204,7 +204,15 @@ export default function Overview() {
                 <div>
                   <p className="text-xs font-bold text-green-100">{t('player.overview.upcoming.opponent')}</p>
                   <p className="mt-1 text-2xl font-black sm:text-3xl">
-                    {upcoming.opponent_team?.name || upcoming.host_team?.name || t('player.overview.upcoming.noOpponent')}
+                    {(() => {
+                      const oppTeam = upcoming.opponent_team || upcoming.host_team
+                      const oppName = oppTeam?.name || t('player.overview.upcoming.noOpponent')
+                      return !upcoming.is_guest && oppTeam?.id != null && oppTeam?.name ? (
+                        <Link to={`/teams/${oppTeam.id}`} className="hover:underline">
+                          {oppName}
+                        </Link>
+                      ) : oppName
+                    })()}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -220,7 +228,16 @@ export default function Overview() {
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
                   <span className="text-green-100">
-                    {t('player.overview.upcoming.team')}: <span className="text-white">{upcoming.host_team?.name || '—'}</span>
+                    {t('player.overview.upcoming.team')}:{' '}
+                    <span className="text-white">
+                      {upcoming.host_team?.id != null && upcoming.host_team?.name ? (
+                        <Link to={`/teams/${upcoming.host_team.id}`} className="hover:underline">
+                          {upcoming.host_team.name}
+                        </Link>
+                      ) : (
+                        upcoming.host_team?.name || '—'
+                      )}
+                    </span>
                   </span>
                   <StatusBadge status={upcoming.status} />
                 </div>
@@ -277,7 +294,15 @@ export default function Overview() {
                 return (
                   <div key={m.id} className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-800">{m.host_team?.name || t('player.feed.team')}</p>
+                      <p className="truncate text-sm font-bold text-slate-800">
+                        {m.host_team?.id != null && m.host_team?.name ? (
+                          <Link to={`/teams/${m.host_team.id}`} className="hover:text-green-600 transition-colors">
+                            {m.host_team.name}
+                          </Link>
+                        ) : (
+                          m.host_team?.name || t('player.feed.team')
+                        )}
+                      </p>
                       <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-slate-500">
                         <MapPin className="size-3 shrink-0 text-green-500" />
                         {m.stadium?.name || m.custom_terrain_name || t('player.feed.stadium')}
@@ -304,9 +329,23 @@ export default function Overview() {
         <Card title={t('player.overview.teamState.hasTeam')}>
           {team ? (
             <div className="flex items-center gap-4">
-              <TeamLogo team={team} className="size-14" rounded="rounded-2xl" fontSize="text-lg" />
+              <TeamLogo
+                team={team}
+                to={team?.id != null ? `/teams/${team.id}` : undefined}
+                className="size-14"
+                rounded="rounded-2xl"
+                fontSize="text-lg"
+              />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base font-extrabold text-slate-900">{team.name}</p>
+                <p className="truncate text-base font-extrabold text-slate-900">
+                  {team?.id != null ? (
+                    <Link to={`/teams/${team.id}`} className="hover:text-green-600 transition-colors">
+                      {team.name}
+                    </Link>
+                  ) : (
+                    team.name
+                  )}
+                </p>
                 <p className="text-xs text-slate-500">{[team.city, team.category, team.level].filter(Boolean).join(' • ') || '—'}</p>
                 <p className="mt-1 text-[11px] text-slate-500">
                   {t('player.overview.teamState.stadium')}: {team.primary_stadium || '—'}

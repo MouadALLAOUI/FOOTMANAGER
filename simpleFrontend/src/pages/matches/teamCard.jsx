@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
@@ -9,7 +10,6 @@ import {
   faTrophy,
 } from '@fortawesome/free-solid-svg-icons'
 import { matchDay } from '../../lib/adapters'
-import { useProfileModal } from '../../components/profile/ProfileModalContext'
 
 const accents = [
   { color: '#059669', soft: 'bg-emerald-50 text-emerald-700' },
@@ -36,33 +36,41 @@ const levelDots = {
 
 export default function TeamCard({ team, onChallenge }) {
   const { t, i18n } = useTranslation()
-  const { openTeam } = useProfileModal()
   const accent = accents[team.id % accents.length]
   const clickable = team.teamId != null
 
-  const openProfile = () => {
-    if (!clickable) return
-    openTeam({ id: team.teamId, name: team.name, city: team.city, level: team.level })
-  }
+  const headerInner = (
+    <>
+      <div
+        className={`mx-auto grid size-[88px] place-items-center rounded-[26px] transition-transform duration-300 ease-out group-hover:scale-110 ${accent.soft}`}
+      >
+        <FontAwesomeIcon icon={faFutbol} style={{ color: accent.color }} className="size-11" />
+      </div>
+
+      <h3 className={`mt-4 text-base font-black text-[#111313] dark:text-[#F5F7F2] ${clickable ? 'group-hover:underline' : ''}`}>
+        {team.name}
+      </h3>
+
+      <span
+        className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold ${levelBadges[team.level]}`}
+      >
+        <span className={`size-1.5 rounded-full ${levelDots[team.level]}`} />
+        {t(`matchesPage.teams.levels.${team.level}`)}
+      </span>
+    </>
+  )
 
   return (
     <article className="group flex h-full flex-col rounded-xl bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] p-5 shadow-sm transition-all">
-      <div onClick={openProfile} className={`relative block w-full text-center ${clickable ? 'cursor-pointer' : ''}`}>
-        <div
-          className={`mx-auto grid size-[88px] place-items-center rounded-[26px] transition-transform duration-300 ease-out group-hover:scale-110 ${accent.soft}`}
-        >
-          <FontAwesomeIcon icon={faFutbol} style={{ color: accent.color }} className="size-11" />
+      {clickable ? (
+        <Link to={`/teams/${team.teamId}`} className="relative block w-full text-center">
+          {headerInner}
+        </Link>
+      ) : (
+        <div className="relative block w-full text-center">
+          {headerInner}
         </div>
-
-        <h3 className="mt-4 text-base font-black text-[#111313] dark:text-[#F5F7F2]">{team.name}</h3>
-
-        <span
-          className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold ${levelBadges[team.level]}`}
-        >
-          <span className={`size-1.5 rounded-full ${levelDots[team.level]}`} />
-          {t(`matchesPage.teams.levels.${team.level}`)}
-        </span>
-      </div>
+      )}
 
       <div className="mt-5 flex flex-col gap-2.5 border-t border-slate-100 pt-5 text-sm">
         <span className="flex items-center gap-2.5 text-slate-600">

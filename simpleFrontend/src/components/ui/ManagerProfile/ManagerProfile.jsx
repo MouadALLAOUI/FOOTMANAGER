@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Mail, Phone, UserRound, Users } from 'lucide-react'
 
@@ -43,7 +44,20 @@ export default function ManagerProfile({ manager, team, className = '' }) {
               <p className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-400">
                 <Users className="size-3 shrink-0" />
                 <span className="truncate">
-                  {team?.name ? `${team.name} • ${t('terrain.calendar.bookerRole')}` : t('terrain.calendar.bookerRole')}
+                  {team?.name ? (
+                    team?.id != null ? (
+                      <>
+                        <Link to={`/teams/${team.id}`} className="hover:text-emerald-600 transition-colors">
+                          {team.name}
+                        </Link>{' '}
+                        • {t('terrain.calendar.bookerRole')}
+                      </>
+                    ) : (
+                      `${team.name} • ${t('terrain.calendar.bookerRole')}`
+                    )
+                  ) : (
+                    t('terrain.calendar.bookerRole')
+                  )}
                 </span>
               </p>
             </div>

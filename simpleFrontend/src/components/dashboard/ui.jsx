@@ -260,8 +260,8 @@ export function Modal({ open, onClose, title, subtitle, children, footer, size =
       >
         <div className="shrink-0 flex items-center justify-between gap-3 border-b border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-4 py-3 sm:px-5">
           <div className="min-w-0 flex-1">
-            <h3 id={titleId} className="break-words text-base font-extrabold text-slate-900">{title}</h3>
-            {subtitle && <p className="mt-0.5 break-words text-xs text-slate-500">{subtitle}</p>}
+            <h3 id={titleId} className="break-words text-base font-extrabold text-[#111313] dark:text-[#F5F7F2]">{title}</h3>
+            {subtitle && <p className="mt-0.5 break-words text-xs text-[#65706A] dark:text-[#B2B9B3]">{subtitle}</p>}
           </div>
           <button
             type="button"
@@ -294,7 +294,7 @@ export function Spinner({ className = '' }) {
 }
 
 export function Skeleton({ className = '' }) {
-  return <div className={`animate-pulse rounded-xl bg-slate-200/80 ${className}`} />
+  return <div className={`animate-pulse rounded-xl bg-slate-200/80 dark:bg-[#252B27] ${className}`} />
 }
 
 export function SkeletonCards({ count = 3, className = '' }) {

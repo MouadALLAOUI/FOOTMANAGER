@@ -103,24 +103,52 @@ function TournamentMatchCard({ fixture }) {
           </div>
 
           {/* Home Team */}
-          <div className="flex flex-col items-center gap-3 pe-5 text-center">
-            <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-[0_10px_25px_rgba(0,0,0,0.3)] ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
-              <TeamLogo team={home} name={home?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
+          {home?.id != null ? (
+            <Link
+              to={`/teams/${home.id}`}
+              className="flex flex-col items-center gap-3 pe-5 text-center hover:underline"
+            >
+              <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-[0_10px_25px_rgba(0,0,0,0.3)] ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
+                <TeamLogo team={home} name={home?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
+              </div>
+              <span className="bidi-plaintext max-w-[130px] truncate text-center text-xs font-extrabold uppercase tracking-wide text-white">
+                {home?.name || '—'}
+              </span>
+            </Link>
+          ) : (
+            <div className="flex flex-col items-center gap-3 pe-5 text-center">
+              <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-[0_10px_25px_rgba(0,0,0,0.3)] ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
+                <TeamLogo team={home} name={home?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
+              </div>
+              <span className="bidi-plaintext max-w-[130px] truncate text-center text-xs font-extrabold uppercase tracking-wide text-white">
+                {home?.name || '—'}
+              </span>
             </div>
-            <span className="bidi-plaintext max-w-[130px] truncate text-center text-xs font-extrabold uppercase tracking-wide text-white">
-              {home?.name || '—'}
-            </span>
-          </div>
+          )}
 
           {/* Away Team */}
-          <div className="flex flex-col items-center gap-3 ps-5 text-center">
-            <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-[0_10px_25px_rgba(0,0,0,0.3)] ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
-              <TeamLogo team={away} name={away?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
+          {away?.id != null ? (
+            <Link
+              to={`/teams/${away.id}`}
+              className="flex flex-col items-center gap-3 ps-5 text-center hover:underline"
+            >
+              <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-[0_10px_25px_rgba(0,0,0,0.3)] ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
+                <TeamLogo team={away} name={away?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
+              </div>
+              <span className="bidi-plaintext max-w-[130px] truncate text-center text-xs font-extrabold uppercase tracking-wide text-white">
+                {away?.name || '—'}
+              </span>
+            </Link>
+          ) : (
+            <div className="flex flex-col items-center gap-3 ps-5 text-center">
+              <div className="grid size-20 place-items-center rounded-full bg-white p-2 shadow-[0_10px_25px_rgba(0,0,0,0.3)] ring-2 ring-emerald-500/40 transition-transform duration-300 group-hover:scale-105">
+                <TeamLogo team={away} name={away?.name} className="size-16" rounded="rounded-full" fontSize="text-lg" />
+              </div>
+              <span className="bidi-plaintext max-w-[130px] truncate text-center text-xs font-extrabold uppercase tracking-wide text-white">
+                {away?.name || '—'}
+              </span>
             </div>
-            <span className="bidi-plaintext max-w-[130px] truncate text-center text-xs font-extrabold uppercase tracking-wide text-white">
-              {away?.name || '—'}
-            </span>
-          </div>
+          )}
         </div>
 
         {/* Glowing Share Button */}

@@ -1,16 +1,35 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import TeamProfileModal from './TeamProfileModal'
+import { useNavigate } from 'react-router-dom'
 import UserProfileModal from './UserProfileModal'
 
 const ProfileModalContext = createContext(null)
 
+function resolveTeamId(t) {
+  if (t == null) return null
+  if (typeof t === 'number' || typeof t === 'string') {
+    const str = String(t).trim()
+    return str || null
+  }
+  const rawId = t?.team?.id ?? t?.team_id ?? t?.id ?? null
+  return rawId != null ? rawId : null
+}
+
 export function ProfileModalProvider({ children }) {
-  const [team, setTeam] = useState(null)
+  const navigate = useNavigate()
   const [user, setUser] = useState(null)
 
-  const openTeam = useCallback((t) => {
-    if (t && t.id != null) setTeam(t)
-  }, [])
+  const openTeam = useCallback(
+    (t) => {
+      const teamId = resolveTeamId(t)
+      if (teamId == null) return
+      setUser(null)
+      if (typeof document !== 'undefined') {
+        document.body.style.overflow = ''
+      }
+      navigate(`/teams/${encodeURIComponent(String(teamId))}`)
+    },
+    [navigate],
+  )
 
   const openUser = useCallback((type, id, fallback) => {
     if (id != null) setUser({ type, id, fallback })
@@ -30,7 +49,6 @@ export function ProfileModalProvider({ children }) {
   return (
     <ProfileModalContext.Provider value={value}>
       {children}
-      <TeamProfileModal team={team} onClose={() => setTeam(null)} />
       <UserProfileModal user={user} onClose={() => setUser(null)} />
     </ProfileModalContext.Provider>
   )

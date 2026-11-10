@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SlidersHorizontal, Search } from 'lucide-react'
 import { inputClass, selectClass, Button } from '../../../components/dashboard/ui'
+import { formatGroupName } from '../../../lib/groupNames'
 
 export default function FilterBar({ filters, setFilters, queryInput, setQueryInput, groups, stadiums, isGroup }) {
   const { t } = useTranslation()
@@ -60,7 +61,7 @@ export default function FilterBar({ filters, setFilters, queryInput, setQueryInp
               <select className={`${selectClass} text-xs`} value={filters.group} onChange={set('group')}>
                 <option value="all">{t('committee.detail.allGroups')}</option>
                 {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{t('committee.detail.groupName')} {g.name}</option>
+                  <option key={g.id} value={g.id}>{formatGroupName(g.name, { groupId: g.id })}</option>
                 ))}
               </select>
             )}

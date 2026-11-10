@@ -1,13 +1,15 @@
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { BarChart3, Flame, Swords, Target, Trophy } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Card, Empty, Skeleton, Stat } from '../../../components/dashboard/ui'
 import { Bars } from '../../../components/dashboard/charts'
+import { formatGroupName } from '../../../lib/groupNames'
 
 function matchWinner(f) {
   const m = f.match
-  if (!m) return ''
+  if (!m) return null
   let winnerId = m.winner_team_id
   if (!winnerId && m.home_penalties != null && m.away_penalties != null && m.home_penalties !== m.away_penalties) {
     winnerId = m.home_penalties > m.away_penalties ? f.home_team?.id : f.away_team?.id
@@ -15,10 +17,10 @@ function matchWinner(f) {
   if (!winnerId && m.home_score != null && m.away_score != null && m.home_score !== m.away_score) {
     winnerId = m.home_score > m.away_score ? f.home_team?.id : f.away_team?.id
   }
-  if (!winnerId) return ''
-  if (winnerId === f.home_team?.id) return f.home_team?.name || ''
-  if (winnerId === f.away_team?.id) return f.away_team?.name || ''
-  return ''
+  if (!winnerId) return null
+  if (winnerId === f.home_team?.id) return f.home_team?.name ? { id: f.home_team.id, name: f.home_team.name } : null
+  if (winnerId === f.away_team?.id) return f.away_team?.name ? { id: f.away_team.id, name: f.away_team.name } : null
+  return null
 }
 
 export default function AnalyticsTab({ tournament, refreshKey }) {
@@ -58,7 +60,7 @@ export default function AnalyticsTab({ tournament, refreshKey }) {
   const rounds = new Map()
   for (const f of fixtureList) {
     if (f.match?.status !== 'finished') continue
-    const name = f.round?.name || (f.group?.name ? `${t('committee.export.group')} ${f.group.name}` : t('committee.detail.round', { n: f.matchday }))
+    const name = f.round?.name || (f.group?.name ? formatGroupName(f.group.name, { groupId: f.group.id, tournamentId: tournament.id }) : t('committee.detail.round', { n: f.matchday }))
     if (!rounds.has(name)) rounds.set(name, { name, goals: 0, matches: 0 })
     const round = rounds.get(name)
     round.goals += (f.match.home_score ?? 0) + (f.match.away_score ?? 0)
@@ -85,7 +87,8 @@ export default function AnalyticsTab({ tournament, refreshKey }) {
     { icon: Trophy, label: t('committee.analytics.stat.scheduled'), value: summary.scheduled ?? 0, accent: 'orange' },
   ]
 
-  const hasAny = fixtureList.length > 0 || (standings?.groups || []).length > 0
+  const nonEmptyStandingGroups = (standings?.groups || []).filter((g) => (g.rows || g.teams || []).length > 0)
+  const hasAny = fixtureList.length > 0 || nonEmptyStandingGroups.length > 0
   if (!hasAny) {
     return <Empty icon={BarChart3} title={t('committee.analytics.empty')} description={t('committee.analytics.emptyDesc')} />
   }
@@ -123,7 +126,7 @@ export default function AnalyticsTab({ tournament, refreshKey }) {
                     {winners.map((winner, i) => (
                       <span key={i} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700">
                         <Trophy className="size-3.5 text-amber-500" />
-                        {winner}
+                        {winner?.id != null ? <Link to={`/teams/${winner.id}`} className="hover:text-green-600 transition-colors">{winner.name}</Link> : (winner?.name || winner)}
                       </span>
                     ))}
                   </div>
@@ -133,8 +136,10 @@ export default function AnalyticsTab({ tournament, refreshKey }) {
           )}
         </Card>
 
-        {(standings?.groups || []).map((group) => (
-          <Card key={group.group_id ?? group.name} title={t('committee.analytics.groupPerf.title', { group: group.name })} subtitle={t('committee.analytics.groupPerf.subtitle')}>
+        {nonEmptyStandingGroups.map((group) => {
+          const groupLabel = formatGroupName(group.name, { groupId: group.group_id, tournamentId: tournament.id })
+          return (
+          <Card key={group.group_id ?? group.name} title={`أداء ${groupLabel}`} subtitle={t('committee.analytics.groupPerf.subtitle')}>
             {!(group.rows || []).length ? (
               <p className="py-10 text-center text-sm text-slate-400">{t('committee.analytics.none')}</p>
             ) : (
@@ -145,7 +150,8 @@ export default function AnalyticsTab({ tournament, refreshKey }) {
               />
             )}
           </Card>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

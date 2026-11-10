@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
   Ban,
@@ -100,10 +101,10 @@ export default function TeamDisciplinePreviewModal({
         <div className={`flex items-center gap-3.5 rounded-2xl border p-4 ${
           isWithdraw ? 'border-amber-200 bg-amber-50/60' : 'border-rose-200 bg-rose-50/60'
         }`}>
-          <TeamLogo team={team} className="size-12 rounded-xl" />
+          <TeamLogo team={team} to={team?.id != null ? `/teams/${team.id}` : undefined} target="_blank" className="size-12 rounded-xl" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h4 className="truncate text-base font-black text-slate-900">{team?.name || '—'}</h4>
+              <h4 className="truncate text-base font-black text-slate-900">{team?.id != null ? <Link to={`/teams/${team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{team?.name || '—'}</Link> : (team?.name || '—')}</h4>
               <Badge variant={isWithdraw ? 'warning' : 'danger'}>
                 الحالة المرتقبة: {newStatusLabel}
               </Badge>
@@ -204,7 +205,7 @@ export default function TeamDisciplinePreviewModal({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-black text-slate-900">
-                        {m.is_home ? `${m.team_name} ضد ${m.opponent?.name || '—'}` : `${m.opponent?.name || '—'} ضد ${m.team_name}`}
+                        {m.is_home ? <>{(m.team_id ?? team?.id) != null ? <Link to={`/teams/${m.team_id ?? team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{m.team_name}</Link> : m.team_name} ضد {m.opponent?.id != null ? <Link to={`/teams/${m.opponent.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{m.opponent.name}</Link> : (m.opponent?.name || '—')}</> : <>{m.opponent?.id != null ? <Link to={`/teams/${m.opponent.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{m.opponent.name}</Link> : (m.opponent?.name || '—')} ضد {(m.team_id ?? team?.id) != null ? <Link to={`/teams/${m.team_id ?? team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{m.team_name}</Link> : m.team_name}</>}
                       </span>
                       <span className="text-[10px] text-slate-400">الجولة {m.matchday || '—'}</span>
                     </div>

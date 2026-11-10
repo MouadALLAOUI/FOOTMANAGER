@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { Trophy, Minus, Plus } from 'lucide-react'
 import SectionCard from '../../../components/ui/SectionCard'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
@@ -8,8 +9,8 @@ function PenRow({ name, team, count, setCount }) {
   return (
     <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-100 px-3 py-2.5">
       <div className="flex min-w-0 items-center gap-2">
-        <TeamAvatar team={team} className="size-7" />
-        <span className="truncate text-xs font-bold text-slate-700">{name}</span>
+        <TeamAvatar team={team} to={team?.id != null ? `/teams/${team.id}` : undefined} target="_blank" className="size-7" />
+        <span className="truncate text-xs font-bold text-slate-700">{team?.id != null ? <Link to={`/teams/${team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{name}</Link> : name}</span>
       </div>
       <div className="flex items-center gap-1.5">
         <button type="button" onClick={() => bump(-1)} className="grid size-7 place-items-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200" aria-label="-" >

@@ -57,11 +57,24 @@ export default function ProductionTeamWidget() {
             {/* Logo & Name */}
             <div className="flex flex-col items-center text-center">
               <div className="grid size-16 place-items-center rounded-2xl bg-slate-50 p-2 shadow-xs border border-slate-200">
-                <TeamLogo team={team} name={teamName} className="size-12" rounded="rounded-xl" fontSize="text-xl" />
+                <TeamLogo
+                  team={team}
+                  name={teamName}
+                  to={team?.id != null ? `/teams/${team.id}` : undefined}
+                  className="size-12"
+                  rounded="rounded-xl"
+                  fontSize="text-xl"
+                />
               </div>
 
               <h3 className="mt-3 text-base font-black text-slate-900 line-clamp-1">
-                {teamName}
+                {team?.id != null ? (
+                  <Link to={`/teams/${team.id}`} className="hover:text-emerald-600 transition-colors">
+                    {teamName}
+                  </Link>
+                ) : (
+                  teamName
+                )}
               </h3>
 
               <p className="mt-0.5 text-xs font-semibold text-slate-500">

@@ -23,13 +23,31 @@ export default function ProductionAttentionBanners() {
   const alerts = []
 
   if (nextMatch) {
-    const oppName = nextMatch.opponent_team?.name || nextMatch.host_team?.name || (isRtl ? 'الخصم' : 'Opponent')
+    const oppTeam =
+      nextMatch.host_team_id != null && myTeamId != null && Number(nextMatch.host_team_id) === Number(myTeamId)
+        ? nextMatch.opponent_team
+        : (nextMatch.host_team || nextMatch.opponent_team)
+    const oppId = !nextMatch.is_guest ? (oppTeam?.id ?? null) : null
+    const oppName = oppTeam?.name || (nextMatch.is_guest ? nextMatch.guest_team_name : null) || (isRtl ? 'الخصم' : 'Opponent')
+    const oppNode =
+      oppId != null ? (
+        <Link to={`/teams/${oppId}`} className="hover:text-emerald-700 hover:underline transition-colors">
+          {oppName}
+        </Link>
+      ) : (
+        oppName
+      )
     alerts.push({
       id: 'match',
       type: 'rose',
       icon: Calendar,
       title: isRtl ? 'مباراة قريبة' : 'Upcoming Match',
-      desc: isRtl ? `مباراة ضد ${oppName}` : `Match vs ${oppName}`,
+      desc: (
+        <>
+          {isRtl ? 'مباراة ضد ' : 'Match vs '}
+          {oppNode}
+        </>
+      ),
       sub: nextMatch.match_datetime ? formatDate(nextMatch.match_datetime) : '',
       actionText: isRtl ? 'عرض التفاصيل' : 'View Details',
       action: () => setMatch(nextMatch),
@@ -37,13 +55,28 @@ export default function ProductionAttentionBanners() {
   }
 
   if (pendingChallenge) {
-    const challengerName = pendingChallenge.host_team?.name || (isRtl ? 'فريق رياضي' : 'Opponent Team')
+    const challengerTeam = pendingChallenge.host_team
+    const challengerId = challengerTeam?.id ?? null
+    const challengerName = challengerTeam?.name || (isRtl ? 'فريق رياضي' : 'Opponent Team')
+    const challengerNode =
+      challengerId != null ? (
+        <Link to={`/teams/${challengerId}`} className="hover:text-emerald-700 hover:underline transition-colors">
+          {challengerName}
+        </Link>
+      ) : (
+        challengerName
+      )
     alerts.push({
       id: 'challenge',
       type: 'amber',
       icon: Download,
       title: isRtl ? 'طلب تحدي متاح' : 'Challenge Request',
-      desc: isRtl ? `طلب مباراة من ${challengerName}` : `Match request from ${challengerName}`,
+      desc: (
+        <>
+          {isRtl ? 'طلب مباراة من ' : 'Match request from '}
+          {challengerNode}
+        </>
+      ),
       sub: isRtl ? 'بانتظار التأكيد' : 'Awaiting confirmation',
       actionText: isRtl ? 'مشاهدة الطلب' : 'View Request',
       action: () => navigate('/dashboard/feed'),

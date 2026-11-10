@@ -3,24 +3,24 @@ import {
   Calendar,
   Check,
   ChevronDown,
-  ChevronLeft,
   Copy,
   Edit3,
   GripVertical,
   MoreVertical,
   Pencil,
   Trash2,
-  Users,
   X,
 } from 'lucide-react'
 import { TeamAvatar } from '../../../tournaments/shared'
 import { useToast } from '../../../../components/ui/Toast'
 import { useProfileModal } from '../../../../components/profile/ProfileModalContext'
+import { getGroupColor } from '../../../../lib/groupColors'
 
 export default function GroupColumn({
   title,
   groupName,
   groupObj,
+  orderedGroups = [],
   members,
   capacity,
   locked,
@@ -30,13 +30,13 @@ export default function GroupColumn({
   onDrop,
   onRemoveTeam,
   onDeleteGroup,
-  onRenameGroup,
   onOpenRenameModal,
   onEditTeams,
 }) {
   const { toast } = useToast()
   const { openTeam } = useProfileModal()
   const [menuOpen, setMenuOpen] = useState(false)
+  const groupColor = getGroupColor(groupObj || groupName, orderedGroups)
 
   const isFree = capacity == null
   const isComplete = isFree ? members.length >= 2 : members.length >= capacity && capacity > 0
@@ -58,41 +58,46 @@ export default function GroupColumn({
     <div
       onDragOver={(e) => !locked && e.preventDefault()}
       onDrop={onDrop}
-      className={`overflow-hidden rounded-2xl border transition-all ${
+      className={`overflow-hidden rounded-2xl border border-s-4 transition-all ${
         expanded
-          ? 'border-[#B8F000] dark:border-[#D0FF38]/60 bg-white dark:bg-[#1B201D] shadow-sm'
-          : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:border-[#B8F000]/60 shadow-2xs'
+          ? 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-sm'
+          : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:border-slate-300 dark:hover:border-slate-600 shadow-2xs'
       }`}
+      style={{ borderInlineStartColor: groupColor.hex }}
     >
       {/* Card Header (Collapsed or Expanded) */}
       <div
         onClick={() => onToggleExpand?.()}
         className={`flex items-center justify-between gap-2.5 px-4 py-3.5 cursor-pointer select-none transition-colors ${
           expanded
-            ? 'bg-[#B8F000]/20 dark:bg-[#D0FF38]/12 border-b border-[#E1E5DF] dark:border-[#303832]'
+            ? `${groupColor.headerBgCls} border-b border-[#E1E5DF] dark:border-[#303832]`
             : 'bg-white dark:bg-[#1B201D]'
         }`}
       >
-        {/* Right Side in RTL: Chevron + Group Title + Visible Edit Icon */}
+        {/* Right Side in RTL: Chevron + Group Color Dot + Group Title + Visible Edit Icon */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <ChevronDown
             className={`size-4 shrink-0 text-[#111313] dark:text-[#F5F7F2] transition-transform duration-200 ${
               expanded ? 'rotate-180' : 'rotate-0'
             }`}
           />
+          <span
+            className="size-2.5 shrink-0 rounded-full ring-2 ring-white/70 dark:ring-black/30"
+            style={{ backgroundColor: groupColor.hex }}
+          />
           <span className="truncate text-sm sm:text-base font-black text-[#111313] dark:text-[#F5F7F2]">
             {title}
           </span>
 
-          {/* Visible Edit Button next to every group name (Fix 1) */}
-          {!locked && onOpenRenameModal && (
+          {/* Visible Edit Button next to every group name (works even after draw confirmation if tournament active) */}
+          {onOpenRenameModal && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 onOpenRenameModal()
               }}
-              className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#B8F000]/25 dark:bg-[#D0FF38]/20 text-[#111313] dark:text-[#D0FF38] hover:bg-[#B8F000]/50 hover:scale-105 active:scale-95 transition cursor-pointer"
+              className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${groupColor.badgeCls} hover:scale-105 active:scale-95 transition touch-manipulation cursor-pointer`}
               title="تعديل اسم المجموعة"
               aria-label="تعديل اسم المجموعة"
             >
@@ -105,18 +110,18 @@ export default function GroupColumn({
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
           <span
             onClick={() => onToggleExpand?.()}
-            className="inline-flex items-center rounded-full bg-[#B8F000]/30 dark:bg-[#D0FF38]/20 px-2.5 sm:px-3 py-0.5 text-xs font-black text-[#111313] dark:text-[#D0FF38]"
+            className={`inline-flex items-center rounded-full px-2.5 sm:px-3 py-0.5 text-xs font-black ${groupColor.badgeCls}`}
           >
             {members.length} فرق
           </span>
 
-          {/* 3-dots Menu Button */}
-          {!locked && (
+          {/* 3-dots Menu Button (kept accessible for rename/copy even when locked) */}
+          {(!locked || onOpenRenameModal) && (
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="grid size-8 place-items-center rounded-xl text-[#111313] dark:text-[#F5F7F2] hover:bg-black/5 dark:hover:bg-white/10 transition cursor-pointer"
+                className="grid size-8 place-items-center rounded-xl text-[#111313] dark:text-[#F5F7F2] hover:bg-black/5 dark:hover:bg-white/10 transition touch-manipulation cursor-pointer"
                 aria-label="خيارات المجموعة"
               >
                 <MoreVertical className="size-4" />
@@ -149,7 +154,7 @@ export default function GroupColumn({
                       <Copy className="size-3.5 text-blue-600 dark:text-blue-400" />
                       <span>نسخ رابط المجموعة</span>
                     </button>
-                    {onEditTeams && (
+                    {!locked && onEditTeams && (
                       <button
                         type="button"
                         onClick={() => {
@@ -162,7 +167,7 @@ export default function GroupColumn({
                         <span>تعديل فرق المجموعة</span>
                       </button>
                     )}
-                    {onDeleteGroup && (
+                    {!locked && onDeleteGroup && (
                       <button
                         type="button"
                         onClick={() => {
@@ -183,7 +188,7 @@ export default function GroupColumn({
         </div>
       </div>
 
-      {/* Expanded Body (Matches Reference Image Left Screen) */}
+      {/* Expanded Body */}
       {expanded && (
         <div className="divide-y divide-[#E1E5DF]/70 dark:divide-[#303832]/70">
           {members.length === 0 ? (
@@ -213,29 +218,32 @@ export default function GroupColumn({
                     locked ? '' : 'hover:bg-[#F7F8F5]/80 dark:hover:bg-[#252B27]/60 cursor-grab active:cursor-grabbing'
                   }`}
                 >
-                  {/* Right side in RTL: Team Logo (CLICKABLE Fix 2) + Team Name */}
+                  {/* Right side in RTL: Team Logo (CLICKABLE) + Team Name */}
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <button
                       type="button"
+                      draggable={false}
                       onClick={(e) => {
                         e.stopPropagation()
                         if (member.team) openTeam(member.team)
                       }}
-                      className="shrink-0 cursor-pointer hover:opacity-80 active:scale-90 transition-transform"
+                      className="shrink-0 touch-manipulation cursor-pointer hover:opacity-80 active:scale-90 transition-transform rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#B8F000]"
                       title="عرض معلومات الفريق"
                       aria-label={`عرض معلومات ${member.team?.name || 'الفريق'}`}
                     >
-                      <TeamAvatar team={member.team} className="size-8 shrink-0 pointer-events-none" />
+                      <TeamAvatar team={member.team} className="size-9 shrink-0 pointer-events-none" />
                     </button>
-                    <span
+                    <button
+                      type="button"
+                      draggable={false}
                       onClick={(e) => {
                         e.stopPropagation()
                         if (member.team) openTeam(member.team)
                       }}
-                      className="truncate text-sm font-black text-[#111313] dark:text-[#F5F7F2] cursor-pointer hover:underline"
+                      className="truncate text-start text-sm font-black text-[#111313] dark:text-[#F5F7F2] hover:underline touch-manipulation cursor-pointer"
                     >
                       {member.team?.name}
-                    </span>
+                    </button>
                   </div>
 
                   {/* Left side in RTL: Remove + Drag Grip Handle */}
@@ -243,14 +251,18 @@ export default function GroupColumn({
                     {!locked && onRemoveTeam && (
                       <button
                         type="button"
-                        onClick={() => onRemoveTeam(member.team.id)}
-                        className="grid size-7 place-items-center rounded-lg text-[#65706A] dark:text-[#B2B9B3] hover:bg-[#D92D20]/10 hover:text-[#D92D20] transition cursor-pointer"
+                        draggable={false}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onRemoveTeam(member.team.id)
+                        }}
+                        className="grid size-7 place-items-center rounded-lg text-[#65706A] dark:text-[#B2B9B3] hover:bg-[#D92D20]/10 hover:text-[#D92D20] transition touch-manipulation cursor-pointer"
                         title="إزالة الفريق من المجموعة"
                       >
                         <X className="size-3.5" />
                       </button>
                     )}
-                    <GripVertical className="size-4 text-[#65706A]/60 dark:text-[#B2B9B3]/60" />
+                    {!locked && <GripVertical className="size-4 text-[#65706A]/60 dark:text-[#B2B9B3]/60" />}
                   </div>
                 </div>
               ))}

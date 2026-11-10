@@ -322,7 +322,12 @@ export default function MatchDetailModal({ open, onClose, tournamentKey, fixture
       previewUrl={previewUrl}
       onClosePreview={closePreview}
       onDownloadPdf={handleDownload}
-      onTeamClick={(team) => (team?.id != null ? openTeam(team) : undefined)}
+      onTeamClick={(team) => {
+        if (team?.id != null) {
+          onClose?.()
+          openTeam(team)
+        }
+      }}
     />
   )
 }

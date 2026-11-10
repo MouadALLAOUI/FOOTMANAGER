@@ -3,6 +3,7 @@ import i18n from '../../../../i18n'
 import { logoThumb, coverThumb } from '../../../../lib/thumb'
 import { LIVE_STATUSES } from '../../../../data/fixtures'
 import { statusLabels } from '../../../../components/dashboard/ui'
+import { formatGroupName } from '../../../../lib/groupNames'
 
 function currentLang() {
   return (i18n.resolvedLanguage || i18n.language || 'ar').startsWith('en') ? 'en' : 'ar'
@@ -203,7 +204,7 @@ function TeamsSection({ teams }) {
                 </span>
               </td>
               <td>{p.team?.city || '—'}</td>
-              <td>{p.group?.name || t('committee.export.noGroup')}</td>
+              <td>{p.group?.name ? formatGroupName(p.group.name, { groupId: p.group.id }) : t('committee.export.noGroup')}</td>
             </tr>
           ))}
         </tbody>
@@ -267,7 +268,7 @@ function FixturesTable({ items, showGroup, showRound }) {
         {items.map((f, i) => (
           <tr key={f.id ?? i}>
             <td className="tm-print-td-center">{i + 1}</td>
-            {showGroup && <td>{f.group?.name || '—'}</td>}
+            {showGroup && <td>{f.group?.name ? formatGroupName(f.group.name, { groupId: f.group.id }) : '—'}</td>}
             {showRound && <td>{f.round?.name || '—'}</td>}
             <td>{f.home_team?.name || '—'}</td>
             <td className="tm-print-td-score">{scoreLine(f)}</td>
@@ -363,7 +364,7 @@ function ResultsSection({ fixtures, eventsMap }) {
             <div key={f.id} className="tm-print-result">
               <div className="tm-print-result-head">
                 <span className="tm-print-result-round">
-                  {f.round?.name || (f.group?.name ? `${t('committee.export.group')} ${f.group.name}` : t('committee.detail.round', { n: f.matchday }))}
+                  {f.round?.name || (f.group?.name ? formatGroupName(f.group.name, { groupId: f.group.id }) : t('committee.detail.round', { n: f.matchday }))}
                 </span>
                 <span className="tm-print-result-date">{fmtDateTime(f.scheduled_at, lang)}</span>
               </div>
@@ -412,7 +413,7 @@ function ResultsSection({ fixtures, eventsMap }) {
 
 function StandingsSection({ standings }) {
   const { t } = useTranslation()
-  const groups = standings?.groups || []
+  const groups = (standings?.groups || []).filter((g) => (g.rows || g.teams || []).length > 0)
   if (groups.length === 0) return null
   const cols = ['played', 'wins', 'draws', 'losses', 'gf', 'ga', 'gd', 'points']
   return (
@@ -420,7 +421,7 @@ function StandingsSection({ standings }) {
       <SectionHeading title="committee.export.section.standings" icon="★" />
       {groups.map((group) => (
         <div key={group.group_id ?? 'unassigned'} className="tm-print-subsection">
-          <h3>{group.name || t('committee.export.allTeams')}</h3>
+          <h3>{group.name ? formatGroupName(group.name, { groupId: group.group_id }) : t('committee.export.allTeams')}</h3>
           <table className="tm-print-table">
             <thead>
               <tr>

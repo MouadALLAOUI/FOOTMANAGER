@@ -330,10 +330,10 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
           {/* Header Banner */}
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
             <div className="flex items-center gap-3">
-              <TeamAvatar team={team} className="size-12 shadow-sm" />
+              <TeamAvatar team={team} onClick={team?.id != null ? () => { handleClose(); openTeam(team) } : undefined} className="size-12 shadow-sm" />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h4 className="truncate text-base font-black text-slate-900">{team?.name || '—'}</h4>
+                  <h4 className="truncate text-base font-black text-slate-900">{team?.id != null ? <button type="button" onClick={() => { handleClose(); openTeam(team) }} className="max-w-full truncate text-start hover:text-emerald-600 transition-colors cursor-pointer">{team.name}</button> : (team?.name || '—')}</h4>
                   {isFree && <Badge variant="info">{t('committee.detail.freeBadge')}</Badge>}
                 </div>
 
@@ -351,7 +351,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => openTeam(team)}
+                  onClick={() => { handleClose(); openTeam(team) }}
                   className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                   title="عرض الحجوزات الأسبوعية وملف الفريق"
                 >
@@ -393,7 +393,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 </div>
                 <button
                   type="button"
-                  onClick={() => openTeam(team)}
+                  onClick={() => { handleClose(); openTeam(team) }}
                   className="text-[11px] font-bold text-emerald-700 hover:underline"
                 >
                   عرض في الملف
@@ -745,7 +745,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => openTeam(team)}
+                  onClick={() => { handleClose(); openTeam(team) }}
                   className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                   title="عرض الحجوزات الأسبوعية وملف الفريق"
                 >
@@ -769,7 +769,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => openTeam(team)}
+                  onClick={() => { handleClose(); openTeam(team) }}
                   className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                   title="عرض الحجوزات الأسبوعية وملف الفريق"
                 >
@@ -793,7 +793,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => openTeam(team)}
+                  onClick={() => { handleClose(); openTeam(team) }}
                   className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                   title="عرض الحجوزات الأسبوعية وملف الفريق"
                 >
@@ -885,7 +885,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => openTeam(team)}
+                  onClick={() => { handleClose(); openTeam(team) }}
                   className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                   title="عرض الحجوزات الأسبوعية وملف الفريق"
                 >

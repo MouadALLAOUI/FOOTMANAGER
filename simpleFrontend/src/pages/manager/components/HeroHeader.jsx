@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays, MapPin, Medal, Radar, Search, Swords, Trophy, UserPlus, Zap } from 'lucide-react'
 import { Button } from '../../../components/dashboard/ui'
@@ -49,6 +50,7 @@ export default function HeroHeader() {
         <div className="flex min-w-0 items-center gap-4">
           <TeamLogo
             team={team}
+            to={team?.id != null ? `/teams/${team.id}` : undefined}
             name={team?.name || user?.name}
             className="size-16"
             rounded="rounded-3xl"
@@ -59,7 +61,15 @@ export default function HeroHeader() {
             <p className="text-xs font-bold text-green-400">
               {t('ov.hero.greeting', { today })}
             </p>
-            <h2 className="mt-1 truncate text-xl font-black sm:text-2xl">{team?.name || user?.name || t('ov.hero.yourTeam')}</h2>
+            <h2 className="mt-1 truncate text-xl font-black sm:text-2xl">
+              {team?.id != null && team?.name ? (
+                <Link to={`/teams/${team.id}`} className="hover:text-green-300 transition-colors">
+                  {team.name}
+                </Link>
+              ) : (
+                team?.name || user?.name || t('ov.hero.yourTeam')
+              )}
+            </h2>
             <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-white/50">
               <span className="inline-flex items-center gap-1">
                 <MapPin className="size-3.5" />
@@ -87,7 +97,15 @@ export default function HeroHeader() {
           <div className="flex items-center gap-4 rounded-3xl bg-white/[0.06] px-5 py-4 backdrop-blur xl:min-w-[340px]">
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-bold text-green-400">{t('ov.hero.nextMatch')}</p>
-              <p className="mt-0.5 truncate text-sm font-black">{opp?.name || t('ov.hero.potentialOpponent')}</p>
+              <p className="mt-0.5 truncate text-sm font-black">
+                {opp?.id != null && opp?.name ? (
+                  <Link to={`/teams/${opp.id}`} className="hover:text-green-300 transition-colors">
+                    {opp.name}
+                  </Link>
+                ) : (
+                  opp?.name || t('ov.hero.potentialOpponent')
+                )}
+              </p>
               <p className="mt-0.5 truncate text-[11px] font-semibold text-white/50">
                 {nextMatch.stadium?.name || nextMatch.custom_terrain_name || t('ov.common.unspecifiedStadium')}
               </p>

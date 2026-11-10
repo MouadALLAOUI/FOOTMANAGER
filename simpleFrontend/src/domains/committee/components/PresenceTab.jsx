@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { CheckCircle2, Loader2, UserCheck } from 'lucide-react'
 import { TeamAvatar } from '../../../pages/tournaments/shared'
 import api from '../../../api/client'
@@ -99,8 +100,8 @@ function TeamPresenceColumn({ teamId, name, team, players, confirmedIds, tournam
       <div className="min-w-0">
         <div className="mb-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
           <div className="flex min-w-0 items-center gap-2">
-            <TeamAvatar team={team} className="size-6" />
-            <span className="truncate text-xs font-black text-slate-800">{name}</span>
+            <TeamAvatar team={team} to={(teamId ?? team?.id) != null ? `/teams/${teamId ?? team.id}` : undefined} target="_blank" className="size-6" />
+            <span className="truncate text-xs font-black text-slate-800">{(teamId ?? team?.id) != null ? <Link to={`/teams/${teamId ?? team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{name}</Link> : name}</span>
           </div>
         </div>
         <p className="py-6 text-center text-[11px] font-semibold text-slate-400">
@@ -115,8 +116,8 @@ function TeamPresenceColumn({ teamId, name, team, players, confirmedIds, tournam
       {/* Team header with confirmed count */}
       <div className="mb-3 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
-          <TeamAvatar team={team} className="size-6" />
-          <span className="truncate text-xs font-black text-slate-800">{name}</span>
+          <TeamAvatar team={team} to={(teamId ?? team?.id) != null ? `/teams/${teamId ?? team.id}` : undefined} target="_blank" className="size-6" />
+          <span className="truncate text-xs font-black text-slate-800">{(teamId ?? team?.id) != null ? <Link to={`/teams/${teamId ?? team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{name}</Link> : name}</span>
         </div>
         <span className="shrink-0 flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">
           <CheckCircle2 className="size-3" />

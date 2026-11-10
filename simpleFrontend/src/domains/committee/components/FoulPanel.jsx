@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AlertTriangle, Check, ShieldX, Timer, X } from 'lucide-react'
 import api from '../../../api/client'
 import SectionCard from '../../../components/ui/SectionCard'
@@ -146,7 +147,7 @@ export default function FoulPanel({
           {[{ id: homeId, name: homeName }, { id: awayId, name: awayName }].map(({ id, name }) => (
             <div key={id} className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 ${shortHanded(id) ? 'border-rose-300 bg-rose-50' : 'border-slate-100 bg-slate-50/60'}`}>
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-extrabold text-slate-700">{name}</p>
+                <p className="truncate text-[11px] font-extrabold text-slate-700">{id != null ? <Link to={`/teams/${id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{name}</Link> : name}</p>
                 <p className="text-[10px] font-bold text-slate-400">
                   {t('committee.result.foulPanel.fouls')}: {teamCounter(id)}
                   {threshold ? ` / ${threshold}` : ''}
@@ -241,7 +242,7 @@ export default function FoulPanel({
               {(status.pending_awards || []).map((a) => (
                 <div key={a.id} className="rounded-xl border border-violet-200 bg-violet-50 p-3">
                   <p className="text-[11px] font-extrabold text-violet-800">
-                    {t('committee.result.foulPanel.awardTo', { team: a.awarded_to_name || t('committee.detail.tbd') })}
+                    {a.awarded_to_team_id != null ? <Link to={`/teams/${a.awarded_to_team_id}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{t('committee.result.foulPanel.awardTo', { team: a.awarded_to_name || t('committee.detail.tbd') })}</Link> : t('committee.result.foulPanel.awardTo', { team: a.awarded_to_name || t('committee.detail.tbd') })}
                   </p>
                   <p className="text-[10px] font-bold text-violet-500">{minuteText(a.minute, 0)}</p>
                   {!readOnly && (

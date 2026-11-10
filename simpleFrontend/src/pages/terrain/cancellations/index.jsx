@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Ban, Check, Inbox, Search, X } from 'lucide-react'
 import api from '../../../api/client'
@@ -159,7 +160,15 @@ export default function Cancellations() {
                 </span>
                 <div>
                   <p className="text-sm font-extrabold text-slate-900">
-                    {r.booking?.team?.name || r.team?.name || t('terrain.cancellations.booking')}
+                    {(() => {
+                      const tObj = r.booking?.team || r.team
+                      const tName = tObj?.name || t('terrain.cancellations.booking')
+                      return tObj?.id != null && tObj?.name ? (
+                        <Link to={`/teams/${tObj.id}`} className="hover:text-green-600 transition-colors">
+                          {tName}
+                        </Link>
+                      ) : tName
+                    })()}
                     <span className="ms-1.5 text-slate-400">#{r.booking_id || r.id}</span>
                   </p>
                   <p className="mt-0.5 text-[11px] font-semibold text-slate-400">
@@ -190,7 +199,20 @@ export default function Cancellations() {
               <div>
                 <p className="text-xs font-bold text-slate-400">{t('terrain.cancellations.teamManager')}</p>
                 <p className="mt-0.5 text-sm font-extrabold text-slate-900">
-                  {selected.booking?.team?.name || selected.team?.name || '—'}
+                  {(() => {
+                    const tObj = selected.booking?.team || selected.team
+                    return tObj?.id != null && tObj?.name ? (
+                      <Link
+                        to={`/teams/${tObj.id}`}
+                        onClick={() => setSelected(null)}
+                        className="hover:text-green-600 transition-colors"
+                      >
+                        {tObj.name}
+                      </Link>
+                    ) : (
+                      tObj?.name || '—'
+                    )
+                  })()}
                   {selected.user?.name ? ` • ${selected.user.name}` : ''}
                 </p>
               </div>

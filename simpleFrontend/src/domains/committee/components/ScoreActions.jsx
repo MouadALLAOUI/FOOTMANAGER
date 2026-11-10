@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { Check, ChevronDown, Clock, Plus } from 'lucide-react'
 import TeamLogo from '../../../components/profile/TeamLogo'
 
@@ -41,13 +42,15 @@ export default function ScoreActions({
             <div className="size-13 sm:size-16 rounded-2xl bg-white/10 border border-white/15 p-1.5 flex items-center justify-center shadow-md shrink-0">
               <TeamLogo
                 team={homeTeam}
+                to={homeTeam?.id != null ? `/teams/${homeTeam.id}` : undefined}
+                target="_blank"
                 name={homeName}
                 className="size-full object-contain filter drop-shadow-sm"
               />
             </div>
             <div className="mt-2 flex items-center justify-center gap-1.5 flex-wrap">
               <span className="text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={homeName}>
-                {homeName}
+                {homeTeam?.id != null ? <Link to={`/teams/${homeTeam.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#D0FF38] transition-colors">{homeName}</Link> : homeName}
               </span>
               {homeTeam?.status === 'withdrawn' && (
                 <span className="rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 text-[9px] font-black">
@@ -117,13 +120,15 @@ export default function ScoreActions({
             <div className="size-13 sm:size-16 rounded-2xl bg-white/10 border border-white/15 p-1.5 flex items-center justify-center shadow-md shrink-0">
               <TeamLogo
                 team={awayTeam}
+                to={awayTeam?.id != null ? `/teams/${awayTeam.id}` : undefined}
+                target="_blank"
                 name={awayName}
                 className="size-full object-contain filter drop-shadow-sm"
               />
             </div>
             <div className="mt-2 flex items-center justify-center gap-1.5 flex-wrap">
               <span className="text-xs sm:text-sm font-black text-white truncate max-w-[105px] sm:max-w-[140px]" title={awayName}>
-                {awayName}
+                {awayTeam?.id != null ? <Link to={`/teams/${awayTeam.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-[#D0FF38] transition-colors">{awayName}</Link> : awayName}
               </span>
               {awayTeam?.status === 'withdrawn' && (
                 <span className="rounded-md bg-amber-400/20 text-amber-300 border border-amber-400/40 px-1.5 py-0.5 text-[9px] font-black">

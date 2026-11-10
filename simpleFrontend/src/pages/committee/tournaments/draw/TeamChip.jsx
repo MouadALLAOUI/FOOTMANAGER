@@ -28,7 +28,7 @@ export default function TeamChip({ entry, onDragStart, locked, onClick }) {
       >
         <TeamAvatar team={entry.team} className="size-6 pointer-events-none" />
       </button>
-      <span className="truncate">{entry.team?.name}</span>
+      {entry?.team?.id != null ? <button type="button" draggable={false} onClick={(e) => { e.stopPropagation(); openTeam(entry.team) }} className="min-w-0 truncate text-start hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{entry.team.name}</button> : <span className="truncate">{entry.team?.name}</span>}
     </div>
   )
 }

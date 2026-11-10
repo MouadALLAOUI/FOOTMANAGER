@@ -35,6 +35,7 @@ import {
 } from '../../../components/dashboard/ui'
 import { MatchCard } from '../../../components/dashboard/cards'
 import { useToast } from '../../../components/ui/Toast'
+import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 
 const tabs = () => [
   { key: 'all', label: i18n.t('dash.all') },
@@ -76,6 +77,7 @@ export default function Matches() {
   const [reasonAction, setReasonAction] = useState(null)
   const [busy, setBusy] = useState(false)
   const { toast } = useToast()
+  const { openTeam } = useProfileModal()
 
   const matches = useMemo(() => data?.match_requests || [], [data])
   const detail = useMemo(() => matches.find((m) => m.id === detailId) ?? null, [matches, detailId])
@@ -350,7 +352,9 @@ export default function Matches() {
               match={m}
               onClick={() => setDetailId(m.id)}
               actions={actionsFor(m)}
-              onTeamClick={(team) => setInspectTeamId(team?.id ?? null)}
+              onTeamClick={(team) => {
+                if (team?.id != null) openTeam(team)
+              }}
             />
           ))}
         </div>
@@ -374,7 +378,12 @@ export default function Matches() {
         onClose={() => setDetailId(null)}
         onActions={actionsFor}
         onLineup={(m) => { setDetailId(null); setLineupMatchId(m.id) }}
-        onTeamClick={(team) => setInspectTeamId(team?.id ?? null)}
+        onTeamClick={(team) => {
+          if (team?.id != null) {
+            setDetailId(null)
+            openTeam(team)
+          }
+        }}
       />
       <MatchLineupDrawer matchRequestId={lineupMatch?.id} open={Boolean(lineupMatch)} onClose={() => setLineupMatchId(null)} />
       <OpponentProfileModal teamId={inspectTeam?.id} open={Boolean(inspectTeam)} onClose={() => setInspectTeamId(null)} />

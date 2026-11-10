@@ -6,6 +6,7 @@ use App\Domains\Competition\Models\Group;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
+use App\Domains\Tournament\Models\TournamentTeam;
 use App\Domains\Tournament\Services\TournamentDrawService;
 use App\Http\Requests\Committee\AssignTeamToGroupRequest;
 use App\Http\Requests\Committee\SaveDrawRequest;
@@ -144,13 +145,37 @@ class TournamentDrawController extends Controller
             ->where('id', $groupId)
             ->firstOrFail();
 
-        // Check for duplicate group name in this tournament (excluding this group itself)
-        $exists = Group::query()
-            ->where('competition_id', $tournament->competition_id)
-            ->where('season_id', $tournament->season_id)
-            ->where('id', '!=', $groupId)
-            ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($name)])
-            ->exists();
+        // Check for duplicate group name among populated (non-empty) groups in this tournament
+        $populatedGroupIds = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', 'registered')
+            ->whereNotNull('group_id')
+            ->where('group_id', '!=', $groupId)
+            ->distinct()
+            ->pluck('group_id');
+
+        $strippedTarget = mb_strtolower((string) preg_replace('/^(المجموعة|مجموعة|Groupe|Group|Poule)\s+/iu', '', $name));
+        $normalizedTarget = mb_strtolower($name);
+
+        $exists = false;
+        if ($populatedGroupIds->isNotEmpty()) {
+            $otherPopulatedGroups = Group::query()
+                ->where('competition_id', $tournament->competition_id)
+                ->where('season_id', $tournament->season_id)
+                ->whereIn('id', $populatedGroupIds)
+                ->get(['id', 'name']);
+
+            foreach ($otherPopulatedGroups as $other) {
+                $otherRaw = trim((string) $other->name);
+                $otherNormalized = mb_strtolower($otherRaw);
+                $otherStripped = mb_strtolower((string) preg_replace('/^(المجموعة|مجموعة|Groupe|Group|Poule)\s+/iu', '', $otherRaw));
+
+                if ($otherNormalized === $normalizedTarget || ($strippedTarget !== '' && $otherStripped === $strippedTarget && mb_strlen($strippedTarget) <= 2)) {
+                    $exists = true;
+                    break;
+                }
+            }
+        }
 
         if ($exists) {
             return response()->json([
@@ -162,6 +187,13 @@ class TournamentDrawController extends Controller
         }
 
         $group->update(['name' => $name]);
+
+        $plan = is_array($tournament->plan) ? $tournament->plan : [];
+        if (! isset($plan['group_names']) || ! is_array($plan['group_names'])) {
+            $plan['group_names'] = [];
+        }
+        $plan['group_names'][(string) $group->id] = $name;
+        $tournament->update(['plan' => $plan]);
 
         return response()->json([
             'message' => 'تم تغيير اسم المجموعة بنجاح',

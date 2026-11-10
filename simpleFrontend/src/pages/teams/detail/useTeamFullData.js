@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import api from '../../../api/client'
 import { LIVE_STATUSES } from '../../../data/fixtures'
 import { extractOrderedGroupsFromFixtures, getGroupColor, sortOrderedGroups } from '../../../lib/groupColors'
+import { syncTournamentGroupNames } from '../../../lib/groupNames'
 
 const FINISHED_STATUSES = new Set(['finished', 'completed', 'played'])
 const CANCELLED_STATUSES = new Set(['cancelled', 'canceled', 'abandoned', 'void'])
@@ -403,6 +404,8 @@ export function useTeamFullData(id) {
           api.get(`/v1/tournaments/${key}/statistics`).then((r) => r.data?.data || null).catch(() => null),
           api.get(`/v1/tournaments/${key}/bracket`).then((r) => (Array.isArray(r.data?.data) ? r.data.data : [])).catch(() => []),
         ])
+        const tourDetail = await api.get(`/v1/tournaments/${key}`).then((r) => r.data?.data || null).catch(() => null)
+        syncTournamentGroupNames(tourDetail || tour)
         return { tour, participant, allParticipants, standings, fixtures, statistics, bracket }
       })
 

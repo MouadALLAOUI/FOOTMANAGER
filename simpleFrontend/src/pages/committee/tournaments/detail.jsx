@@ -30,6 +30,7 @@ import { useApi } from '../../../hooks/useApi'
 import { Button, Card, Empty, Modal, SectionTitle, Skeleton, StatusBadge } from '../../../components/dashboard/ui'
 import DelegatedSubmissionReviewModal from '../../../domains/committee/components/DelegatedSubmissionReviewModal'
 import QuickShareCard from '../../../components/tournaments/QuickShareCard'
+import { syncTournamentGroupNames } from '../../../lib/groupNames'
 import OverviewTab from './overviewTab'
 import TeamsTab from './teamsTab'
 import DrawBoard from './draw'
@@ -89,7 +90,10 @@ export default function TournamentDetail() {
   const tabsRef = useRef(null)
 
   const { data: tour, loading } = useApi(
-    () => api.get(`/committee/tournaments/${id}`).then((r) => r.data.data),
+    () => api.get(`/committee/tournaments/${id}`).then((r) => {
+      syncTournamentGroupNames(r.data.data)
+      return r.data.data
+    }),
     [id, refresh],
     { staleTime: 0, keepPrevious: true },
   )
@@ -117,6 +121,7 @@ export default function TournamentDetail() {
   }
 
   const bump = () => setRefresh((v) => v + 1)
+  syncTournamentGroupNames(tour)
   const tabProps = {
     tournament: tour,
     refresh: bump,

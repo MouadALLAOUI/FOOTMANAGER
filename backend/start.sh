@@ -13,7 +13,9 @@ php artisan migrate --force 2>/dev/null || true
 # 3.1. Synchronize all team statistics across tournaments and matches
 php artisan teams:sync-stats 2>/dev/null || true
 
-# 4. Cache configuration
+# 4. Clear stale route/config cache and recache configuration
+php artisan route:clear 2>/dev/null || true
+php artisan config:clear 2>/dev/null || true
 php artisan config:cache
 
 # 5. Start HTTP server in FOREGROUND (keeps container alive)

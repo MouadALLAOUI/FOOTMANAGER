@@ -21,7 +21,12 @@ import { TeamAvatar } from '../../../tournaments/shared'
 import { useToast } from '../../../../components/ui/Toast'
 import { useProfileModal } from '../../../../components/profile/ProfileModalContext'
 import { toastApiError } from '../../../../lib/errors'
-import { formatGroupName } from '../../../../lib/groupNames'
+import {
+  formatGroupName,
+  registerTournamentGroupName,
+  resolvePersistedGroupName,
+  syncTournamentGroupNames,
+} from '../../../../lib/groupNames'
 import { getGroupColor } from '../../../../lib/groupColors'
 import { commitMove, deriveDisplayGroups, isNewGroup, membersOf, nextGroupLabel } from './drawLogic'
 import GroupColumn from './GroupColumn'
@@ -44,6 +49,9 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
   const [renamingGroup, setRenamingGroup] = useState(null)
   const seqRef = useRef(0)
 
+  // Sync persisted custom group names from tournament.plan.group_names synchronously
+  syncTournamentGroupNames(tournament)
+
   const { data: serverTeams, loading } = useApi(
     () => api.get(`/committee/tournaments/${tournament.id}/teams`).then((r) => r.data.data),
     [tournament.id, refreshKey],
@@ -60,7 +68,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
     if (serverGroups) {
       const mapped = serverGroups.map((g) => ({
         id: g.group_id,
-        name: g.name,
+        name: resolvePersistedGroupName(g.name, { groupId: g.group_id, tournamentId: tournament.id }) || g.name,
         team_count: g.team_count ?? 0,
       }))
       setWideGroups(mapped)
@@ -71,7 +79,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
         )
       }
     }
-  }, [serverGroups])
+  }, [serverGroups, tournament.id])
 
   useEffect(() => {
     setLocal(null)
@@ -105,7 +113,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
 
   const baseGroups = (serverGroups || []).map((g) => ({
     id: g.group_id,
-    name: g.name,
+    name: resolvePersistedGroupName(g.name, { groupId: g.group_id, tournamentId: tournament.id }) || g.name,
     team_count: g.team_count ?? 0,
   }))
   const currentGroups = wideGroups || baseGroups
@@ -135,7 +143,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
     }
 
     const normalized = trimmed.toLowerCase()
-    const duplicate = currentGroups.some(
+    const duplicate = visibleGroups.some(
       (g) =>
         g.id !== groupObj.id &&
         (String(g.name || '').trim().toLowerCase() === normalized ||
@@ -162,17 +170,77 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
       return
     }
 
+    const existingPlan =
+      tournament?.plan && typeof tournament.plan === 'object' && !Array.isArray(tournament.plan)
+        ? tournament.plan
+        : {}
+    const existingGroupNames =
+      existingPlan.group_names &&
+      typeof existingPlan.group_names === 'object' &&
+      !Array.isArray(existingPlan.group_names)
+        ? existingPlan.group_names
+        : {}
+    const nextPlan = {
+      ...existingPlan,
+      group_names: {
+        ...existingGroupNames,
+        [String(groupObj.id)]: trimmed,
+      },
+    }
+
     setBusy(`rename-${groupObj.id}`)
     try {
-      const res = await api.put(`/committee/tournaments/${tournament.id}/draw/groups/${groupObj.id}`, {
-        name: trimmed,
-      })
-      const updatedName = res.data?.data?.name || trimmed
+      let updatedName = trimmed
+      let syncedDraw = null
+      let serverMessage = null
 
-      if (Array.isArray(res.data?.draw)) {
-        const synced = res.data.draw.map((g) => ({
+      try {
+        const res = await api.put(`/committee/tournaments/${tournament.id}/draw/groups/${groupObj.id}`, {
+          name: trimmed,
+        })
+        updatedName = res.data?.data?.name || trimmed
+        if (Array.isArray(res.data?.draw)) {
+          syncedDraw = res.data.draw
+        }
+        serverMessage = res.data?.message || null
+        // Also persist in tournament.plan in the background if plan isn't updated yet
+        api.put(`/committee/tournaments/${tournament.id}`, { plan: nextPlan }).catch(() => {})
+      } catch (primaryErr) {
+        const status = primaryErr?.response?.status
+        const errMsg = String(primaryErr?.response?.data?.message || primaryErr?.message || '')
+        const isRouteMissing =
+          status === 404 ||
+          status === 405 ||
+          /could not be found|not found/i.test(errMsg)
+
+        if (!isRouteMissing) {
+          throw primaryErr
+        }
+
+        // Fallback: persist custom group name in MySQL tournaments.plan via existing tournament update route
+        await api.put(`/committee/tournaments/${tournament.id}`, {
+          plan: nextPlan,
+        })
+      }
+
+      if (tournament && typeof tournament === 'object') {
+        tournament.plan = {
+          ...nextPlan,
+          group_names: {
+            ...nextPlan.group_names,
+            [String(groupObj.id)]: updatedName,
+          },
+        }
+      }
+      registerTournamentGroupName(tournament.id, groupObj.id, updatedName)
+
+      if (Array.isArray(syncedDraw)) {
+        const synced = syncedDraw.map((g) => ({
           id: g.group_id,
-          name: g.name,
+          name:
+            g.group_id === groupObj.id
+              ? updatedName
+              : resolvePersistedGroupName(g.name, { groupId: g.group_id, tournamentId: tournament.id }) || g.name,
           team_count: g.team_count ?? 0,
         }))
         const placeholders = (wideGroups || []).filter(isNewGroup)
@@ -191,7 +259,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
           : prev,
       )
 
-      toast.success(res.data?.message || `تم تحديث اسم المجموعة إلى "${updatedName}"`)
+      toast.success(serverMessage || `تم تحديث اسم المجموعة إلى "${updatedName}"`)
       queryClient.invalidateQueries({ refetchType: 'none' })
       refresh?.()
     } catch (e) {
@@ -847,7 +915,7 @@ export default function DrawBoard({ tournament, refresh, refreshKey, setActive }
         onClose={() => setRenamingGroup(null)}
         group={renamingGroup}
         tournamentId={tournament.id}
-        existingGroups={currentGroups}
+        existingGroups={visibleGroups}
         onSave={(nextName) => renameGroup(renamingGroup, nextName)}
       />
     </div>

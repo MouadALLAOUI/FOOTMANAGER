@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react-native';
 import { AjiNqssroLogo } from './AjiNqssroLogo';
+import { useTheme } from '@/theme/ThemeProvider';
 
 interface AjiNqssroHeaderProps {
   showBack?: boolean;
@@ -37,6 +38,7 @@ export function AjiNqssroHeader({
   rightAction,
 }: AjiNqssroHeaderProps): React.JSX.Element {
   const router = useRouter();
+  const { colors } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleBack = () => {
@@ -61,11 +63,11 @@ export function AjiNqssroHeader({
           {showBack && (
             <TouchableOpacity
               onPress={handleBack}
-              style={styles.circleBtn}
+              style={[styles.circleBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
               accessibilityLabel="رجوع"
               accessibilityRole="button"
             >
-              <ArrowLeft size={20} color="#1E293B" />
+              <ArrowLeft size={20} color={colors.charcoal} />
             </TouchableOpacity>
           )}
 
@@ -73,17 +75,17 @@ export function AjiNqssroHeader({
             <View style={styles.authGroup}>
               <TouchableOpacity
                 onPress={() => router.push('/(auth)')}
-                style={styles.loginBtn}
+                style={[styles.loginBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
                 accessibilityRole="button"
               >
-                <Text style={styles.loginBtnText}>دخول</Text>
+                <Text style={[styles.loginBtnText, { color: colors.text }]}>دخول</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => router.push('/(auth)/register')}
-                style={styles.registerBtn}
+                style={[styles.registerBtn, { backgroundColor: colors.primary }]}
                 accessibilityRole="button"
               >
-                <Text style={styles.registerBtnText}>إنشاء حساب</Text>
+                <Text style={[styles.registerBtnText, { color: colors.charcoal }]}>إنشاء حساب</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -95,14 +97,14 @@ export function AjiNqssroHeader({
               accessibilityRole="button"
               accessibilityLabel="القائمة"
             >
-              <Menu size={24} color="#00875A" />
+              <Menu size={24} color={colors.charcoal} />
             </TouchableOpacity>
           )}
         </View>
 
         {/* Center / Right Brand Logo */}
         <View style={styles.centerLogo}>
-          <AjiNqssroLogo size={36} showText layout="vertical" color="#00875A" textColor="#00875A" />
+          <AjiNqssroLogo size={36} showText layout="vertical" color={colors.charcoal} textColor={colors.charcoal} />
         </View>
 
         {/* Custom right action if provided */}
@@ -113,18 +115,18 @@ export function AjiNqssroHeader({
         )}
       </View>
 
-      {/* Optional Title / Subtitle section below top row */}
-      {title && (
+      {/* Screen Title & Subtitle (Optional) */}
+      {title ? (
         <View style={styles.titleSection}>
           <View style={styles.titleRow}>
             {titleIcon && <View style={styles.titleIconWrap}>{titleIcon}</View>}
-            <Text style={styles.titleText}>{title}</Text>
+            <Text style={[styles.titleText, { color: colors.text }]}>{title}</Text>
           </View>
-          {subtitle && <Text style={styles.subtitleText}>{subtitle}</Text>}
+          {subtitle ? <Text style={[styles.subtitleText, { color: colors.textMuted }]}>{subtitle}</Text> : null}
         </View>
-      )}
+      ) : null}
 
-      {/* Navigation Drawer Modal */}
+      {/* Drawer Menu Modal */}
       <Modal
         visible={isMenuOpen}
         transparent
@@ -136,33 +138,31 @@ export function AjiNqssroHeader({
           activeOpacity={1}
           onPress={() => setIsMenuOpen(false)}
         >
-          <View
-            style={styles.drawerContent}
-            onStartShouldSetResponder={() => true}
-          >
+          <View style={[styles.drawerContent, { backgroundColor: colors.surface }]}>
             {/* Drawer Header */}
-            <View style={styles.drawerHeader}>
+            <View style={[styles.drawerHeader, { borderBottomColor: colors.border }]}>
               <TouchableOpacity
                 onPress={() => setIsMenuOpen(false)}
-                style={styles.closeBtn}
+                style={[styles.closeBtn, { backgroundColor: colors.bgMuted }]}
+                accessibilityRole="button"
                 accessibilityLabel="إغلاق"
               >
-                <X size={22} color="#1E293B" />
+                <X size={20} color={colors.text} />
               </TouchableOpacity>
-              <AjiNqssroLogo size={32} showText color="#00875A" textColor="#00875A" />
+              <AjiNqssroLogo size={32} showText={false} color={colors.charcoal} />
             </View>
 
-            {/* Menu Items */}
+            {/* Menu Links */}
             <View style={styles.menuList}>
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => navigateTo('/')}
+                onPress={() => navigateTo('/(public)')}
               >
-                <ChevronLeft size={18} color="#94A3B8" />
+                <ChevronLeft size={18} color={colors.textSubtle} />
                 <View style={styles.menuItemLabelWrap}>
-                  <Text style={styles.menuItemText}>الرئيسية</Text>
-                  <View style={[styles.menuIconCircle, { backgroundColor: '#F0FDF4' }]}>
-                    <Home size={18} color="#00875A" />
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>الرئيسية</Text>
+                  <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(168, 255, 36, 0.15)' }]}>
+                    <Home size={18} color={colors.charcoal} />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -171,11 +171,11 @@ export function AjiNqssroHeader({
                 style={styles.menuItem}
                 onPress={() => navigateTo('/(public)/stadiums')}
               >
-                <ChevronLeft size={18} color="#94A3B8" />
+                <ChevronLeft size={18} color={colors.textSubtle} />
                 <View style={styles.menuItemLabelWrap}>
-                  <Text style={styles.menuItemText}>الملاعب</Text>
-                  <View style={[styles.menuIconCircle, { backgroundColor: '#F0FDF4' }]}>
-                    <MapPin size={18} color="#00875A" />
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>الملاعب</Text>
+                  <View style={[styles.menuIconCircle, { backgroundColor: '#E0F2FE' }]}>
+                    <MapPin size={18} color="#0284C7" />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -184,10 +184,10 @@ export function AjiNqssroHeader({
                 style={styles.menuItem}
                 onPress={() => navigateTo('/(public)/challenges')}
               >
-                <ChevronLeft size={18} color="#94A3B8" />
+                <ChevronLeft size={18} color={colors.textSubtle} />
                 <View style={styles.menuItemLabelWrap}>
-                  <Text style={styles.menuItemText}>التحديات الكروية</Text>
-                  <View style={[styles.menuIconCircle, { backgroundColor: '#FFF7ED' }]}>
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>التحديات</Text>
+                  <View style={[styles.menuIconCircle, { backgroundColor: '#FFEDD5' }]}>
                     <Flame size={18} color="#EA580C" />
                   </View>
                 </View>
@@ -197,9 +197,9 @@ export function AjiNqssroHeader({
                 style={styles.menuItem}
                 onPress={() => navigateTo('/(public)/tournaments')}
               >
-                <ChevronLeft size={18} color="#94A3B8" />
+                <ChevronLeft size={18} color={colors.textSubtle} />
                 <View style={styles.menuItemLabelWrap}>
-                  <Text style={styles.menuItemText}>البطولات</Text>
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>البطولات</Text>
                   <View style={[styles.menuIconCircle, { backgroundColor: '#FEF3C7' }]}>
                     <Trophy size={18} color="#D97706" />
                   </View>
@@ -210,44 +210,44 @@ export function AjiNqssroHeader({
                 style={styles.menuItem}
                 onPress={() => navigateTo('/(public)/book-match')}
               >
-                <ChevronLeft size={18} color="#94A3B8" />
+                <ChevronLeft size={18} color={colors.textSubtle} />
                 <View style={styles.menuItemLabelWrap}>
-                  <Text style={styles.menuItemText}>حجز ماتش جديد</Text>
-                  <View style={[styles.menuIconCircle, { backgroundColor: '#F0FDF4' }]}>
-                    <Calendar size={18} color="#00875A" />
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>حجز موعد</Text>
+                  <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(168, 255, 36, 0.15)' }]}>
+                    <Calendar size={18} color={colors.charcoal} />
                   </View>
                 </View>
               </TouchableOpacity>
 
-              <View style={styles.menuDivider} />
+              <View style={[styles.menuDivider, { backgroundColor: colors.border }]} />
 
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => navigateTo('/(public)/profile')}
               >
-                <ChevronLeft size={18} color="#94A3B8" />
+                <ChevronLeft size={18} color={colors.textSubtle} />
                 <View style={styles.menuItemLabelWrap}>
-                  <Text style={styles.menuItemText}>حسابي</Text>
-                  <View style={[styles.menuIconCircle, { backgroundColor: '#EFF6FF' }]}>
-                    <User size={18} color="#0284C7" />
+                  <Text style={[styles.menuItemText, { color: colors.text }]}>حسابي</Text>
+                  <View style={[styles.menuIconCircle, { backgroundColor: colors.bgMuted }]}>
+                    <User size={18} color={colors.textMuted} />
                   </View>
                 </View>
               </TouchableOpacity>
             </View>
 
-            {/* Auth Buttons inside Drawer */}
-            <View style={styles.drawerFooter}>
+            {/* Bottom Drawer Actions */}
+            <View style={[styles.drawerFooter, { borderTopColor: colors.border }]}>
               <TouchableOpacity
-                style={styles.drawerLoginBtn}
+                style={[styles.drawerLoginBtn, { borderColor: colors.border, backgroundColor: colors.surface }]}
                 onPress={() => navigateTo('/(auth)')}
               >
-                <Text style={styles.drawerLoginText}>تسجيل الدخول</Text>
+                <Text style={[styles.drawerLoginText, { color: colors.text }]}>تسجيل الدخول</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.drawerRegisterBtn}
+                style={[styles.drawerRegisterBtn, { backgroundColor: colors.primary }]}
                 onPress={() => navigateTo('/(auth)/register')}
               >
-                <Text style={styles.drawerRegisterText}>إنشاء حساب جديد</Text>
+                <Text style={[styles.drawerRegisterText, { color: colors.charcoal }]}>حساب جديد</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -261,10 +261,7 @@ const styles = StyleSheet.create({
   headerContainer: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0FDF4',
+    paddingBottom: 10,
   },
   topRow: {
     flexDirection: 'row',
@@ -279,10 +276,8 @@ const styles = StyleSheet.create({
   circleBtn: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -294,26 +289,21 @@ const styles = StyleSheet.create({
   loginBtn: {
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
   },
   loginBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#334155',
   },
   registerBtn: {
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: '#00875A',
+    borderRadius: 14,
   },
   registerBtnText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
   },
   menuBtn: {
     padding: 6,
@@ -344,19 +334,17 @@ const styles = StyleSheet.create({
   },
   titleText: {
     fontSize: 20,
-    fontWeight: '800',
-    color: '#065F46',
+    fontWeight: '900',
     textAlign: 'center',
   },
   subtitleText: {
     fontSize: 13,
-    color: '#64748B',
     textAlign: 'center',
     marginTop: 2,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(16, 20, 24, 0.6)',
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
   },
@@ -364,11 +352,10 @@ const styles = StyleSheet.create({
     width: '78%',
     maxWidth: 320,
     height: '100%',
-    backgroundColor: '#FFFFFF',
     paddingTop: 48,
     paddingHorizontal: 20,
     paddingBottom: 24,
-    shadowColor: '#000',
+    shadowColor: '#101418',
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
@@ -380,13 +367,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
     marginBottom: 16,
   },
   closeBtn: {
     padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
   },
   menuList: {
     flex: 1,
@@ -408,47 +393,40 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1E293B',
   },
   menuIconCircle: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   menuDivider: {
     height: 1,
-    backgroundColor: '#F1F5F9',
     marginVertical: 10,
   },
   drawerFooter: {
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
     gap: 8,
   },
   drawerLoginBtn: {
     paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#00875A',
+    borderRadius: 14,
+    borderWidth: 1,
     alignItems: 'center',
   },
   drawerLoginText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#00875A',
   },
   drawerRegisterBtn: {
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: '#00875A',
+    borderRadius: 14,
     alignItems: 'center',
   },
   drawerRegisterText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontWeight: '800',
   },
 });

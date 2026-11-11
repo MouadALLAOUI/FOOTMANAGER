@@ -161,6 +161,7 @@ Route::get('/push/public-key', [PushSubscriptionController::class, 'publicKey'])
 
 // Public live match data endpoint
 Route::get('/live/{token}/data', [PublicLiveMatchDataController::class, 'data'])->middleware('throttle:120,1');
+Route::post('/live/{token}/react', [PublicLiveMatchDataController::class, 'react'])->middleware('throttle:60,1');
 
 Route::get('/search', [SearchController::class, 'search']);
 Route::get('/search/suggest', [SearchController::class, 'suggest']);
@@ -186,6 +187,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/live', [LiveMatchController::class, 'index']);
     Route::get('/live/{match}', [LiveMatchController::class, 'show']);
     Route::get('/live/{token}/data', [PublicLiveMatchDataController::class, 'data'])->middleware('throttle:120,1');
+    Route::post('/live/{token}/react', [PublicLiveMatchDataController::class, 'react'])->middleware('throttle:60,1');
 
     Route::get('/teams/{team}/page', [TeamPageController::class, 'show']);
     Route::get('/feed', [FeedController::class, 'index']);

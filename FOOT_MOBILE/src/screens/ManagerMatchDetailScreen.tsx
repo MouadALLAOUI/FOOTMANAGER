@@ -67,7 +67,7 @@ function getStatusBanner(status?: string | null): { label: string; bg: string; f
       return { label: 'مباشر الآن 🔴', bg: '#FEE2E2', fg: '#DC2626' };
     case 'accepted':
     case 'matched':
-      return { label: 'مباراة مؤكدة ✓', bg: '#DCFCE7', fg: '#00875A' };
+      return { label: 'مباراة مؤكدة ✓', bg: '#DCFCE7', fg: '#101418' };
     case 'open':
       return { label: 'تنتظر الخصم ⏳', bg: '#FEF3C7', fg: '#D97706' };
     case 'completed':
@@ -367,7 +367,7 @@ export default function ManagerMatchDetailScreen(): React.JSX.Element {
 
           {isLoading ? (
             <View style={styles.stateCard}>
-              <ActivityIndicator size="large" color="#00875A" />
+              <ActivityIndicator size="large" color="#101418" />
               <Text style={styles.stateTitle}>جاري تحميل تفاصيل المباراة...</Text>
             </View>
           ) : isError || !match ? (
@@ -387,7 +387,7 @@ export default function ManagerMatchDetailScreen(): React.JSX.Element {
               <View style={styles.heroCard}>
                 <View style={styles.heroTopStrip}>
                   <View style={styles.formatPill}>
-                    <Swords size={14} color="#00875A" />
+                    <Swords size={14} color="#101418" />
                     <Text style={styles.formatPillText}>
                       {(match.player_format || '7v7').toUpperCase()}
                     </Text>
@@ -406,7 +406,7 @@ export default function ManagerMatchDetailScreen(): React.JSX.Element {
                     {hostLogo ? (
                       <Image source={{ uri: hostLogo }} style={styles.teamLogo} resizeMode="cover" />
                     ) : (
-                      <View style={[styles.teamShield, { backgroundColor: '#00875A' }]}>
+                      <View style={[styles.teamShield, { backgroundColor: '#A8FF24' }]}>
                         <Shield size={26} color="#FFFFFF" />
                       </View>
                     )}
@@ -527,7 +527,7 @@ export default function ManagerMatchDetailScreen(): React.JSX.Element {
                     </Text>
                     <View style={styles.infoLabelWrap}>
                       <Text style={styles.infoLabelText}>الملعب</Text>
-                      <MapPin size={18} color="#00875A" />
+                      <MapPin size={18} color="#101418" />
                     </View>
                   </View>
 
@@ -537,7 +537,7 @@ export default function ManagerMatchDetailScreen(): React.JSX.Element {
                     <Text style={styles.infoValueText}>{formattedDate}</Text>
                     <View style={styles.infoLabelWrap}>
                       <Text style={styles.infoLabelText}>التاريخ</Text>
-                      <Calendar size={18} color="#00875A" />
+                      <Calendar size={18} color="#101418" />
                     </View>
                   </View>
 
@@ -547,7 +547,7 @@ export default function ManagerMatchDetailScreen(): React.JSX.Element {
                     <Text style={styles.infoValueText}>{formattedTime}</Text>
                     <View style={styles.infoLabelWrap}>
                       <Text style={styles.infoLabelText}>التوقيت</Text>
-                      <Clock size={18} color="#00875A" />
+                      <Clock size={18} color="#101418" />
                     </View>
                   </View>
 
@@ -589,7 +589,7 @@ export default function ManagerMatchDetailScreen(): React.JSX.Element {
                             <Text style={styles.proposalTeamName}>{teamTitle}</Text>
                             {contactPhone ? (
                               <View style={styles.phoneBadge}>
-                                <Phone size={12} color="#00875A" />
+                                <Phone size={12} color="#101418" />
                                 <Text style={styles.phoneBadgeText}>{contactPhone}</Text>
                               </View>
                             ) : null}
@@ -752,7 +752,7 @@ export default function ManagerMatchDetailScreen(): React.JSX.Element {
                             <Text style={styles.joinedPlayerName}>
                               {p.player?.name ?? 'لاعب'}
                             </Text>
-                            <UserCheck size={16} color="#00875A" />
+                            <UserCheck size={16} color="#101418" />
                           </View>
                         </View>
                       ))}
@@ -957,7 +957,7 @@ const styles = StyleSheet.create({
   formatPillText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#00875A',
+    color: '#101418',
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -985,7 +985,7 @@ const styles = StyleSheet.create({
     height: 60,
     borderRadius: 30,
     borderWidth: 2.5,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
   },
   teamShield: {
     width: 60,
@@ -1127,7 +1127,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 8,
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
     paddingHorizontal: 16,
     paddingVertical: 11,
   },
@@ -1180,7 +1180,7 @@ const styles = StyleSheet.create({
   notesLabel: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#00875A',
+    color: '#101418',
     marginBottom: 4,
   },
   notesText: {
@@ -1219,7 +1219,7 @@ const styles = StyleSheet.create({
   phoneBadgeText: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#00875A',
+    color: '#101418',
   },
   proposalNotesText: {
     fontSize: 13,
@@ -1297,7 +1297,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
     paddingVertical: 11,
     borderRadius: 12,
   },
@@ -1364,7 +1364,7 @@ const styles = StyleSheet.create({
   applicantPosition: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#00875A',
+    color: '#101418',
     marginTop: 2,
   },
   applicantActions: {
@@ -1429,7 +1429,7 @@ const styles = StyleSheet.create({
   joinedPlayerPos: {
     fontSize: 12,
     fontWeight: '800',
-    color: '#00875A',
+    color: '#101418',
   },
   stateCard: {
     backgroundColor: '#FFFFFF',
@@ -1453,7 +1453,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   retryBtn: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
     paddingHorizontal: 20,
     paddingVertical: 11,
     borderRadius: 14,
@@ -1475,7 +1475,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     borderWidth: 2,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1510,7 +1510,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#F8FAFC',
     borderWidth: 2,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
     fontSize: 26,
     fontWeight: '900',
     color: '#062F36',

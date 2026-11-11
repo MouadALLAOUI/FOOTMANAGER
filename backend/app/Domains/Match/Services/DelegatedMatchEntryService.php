@@ -559,9 +559,18 @@ class DelegatedMatchEntryService
         }
 
         return DB::transaction(function () use ($fixture, $submission, $organizerId, $overrideData) {
+            $origHome = (int) $submission->home_score;
+            $origAway = (int) $submission->away_score;
+            $appliedHome = isset($overrideData['home_score']) ? (int) $overrideData['home_score'] : $origHome;
+            $appliedAway = isset($overrideData['away_score']) ? (int) $overrideData['away_score'] : $origAway;
+
+            $scoreChanged = ($appliedHome !== $origHome || $appliedAway !== $origAway);
+            $wasEdited = $scoreChanged || ! empty($overrideData['was_edited']) || ! empty($overrideData['correction_reason']);
+            $correctionReason = ! empty($overrideData['correction_reason']) ? trim((string) $overrideData['correction_reason']) : null;
+
             $dataToApply = [
-                'home_score' => $overrideData['home_score'] ?? $submission->home_score,
-                'away_score' => $overrideData['away_score'] ?? $submission->away_score,
+                'home_score' => $appliedHome,
+                'away_score' => $appliedAway,
                 'home_penalties' => $overrideData['home_penalties'] ?? $submission->home_penalties,
                 'away_penalties' => $overrideData['away_penalties'] ?? $submission->away_penalties,
                 'extra_time' => $overrideData['extra_time'] ?? $submission->extra_time,
@@ -587,11 +596,19 @@ class DelegatedMatchEntryService
                 );
             }
 
-            // Mark submission approved
+            // Mark submission approved while preserving original delegate score & report
+            $clientMeta = is_array($submission->client_meta) ? $submission->client_meta : [];
+            $clientMeta['was_amended'] = $wasEdited;
+            $clientMeta['original_score'] = "{$origHome} - {$origAway}";
+            $clientMeta['approved_score'] = "{$appliedHome} - {$appliedAway}";
+            $clientMeta['correction_reason'] = $correctionReason;
+            $clientMeta['reviewed_by_user_id'] = $organizerId;
+
             $submission->update([
                 'status' => 'approved',
                 'reviewed_by' => $organizerId,
                 'reviewed_at' => now(),
+                'client_meta' => $clientMeta,
             ]);
 
             // Mark token as approved (locked/read-only)
@@ -599,11 +616,17 @@ class DelegatedMatchEntryService
                 $submission->token->update(['status' => 'approved']);
             }
 
-            // Audit
-            $this->audit($updatedFixture->match, $fixture, 'delegated_result_approved', $organizerId, [
+            // Standardized result change audit
+            $action = $wasEdited ? 'delegated_result_amended' : 'delegated_result_approved';
+            $this->audit($updatedFixture->match, $fixture, $action, $organizerId, [
                 'submission_id' => $submission->id,
-                'approved_score' => "{$dataToApply['home_score']} - {$dataToApply['away_score']}",
-                'was_edited' => ! empty($overrideData),
+                'previous_score' => "{$origHome} - {$origAway}",
+                'new_score' => "{$appliedHome} - {$appliedAway}",
+                'was_edited' => $wasEdited,
+                'reason' => $correctionReason,
+                'recorder_name' => $submission->recorder_name,
+                'user_role' => 'committee',
+                'timestamp' => now()->toIso8601String(),
             ]);
 
             return $updatedFixture;
@@ -732,7 +755,8 @@ class DelegatedMatchEntryService
                 'delegated_link_generated' => 'تم إنشاء رابط تسجيل مندوب المباراة',
                 'delegated_link_revoked' => 'تم إلغاء رابط تسجيل مندوب المباراة',
                 'delegated_result_submitted' => 'تم إرسال نتيجة المباراة عبر الرابط السري',
-                'delegated_result_approved' => 'تم اعتماد النتيجة المرسلة من المندوب',
+                'delegated_result_approved' => 'تم اعتماد النتيجة المسجلة من طرف المندوب رسمياً',
+                'delegated_result_amended' => 'تم تعديل النتيجة واعتمادها رسمياً بعد مراجعة تقرير المندوب',
                 'delegated_result_rejected' => 'تم رفض النتيجة المرسلة من المندوب',
                 'delegated_result_disputed' => 'تم تسجيل اعتراض على النتيجة من مدير الفريق',
                 default => $action,

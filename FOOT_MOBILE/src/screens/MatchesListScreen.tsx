@@ -57,7 +57,7 @@ function getStatusBadge(status?: string | null): StatusBadgeInfo {
       return { label: 'مباشر الآن 🔴', bg: '#FEE2E2', fg: '#DC2626', border: '#FCA5A5' };
     case 'accepted':
     case 'matched':
-      return { label: 'مؤكدة ✓', bg: '#DCFCE7', fg: '#00875A', border: '#86EFAC' };
+      return { label: 'مؤكدة ✓', bg: '#DCFCE7', fg: '#101418', border: '#86EFAC' };
     case 'open':
       return { label: 'تنتظر الخصم ⏳', bg: '#FEF3C7', fg: '#D97706', border: '#FDE68A' };
     case 'completed':
@@ -223,7 +223,7 @@ export default function MatchesListScreen(): React.JSX.Element {
         {/* Top Banner: Status Pill & Format */}
         <View style={styles.cardTopBar}>
           <View style={styles.formatTag}>
-            <Swords size={14} color="#00875A" />
+            <Swords size={14} color="#101418" />
             <Text style={styles.formatTagText}>
               {(item.player_format || '7v7').toUpperCase()}
             </Text>
@@ -248,7 +248,7 @@ export default function MatchesListScreen(): React.JSX.Element {
             {hostLogo ? (
               <Image source={{ uri: hostLogo }} style={styles.teamAvatar} resizeMode="cover" />
             ) : (
-              <View style={[styles.teamShieldCircle, { backgroundColor: '#00875A' }]}>
+              <View style={[styles.teamShieldCircle, { backgroundColor: '#A8FF24' }]}>
                 <Shield size={22} color="#FFFFFF" />
               </View>
             )}
@@ -309,17 +309,17 @@ export default function MatchesListScreen(): React.JSX.Element {
             <Text style={styles.metaItemText} numberOfLines={1}>
               {[stadiumName, city].filter(Boolean).join(' • ')}
             </Text>
-            <MapPin size={15} color="#00875A" />
+            <MapPin size={15} color="#101418" />
           </View>
 
           <View style={styles.metaDateTimeRow}>
             <View style={styles.metaItem}>
               <Text style={styles.metaItemText}>{time}</Text>
-              <Clock size={14} color="#00875A" />
+              <Clock size={14} color="#101418" />
             </View>
             <View style={styles.metaItem}>
               <Text style={styles.metaItemText}>{date}</Text>
-              <Calendar size={14} color="#00875A" />
+              <Calendar size={14} color="#101418" />
             </View>
           </View>
 
@@ -405,8 +405,8 @@ export default function MatchesListScreen(): React.JSX.Element {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void handleRefresh()}
-              tintColor="#00875A"
-              colors={['#00875A']}
+              tintColor="#101418"
+              colors={['#101418']}
             />
           }
         >
@@ -523,14 +523,14 @@ export default function MatchesListScreen(): React.JSX.Element {
           {/* Loading State */}
           {isCurrentTabLoading ? (
             <View style={styles.stateCard}>
-              <ActivityIndicator size="large" color="#00875A" />
+              <ActivityIndicator size="large" color="#101418" />
               <Text style={styles.stateTitle}>جاري تحميل المباريات...</Text>
             </View>
           ) : activeList.length === 0 ? (
             /* Empty State */
             <View style={styles.stateCard}>
               <View style={styles.emptyIconCircle}>
-                <Trophy size={36} color="#00875A" />
+                <Trophy size={36} color="#101418" />
               </View>
               <Text style={styles.stateTitle}>
                 {activeTab === 'my_matches'
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 16,
     elevation: 3,
-    shadowColor: '#00875A',
+    shadowColor: '#101418',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 5,
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modeTabBtnActive: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
   },
   modeTabText: {
     fontSize: 13,
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   formatTagText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#00875A',
+    color: '#101418',
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     borderWidth: 2,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
   },
   teamShieldCircle: {
     width: 52,

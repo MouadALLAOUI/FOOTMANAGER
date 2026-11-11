@@ -39,7 +39,7 @@ const REF_AVATARS: Record<number, ImageSourcePropType> = {
 };
 
 // ── Football Pitch Tactics Icon ──
-function PitchIcon({ size = 20, color = '#00875A' }: { size?: number; color?: string }) {
+function PitchIcon({ size = 20, color = '#101418' }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size * 0.75} viewBox="0 0 24 18" fill="none">
       <Rect x="1" y="1" width="22" height="16" rx="2" stroke={color} strokeWidth="1.6" />
@@ -319,7 +319,7 @@ export default function AddPlayerScreen(): React.JSX.Element {
           {/* Title & Subtitle (Center / Right) */}
           <View style={styles.titleTextsCol}>
             <View style={styles.titleRow}>
-              <UserPlus size={24} color="#00875A" />
+              <UserPlus size={24} color="#101418" />
               <Text style={styles.titleText}>إضافة لاعب جديد</Text>
             </View>
             <Text style={styles.subtitleText}>أضف لاعباً إلى فريقك</Text>
@@ -355,9 +355,9 @@ export default function AddPlayerScreen(): React.JSX.Element {
 
             {/* Search Icon (Right) */}
             {loadingSearch ? (
-              <ActivityIndicator size="small" color="#00875A" />
+              <ActivityIndicator size="small" color="#101418" />
             ) : (
-              <Search size={20} color="#00875A" strokeWidth={2.5} />
+              <Search size={20} color="#101418" strokeWidth={2.5} />
             )}
           </View>
 
@@ -459,7 +459,7 @@ export default function AddPlayerScreen(): React.JSX.Element {
             style={styles.positionSelectorBox}
           >
             {/* Left: Dropdown Chevron */}
-            <ChevronDown size={20} color="#00875A" strokeWidth={2.5} />
+            <ChevronDown size={20} color="#101418" strokeWidth={2.5} />
 
             {/* Right: Value or Placeholder + Pitch Icon */}
             <View style={styles.positionValueRow}>
@@ -473,7 +473,7 @@ export default function AddPlayerScreen(): React.JSX.Element {
                   ? POSITION_OPTIONS.find((o) => o.key === selectedPosition)?.label || selectedPosition
                   : 'اختر مركز اللاعب'}
               </Text>
-              <PitchIcon size={22} color="#00875A" />
+              <PitchIcon size={22} color="#101418" />
             </View>
           </Pressable>
         </View>
@@ -489,11 +489,11 @@ export default function AddPlayerScreen(): React.JSX.Element {
           ]}
         >
           {submitting ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color="#101418" />
           ) : (
             <>
               <Text style={styles.addPlayerCTAText}>إضافة اللاعب</Text>
-              <UserPlus size={22} color="#FFFFFF" strokeWidth={2.5} />
+              <UserPlus size={22} color="#101418" strokeWidth={2.5} />
             </>
           )}
         </Pressable>
@@ -525,7 +525,7 @@ export default function AddPlayerScreen(): React.JSX.Element {
                       isSelected && styles.pickerOptionBtnActive,
                     ]}
                   >
-                    {isSelected && <Check size={18} color="#00875A" strokeWidth={3} />}
+                    {isSelected && <Check size={18} color="#101418" strokeWidth={3} />}
                     <View style={styles.pickerOptionTextWrap}>
                       <Text
                         style={[
@@ -551,7 +551,7 @@ export default function AddPlayerScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F2F4F5',
   },
   bgImage: {
     position: 'absolute',
@@ -648,7 +648,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#ECFDF5',
     borderWidth: 2,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
     height: 50,
     paddingHorizontal: 12,
     marginBottom: 10,
@@ -798,7 +798,7 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     borderWidth: 1.5,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
     overflow: 'hidden',
     backgroundColor: '#ECFDF5',
   },
@@ -818,8 +818,8 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 70,
     borderWidth: 2.5,
-    borderColor: '#00875A',
-    backgroundColor: '#F8FAFC',
+    borderColor: '#A8FF24',
+    backgroundColor: '#F2F4F5',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
     height: 50,
     paddingHorizontal: 14,
   },
@@ -896,7 +896,7 @@ const styles = StyleSheet.create({
 
   // ── F. Main Action Button: إضافة اللاعب ──
   addPlayerCTA: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
     borderRadius: 16,
     height: 56,
     flexDirection: 'row',
@@ -914,7 +914,7 @@ const styles = StyleSheet.create({
   addPlayerCTAText: {
     fontSize: 17,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#101418',
   },
 
   // Modal Styles
@@ -960,13 +960,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F2F4F5',
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
   pickerOptionBtnActive: {
     backgroundColor: '#ECFDF5',
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
   },
   pickerOptionTextWrap: {
     flex: 1,

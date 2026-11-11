@@ -43,7 +43,7 @@ import {
 import { useUnreadNotificationCount } from '@/api/notifications';
 
 // ── Tactics / Pitch Svg Icon ──
-function PitchTacticsIcon({ size = 22, color = '#00875A' }: { size?: number; color?: string }) {
+function PitchTacticsIcon({ size = 22, color = '#101418' }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size * 0.72} viewBox="0 0 24 17" fill="none">
       <Rect x="1" y="1" width="22" height="15" rx="2" stroke={color} strokeWidth="1.8" />
@@ -314,7 +314,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
                 <View style={styles.heroSubCard}>
                   {/* Right half (RTL): Tactics Icon + Position */}
                   <View style={styles.heroSubCardHalf}>
-                    <PitchTacticsIcon size={24} color="#00875A" />
+                    <PitchTacticsIcon size={24} color="#101418" />
                     <View style={styles.subCardMetaText}>
                       <Text style={styles.subCardLabel}>المركز</Text>
                       <View style={styles.positionPill}>
@@ -368,7 +368,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
             <View style={styles.statsContentCard}>
               {/* Col 1 (RTL first): Matches */}
               <View style={styles.statCol}>
-                <PitchTacticsIcon size={24} color="#00875A" />
+                <PitchTacticsIcon size={24} color="#101418" />
                 <Text style={styles.statLabelText}>المباريات</Text>
                 <Text style={styles.statValueText}>{player.matches}</Text>
               </View>
@@ -427,7 +427,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
                   <Text style={styles.infoCellValueText}>{player.joinDate}</Text>
                   <View style={styles.infoCellLabelGroup}>
                     <Text style={styles.infoCellLabelText}>تاريخ الانضمام</Text>
-                    <Calendar size={18} color="#00875A" />
+                    <Calendar size={18} color="#101418" />
                   </View>
                 </View>
 
@@ -436,7 +436,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
                   <Text style={styles.infoCellValueText}>#{player.id}</Text>
                   <View style={styles.infoCellLabelGroup}>
                     <Text style={styles.infoCellLabelText}>رقم اللاعب</Text>
-                    <User size={18} color="#00875A" />
+                    <User size={18} color="#101418" />
                   </View>
                 </View>
               </View>
@@ -451,7 +451,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
                   <Text style={styles.infoCellValueText}>{player.age}</Text>
                   <View style={styles.infoCellLabelGroup}>
                     <Text style={styles.infoCellLabelText}>العمر</Text>
-                    <User size={18} color="#00875A" />
+                    <User size={18} color="#101418" />
                   </View>
                 </View>
 
@@ -463,7 +463,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
                   </View>
                   <View style={styles.infoCellLabelGroup}>
                     <Text style={styles.infoCellLabelText}>الجنسية</Text>
-                    <Flag size={18} color="#00875A" />
+                    <Flag size={18} color="#101418" />
                   </View>
                 </View>
               </View>
@@ -529,7 +529,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
             }}
             activeOpacity={0.8}
           >
-            <User size={22} color={activeTab === 'profile' ? '#00875A' : '#1E293B'} />
+            <User size={22} color={activeTab === 'profile' ? '#101418' : '#64748B'} />
             <Text
               style={[
                 styles.navTabLabel,
@@ -549,7 +549,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
             }}
             activeOpacity={0.8}
           >
-            <Trophy size={22} color={activeTab === 'tournaments' ? '#00875A' : '#1E293B'} />
+            <Trophy size={22} color={activeTab === 'tournaments' ? '#101418' : '#64748B'} />
             <Text
               style={[
                 styles.navTabLabel,
@@ -569,7 +569,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
             }}
             activeOpacity={0.8}
           >
-            <CircleDot size={22} color={activeTab === 'matches' ? '#00875A' : '#1E293B'} />
+            <CircleDot size={22} color={activeTab === 'matches' ? '#101418' : '#64748B'} />
             <Text
               style={[
                 styles.navTabLabel,
@@ -589,7 +589,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
             }}
             activeOpacity={0.85}
           >
-            <Users size={22} color="#FFFFFF" />
+            <Users size={22} color="#A8FF24" />
             <Text style={styles.navTabPillText}>الفريق</Text>
           </TouchableOpacity>
 
@@ -602,7 +602,7 @@ export default function SquadMemberDetailScreen(): React.JSX.Element {
             }}
             activeOpacity={0.8}
           >
-            <Home size={22} color={activeTab === 'home' ? '#00875A' : '#1E293B'} />
+            <Home size={22} color={activeTab === 'home' ? '#101418' : '#64748B'} />
             <Text
               style={[
                 styles.navTabLabel,
@@ -1276,10 +1276,10 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   navTabLabelActive: {
-    color: '#00875A',
+    color: '#101418',
   },
   navTabPillActive: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#101418',
     borderRadius: 24,
     paddingVertical: 8,
     paddingHorizontal: 22,
@@ -1294,7 +1294,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   navTabPillText: {
-    color: '#FFFFFF',
+    color: '#A8FF24',
     fontSize: 16,
     fontWeight: '900',
   },
@@ -1418,8 +1418,8 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   quickNumberPillActive: {
-    backgroundColor: '#00875A',
-    borderColor: '#00875A',
+    backgroundColor: '#101418',
+    borderColor: '#101418',
   },
   quickNumberText: {
     fontSize: 18,
@@ -1427,17 +1427,17 @@ const styles = StyleSheet.create({
     color: '#475569',
   },
   quickNumberTextActive: {
-    color: '#FFFFFF',
+    color: '#A8FF24',
   },
   modalSaveBtn: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
     borderRadius: 16,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalSaveBtnText: {
-    color: '#FFFFFF',
+    color: '#101418',
     fontSize: 18,
     fontWeight: '900',
   },

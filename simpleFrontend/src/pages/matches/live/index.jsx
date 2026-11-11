@@ -10,6 +10,7 @@ import {
   Trophy,
   User,
   Shield,
+  ShieldCheck,
   AlertTriangle,
   Loader2,
   Share2,
@@ -17,9 +18,34 @@ import {
   ArrowDown,
   ArrowUp,
   Info,
+  Radio,
+  CheckCircle2,
 } from 'lucide-react'
 import api from '../../../api/client'
 import { useToast } from '../../../components/ui/Toast'
+
+function getVisitorId() {
+  if (typeof window === 'undefined') return 'v_server'
+  const KEY = 'live_match_visitor_id'
+  try {
+    let id = localStorage.getItem(KEY)
+    if (!id) {
+      id = 'v_' + Math.random().toString(36).substring(2, 12) + '_' + Date.now().toString(36)
+      localStorage.setItem(KEY, id)
+    }
+    return id
+  } catch {
+    return 'v_fallback'
+  }
+}
+
+const SCORE_REACTION_TYPES = [
+  { key: 'fire', emoji: '🔥', label: 'حماس' },
+  { key: 'applause', emoji: '👏', label: 'تصفيق' },
+  { key: 'football', emoji: '⚽', label: 'هدف' },
+  { key: 'wow', emoji: '😮', label: 'مفاجأة' },
+  { key: 'love', emoji: '❤️', label: 'إعجاب' },
+]
 
 export default function PublicLiveMatchPage() {
   const { token } = useParams()
@@ -34,6 +60,20 @@ export default function PublicLiveMatchPage() {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState('events') // 'events' | 'lineup' | 'details'
   const [lineupTeamFilter, setLineupTeamFilter] = useState('all') // 'all' | 'home' | 'away'
+
+  // Score reactions state
+  const [reactions, setReactions] = useState({
+    counts: { fire: 0, applause: 0, football: 0, wow: 0, love: 0 },
+    total: 0,
+  })
+  const [myReaction, setMyReaction] = useState(() => {
+    try {
+      return localStorage.getItem(`match_reaction_${token}`) || null
+    } catch {
+      return null
+    }
+  })
+  const [reacting, setReacting] = useState(false)
 
   const lastEventIdRef = useRef(0)
   const lastServerTimeRef = useRef(null)
@@ -78,6 +118,7 @@ export default function PublicLiveMatchPage() {
 
     try {
       const params = {}
+      params.visitor_id = getVisitorId()
       if (!isInitial && lastEventIdRef.current > 0) {
         params.since_id = lastEventIdRef.current
         if (lastServerTimeRef.current) {
@@ -95,6 +136,19 @@ export default function PublicLiveMatchPage() {
 
       const m = data.match
       setMatch(m)
+
+      if (data.reactions) {
+        setReactions((prev) => ({
+          counts: { ...prev.counts, ...(data.reactions.counts || {}) },
+          total: data.reactions.total ?? prev.total,
+        }))
+        if (data.reactions.my_reaction !== undefined && data.reactions.my_reaction !== null) {
+          setMyReaction(data.reactions.my_reaction)
+          try {
+            localStorage.setItem(`match_reaction_${token}`, data.reactions.my_reaction)
+          } catch {}
+        }
+      }
 
       if (data.lineup) {
         setLineup(data.lineup)
@@ -186,6 +240,75 @@ export default function PublicLiveMatchPage() {
       isFetchingRef.current = false
     }
   }, [token, getEventKey])
+
+  // Handle score reaction with optimistic update and server sync
+  const handleReact = useCallback(
+    async (type) => {
+      if (reacting) return
+      const visitorId = getVisitorId()
+      const prevReaction = myReaction
+      const isRemoving = prevReaction === type
+      const nextReaction = isRemoving ? null : type
+
+      // Optimistic state update
+      setMyReaction(nextReaction)
+      try {
+        if (nextReaction) {
+          localStorage.setItem(`match_reaction_${token}`, nextReaction)
+        } else {
+          localStorage.removeItem(`match_reaction_${token}`)
+        }
+      } catch {}
+
+      setReactions((prev) => {
+        const counts = { ...prev.counts }
+        if (prevReaction && counts[prevReaction] > 0) {
+          counts[prevReaction] = Math.max(0, counts[prevReaction] - 1)
+        }
+        if (nextReaction) {
+          counts[nextReaction] = (counts[nextReaction] || 0) + 1
+        }
+        const total = Object.values(counts).reduce((a, b) => a + b, 0)
+        return { counts, total }
+      })
+
+      setReacting(true)
+      try {
+        const res = await api.post(`/live/${token}/react`, {
+          type,
+          visitor_id: visitorId,
+        })
+        if (res.data?.reactions) {
+          setReactions({
+            counts: res.data.reactions.counts || {},
+            total: res.data.reactions.total ?? 0,
+          })
+          const serverMyReaction = res.data.reactions.my_reaction ?? null
+          setMyReaction(serverMyReaction)
+          try {
+            if (serverMyReaction) {
+              localStorage.setItem(`match_reaction_${token}`, serverMyReaction)
+            } else {
+              localStorage.removeItem(`match_reaction_${token}`)
+            }
+          } catch {}
+        }
+      } catch {
+        // Rollback on failure
+        setMyReaction(prevReaction)
+        try {
+          if (prevReaction) {
+            localStorage.setItem(`match_reaction_${token}`, prevReaction)
+          } else {
+            localStorage.removeItem(`match_reaction_${token}`)
+          }
+        } catch {}
+      } finally {
+        setReacting(false)
+      }
+    },
+    [token, myReaction, reacting]
+  )
 
   // Start polling
   const startPolling = useCallback(() => {
@@ -348,21 +471,83 @@ export default function PublicLiveMatchPage() {
           </button>
         </header>
 
-        {/* Review Notice Banner */}
-        {!match.is_official && (
+        {/* Delegate Coverage Banner */}
+        {(match.is_covered_by_delegate || match.delegate_coverage?.is_covered) && (
+          <div className="flex flex-col gap-2 rounded-2xl border border-sky-200/90 bg-gradient-to-r from-sky-50/90 via-blue-50/60 to-indigo-50/80 p-3.5 text-sky-950 text-xs shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-sky-600 text-white shadow-xs">
+                <Radio className="size-4 animate-pulse" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-black text-xs text-sky-950">
+                    {match.delegate_coverage?.banner_title || 'تغطية مباشرة بواسطة مندوب البطولة'}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-sky-200/80 px-2 py-0.5 text-[10px] font-extrabold text-sky-900">
+                    مندوب معتمد
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] font-medium text-sky-800 leading-relaxed">
+                  {match.delegate_coverage?.banner_subtitle || 'النتيجة والأحداث المسجلة قد تخضع للمراجعة والتأكيد من طرف اللجنة المنظمة.'}
+                </p>
+                {/* Concise public explanation when result was amended */}
+                {match.delegate_coverage?.is_amended && match.delegate_coverage?.amended_explanation && (
+                  <div className="mt-2 flex items-center gap-1.5 rounded-xl bg-white/90 border border-sky-200 px-2.5 py-1 text-[11px] font-bold text-sky-900 shadow-2xs">
+                    <Info className="size-3.5 text-sky-600 shrink-0" />
+                    <span>ملاحظة اللجنة المنظمة: {match.delegate_coverage.amended_explanation}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fallback Review Banner if not covered by delegate but not official */}
+        {!match.is_official && !(match.is_covered_by_delegate || match.delegate_coverage?.is_covered) && (
           <div className="flex items-center gap-2.5 rounded-2xl bg-amber-50 border border-amber-200/90 p-3 text-amber-900 text-xs font-bold shadow-xs">
             <Clock className="size-4 shrink-0 text-amber-600 animate-pulse" />
-            <span>⚠️ تنبيه: النتيجة والأحداث مسجلة من المندوب الميداني، وسيتم اعتمادها ومراجعتها من قبل اللجنة المنظمة.</span>
+            <span>⚠️ تنبيه: النتيجة قيد المراجعة والتدقيق من طرف اللجنة المنظمة.</span>
           </div>
         )}
 
         {/* Scoreboard Card — Strict Team-to-Score Binding */}
         <div className="relative overflow-hidden rounded-xl p-5 text-white shadow-xl bg-[#101211] border border-[#303832]">
           <div className="flex items-center justify-between gap-2 mb-3">
-            {!match.is_official && (
+            {/* Validation Status Badge */}
+            {match.validation_status === 'live' && (
+              <span className="inline-flex items-center gap-1.5 bg-rose-500/25 border border-rose-400/40 text-rose-200 text-[11px] font-black px-3 py-1 rounded-full shadow-xs">
+                <span className="size-2 rounded-full bg-rose-400 animate-ping" />
+                <span>مباشر • تغطية المندوب</span>
+              </span>
+            )}
+            {match.validation_status === 'under_review' && (
+              <span className="inline-flex items-center gap-1.5 bg-amber-500/25 border border-amber-400/40 text-amber-200 text-[11px] font-black px-3 py-1 rounded-full shadow-xs">
+                <Clock className="size-3.5 shrink-0 text-amber-300 animate-pulse" />
+                <span>انتهت • بانتظار مراجعة وتأكيد اللجنة</span>
+              </span>
+            )}
+            {match.validation_status === 'amended' && (
+              <span className="inline-flex items-center gap-1.5 bg-sky-500/25 border border-sky-400/40 text-sky-200 text-[11px] font-black px-3 py-1 rounded-full shadow-xs">
+                <CheckCircle2 className="size-3.5 shrink-0 text-sky-300" />
+                <span>نتيجة معدلة ومعتمدة من اللجنة</span>
+              </span>
+            )}
+            {match.validation_status === 'official' && (
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/25 border border-emerald-400/40 text-emerald-200 text-[11px] font-black px-3 py-1 rounded-full shadow-xs">
+                <ShieldCheck className="size-3.5 shrink-0 text-emerald-300" />
+                <span>نتيجة رسمية معتمدة</span>
+              </span>
+            )}
+            {!match.validation_status && !match.is_official && (
               <span className="inline-flex items-center gap-1.5 bg-amber-500/30 border border-amber-400/50 text-amber-200 text-[11px] font-black px-3 py-1 rounded-full shadow-xs">
                 <AlertTriangle className="size-3.5 shrink-0 text-amber-300" />
-                <span>النتيجة قيد المراجعة من طرف اللجنة</span>
+                <span>النتيجة قيد المراجعة</span>
+              </span>
+            )}
+            {!match.validation_status && match.is_official && (
+              <span className="inline-flex items-center gap-1.5 bg-emerald-500/25 border border-emerald-400/40 text-emerald-200 text-[11px] font-black px-3 py-1 rounded-full shadow-xs">
+                <ShieldCheck className="size-3.5 shrink-0 text-emerald-300" />
+                <span>نتيجة رسمية معتمدة</span>
               </span>
             )}
             <span className="ms-auto bg-white/20 border border-white/20 text-white text-[11px] font-bold px-3 py-1 rounded-xl">
@@ -481,6 +666,46 @@ export default function PublicLiveMatchPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Audience Score Reactions — Compact, Native Interactive Feedback */}
+        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 my-2.5 px-1" dir="rtl">
+          {SCORE_REACTION_TYPES.map(({ key, emoji, label }) => {
+            const count = reactions.counts?.[key] || 0
+            const isActive = myReaction === key
+
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleReact(key)}
+                disabled={reacting}
+                title={`${label} (${count})`}
+                aria-label={`${label} (${count})`}
+                aria-pressed={isActive}
+                className={`group relative flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl text-xs font-bold transition-all duration-200 cursor-pointer select-none active:scale-95 ${
+                  isActive
+                    ? 'bg-emerald-500/15 dark:bg-emerald-500/25 text-emerald-800 dark:text-[#D0FF38] border-2 border-emerald-500 shadow-xs'
+                    : 'bg-white dark:bg-[#1B201D] text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-[#303832] hover:border-slate-300 dark:hover:border-slate-600 shadow-2xs hover:bg-slate-50 dark:hover:bg-[#222824]'
+                }`}
+              >
+                <span className="text-base sm:text-lg leading-none transition-transform group-hover:scale-115">
+                  {emoji}
+                </span>
+                <span
+                  className={`text-[11px] sm:text-xs font-black tabular-nums transition-colors ${
+                    isActive
+                      ? 'text-emerald-700 dark:text-[#D0FF38]'
+                      : count > 0
+                        ? 'text-slate-800 dark:text-slate-200'
+                        : 'text-slate-400 dark:text-slate-500'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            )
+          })}
         </div>
 
         {/* 3-Column Info Cards */}

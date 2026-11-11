@@ -14,6 +14,11 @@ import {
   Calendar,
   FileText,
   Users,
+  History,
+  ShieldCheck,
+  Pencil,
+  RotateCcw,
+  Info,
 } from 'lucide-react'
 import { Modal, Button } from '../../../components/dashboard/ui'
 import { useToast } from '../../../components/ui/Toast'
@@ -210,11 +215,21 @@ export default function DelegatedSubmissionReviewModal({
   const [rejectReason, setRejectReason] = useState('')
   const [showRejectInput, setShowRejectInput] = useState(false)
   const [activeTab, setActiveTab] = useState('all') // 'all' | 'home' | 'away'
+  const [activeViewTab, setActiveViewTab] = useState('review') // 'review' | 'audits'
   const [submissionData, setSubmissionData] = useState(null)
+  const [audits, setAudits] = useState([])
   const [editingEvent, setEditingEvent] = useState(null)
   const [rosters, setRosters] = useState({})
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
   const [selectedAssistId, setSelectedAssistId] = useState('')
+
+  // Score correction states
+  const [isEditingScore, setIsEditingScore] = useState(false)
+  const [customHomeScore, setCustomHomeScore] = useState('')
+  const [customAwayScore, setCustomAwayScore] = useState('')
+  const [customHomePen, setCustomHomePen] = useState('')
+  const [customAwayPen, setCustomAwayPen] = useState('')
+  const [correctionReason, setCorrectionReason] = useState('')
 
   const homeTeamId = Number(fixture?.home_team?.id || fixture?.home_team_id)
   const awayTeamId = Number(fixture?.away_team?.id || fixture?.away_team_id)
@@ -240,6 +255,9 @@ export default function DelegatedSubmissionReviewModal({
   useEffect(() => {
     if (!isOpen || !fixture) {
       setSubmissionData(null)
+      setAudits([])
+      setIsEditingScore(false)
+      setCorrectionReason('')
       return
     }
     if (fixture.delegated_submission) {
@@ -251,6 +269,9 @@ export default function DelegatedSubmissionReviewModal({
       .then((res) => {
         if (active && res.data?.data) {
           setSubmissionData(res.data.data)
+          if (Array.isArray(res.data?.audits)) {
+            setAudits(res.data.audits)
+          }
         }
       })
       .catch(() => {
@@ -344,7 +365,39 @@ export default function DelegatedSubmissionReviewModal({
     toast.success('تم تصحيح اسم اللاعب في الحدث بنجاح')
   }
 
+  // Synchronize score inputs with loaded submission
+  useEffect(() => {
+    if (sub) {
+      setCustomHomeScore(String(sub.home_score ?? 0))
+      setCustomAwayScore(String(sub.away_score ?? 0))
+      setCustomHomePen(sub.home_penalties != null ? String(sub.home_penalties) : '')
+      setCustomAwayPen(sub.away_penalties != null ? String(sub.away_penalties) : '')
+    }
+  }, [sub?.id, sub?.home_score, sub?.away_score, sub?.home_penalties, sub?.away_penalties])
+
+  const isScoreModified = useMemo(() => {
+    if (!sub) return false
+    const h = Number(customHomeScore)
+    const a = Number(customAwayScore)
+    const origH = Number(sub.home_score ?? 0)
+    const origA = Number(sub.away_score ?? 0)
+    if (h !== origH || a !== origA) return true
+
+    const hp = customHomePen !== '' ? Number(customHomePen) : null
+    const ap = customAwayPen !== '' ? Number(customAwayPen) : null
+    const origHp = sub.home_penalties != null ? Number(sub.home_penalties) : null
+    const origAp = sub.away_penalties != null ? Number(sub.away_penalties) : null
+    return hp !== origHp || ap !== origAp
+  }, [customHomeScore, customAwayScore, customHomePen, customAwayPen, sub])
+
+  const wasEdited = isScoreModified || Boolean(submissionData?._overridden)
+
   const handleApprove = async () => {
+    if (isScoreModified && !correctionReason.trim()) {
+      toast.error('يرجى توضيح سبب تعديل النتيجة قبل اعتمادها')
+      return
+    }
+
     if (hasUnassignedGoals) {
       const confirmUnassigned = window.confirm(
         '⚠️ تنبيه أحداث بلا لاعب:\nتتضمن هذه النتيجة أهدافاً مسجلة دون تعيين اللاعب صاحب الهدف (وضع بسيط).\nلن تُحتسب هذه الأهداف في قائمة الهدّافين حتى تقوم بتعيين أصحابها من لوحة المباراة.\n\nهل تريد المتابعة واعتماد النتيجة الآن؟'
@@ -353,9 +406,18 @@ export default function DelegatedSubmissionReviewModal({
     }
     setLoading(true)
     try {
-      const payload = submissionData?._overridden
-        ? { override_data: { events: sub.events } }
+      const overrideData = wasEdited
+        ? {
+            home_score: Number(customHomeScore),
+            away_score: Number(customAwayScore),
+            home_penalties: customHomePen !== '' ? Number(customHomePen) : null,
+            away_penalties: customAwayPen !== '' ? Number(customAwayPen) : null,
+            events: sub.events,
+            correction_reason: correctionReason.trim() || 'تعديل النتيجة من طرف اللجنة المنظمة',
+            was_edited: true,
+          }
         : {}
+      const payload = wasEdited ? { override_data: overrideData } : {}
       const res = await api.post(
         `/committee/tournaments/${tournamentId}/fixtures/${fixture.id}/delegated-submission/approve`,
         payload
@@ -395,36 +457,232 @@ export default function DelegatedSubmissionReviewModal({
       size="md"
     >
       <div className="space-y-4 py-1 text-slate-800" dir="rtl">
-        {/* Match and Score Card */}
-        <div className="rounded-2xl border border-slate-200/90 bg-white p-4 text-center shadow-xs">
-          <div className="text-xs font-bold text-slate-400 mb-2">النتيجة المسجلة عبر الرابط السري</div>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 text-end">
-              <p className="text-sm font-black text-slate-900">{homeTeamId > 0 ? <Link to={`/teams/${homeTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{homeName}</Link> : homeName}</p>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-2 text-2xl font-black text-white shadow-xs tracking-wider font-mono tabular-nums">
-              <span>{sub.home_score}</span>
-              <span className="opacity-70 font-sans">-</span>
-              <span>{sub.away_score}</span>
-            </div>
-            <div className="flex-1 text-start">
-              <p className="text-sm font-black text-slate-900">{awayTeamId > 0 ? <Link to={`/teams/${awayTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{awayName}</Link> : awayName}</p>
-            </div>
-          </div>
-          {sub.extra_time && (
-            <p className="text-[11px] font-bold text-amber-600 mt-2">شوطين إضافيين</p>
-          )}
-          {sub.home_penalties !== null && sub.home_penalties !== undefined && (
-            <p className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 mt-1">
-              <span>ركلات الترجيح:</span>
-              <span className="inline-flex items-center gap-1 font-mono tabular-nums">
-                <span>{sub.home_penalties}</span>
-                <span className="font-sans">-</span>
-                <span>{sub.away_penalties}</span>
+        {/* View Mode Tab Switcher: Review Report vs Audit Log */}
+        <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+          <button
+            type="button"
+            onClick={() => setActiveViewTab('review')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-colors cursor-pointer ${
+              activeViewTab === 'review'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <Eye className="size-3.5" />
+            <span>تقرير المندوب والأحداث</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveViewTab('audits')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-colors cursor-pointer ${
+              activeViewTab === 'audits'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <History className="size-3.5" />
+            <span>سجل التدقيق والتعديلات</span>
+            {audits.length > 0 && (
+              <span className="ms-1 rounded-full bg-emerald-500 text-white px-1.5 py-0.2 text-[10px] font-mono">
+                {audits.length}
               </span>
-            </p>
-          )}
+            )}
+          </button>
         </div>
+
+        {activeViewTab === 'audits' ? (
+          /* Audit History Tab View */
+          <div className="space-y-2.5">
+            {audits.length === 0 ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-6 text-center">
+                <ShieldCheck className="size-8 text-emerald-500 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-700">لا توجد تعديلات سابقة مسجلة</p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  النتيجة الحالية مطابقة تماماً لما سجله المندوب الميداني في التقرير الأصلي.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto pe-1">
+                {audits.map((a) => {
+                  const ch = a.changes || {}
+                  return (
+                    <div key={a.id} className="rounded-2xl border border-slate-200/80 bg-white p-3 space-y-2 shadow-2xs">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                          <User className="size-3.5 text-slate-400" />
+                          <span>{a.user?.name || 'مسؤول في اللجنة'}</span>
+                          {a.user?.role && (
+                            <span className="rounded-md bg-slate-100 px-1.5 py-0.2 text-[10px] text-slate-600">
+                              {a.user.role === 'committee' ? 'لجنة منظمة' : a.user.role}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-slate-400 tabular-nums">
+                          {a.created_at ? new Date(a.created_at).toLocaleString('ar-MA') : '—'}
+                        </span>
+                      </div>
+                      {ch.previous_score && ch.new_score && (
+                        <div className="flex items-center gap-2 text-xs font-bold bg-slate-50 rounded-xl p-2">
+                          <span className="text-slate-500">النتيجة السابقة:</span>
+                          <span className="font-mono bg-white px-2 py-0.5 rounded-lg border border-slate-200">{ch.previous_score}</span>
+                          <span className="text-slate-400">←</span>
+                          <span className="text-emerald-700">النتيجة المعتمدة:</span>
+                          <span className="font-mono bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-lg border border-emerald-200">{ch.new_score}</span>
+                        </div>
+                      )}
+                      {ch.reason && (
+                        <p className="text-[11px] text-slate-600 font-medium bg-amber-50/60 border border-amber-100 rounded-xl p-2">
+                          <span className="font-bold text-amber-900">سبب التعديل: </span>
+                          {ch.reason}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Main Review & Edit View */
+          <>
+            {/* Match and Score Card — Comparison & Editing */}
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-4 text-center shadow-xs">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-slate-400">
+                  {isScoreModified ? 'النتيجة المعدلة قبل الاعتماد' : 'النتيجة المسجلة عبر الرابط السري'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingScore(!isEditingScore)}
+                  className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Pencil className="size-3" />
+                  <span>{isEditingScore ? 'إلغاء التعديل اليدوي' : 'تعديل النتيجة قبل الاعتماد'}</span>
+                </button>
+              </div>
+
+              {!isEditingScore ? (
+                /* Regular View */
+                <>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 text-end">
+                      <p className="text-sm font-black text-slate-900">
+                        {homeTeamId > 0 ? (
+                          <Link to={`/teams/${homeTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">
+                            {homeName}
+                          </Link>
+                        ) : homeName}
+                      </p>
+                    </div>
+                    <div className={`inline-flex items-center gap-2 rounded-2xl px-5 py-2 text-2xl font-black text-white shadow-xs tracking-wider font-mono tabular-nums ${isScoreModified ? 'bg-amber-600 ring-2 ring-amber-300' : 'bg-slate-900'}`}>
+                      <span>{isScoreModified ? customHomeScore : sub.home_score}</span>
+                      <span className="opacity-70 font-sans">-</span>
+                      <span>{isScoreModified ? customAwayScore : sub.away_score}</span>
+                    </div>
+                    <div className="flex-1 text-start">
+                      <p className="text-sm font-black text-slate-900">
+                        {awayTeamId > 0 ? (
+                          <Link to={`/teams/${awayTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">
+                            {awayName}
+                          </Link>
+                        ) : awayName}
+                      </p>
+                    </div>
+                  </div>
+                  {isScoreModified && (
+                    <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                      <span>النتيجة الأصلية للمندوب: {sub.home_score} - {sub.away_score}</span>
+                    </div>
+                  )}
+                  {sub.extra_time && (
+                    <p className="text-[11px] font-bold text-amber-600 mt-2">شوطين إضافيين</p>
+                  )}
+                  {sub.home_penalties !== null && sub.home_penalties !== undefined && (
+                    <p className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 mt-1">
+                      <span>ركلات الترجيح:</span>
+                      <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                        <span>{isScoreModified ? (customHomePen || 0) : sub.home_penalties}</span>
+                        <span className="font-sans">-</span>
+                        <span>{isScoreModified ? (customAwayPen || 0) : sub.away_penalties}</span>
+                      </span>
+                    </p>
+                  )}
+                </>
+              ) : (
+                /* Editable Score Controls */
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-center gap-4">
+                    <div className="flex flex-col items-center">
+                      <label className="text-[11px] font-bold text-slate-600 mb-1 truncate max-w-[120px]">{homeName}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        value={customHomeScore}
+                        onChange={(e) => setCustomHomeScore(e.target.value)}
+                        className="w-16 h-12 text-center text-xl font-black rounded-xl border-2 border-emerald-500 bg-white font-mono focus:outline-emerald-600 shadow-2xs"
+                      />
+                    </div>
+                    <span className="text-xl font-bold text-slate-400 self-end mb-3">-</span>
+                    <div className="flex flex-col items-center">
+                      <label className="text-[11px] font-bold text-slate-600 mb-1 truncate max-w-[120px]">{awayName}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        value={customAwayScore}
+                        onChange={(e) => setCustomAwayScore(e.target.value)}
+                        className="w-16 h-12 text-center text-xl font-black rounded-xl border-2 border-emerald-500 bg-white font-mono focus:outline-emerald-600 shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Penalty Shootout Scores (if applicable) */}
+                  <div className="flex items-center justify-center gap-2 pt-1 text-xs">
+                    <span className="text-slate-500 font-bold">ركلات الترجيح (إن وُجدت):</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      value={customHomePen}
+                      onChange={(e) => setCustomHomePen(e.target.value)}
+                      placeholder="مضيف"
+                      className="w-14 h-8 text-center text-xs font-bold rounded-lg border border-slate-200 font-mono"
+                    />
+                    <span>-</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      value={customAwayPen}
+                      onChange={(e) => setCustomAwayPen(e.target.value)}
+                      placeholder="ضيف"
+                      className="w-14 h-8 text-center text-xs font-bold rounded-lg border border-slate-200 font-mono"
+                    />
+                  </div>
+
+                  {/* Correction Reason */}
+                  <div className="pt-2 text-start">
+                    <label className="block text-xs font-black text-slate-800 mb-1">
+                      سبب تعديل النتيجة <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={correctionReason}
+                      onChange={(e) => setCorrectionReason(e.target.value)}
+                      placeholder="مثال: تصحيح هدف ملغى بداعي التسلل / تصحيح خطأ مسجل في التقرير"
+                      className="w-full rounded-xl border border-amber-300 bg-amber-50/50 px-3 py-2 text-xs font-medium text-slate-800 focus:outline-amber-500"
+                    />
+                  </div>
+
+                  {/* Original Report Preservation Notice */}
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 bg-slate-50 rounded-xl p-2.5 text-start">
+                    <Info className="size-4 text-emerald-600 shrink-0" />
+                    <span>تقرير المندوب الأصلي ({sub.home_score} - {sub.away_score}) محفوظ بالكامل في سجل التدقيق لضمان الشفافية.</span>
+                  </div>
+                </div>
+              )}
+            </div>
 
         {/* Recorder Identification Card */}
         <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-3.5 space-y-2">
@@ -628,6 +886,8 @@ export default function DelegatedSubmissionReviewModal({
               {sub.dispute_reason || 'اعترض مدير الفريق على هذه النتيجة دون تفاصيل إضافية.'}
             </p>
           </div>
+        )}
+          </>
         )}
 
         {/* Reject optional reason box */}

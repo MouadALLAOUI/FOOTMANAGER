@@ -124,14 +124,14 @@ export function ModeSwitchFAB(): React.JSX.Element | null {
           style={({ pressed }) => [
             styles.fabButton,
             {
-              backgroundColor: palette.navy,
+              backgroundColor: palette.charcoalBlack,
               opacity: pressed ? 0.92 : 1,
               transform: pressed ? [{ scale: 0.96 }] : [],
             },
           ]}
         >
           <View style={styles.iconCircle}>
-            <Icon size={18} color="#FFFFFF" />
+            <Icon size={18} color={palette.charcoalBlack} />
           </View>
           <Text style={styles.fabText}>{label}</Text>
         </Pressable>
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: radius.full,
     borderWidth: 1.5,
-    borderColor: palette.primaryGreen,
+    borderColor: palette.primaryLime,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: palette.primaryGreen,
+    backgroundColor: palette.primaryLime,
     alignItems: 'center',
     justifyContent: 'center',
   },

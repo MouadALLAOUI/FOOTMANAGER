@@ -4,9 +4,9 @@ export const shadows: Record<'sm' | 'md' | 'lg' | 'none', ViewStyle> = {
   none: {},
   sm: Platform.select({
     ios: {
-      shadowColor: '#0f172a',
+      shadowColor: '#101418',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
+      shadowOpacity: 0.05,
       shadowRadius: 3,
     },
     android: { elevation: 2 },
@@ -14,9 +14,9 @@ export const shadows: Record<'sm' | 'md' | 'lg' | 'none', ViewStyle> = {
   }) as ViewStyle,
   md: Platform.select({
     ios: {
-      shadowColor: '#0f172a',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.1,
+      shadowColor: '#101418',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.08,
       shadowRadius: 8,
     },
     android: { elevation: 4 },
@@ -24,9 +24,9 @@ export const shadows: Record<'sm' | 'md' | 'lg' | 'none', ViewStyle> = {
   }) as ViewStyle,
   lg: Platform.select({
     ios: {
-      shadowColor: '#0f172a',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.14,
+      shadowColor: '#101418',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.12,
       shadowRadius: 16,
     },
     android: { elevation: 8 },

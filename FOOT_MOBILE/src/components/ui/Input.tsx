@@ -14,7 +14,7 @@ interface Props extends Omit<TextInputProps, 'style'> {
 }
 
 export function Input({ label, error, hint, containerStyle, editable = true, ...rest }: Props): React.JSX.Element {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { isRTL } = useI18n();
   const [focused, setFocused] = useState(false);
   const hasError = !!error;
@@ -28,7 +28,9 @@ export function Input({ label, error, hint, containerStyle, editable = true, ...
   return (
     <View style={[styles.container, containerStyle]}>
       {label ? (
-        <Text style={[typography.label, { color: colors.textMuted, marginBottom: 6 }]}>{label}</Text>
+        <Text style={[typography.arabicLabelBold, { color: colors.text, marginBottom: 6, textAlign: isRTL ? 'right' : 'left' }]}>
+          {label}
+        </Text>
       ) : null}
       <TextInput
         {...rest}
@@ -49,7 +51,8 @@ export function Input({ label, error, hint, containerStyle, editable = true, ...
           styles.input,
           {
             backgroundColor: colors.surface,
-            borderColor: hasError ? colors.danger : focused ? colors.primary : colors.border,
+            borderColor: hasError ? colors.danger : focused ? (isDark ? colors.primary : colors.charcoal) : colors.border,
+            borderWidth: focused ? 1.5 : 1,
             color: colors.text,
             height: sizes.inputHeight,
             textAlign,
@@ -58,9 +61,13 @@ export function Input({ label, error, hint, containerStyle, editable = true, ...
         ]}
       />
       {hasError ? (
-        <Text style={[typography.caption, { color: colors.danger, marginTop: 6 }]}>{error}</Text>
+        <Text style={[typography.caption, { color: colors.danger, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }]}>
+          {error}
+        </Text>
       ) : hint ? (
-        <Text style={[typography.caption, { color: colors.textMuted, marginTop: 6 }]}>{hint}</Text>
+        <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4, textAlign: isRTL ? 'right' : 'left' }]}>
+          {hint}
+        </Text>
       ) : null}
     </View>
   );
@@ -70,8 +77,8 @@ const styles = StyleSheet.create({
   container: { gap: 0 },
   input: {
     borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     fontSize: 15,
+    fontWeight: '600',
   },
 });

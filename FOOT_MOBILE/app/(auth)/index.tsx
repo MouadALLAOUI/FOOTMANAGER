@@ -18,6 +18,7 @@ import {
   Lock,
   Phone,
   Smartphone,
+  Sparkles,
 } from 'lucide-react-native';
 
 import { Screen } from '@/components/ui/Screen';
@@ -26,8 +27,9 @@ import { useAuth } from '@/auth/AuthProvider';
 import { homeForRole } from '@/auth/homeForRole';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
-import { radius, spacing } from '@/theme/spacing';
+import { spacing } from '@/theme/spacing';
 import { cleanPhoneNumber, formatPhoneDisplay } from '@/utils';
+import { setPreviewModeActive } from '@/preview/previewState';
 
 export default function LoginScreen(): React.JSX.Element {
   const { login, getLoginErrorMessage, role } = useAuth();
@@ -91,6 +93,36 @@ export default function LoginScreen(): React.JSX.Element {
             </Text>
           </View>
 
+          {/* Development Preview Mode Card */}
+          {__DEV__ && (
+            <View style={styles.previewCard}>
+              <View style={styles.previewCardHeader}>
+                <Sparkles size={18} color={colors.charcoal} />
+                <Text style={styles.previewCardTitle}>
+                  وضع المعاينة السريعة (Preview Mode)
+                </Text>
+              </View>
+              <Text style={styles.previewCardDesc}>
+                استعرض واختبر جميع واجهات التطبيق محلياً بدون تسجيل دخول وبدون الحاجة للاتصال بالسيرفر.
+              </Text>
+              <Pressable
+                onPress={() => {
+                  setPreviewModeActive(true);
+                  router.push('/(public)/preview');
+                }}
+                style={({ pressed }) => [
+                  styles.previewCardBtn,
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                ]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.previewCardBtnText}>
+                  فتح دليل الشاشات والتجربة 🎨
+                </Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* Error Banner */}
           {error ? (
             <View style={styles.errorAlert}>
@@ -98,22 +130,32 @@ export default function LoginScreen(): React.JSX.Element {
             </View>
           ) : null}
 
-          {/* Form Fields */}
+          {/* Form */}
           <View style={styles.form}>
-            {/* Phone Number Field */}
+            {/* Phone/Email Field */}
             <View style={styles.inputFieldBox}>
               <TextInput
-                style={[styles.textInput, { color: colors.text, textAlign: 'right' }]}
-                placeholder="06 XX XX XX XX"
+                style={[
+                  styles.textInput,
+                  {
+                    color: colors.text,
+                    textAlign: isRTL ? 'right' : 'left',
+                  },
+                ]}
+                placeholder="رقم الهاتف أو البريد الإلكتروني"
                 placeholderTextColor="#94A3B8"
                 value={phone}
-                onChangeText={(v) => {
-                  setPhone(v.includes('@') ? v : formatPhoneDisplay(v));
-                  setError('');
+                onChangeText={(val) => {
+                  // Only format if digits-only
+                  if (/^\d*$/.test(val.replace(/\s+/g, ''))) {
+                    setPhone(formatPhoneDisplay(val));
+                  } else {
+                    setPhone(val);
+                  }
                 }}
-                keyboardType="phone-pad"
+                keyboardType="default"
                 autoCapitalize="none"
-                textContentType="username"
+                autoCorrect={false}
               />
               <View style={styles.inputIconWrap}>
                 <Phone size={20} color="#94A3B8" />
@@ -123,9 +165,9 @@ export default function LoginScreen(): React.JSX.Element {
             {/* Password Field */}
             <View style={styles.inputFieldBox}>
               <Pressable
-                onPress={() => setShowPassword((prev) => !prev)}
-                hitSlop={10}
+                onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeToggle}
+                hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
               >
@@ -137,20 +179,18 @@ export default function LoginScreen(): React.JSX.Element {
               </Pressable>
 
               <TextInput
-                style={[styles.textInput, { color: colors.text, textAlign: 'right' }]}
+                style={[
+                  styles.textInput,
+                  {
+                    color: colors.text,
+                    textAlign: isRTL ? 'right' : 'left',
+                  },
+                ]}
                 placeholder="كلمة المرور"
                 placeholderTextColor="#94A3B8"
                 value={password}
-                onChangeText={(v) => {
-                  setPassword(v);
-                  setError('');
-                }}
-                autoCapitalize="none"
-                autoCorrect={false}
+                onChangeText={setPassword}
                 secureTextEntry={!showPassword}
-                textContentType="password"
-                onSubmitEditing={handleSubmit}
-                returnKeyType="go"
               />
 
               <View style={styles.inputIconWrap}>
@@ -158,24 +198,21 @@ export default function LoginScreen(): React.JSX.Element {
               </View>
             </View>
 
-            {/* Primary Action: دخول → */}
+            {/* Submit Button */}
             <Pressable
-              onPress={() => void handleSubmit()}
+              onPress={handleSubmit}
               disabled={loading}
               style={({ pressed }) => [
                 styles.primaryPillBtn,
-                {
-                  opacity: loading ? 0.7 : pressed ? 0.9 : 1,
-                  transform: [{ scale: pressed ? 0.98 : 1 }],
-                },
+                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                loading && { opacity: 0.6 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="دخول"
             >
               <Text style={styles.primaryPillBtnText}>
                 {loading ? 'جاري الدخول...' : 'دخول'}
               </Text>
-              <ForwardArrow size={20} color="#FFFFFF" strokeWidth={2.4} />
+              {!loading && <ForwardArrow size={18} color="#101418" strokeWidth={2.5} />}
             </Pressable>
 
             {/* Forgot Password Link */}
@@ -191,7 +228,7 @@ export default function LoginScreen(): React.JSX.Element {
           {/* Tip Banner from the sheet */}
           <View style={styles.tipCard}>
             <View style={styles.tipIconWrap}>
-              <Smartphone size={22} color="#059669" />
+              <Smartphone size={22} color={colors.charcoal} />
             </View>
             <Text style={styles.tipText}>
               يمكنك تفعيل حفظ بيانات الدخول على هاتفك لتسهيل الولوج لاحقاً.
@@ -238,6 +275,49 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
   },
+  previewCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.2,
+    borderColor: '#E2E6E9',
+    borderRadius: 18,
+    padding: 16,
+    gap: 8,
+    shadowColor: '#16A34A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  previewCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  previewCardTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#101418',
+    textAlign: 'right',
+  },
+  previewCardDesc: {
+    fontSize: 12,
+    color: '#4B5563',
+    textAlign: 'right',
+    lineHeight: 18,
+  },
+  previewCardBtn: {
+    backgroundColor: '#101418',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  previewCardBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   errorAlert: {
     backgroundColor: '#FEE2E2',
     borderColor: '#F87171',
@@ -281,7 +361,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#059669',
+    backgroundColor: '#A8FF24',
     height: 54,
     borderRadius: 27,
     marginTop: spacing.xs,
@@ -292,7 +372,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   primaryPillBtnText: {
-    color: '#FFFFFF',
+    color: '#101418',
     fontSize: 16,
     fontWeight: '800',
   },
@@ -309,8 +389,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: '#F0FDF4',
-    borderColor: '#BBF7D0',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E2E6E9',
     borderWidth: 1,
     borderRadius: 18,
     paddingHorizontal: spacing.lg,
@@ -321,13 +401,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: 'rgba(168, 255, 36, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   tipText: {
     flex: 1,
-    color: '#166534',
+    color: '#101418',
     fontSize: 12,
     lineHeight: 18,
     fontWeight: '600',

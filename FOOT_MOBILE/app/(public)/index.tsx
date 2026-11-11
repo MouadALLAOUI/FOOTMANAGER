@@ -17,7 +17,6 @@ import {
   Clock,
   Flame,
   MapPin,
-  Sparkles,
   Trophy,
   Users,
 } from 'lucide-react-native';
@@ -39,7 +38,7 @@ export default function PublicHomeScreen(): React.JSX.Element {
   const insets = useSafeAreaInsets();
 
   // Fetch home summary data from API
-  const { data: homeData, isLoading: isHomeLoading } = useQuery({
+  const { data: homeData } = useQuery({
     queryKey: ['public', 'home'],
     queryFn: async () => {
       try {
@@ -67,14 +66,14 @@ export default function PublicHomeScreen(): React.JSX.Element {
   const primaryChallenge = challenges[0];
 
   // Nearby Stadiums from live homeData
-  const nearbyStadiums: Array<{
+  const nearbyStadiums: {
     id: number;
     name: string;
     city: string;
     distance: string;
     image: string;
     availableToday: boolean;
-  }> =
+  }[] =
     homeData?.top_stadiums?.map((s: any) => ({
       id: s.id,
       name: s.name,
@@ -137,12 +136,12 @@ export default function PublicHomeScreen(): React.JSX.Element {
               onPress={() => router.push('/(public)/stadiums' as any)}
               style={styles.seeAllBtn}
             >
-              <ChevronLeft size={16} color="#00875A" />
+              <ChevronLeft size={16} color="#101418" />
               <Text style={styles.seeAllText}>عرض الكل</Text>
             </TouchableOpacity>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>ملاعب قريبة منك</Text>
-              <MapPin size={18} color="#00875A" />
+              <MapPin size={18} color="#101418" />
             </View>
           </View>
 
@@ -170,7 +169,7 @@ export default function PublicHomeScreen(): React.JSX.Element {
 
                     <View style={styles.stadiumAvailabilityRow}>
                       <Text style={styles.stadiumAvailabilityText}>أوقات متاحة اليوم</Text>
-                      <Clock size={12} color="#00875A" />
+                      <Clock size={12} color="#101418" />
                     </View>
 
                     <TouchableOpacity
@@ -199,7 +198,7 @@ export default function PublicHomeScreen(): React.JSX.Element {
               onPress={() => router.push('/(public)/challenges' as any)}
               style={styles.seeAllBtn}
             >
-              <ChevronLeft size={16} color="#00875A" />
+              <ChevronLeft size={16} color="#101418" />
               <Text style={styles.seeAllText}>عرض الكل</Text>
             </TouchableOpacity>
             <View style={styles.sectionTitleRow}>
@@ -220,7 +219,7 @@ export default function PublicHomeScreen(): React.JSX.Element {
                   <Text style={styles.challengeMetaText}>
                     {primaryChallenge.stadium?.name || primaryChallenge.custom_terrain_name || 'ملعب تنغير'}
                   </Text>
-                  <MapPin size={12} color="#00875A" />
+                  <MapPin size={12} color="#101418" />
                 </View>
               </View>
 
@@ -235,7 +234,7 @@ export default function PublicHomeScreen(): React.JSX.Element {
                       resizeMode="cover"
                     />
                   ) : (
-                    <View style={[styles.teamShield, { backgroundColor: '#00875A' }]}>
+                    <View style={[styles.teamShield, { backgroundColor: '#101418' }]}>
                       <Text style={styles.teamShieldStar}>★</Text>
                     </View>
                   )}
@@ -283,7 +282,7 @@ export default function PublicHomeScreen(): React.JSX.Element {
                         })
                       : '18:00'}
                   </Text>
-                  <Clock size={12} color="#00875A" />
+                  <Clock size={12} color="#101418" />
                 </View>
                 <View style={styles.timeTag}>
                   <Text style={styles.timeTagText}>
@@ -294,7 +293,7 @@ export default function PublicHomeScreen(): React.JSX.Element {
                         })
                       : 'اليوم'}
                   </Text>
-                  <Calendar size={12} color="#00875A" />
+                  <Calendar size={12} color="#101418" />
                 </View>
               </View>
 
@@ -336,12 +335,12 @@ export default function PublicHomeScreen(): React.JSX.Element {
               onPress={() => router.push('/(public)/tournaments' as any)}
               style={styles.seeAllBtn}
             >
-              <ChevronLeft size={16} color="#00875A" />
+              <ChevronLeft size={16} color="#101418" />
               <Text style={styles.seeAllText}>عرض الكل</Text>
             </TouchableOpacity>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>البطولات الجارية</Text>
-              <Trophy size={18} color="#00875A" />
+              <Trophy size={18} color="#101418" />
             </View>
           </View>
 
@@ -360,11 +359,11 @@ export default function PublicHomeScreen(): React.JSX.Element {
                     <Text style={styles.tournamentInfoText}>
                       {activeTournament.status === 'in_progress' ? 'جارية حالياً' : 'مفتوحة للتسجيل'}
                     </Text>
-                    <Calendar size={12} color="#00875A" />
+                    <Calendar size={12} color="#101418" />
                     <Text style={[styles.tournamentInfoText, { marginRight: 10 }]}>
                       {activeTournament.teams_count ?? 16} فرق
                     </Text>
-                    <Users size={12} color="#00875A" />
+                    <Users size={12} color="#101418" />
                   </View>
                 </View>
               </View>
@@ -394,12 +393,12 @@ export default function PublicHomeScreen(): React.JSX.Element {
               onPress={() => router.push('/(public)/tournaments' as any)}
               style={styles.seeAllBtn}
             >
-              <ChevronLeft size={16} color="#00875A" />
+              <ChevronLeft size={16} color="#101418" />
               <Text style={styles.seeAllText}>عرض الكل</Text>
             </TouchableOpacity>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>مباريات ونتائج اليوم</Text>
-              <Calendar size={18} color="#00875A" />
+              <Calendar size={18} color="#101418" />
             </View>
           </View>
 
@@ -408,7 +407,7 @@ export default function PublicHomeScreen(): React.JSX.Element {
               <Text style={styles.todayMatchTournamentText}>
                 {todayLiveMatch?.tournament_name || activeTournament?.name || 'دوري أجي نقصرو'}
               </Text>
-              <Trophy size={12} color="#00875A" />
+              <Trophy size={12} color="#101418" />
             </View>
 
             <View style={styles.todayMatchRow}>
@@ -495,14 +494,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   heroTagBadge: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     alignSelf: 'flex-start',
   },
   heroTagText: {
-    color: '#FFFFFF',
+    color: '#101418',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -546,7 +545,7 @@ const styles = StyleSheet.create({
   },
   seeAllText: {
     fontSize: 13,
-    color: '#00875A',
+    color: '#101418',
     fontWeight: '700',
   },
   stadiumsScroll: {
@@ -613,12 +612,12 @@ const styles = StyleSheet.create({
   },
   stadiumAvailabilityText: {
     fontSize: 10,
-    color: '#00875A',
+    color: '#101418',
     fontWeight: '700',
   },
   viewTimesBtn: {
     width: '100%',
-    backgroundColor: '#00875A',
+    backgroundColor: '#101418',
     borderRadius: 10,
     paddingVertical: 6,
     flexDirection: 'row',
@@ -651,7 +650,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   openChallengeBadgeText: {
-    color: '#00875A',
+    color: '#101418',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -715,7 +714,7 @@ const styles = StyleSheet.create({
   vsText: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#00875A',
+    color: '#101418',
   },
   challengeTimeFooter: {
     flexDirection: 'row-reverse',
@@ -738,7 +737,7 @@ const styles = StyleSheet.create({
   },
   acceptChallengeBtn: {
     marginTop: 12,
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
     borderRadius: 14,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -747,7 +746,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   acceptChallengeText: {
-    color: '#FFFFFF',
+    color: '#101418',
     fontSize: 15,
     fontWeight: '800',
   },
@@ -795,7 +794,7 @@ const styles = StyleSheet.create({
   },
   tournamentInfoText: {
     fontSize: 11,
-    color: '#00875A',
+    color: '#101418',
     fontWeight: '600',
   },
   viewTournamentBtn: {
@@ -811,7 +810,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   viewTournamentText: {
-    color: '#00875A',
+    color: '#101418',
     fontSize: 13,
     fontWeight: '800',
   },
@@ -835,7 +834,7 @@ const styles = StyleSheet.create({
   },
   todayMatchTournamentText: {
     fontSize: 11,
-    color: '#00875A',
+    color: '#101418',
     fontWeight: '700',
   },
   todayMatchRow: {
@@ -861,7 +860,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   matchTimeBadge: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#101418',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,

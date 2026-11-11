@@ -62,9 +62,9 @@ function JerseyBadge({
   number: number | string;
   isGoalkeeper?: boolean;
 }) {
-  const fillColor = isGoalkeeper ? '#EAB308' : '#00875A';
-  const strokeColor = isGoalkeeper ? '#CA8A04' : '#006B45';
-  const textColor = isGoalkeeper ? '#0B192C' : '#FFFFFF';
+  const fillColor = isGoalkeeper ? '#EAB308' : '#A8FF24';
+  const strokeColor = isGoalkeeper ? '#CA8A04' : '#101418';
+  const textColor = '#101418';
 
   return (
     <View style={styles.jerseyBadgeWrap}>
@@ -347,7 +347,7 @@ export default function ManagerSquadScreen(): React.JSX.Element {
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#00875A']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#101418']} />
         }
       >
         {/* ─── A. Header ─── */}
@@ -407,7 +407,7 @@ export default function ManagerSquadScreen(): React.JSX.Element {
           {/* Title & Subtitle */}
           <View style={styles.screenTitleTexts}>
             <View style={styles.titleWithIcon}>
-              <Users size={24} color="#00875A" />
+              <Users size={24} color="#101418" />
               <Text style={styles.screenTitleText}>إدارة الفريق</Text>
             </View>
             <Text style={styles.screenSubtitleText}>إدارة لاعبي فريقك وبياناتهم</Text>
@@ -429,7 +429,7 @@ export default function ManagerSquadScreen(): React.JSX.Element {
 
           {/* Player Count Cell (Right) */}
           <View style={styles.teamCardCountCell}>
-            <Users size={26} color="#00875A" />
+            <Users size={26} color="#101418" />
             <Text style={styles.countCellLabel}>عدد اللاعبين</Text>
             <Text style={styles.countCellValue}>{totalPlayersCount}</Text>
           </View>
@@ -503,7 +503,7 @@ export default function ManagerSquadScreen(): React.JSX.Element {
               pressed && styles.btnPressed,
             ]}
           >
-            <Filter size={20} color="#00875A" />
+            <Filter size={20} color="#101418" />
           </Pressable>
 
           {/* Search Input (Right) */}
@@ -537,7 +537,7 @@ export default function ManagerSquadScreen(): React.JSX.Element {
 
                     <View style={styles.activeStatusPill}>
                       <View style={styles.activeCheckCircle}>
-                        <Check size={9} color="#00875A" strokeWidth={3} />
+                        <Check size={9} color="#101418" strokeWidth={3} />
                       </View>
                       <Text style={styles.activeStatusText}>نشط</Text>
                     </View>
@@ -600,7 +600,7 @@ export default function ManagerSquadScreen(): React.JSX.Element {
         {/* Invitations Tab View */}
         {activeTab === 'invitations' && (
           <View style={styles.emptySquadCard}>
-            <Mail size={36} color="#00875A" />
+            <Mail size={36} color="#101418" />
             <Text style={styles.emptySquadTitle}>دعوتا انضمام مرسلتان (2)</Text>
             <Text style={styles.emptySquadSubtitle}>
               تم إرسال دعوات عبر رمز الفريق ورابط الانضمام السريع
@@ -614,7 +614,7 @@ export default function ManagerSquadScreen(): React.JSX.Element {
           style={({ pressed }) => [styles.addPlayerBigBtn, pressed && styles.btnPressed]}
         >
           <Text style={styles.addPlayerBigBtnText}>إضافة لاعب جديد</Text>
-          <UserPlus size={22} color="#FFFFFF" strokeWidth={2.5} />
+          <UserPlus size={22} color="#101418" strokeWidth={2.5} />
         </Pressable>
       </ScrollView>
 
@@ -741,7 +741,7 @@ export default function ManagerSquadScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F2F4F5',
   },
   bgImage: {
     position: 'absolute',
@@ -836,9 +836,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: '#FFFFFF',
     borderWidth: 2,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -983,8 +983,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   tabBtnActive: {
-    backgroundColor: '#00875A',
-    borderColor: '#00875A',
+    backgroundColor: '#101418',
+    borderColor: '#101418',
   },
   tabBtnText: {
     fontSize: 11.5,
@@ -992,7 +992,7 @@ const styles = StyleSheet.create({
     color: '#0B192C',
   },
   tabBtnTextActive: {
-    color: '#FFFFFF',
+    color: '#A8FF24',
     fontWeight: '900',
   },
   amberBadgeNumber: {
@@ -1212,7 +1212,7 @@ const styles = StyleSheet.create({
 
   // ── G. Add Player Big Button ──
   addPlayerBigBtn: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#A8FF24',
     borderRadius: 16,
     height: 56,
     flexDirection: 'row',
@@ -1229,7 +1229,7 @@ const styles = StyleSheet.create({
   addPlayerBigBtnText: {
     fontSize: 16,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#101418',
   },
 
   // Empty State

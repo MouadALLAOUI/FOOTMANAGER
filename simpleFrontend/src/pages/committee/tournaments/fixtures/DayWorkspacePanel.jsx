@@ -17,11 +17,13 @@ import {
   LayoutTemplate,
   Link2,
   ListChecks,
+  Loader2,
   MapPin,
   MoreVertical,
   MousePointerClick,
   Play,
   RotateCcw,
+  Share2,
   ShieldAlert,
   Sparkles,
   Swords,
@@ -29,6 +31,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import api from '../../../../api/client'
 import { Button, Empty } from '../../../../components/dashboard/ui'
 import { useProfileModal } from '../../../../components/profile/ProfileModalContext'
 import { useToast } from '../../../../components/ui/Toast'
@@ -201,7 +204,59 @@ function DayMatchCard({
 }) {
   const { t } = useTranslation()
   const { openTeam } = useProfileModal()
+  const { toast } = useToast()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [copyingLink, setCopyingLink] = useState(false)
+
+  const handleCopyPublicLiveLink = async (e) => {
+    e?.stopPropagation?.()
+    setCopyingLink(true)
+    try {
+      let publicUrl = fixture.match?.public_url || fixture.public_url
+      if (!publicUrl) {
+        const tId = tournamentId || fixture.competition_id || fixture.competition?.id
+        const res = await api.get(`/committee/tournaments/${tId}/fixtures/${fixture.id}/public-link`)
+        publicUrl = res.data?.data?.public_url
+      }
+      if (publicUrl) {
+        let copied = false
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(publicUrl)
+            copied = true
+          } catch {
+            copied = false
+          }
+        }
+        if (!copied) {
+          try {
+            const textarea = document.createElement('textarea')
+            textarea.value = publicUrl
+            textarea.style.position = 'fixed'
+            textarea.style.opacity = '0'
+            document.body.appendChild(textarea)
+            textarea.focus()
+            textarea.select()
+            copied = document.execCommand('copy')
+            document.body.removeChild(textarea)
+          } catch {
+            copied = false
+          }
+        }
+        if (copied) {
+          toast.success('تم نسخ رابط المتابعة المباشرة بنجاح!')
+        } else {
+          toast.error('تعذر نسخ الرابط إلى الحافظة')
+        }
+      } else {
+        toast.error('تعذر استخراج رابط المتابعة المباشرة')
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'تعذر نسخ رابط المتابعة المباشرة')
+    } finally {
+      setCopyingLink(false)
+    }
+  }
 
   const st = getFixtureStatus(fixture)
   const isPlayed = st === 'completed'
@@ -482,19 +537,22 @@ function DayMatchCard({
                     </button>
                   )}
 
-                  {onToggleOpeningMatch && !isCancelled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        onToggleOpeningMatch(fixture.id)
-                      }}
-                      className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] cursor-pointer"
-                    >
-                      <Trophy className="size-3.5 text-[#1F9D55] dark:text-[#D0FF38]" />
-                      <span>{isOpening ? 'إلغاء وسم الافتتاحية' : 'تعيين كمباراة افتتاحية'}</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    disabled={copyingLink}
+                    onClick={(e) => {
+                      setMenuOpen(false)
+                      handleCopyPublicLiveLink(e)
+                    }}
+                    className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5] dark:hover:bg-[#252B27] cursor-pointer disabled:opacity-50"
+                  >
+                    {copyingLink ? (
+                      <Loader2 className="size-3.5 animate-spin text-[#16834A] dark:text-[#D0FF38]" />
+                    ) : (
+                      <Share2 className="size-3.5 text-[#16834A] dark:text-[#D0FF38]" />
+                    )}
+                    <span>نسخ رابط المتابعة المباشرة</span>
+                  </button>
 
                   {onDelegatedLink && effHome && effAway && !isPlayed && (
                     <button

@@ -226,7 +226,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#00875A']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#101418']} />
         }
       >
         {/* ─── A. Header ─── */}
@@ -284,7 +284,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
                 onPress={() => router.push('/(manager)/profile')}
                 style={styles.editLogoBtn}
               >
-                <Edit2 size={11} color="#00875A" />
+                <Edit2 size={11} color="#101418" />
               </Pressable>
             </View>
 
@@ -296,7 +296,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               <Text style={styles.teamCategoryText}>{teamCategory}</Text>
               <View style={styles.approvedBadge}>
                 <View style={styles.checkIconCircle}>
-                  <Check size={10} color="#00875A" strokeWidth={3} />
+                  <Check size={10} color="#101418" strokeWidth={3} />
                 </View>
                 <Text style={styles.approvedBadgeText}>معتمد من الإدارة</Text>
               </View>
@@ -328,7 +328,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
         <View style={styles.statsBar}>
           {/* 1. Players (Rightmost) */}
           <View style={styles.statCell}>
-            <Users size={18} color="#00875A" />
+            <Users size={18} color="#101418" />
             <Text style={styles.statValue}>{playersCount} لاعباً</Text>
           </View>
           <View style={styles.statDivider} />
@@ -342,7 +342,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
 
           {/* 3. Wins */}
           <View style={styles.statCell}>
-            <Trophy size={18} color="#00875A" />
+            <Trophy size={18} color="#101418" />
             <Text style={[styles.statValue, styles.statGreen]}>{winsCount} انتصارات</Text>
           </View>
           <View style={styles.statDivider} />
@@ -401,15 +401,15 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               {/* Match Details */}
               <View style={styles.matchDetailsBlock}>
                 <View style={styles.detailRow}>
-                  <Calendar size={11} color="#00875A" />
+                  <Calendar size={11} color="#101418" />
                   <Text style={styles.detailText}>{upcomingMatch.dateStr}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Clock size={11} color="#00875A" />
+                  <Clock size={11} color="#101418" />
                   <Text style={styles.detailTextBold}>{upcomingMatch.timeStr}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <MapPin size={11} color="#00875A" />
+                  <MapPin size={11} color="#101418" />
                   <Text style={styles.detailText} numberOfLines={1}>{upcomingMatch.stadiumName}</Text>
                 </View>
               </View>
@@ -444,11 +444,11 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               {/* Date & Time */}
               <View style={styles.bookingDetailsBlock}>
                 <View style={styles.detailRow}>
-                  <Calendar size={11} color="#00875A" />
+                  <Calendar size={11} color="#101418" />
                   <Text style={styles.detailText}>{upcomingBooking.dateStr}</Text>
                 </View>
                 <View style={styles.detailRow}>
-                  <Clock size={11} color="#00875A" />
+                  <Clock size={11} color="#101418" />
                   <Text style={styles.detailTextBold}>{upcomingBooking.timeStr}</Text>
                 </View>
               </View>
@@ -456,7 +456,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               {/* Confirmed Status Pill */}
               <View style={styles.confirmedPill}>
                 <View style={styles.checkCircleWhite}>
-                  <Check size={9} color="#00875A" strokeWidth={3} />
+                  <Check size={9} color="#101418" strokeWidth={3} />
                 </View>
                 <Text style={styles.confirmedPillText}>{upcomingBooking.statusStr}</Text>
               </View>
@@ -480,7 +480,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               />
               <Text style={styles.serviceCardTitle}>البطولات</Text>
               <View style={styles.serviceArrowCircle}>
-                <ChevronLeft size={13} color="#00875A" strokeWidth={2.5} />
+                <ChevronLeft size={13} color="#101418" strokeWidth={2.5} />
               </View>
             </Pressable>
 
@@ -496,7 +496,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               />
               <Text style={styles.serviceCardTitle}>المباريات والتحديات</Text>
               <View style={styles.serviceArrowCircle}>
-                <ChevronLeft size={13} color="#00875A" strokeWidth={2.5} />
+                <ChevronLeft size={13} color="#101418" strokeWidth={2.5} />
               </View>
             </Pressable>
 
@@ -510,10 +510,10 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               ]}
             >
               <View style={styles.redDotBadge} />
-              <Users size={32} color="#00875A" />
+              <Users size={32} color="#101418" />
               <Text style={styles.serviceCardTitleMint}>إدارة اللاعبين</Text>
               <View style={styles.serviceArrowCircle}>
-                <ChevronLeft size={13} color="#00875A" strokeWidth={2.5} />
+                <ChevronLeft size={13} color="#101418" strokeWidth={2.5} />
               </View>
             </Pressable>
           </View>
@@ -528,10 +528,10 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               <View style={styles.serviceNotifBadge}>
                 <Text style={styles.serviceNotifBadgeText}>{unreadCount}</Text>
               </View>
-              <Bell size={32} color="#00875A" />
+              <Bell size={32} color="#101418" />
               <Text style={styles.serviceCardTitle}>الإشعارات</Text>
               <View style={styles.serviceArrowCircle}>
-                <ChevronLeft size={13} color="#00875A" strokeWidth={2.5} />
+                <ChevronLeft size={13} color="#101418" strokeWidth={2.5} />
               </View>
             </Pressable>
 
@@ -541,11 +541,11 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               style={({ pressed }) => [styles.serviceCard, pressed && styles.btnPressed]}
             >
               <View style={styles.pitchCalendarIconWrap}>
-                <Calendar size={30} color="#00875A" />
+                <Calendar size={30} color="#101418" />
               </View>
               <Text style={styles.serviceCardTitle}>حجوزات الملعب</Text>
               <View style={styles.serviceArrowCircle}>
-                <ChevronLeft size={13} color="#00875A" strokeWidth={2.5} />
+                <ChevronLeft size={13} color="#101418" strokeWidth={2.5} />
               </View>
             </Pressable>
 
@@ -559,10 +559,10 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
               }}
               style={({ pressed }) => [styles.serviceCard, pressed && styles.btnPressed]}
             >
-              <ShieldCheck size={32} color="#00875A" />
+              <ShieldCheck size={32} color="#101418" />
               <Text style={styles.serviceCardTitle}>معلومات الفريق</Text>
               <View style={styles.serviceArrowCircle}>
-                <ChevronLeft size={13} color="#00875A" strokeWidth={2.5} />
+                <ChevronLeft size={13} color="#101418" strokeWidth={2.5} />
               </View>
             </Pressable>
           </View>
@@ -590,7 +590,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
 
           {/* Banner Action Circle */}
           <View style={styles.bannerActionCircle}>
-            <ChevronLeft size={18} color="#00875A" strokeWidth={3} />
+            <ChevronLeft size={18} color="#101418" strokeWidth={3} />
           </View>
         </Pressable>
       </ScrollView>
@@ -602,7 +602,7 @@ export default function ManagerDashboardScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F2F4F5',
   },
   bgImage: {
     position: 'absolute',
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#ECFDF5',
     borderWidth: 2,
-    borderColor: '#00875A',
+    borderColor: '#A8FF24',
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
@@ -735,7 +735,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 14,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F2F4F5',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -1015,7 +1015,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   confirmedPill: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#101418',
     borderRadius: 12,
     paddingVertical: 4,
     paddingHorizontal: 8,
@@ -1085,7 +1085,7 @@ const styles = StyleSheet.create({
   serviceCardTitleMint: {
     fontSize: 11,
     fontWeight: '900',
-    color: '#00875A',
+    color: '#101418',
     textAlign: 'center',
     marginBottom: 6,
   },

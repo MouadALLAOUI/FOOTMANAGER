@@ -4,6 +4,7 @@ import { Calendar, Clock, Flame, MapPin, Shield, Swords, Users } from 'lucide-re
 
 import type { FeedMatch } from '@/api/matches';
 import { useI18n } from '@/i18n/I18nProvider';
+import { useTheme } from '@/theme/ThemeProvider';
 import { formatTime } from '@/utils/format';
 import { resolveImageUrl } from '@/utils/image';
 
@@ -15,6 +16,7 @@ export function MatchCard({
   onPress: () => void;
 }): React.JSX.Element {
   const { t, formatDate, locale } = useI18n();
+  const { colors, isDark } = useTheme();
 
   const hostTeamName = match.host_team?.name ?? t('match.unknownTeam', 'فريق مستضيف');
   const opponentTeam = (match as FeedMatch & { opponent_team?: { name?: string | null; logo_url?: string | null } | null }).opponent_team;
@@ -34,22 +36,54 @@ export function MatchCard({
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+      ]}
       onPress={onPress}
       activeOpacity={0.9}
       accessibilityRole="button"
     >
       {/* Top Status Banner */}
-      <View style={styles.topBanner}>
-        <View style={styles.formatPill}>
-          <Swords size={14} color="#00875A" />
-          <Text style={styles.formatPillText}>{playerFormat}</Text>
+      <View
+        style={[
+          styles.topBanner,
+          {
+            backgroundColor: colors.bgMuted,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.formatPill,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.borderStrong,
+            },
+          ]}
+        >
+          <Swords size={14} color={colors.charcoal} />
+          <Text style={[styles.formatPillText, { color: colors.charcoal }]}>{playerFormat}</Text>
         </View>
 
         {needsPlayers ? (
-          <View style={[styles.spotsPill, isFull ? styles.spotsPillFull : styles.spotsPillOpen]}>
-            <Users size={14} color={isFull ? '#DC2626' : '#00875A'} />
-            <Text style={[styles.spotsPillText, isFull ? styles.spotsTextFull : styles.spotsTextOpen]}>
+          <View
+            style={[
+              styles.spotsPill,
+              isFull ? styles.spotsPillFull : styles.spotsPillOpen,
+            ]}
+          >
+            <Users size={14} color={isFull ? '#DC2626' : colors.charcoal} />
+            <Text
+              style={[
+                styles.spotsPillText,
+                isFull ? styles.spotsTextFull : styles.spotsTextOpen,
+              ]}
+            >
               {spotsLabel}
             </Text>
           </View>
@@ -66,66 +100,96 @@ export function MatchCard({
         {/* Host Team (Right in RTL) */}
         <View style={styles.teamCol}>
           {hostLogo ? (
-            <Image source={{ uri: hostLogo }} style={styles.teamLogo} resizeMode="cover" />
+            <Image
+              source={{ uri: hostLogo }}
+              style={[styles.teamLogo, { borderColor: colors.primary }]}
+              resizeMode="cover"
+            />
           ) : (
-            <View style={[styles.teamShield, { backgroundColor: '#00875A' }]}>
+            <View style={[styles.teamShield, { backgroundColor: colors.charcoal }]}>
               <Shield size={20} color="#FFFFFF" />
             </View>
           )}
-          <Text style={styles.teamName} numberOfLines={1}>
+          <Text style={[styles.teamName, { color: colors.text }]} numberOfLines={1}>
             {hostTeamName}
           </Text>
-          <Text style={styles.teamRoleLabel}>المنظم</Text>
+          <Text style={[styles.teamRoleLabel, { color: colors.textMuted }]}>المنظم</Text>
         </View>
 
         {/* VS Badge */}
-        <View style={styles.vsBadge}>
-          <Text style={styles.vsText}>VS</Text>
+        <View
+          style={[
+            styles.vsBadge,
+            {
+              backgroundColor: isDark ? colors.surfaceCard : colors.charcoal,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.vsText, { color: colors.primary }]}>VS</Text>
         </View>
 
         {/* Opponent Team (Left in RTL) */}
         <View style={styles.teamCol}>
           {opponentLogo ? (
-            <Image source={{ uri: opponentLogo }} style={styles.teamLogo} resizeMode="cover" />
+            <Image
+              source={{ uri: opponentLogo }}
+              style={[styles.teamLogo, { borderColor: opponentTeamName ? colors.primary : colors.border }]}
+              resizeMode="cover"
+            />
           ) : (
             <View
               style={[
                 styles.teamShield,
-                { backgroundColor: opponentTeamName ? '#0284C7' : '#E2E8F0' },
+                { backgroundColor: opponentTeamName ? colors.charcoal : colors.bgMuted },
               ]}
             >
-              <Shield size={20} color={opponentTeamName ? '#FFFFFF' : '#64748B'} />
+              <Shield size={20} color={opponentTeamName ? '#FFFFFF' : colors.textMuted} />
             </View>
           )}
           <Text
-            style={[styles.teamName, !opponentTeamName && styles.waitingTeamText]}
+            style={[
+              styles.teamName,
+              { color: opponentTeamName ? colors.text : colors.textMuted },
+              !opponentTeamName && styles.waitingTeamText,
+            ]}
             numberOfLines={1}
           >
             {opponentTeamName ?? 'في انتظار المنافس'}
           </Text>
-          <Text style={styles.teamRoleLabel}>المنافس</Text>
+          <Text style={[styles.teamRoleLabel, { color: colors.textMuted }]}>المنافس</Text>
         </View>
       </View>
 
       {/* Metadata Chips Footer */}
-      <View style={styles.metaFooter}>
+      <View
+        style={[
+          styles.metaFooter,
+          {
+            backgroundColor: colors.bgMuted,
+            borderTopColor: colors.border,
+          },
+        ]}
+      >
         <View style={styles.metaChip}>
-          <Text style={styles.metaChipText} numberOfLines={1}>
+          <Text style={[styles.metaChipText, { color: colors.text }]} numberOfLines={1}>
             {[terrainName, city].filter(Boolean).join(' • ')}
           </Text>
-          <MapPin size={14} color="#00875A" />
+          <MapPin size={14} color={colors.charcoal} />
         </View>
 
         <View style={styles.metaDateTimeRow}>
           <View style={styles.metaChipSmall}>
-            <Text style={styles.metaChipText}>
+            <Text style={[styles.metaChipText, { color: colors.text }]}>
               {formatTime(match.match_datetime, locale)}
             </Text>
-            <Clock size={13} color="#00875A" />
+            <Clock size={13} color={colors.charcoal} />
           </View>
           <View style={styles.metaChipSmall}>
-            <Text style={styles.metaChipText}>{formatDate(match.match_datetime)}</Text>
-            <Calendar size={13} color="#00875A" />
+            <Text style={[styles.metaChipText, { color: colors.text }]}>
+              {formatDate(match.match_datetime)}
+            </Text>
+            <Calendar size={13} color={colors.charcoal} />
           </View>
         </View>
       </View>
@@ -135,42 +199,35 @@ export function MatchCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1',
+    borderWidth: 1.2,
     overflow: 'hidden',
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: '#101418',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
   },
   topBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F0FDF4',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#DCFCE7',
   },
   formatPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#86EFAC',
   },
   formatPillText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#00875A',
   },
   spotsPill: {
     flexDirection: 'row',
@@ -181,7 +238,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   spotsPillOpen: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: 'rgba(168, 255, 36, 0.22)',
   },
   spotsPillFull: {
     backgroundColor: '#FEE2E2',
@@ -191,7 +248,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   spotsTextOpen: {
-    color: '#00875A',
+    color: '#101418',
   },
   spotsTextFull: {
     color: '#DC2626',
@@ -223,41 +280,35 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   teamLogo: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     borderWidth: 2,
-    borderColor: '#00875A',
   },
   teamShield: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   teamName: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#062F36',
     textAlign: 'center',
   },
   waitingTeamText: {
-    color: '#64748B',
     fontWeight: '700',
   },
   teamRoleLabel: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#64748B',
   },
   vsBadge: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#EAF7FF',
-    borderWidth: 1.5,
-    borderColor: '#38BDF8',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     marginHorizontal: 8,
@@ -265,14 +316,11 @@ const styles = StyleSheet.create({
   vsText: {
     fontSize: 13,
     fontWeight: '900',
-    color: '#0284C7',
   },
   metaFooter: {
-    backgroundColor: '#F8FAFC',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
     gap: 6,
   },
   metaChip: {
@@ -294,6 +342,5 @@ const styles = StyleSheet.create({
   metaChipText: {
     fontSize: 13,
     fontWeight: '800',
-    color: '#334155',
   },
 });

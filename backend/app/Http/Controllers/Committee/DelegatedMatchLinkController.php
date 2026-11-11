@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Committee;
 
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Match\Models\MatchDelegatedSubmission;
+use App\Domains\Match\Models\MatchResultAudit;
 use App\Domains\Match\Services\DelegatedMatchEntryService;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
@@ -129,8 +130,21 @@ class DelegatedMatchLinkController extends Controller
             ->latest()
             ->first();
 
+        $audits = MatchResultAudit::query()
+            ->where(function ($q) use ($fixture) {
+                $q->where('fixture_id', $fixture->id);
+                if ($fixture->match_id) {
+                    $q->orWhere('match_id', $fixture->match_id);
+                }
+            })
+            ->with('user:id,name,role')
+            ->latest()
+            ->get();
+
         return response()->json([
             'data' => $submission,
+            'match' => $fixture->match,
+            'audits' => $audits,
         ]);
     }
 

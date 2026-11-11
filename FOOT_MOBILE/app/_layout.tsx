@@ -21,9 +21,9 @@ import { PushNotificationsBootstrap } from '@/system/PushNotificationsBootstrap'
 import { ThemedStatusBar } from '@/system/ThemedStatusBar';
 import { useAppBootstrap } from '@/system/useAppBootstrap';
 import { ModeSwitchFAB } from '@/components/navigation/ModeSwitchFAB';
+import { PreviewFloatingPill } from '@/preview/PreviewFloatingPill';
 import { appLogger } from '@/services/logger/app-logger';
 import { ThemeProvider } from '@/theme/ThemeProvider';
-
 
 function BootstrapGate({ children }: { children: React.ReactNode }): React.JSX.Element {
   const { isReady, error, retry } = useAppBootstrap();
@@ -83,6 +83,7 @@ export default function RootLayout(): React.JSX.Element {
                       </AuthGuard>
                     </MaintenanceGate>
                     <ModeSwitchFAB />
+                    <PreviewFloatingPill />
                   </ToastProvider>
                   </SessionRestoreGate>
                 </AuthProvider>

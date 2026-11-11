@@ -34,37 +34,33 @@ export function Button({
   accessibilityLabel,
   style,
 }: Props): React.JSX.Element {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const isDisabled = disabled || loading;
   const height =
     size === 'sm' ? sizes.buttonHeightSm : size === 'lg' ? sizes.buttonHeightLg : sizes.buttonHeightMd;
 
   const bg =
     variant === 'primary'
-      ? colors.primary
-      : variant === 'danger'
-        ? colors.danger
-        : variant === 'secondary'
-          ? colors.surface
+      ? colors.primary // Lime #A8FF24
+      : variant === 'secondary'
+        ? (isDark ? '#252B31' : '#101418') // Charcoal Black
+        : variant === 'danger'
+          ? colors.danger
           : 'transparent';
 
   const borderColor =
-    variant === 'secondary'
-      ? colors.primary
-      : variant === 'outline'
-        ? colors.borderStrong
-        : 'transparent';
+    variant === 'outline'
+      ? colors.borderStrong
+      : 'transparent';
 
-  const borderWidth = variant === 'secondary' ? 1.5 : variant === 'outline' ? 1 : 0;
+  const borderWidth = variant === 'outline' ? 1.5 : 0;
 
   const textColor =
-    variant === 'primary' || variant === 'danger'
-      ? colors.textOnPrimary
-      : variant === 'secondary'
-        ? colors.primary
-        : variant === 'ghost'
-          ? colors.text
-          : colors.text;
+    variant === 'primary'
+      ? colors.textOnPrimary // Charcoal Black #101418 on Lime
+      : variant === 'secondary' || variant === 'danger'
+        ? '#FFFFFF'
+        : colors.text;
 
   return (
     <Pressable
@@ -81,8 +77,8 @@ export function Button({
           borderColor,
           borderWidth,
           height,
-          borderRadius: radius.large,
-          opacity: isDisabled ? 0.5 : pressed ? 0.9 : 1,
+          borderRadius: radius.medium,
+          opacity: isDisabled ? 0.5 : pressed ? 0.88 : 1,
           transform: pressed && !isDisabled ? [{ scale: 0.98 }] : [],
           alignSelf: fullWidth ? 'stretch' : 'auto',
         },
@@ -104,7 +100,7 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.large,
+    borderRadius: radius.medium,
     paddingHorizontal: 20,
     justifyContent: 'center',
     alignItems: 'center',
@@ -112,6 +108,6 @@ const styles = StyleSheet.create({
     minWidth: sizes.touchTarget,
   },
   content: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  label: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  label: { fontSize: 15, fontWeight: '800', textAlign: 'center' },
   icon: { justifyContent: 'center', alignItems: 'center' },
 });

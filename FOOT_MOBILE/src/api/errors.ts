@@ -116,7 +116,8 @@ export function getUserMessage(error: unknown, fallback = 'حدث خطأ غير 
     if (error.kind === 'timeout') return 'انتهت مهلة الطلب، حاول مرة أخرى';
     if (error.kind === 'unauthorized') return 'انتهت الجلسة، يرجى تسجيل الدخول مجدداً';
     if (error.kind === 'forbidden') return 'ليس لديك صلاحية لهذا الإجراء';
-    if (error.kind === 'notFound') return 'المورد غير موجود';
+    if (error.message && error.message !== 'Not Found' && !error.message.startsWith('Request failed')) return error.message;
+    if (error.kind === 'notFound') return 'المورد غير موجود أو غير مسجل';
     if (error.kind === 'rateLimit') return 'عدد كبير من الطلبات، حاول لاحقاً';
     if (error.kind === 'server') return 'خطأ في الخادم، حاول لاحقاً';
     if (error.kind === 'validation') {

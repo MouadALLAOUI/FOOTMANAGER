@@ -4,6 +4,7 @@ import { type Href, useRouter, useSegments } from 'expo-router';
 import { useAuth, type SessionState } from '@/auth/AuthProvider';
 import { homeForRole } from '@/auth/homeForRole';
 import type { Role } from '@/auth/roles';
+import { isPreviewModeActive } from '@/preview/previewState';
 
 const ACCOUNT_STATE_ROUTES: Partial<Record<SessionState, Href>> = {
   pending: '/(auth)/account-pending',
@@ -35,6 +36,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }): React.JS
   const segments = useSegments();
 
   useEffect(() => {
+    // In Preview Mode (development only), allow unrestricted UI review of all screens
+    if (__DEV__ && isPreviewModeActive()) {
+      return;
+    }
+
     const group = resolveGroup(segments);
 
     // Allow browsing public screens for all session states (including pending, blocked, rejected)

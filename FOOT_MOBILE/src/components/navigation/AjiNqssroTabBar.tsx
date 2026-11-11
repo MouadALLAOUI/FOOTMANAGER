@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useAuth } from '@/auth/AuthProvider';
+import { useTheme } from '@/theme/ThemeProvider';
 import {
   CircleDot,
   Flame,
@@ -31,6 +32,7 @@ export function AjiNqssroTabBar({
   const router = useRouter();
   const pathname = usePathname();
   const { sessionState } = useAuth();
+  const { colors, isDark } = useTheme();
 
   const publicTabs: TabItem[] = [
     {
@@ -101,7 +103,7 @@ export function AjiNqssroTabBar({
   const tabs = mode === 'manager' ? managerTabs : publicTabs;
 
   return (
-    <View style={styles.barContainer}>
+    <View style={[styles.barContainer, { backgroundColor: colors.surface, borderTopColor: colors.border }]}>
       <View style={styles.tabsRow}>
         {tabs.map((tab) => {
           const isActive =
@@ -110,7 +112,7 @@ export function AjiNqssroTabBar({
             (tab.key === 'team' && (pathname.startsWith('/(manager)/team') || pathname === '/(manager)/team')) ||
             (tab.key === 'home' && (pathname === '/(public)' || pathname === '/(public)/' || pathname === '/' || pathname === '/(manager)' || pathname === '/(manager)/'));
 
-          const iconColor = isActive ? '#00875A' : '#94A3B8';
+          const iconColor = isActive ? (isDark ? colors.primary : colors.charcoal) : colors.textSubtle;
 
           const handlePress = () => {
             if (mode === 'manager' && sessionState === 'pending') {
@@ -129,14 +131,17 @@ export function AjiNqssroTabBar({
             return (
               <TouchableOpacity
                 key={tab.key}
-                style={styles.activePill}
+                style={[
+                  styles.activePill,
+                  { backgroundColor: isDark ? colors.surfaceCard : colors.charcoal, borderColor: colors.border },
+                ]}
                 onPress={handlePress}
                 activeOpacity={0.85}
                 accessibilityRole="button"
                 accessibilityState={{ selected: true }}
               >
-                {tab.icon('#FFFFFF', 18)}
-                <Text style={styles.activePillText}>{tab.label}</Text>
+                {tab.icon(colors.primary, 18)}
+                <Text style={[styles.activePillText, { color: colors.primary }]}>{tab.label}</Text>
               </TouchableOpacity>
             );
           }
@@ -151,10 +156,16 @@ export function AjiNqssroTabBar({
               accessibilityState={{ selected: isActive }}
             >
               <View style={styles.iconWrap}>{tab.icon(iconColor, 22)}</View>
-              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  { color: isActive ? (isDark ? colors.primary : colors.charcoal) : colors.textSubtle },
+                  isActive && styles.tabLabelActive,
+                ]}
+              >
                 {tab.label}
               </Text>
-              {isActive && <View style={styles.activeIndicator} />}
+              {isActive && <View style={[styles.activeIndicator, { backgroundColor: colors.primary }]} />}
             </TouchableOpacity>
           );
         })}
@@ -165,16 +176,14 @@ export function AjiNqssroTabBar({
 
 const styles = StyleSheet.create({
   barContainer: {
-    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#F0FDF4',
     paddingBottom: 22,
     paddingTop: 8,
-    shadowColor: '#000000',
+    shadowColor: '#101418',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 6,
   },
   tabsRow: {
     flexDirection: 'row',
@@ -197,32 +206,28 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
     marginTop: 2,
   },
   tabLabelActive: {
-    color: '#00875A',
-    fontWeight: '800',
+    fontWeight: '900',
   },
   activePill: {
-    backgroundColor: '#00875A',
-    borderRadius: 14,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    borderWidth: 1,
   },
   activePillText: {
-    color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   activeIndicator: {
-    width: 16,
+    width: 18,
     height: 3,
     borderRadius: 1.5,
-    backgroundColor: '#00875A',
     position: 'absolute',
     top: -8,
   },

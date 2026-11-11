@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Calendar, Flame, Trophy } from 'lucide-react-native';
+import { palette } from '@/theme/colors';
 
 export function ActionCategoryCards(): React.JSX.Element {
   const router = useRouter();
@@ -49,7 +50,7 @@ export function ActionCategoryCards(): React.JSX.Element {
           </View>
         </TouchableOpacity>
 
-        {/* Card 3: البطولات (Green) */}
+        {/* Card 3: البطولات (Charcoal & Lime) */}
         <TouchableOpacity
           style={[styles.actionCard, styles.greenCard]}
           activeOpacity={0.88}
@@ -58,13 +59,13 @@ export function ActionCategoryCards(): React.JSX.Element {
         >
           <View style={styles.cardHeader}>
             <View style={[styles.iconWrap, styles.greenIconWrap]}>
-              <Trophy size={22} color="#00875A" />
+              <Trophy size={22} color={palette.primaryLime} />
             </View>
           </View>
           <Text style={styles.cardTitle}>البطولات</Text>
-          <Text style={styles.cardSubtitle}>المباريات والنتائج والترتيب</Text>
-          <View style={styles.arrowCircle}>
-            <ArrowLeft size={16} color="#FFFFFF" />
+          <Text style={[styles.cardSubtitle, { color: palette.primaryLime }]}>المباريات والنتائج والترتيب</Text>
+          <View style={[styles.arrowCircle, { backgroundColor: 'rgba(168, 255, 36, 0.2)' }]}>
+            <ArrowLeft size={16} color={palette.primaryLime} />
           </View>
         </TouchableOpacity>
       </View>
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '900',
-    color: '#0F172A',
+    color: '#101418',
     textAlign: 'right',
     marginBottom: 12,
   },
@@ -93,10 +94,9 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 18,
     padding: 12,
-    minHeight: 146,
+    minHeight: 140,
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    shadowColor: '#000000',
+    shadowColor: '#101418',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EA580C',
   },
   greenCard: {
-    backgroundColor: '#00875A',
+    backgroundColor: '#101418',
   },
   cardHeader: {
     width: '100%',
@@ -118,14 +118,16 @@ const styles = StyleSheet.create({
   iconWrap: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   blueIconWrap: {},
   orangeIconWrap: {},
-  greenIconWrap: {},
+  greenIconWrap: {
+    backgroundColor: '#252B31',
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: '900',

@@ -51,6 +51,15 @@ export function getAppConfig(): AppConfig {
 
   const rawApiUrl = process.env.EXPO_PUBLIC_API_URL ?? extra.apiUrl;
   if (!rawApiUrl) {
+    if (__DEV__) {
+      const fallbackUrl = 'http://localhost:8000/api';
+      const apiUrl = validateApiUrl(fallbackUrl);
+      const env = 'development';
+      const version = Constants.expoConfig?.version ?? '0.0.0';
+      const supportContact = (process.env.EXPO_PUBLIC_SUPPORT_CONTACT ?? '').trim();
+      cached = { apiUrl, env, version, supportContact };
+      return cached;
+    }
     throw new Error(
       '[env] Missing API URL — set EXPO_PUBLIC_API_URL in .env (see .env.example). ' +
         'For local dev: EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8000/api',

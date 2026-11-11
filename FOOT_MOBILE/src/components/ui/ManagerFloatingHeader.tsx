@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Bell, ChevronLeft } from 'lucide-react-native';
 
 import { useNotifications } from '@/api/notifications';
+import { useTheme } from '@/theme/ThemeProvider';
 
 export interface ManagerFloatingHeaderProps {
   /** Optional unread badge override; defaults to live useNotifications() count */
@@ -17,22 +18,23 @@ export function ManagerFloatingHeader({
   roleLabel = 'مسيّر الفريق',
 }: ManagerFloatingHeaderProps): React.JSX.Element {
   const router = useRouter();
+  const { colors } = useTheme();
   const { data: notifData } = useNotifications();
   const unreadCount = unreadCountOverride ?? notifData?.unread_count ?? 0;
 
   return (
-    <View style={styles.headerContainer}>
+    <View style={[styles.headerContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {/* Notification Bell with Badge on Left */}
       <TouchableOpacity
-        style={styles.notifBtn}
+        style={[styles.notifBtn, { backgroundColor: colors.bgMuted, borderColor: colors.border }]}
         onPress={() => router.push('/(manager)/notifications')}
         activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityLabel="الإشعارات"
       >
-        <Bell size={24} color="#0B192C" />
+        <Bell size={22} color={colors.charcoal} />
         {unreadCount > 0 && (
-          <View style={styles.notifBadge}>
+          <View style={[styles.notifBadge, { backgroundColor: colors.danger, borderColor: colors.surface }]}>
             <Text style={styles.notifBadgeText}>
               {unreadCount > 99 ? '99+' : unreadCount}
             </Text>
@@ -47,7 +49,7 @@ export function ManagerFloatingHeader({
           style={styles.headerLogoImg}
           resizeMode="contain"
         />
-        <Text style={styles.headerLogoText}>AJI NQSSRO</Text>
+        <Text style={[styles.headerLogoText, { color: colors.charcoal }]}>AJI NQSSRO</Text>
       </View>
 
       {/* Manager Greeting & Avatar on Right (RTL) */}
@@ -59,12 +61,12 @@ export function ManagerFloatingHeader({
         accessibilityLabel="الملف الشخصي"
       >
         <View style={styles.coachGreetingTexts}>
-          <Text style={styles.greetingPrefix}>مرحبا بك</Text>
-          <Text style={styles.greetingManagerRole}>{roleLabel}</Text>
+          <Text style={[styles.greetingPrefix, { color: colors.textMuted }]}>مرحبا بك</Text>
+          <Text style={[styles.greetingManagerRole, { color: colors.text }]}>{roleLabel}</Text>
         </View>
         <Image
           source={require('../../../assets/dashboard-coach-avatar.png')}
-          style={styles.coachAvatarImg}
+          style={[styles.coachAvatarImg, { borderColor: colors.primary }]}
           resizeMode="cover"
         />
       </TouchableOpacity>
@@ -90,6 +92,7 @@ export function ManagerPageTitle({
   leftAction,
 }: ManagerPageTitleProps): React.JSX.Element {
   const router = useRouter();
+  const { colors } = useTheme();
 
   return (
     <View style={styles.titleSectionRow}>
@@ -97,13 +100,13 @@ export function ManagerPageTitle({
       <View style={styles.leftSlot}>
         {showBack ? (
           <TouchableOpacity
-            style={styles.backCircleBtn}
+            style={[styles.backCircleBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
             onPress={onBackPress ?? (() => router.back())}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="رجوع"
           >
-            <ChevronLeft size={26} color="#062F36" />
+            <ChevronLeft size={24} color={colors.charcoal} />
           </TouchableOpacity>
         ) : (
           leftAction
@@ -113,11 +116,11 @@ export function ManagerPageTitle({
       {/* Right side (RTL): Screen Title & Icon */}
       <View style={styles.titleTextCol}>
         <View style={styles.titleHeadingRow}>
-          <Text style={styles.screenTitleText}>{title}</Text>
-          {icon ? <View style={styles.greenIconBadge}>{icon}</View> : null}
+          <Text style={[styles.screenTitleText, { color: colors.text }]}>{title}</Text>
+          {icon ? <View style={[styles.greenIconBadge, { backgroundColor: colors.primary }]}>{icon}</View> : null}
         </View>
         {subtitle ? (
-          <Text style={styles.screenSubtitleText}>{subtitle}</Text>
+          <Text style={[styles.screenSubtitleText, { color: colors.textMuted }]}>{subtitle}</Text>
         ) : null}
       </View>
     </View>
@@ -129,32 +132,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 22,
     marginHorizontal: 16,
     marginTop: 8,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    elevation: 4,
-    shadowColor: '#000',
+    elevation: 3,
+    borderWidth: 1,
+    shadowColor: '#101418',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
   },
   notifBtn: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    borderWidth: 1,
   },
   notifBadge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: '#EF4444',
+    top: -2,
+    right: -2,
     minWidth: 18,
     height: 18,
     borderRadius: 9,
@@ -162,7 +164,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
   },
   notifBadgeText: {
     color: '#FFFFFF',
@@ -174,13 +175,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   headerLogoImg: {
-    width: 42,
-    height: 34,
+    width: 38,
+    height: 32,
   },
   headerLogoText: {
     fontSize: 12,
     fontWeight: '900',
-    color: '#064E3B',
     marginTop: 2,
     letterSpacing: 0.5,
   },
@@ -193,13 +193,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   greetingPrefix: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
   },
   greetingManagerRole: {
-    fontSize: 15,
-    color: '#062F36',
+    fontSize: 14,
     fontWeight: '900',
   },
   coachAvatarImg: {
@@ -207,7 +205,6 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 2,
-    borderColor: '#22C55E',
   },
   titleSectionRow: {
     flexDirection: 'row',
@@ -223,15 +220,15 @@ const styles = StyleSheet.create({
   backCircleBtn: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    borderWidth: 1,
+    shadowColor: '#101418',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
   },
   titleTextCol: {
     flex: 1,
@@ -245,20 +242,17 @@ const styles = StyleSheet.create({
   greenIconBadge: {
     width: 34,
     height: 34,
-    borderRadius: 17,
-    backgroundColor: '#00875A',
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   screenTitleText: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
-    color: '#062F36',
   },
   screenSubtitleText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#334155',
+    fontSize: 13,
+    fontWeight: '600',
     marginTop: 2,
   },
 });

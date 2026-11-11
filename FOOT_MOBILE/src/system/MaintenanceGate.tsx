@@ -9,6 +9,7 @@ import { Screen } from '@/components/ui/Screen';
 import { useAuth } from '@/auth/useAuth';
 import { useI18n } from '@/i18n/I18nProvider';
 import { useTheme } from '@/theme/ThemeProvider';
+import { isPreviewModeActive } from '@/preview/previewState';
 
 interface MaintenanceModule {
   module: string;
@@ -74,6 +75,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }): React.JS
     },
     staleTime: 5 * 60 * 1000,
     retry: false,
+    enabled: !(__DEV__ && isPreviewModeActive()),
   });
 
   const globalMaintenance = data?.global ?? false;
@@ -117,6 +119,11 @@ export function MaintenanceGate({ children }: { children: ReactNode }): React.JS
     () => ({ isModuleActive, getModuleMessage, isPageActive }),
     [isModuleActive, getModuleMessage, isPageActive],
   );
+
+  // In Preview Mode, never block previewing screens
+  if (__DEV__ && isPreviewModeActive()) {
+    return <MaintenanceContext.Provider value={ctx}>{children}</MaintenanceContext.Provider>;
+  }
 
   if (isLoading) return <>{children}</>;
 

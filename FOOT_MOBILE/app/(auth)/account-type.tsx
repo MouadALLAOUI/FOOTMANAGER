@@ -123,7 +123,7 @@ export default function AccountTypeScreen(): React.JSX.Element {
 
         {/* Circular Green Forward Indicator */}
         <View style={styles.arrowCircle}>
-          <ChevronLeft size={16} color="#059669" strokeWidth={3} />
+          <ChevronLeft size={16} color="#101418" strokeWidth={3} />
         </View>
       </View>
     </Pressable>
@@ -183,7 +183,7 @@ export default function AccountTypeScreen(): React.JSX.Element {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F2F4F5',
   },
   backgroundImage: {
     ...StyleSheet.absoluteFill,
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   primaryGreeting: {
     fontSize: Math.min(27, Math.round(SCREEN_WIDTH * 0.070)),
     fontWeight: '900',
-    color: '#00875A',
+    color: '#101418',
     textAlign: 'center',
     letterSpacing: -0.3,
     lineHeight: Platform.OS === 'android' ? 36 : 32,
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
     borderWidth: 1.2,
-    borderColor: 'rgba(226, 232, 240, 0.9)',
+    borderColor: '#E2E6E9',
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: 'rgba(168, 255, 36, 0.22)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,

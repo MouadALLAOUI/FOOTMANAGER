@@ -1,6 +1,9 @@
 import { config } from '@/config/env';
 
 import { ApiError, createApiError } from './errors';
+import { isPreviewModeActive } from '@/preview/previewState';
+import { handleMockApiRequest } from '@/preview/mockApi';
+import { appLogger } from '@/services/logger/app-logger';
 
 export const DEFAULT_TIMEOUT_MS = 15000;
 
@@ -86,10 +89,25 @@ function isAuthEndpoint(path: string): boolean {
   return path.includes('/login') || path.includes('/register') || path.includes('/stadiums') || path.includes('/tournaments');
 }
 
-import { appLogger } from '@/services/logger/app-logger';
-
 export async function request<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
   const { json, formData, params, timeoutMs = DEFAULT_TIMEOUT_MS, headers, auth, ...rest } = options;
+
+  // Intercept in development when UI Preview Mode is active
+  if (__DEV__ && isPreviewModeActive()) {
+    try {
+      const mockResult = await handleMockApiRequest<T>(path, {
+        method: (rest.method || 'GET').toUpperCase(),
+        json,
+        params,
+      });
+      if (mockResult !== undefined) {
+        return mockResult;
+      }
+    } catch (mockErr) {
+      console.warn('[PreviewMode] Mock handler error:', mockErr);
+    }
+  }
+
   const url = buildUrl(path, params);
 
   const controller = new AbortController();
@@ -186,7 +204,7 @@ export async function upload<T>(path: string, formData: FormData, opts: RequestO
 
   // RN FormData exposes its parts; separate file parts (with a uri) from text fields.
   const parts =
-    (formData as unknown as { getParts?: () => Array<Record<string, string>> }).getParts?.() ?? [];
+    (formData as unknown as { getParts?: () => Record<string, string>[] }).getParts?.() ?? [];
   const filePart = parts.find((p) => p.uri);
   if (!filePart) {
     throw createApiError('No file provided for upload', 0, null, url);

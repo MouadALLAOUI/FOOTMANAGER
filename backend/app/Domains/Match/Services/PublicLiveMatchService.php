@@ -8,6 +8,7 @@ use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Match\Models\MatchEvent;
 use App\Domains\Match\Models\MatchLineup;
+use App\Domains\Match\Models\MatchResultAudit;
 use App\Domains\Player\Models\Player;
 use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
@@ -20,6 +21,7 @@ class PublicLiveMatchService
 {
     public function __construct(
         private readonly TournamentFoulRuleService $foulRules,
+        private readonly LiveMatchReactionService $reactions,
     ) {}
 
     /**
@@ -45,6 +47,8 @@ class PublicLiveMatchService
                 'fixture.round',
                 'fixture.group',
                 'fixture.stadium',
+                'fixture.delegatedToken',
+                'fixture.delegatedSubmissions',
                 'fixture.latestPendingSubmission',
             ])
             ->first();
@@ -81,9 +85,16 @@ class PublicLiveMatchService
         $pendingSubmission = $fixture?->latestPendingSubmission;
         $isPendingSubmission = $pendingSubmission && $pendingSubmission->status === 'pending';
 
-        $isOfficial = ! $isPendingSubmission;
-        $approvalStatus = $isOfficial ? 'approved' : 'pending';
-        $officialLabel = $isOfficial ? null : 'النتيجة قيد المراجعة من طرف اللجنة';
+        $hasDelegatedCoverage = (bool) (
+            $fixture?->delegatedToken
+            || $isPendingSubmission
+            || ($fixture && $fixture->delegatedSubmissions && $fixture->delegatedSubmissions->isNotEmpty())
+        );
+
+        $approvedSubmission = null;
+        if (! $isPendingSubmission && $fixture && $fixture->delegatedSubmissions) {
+            $approvedSubmission = $fixture->delegatedSubmissions->where('status', 'approved')->sortByDesc('id')->first();
+        }
 
         $statusRaw = $match->status?->value ?? (string) $match->status;
         $isFinished = $match->status === MatchStatus::Finished || $statusRaw === 'finished';
@@ -101,13 +112,52 @@ class PublicLiveMatchService
             $isLive = in_array($subStatus, ['first_half', 'second_half', 'halftime', 'extra_time', 'penalties'], true);
         }
 
+        $isAmended = false;
+        $amendedExplanation = null;
+        if ($approvedSubmission && $fixture) {
+            $meta = is_array($approvedSubmission->client_meta) ? $approvedSubmission->client_meta : [];
+            $metaWasAmended = ! empty($meta['was_amended']);
+            $scoreDiffers = ((int) $approvedSubmission->home_score !== (int) $match->home_score) || ((int) $approvedSubmission->away_score !== (int) $match->away_score);
+            $auditAmended = MatchResultAudit::query()
+                ->where('fixture_id', $fixture->id)
+                ->where('action', 'delegated_result_amended')
+                ->exists();
+
+            if ($metaWasAmended || $scoreDiffers || $auditAmended) {
+                $isAmended = true;
+                $amendedExplanation = 'تم تدقيق النتيجة وتعديلها واعتمادها رسمياً من قِبل اللجنة المنظمة بعد مراجعة تقرير المباراة.';
+            }
+        }
+
+        $isOfficial = ! $isPendingSubmission;
+        $approvalStatus = $isOfficial ? 'approved' : 'pending';
+        $officialLabel = $isOfficial ? ($isAmended ? 'تم تعديل النتيجة واعتمادها رسمياً من طرف اللجنة المنظمة' : null) : 'النتيجة قيد المراجعة والتأكيد من طرف اللجنة المنظمة';
+
+        // Validation status resolution
+        if ($isLive) {
+            $validationStatus = 'live';
+            $validationStatusText = 'مباشر • تغطية المندوب';
+        } elseif ($isPendingSubmission) {
+            $validationStatus = 'under_review';
+            $validationStatusText = 'النتيجة قيد مراجعة وتأكيد اللجنة المنظمة';
+        } elseif ($isAmended) {
+            $validationStatus = 'amended';
+            $validationStatusText = 'معدلة ومعتمدة من طرف اللجنة المنظمة';
+        } elseif ($isOfficial && $isFinished) {
+            $validationStatus = 'official';
+            $validationStatusText = 'نتيجة رسمية معتمدة من اللجنة المنظمة';
+        } else {
+            $validationStatus = 'scheduled';
+            $validationStatusText = 'مباراة مبرمجة';
+        }
+
         $statusText = match ($statusRaw) {
             'first_half' => $isPendingSubmission ? 'مباشر (الشوط الأول) - قيد المراجعة' : 'مباشر (الشوط الأول)',
             'second_half' => $isPendingSubmission ? 'مباشر (الشوط الثاني) - قيد المراجعة' : 'مباشر (الشوط الثاني)',
             'halftime' => $isPendingSubmission ? 'استراحة (قيد المراجعة)' : 'استراحة',
             'extra_time' => 'أشواط إضافية',
             'penalties' => 'ركلات ترجيح',
-            'finished' => $isPendingSubmission ? 'انتهت (في انتظار مراجعة اللجنة)' : 'انتهت',
+            'finished' => $isPendingSubmission ? 'انتهت (في انتظار مراجعة وتأكيد اللجنة)' : ($isAmended ? 'انتهت (نتيجة معدلة ومعتمدة)' : 'انتهت (معتمدة رسمياً)'),
             'cancelled' => 'ملغاة',
             'postponed' => 'مؤجلة',
             default => 'قادمة',
@@ -196,6 +246,17 @@ class PublicLiveMatchService
                 'is_official' => $isOfficial,
                 'approval_status' => $approvalStatus,
                 'official_label' => $officialLabel,
+                'is_covered_by_delegate' => $hasDelegatedCoverage,
+                'validation_status' => $validationStatus,
+                'validation_status_text' => $validationStatusText,
+                'delegate_coverage' => [
+                    'is_covered' => $hasDelegatedCoverage,
+                    'recorder_name' => $isPendingSubmission ? ($pendingSubmission->recorder_name ?: 'مندوب البطولة') : ($approvedSubmission?->recorder_name ?: 'مندوب البطولة'),
+                    'banner_title' => 'تغطية مباشرة بواسطة مندوب البطولة',
+                    'banner_subtitle' => 'النتيجة والأحداث المسجلة قد تخضع للمراجعة والتأكيد من طرف اللجنة المنظمة.',
+                    'is_amended' => $isAmended,
+                    'amended_explanation' => $amendedExplanation,
+                ],
                 'fouls' => $foulData,
                 'share' => [
                     'whatsapp_text' => "تابع المباراة مباشرة عبر أجي نقصرو ⚽\nشاهد النتيجة والأهداف وأحداث المباراة هنا:\n{$publicUrl}",
@@ -207,6 +268,7 @@ class PublicLiveMatchService
             'last_event_id' => $maxEventId,
             'total_events' => $totalEventsCount,
             'lineup' => $lineupData,
+            'reactions' => $this->reactions->getCounts($match),
             'server_time' => now()->toIso8601String(),
         ];
     }

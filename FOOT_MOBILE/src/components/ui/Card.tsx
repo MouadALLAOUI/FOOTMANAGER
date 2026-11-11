@@ -50,12 +50,12 @@ export function Card({
 
   const cardStyle: ViewStyle = {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.card,
+    borderWidth: 1,
     borderColor: colors.border,
-    ...(padded ? { padding: spacing.lg } : null),
-    gap: spacing.md,
-    ...(elevated ? shadows.md : null),
+    ...(padded ? { padding: spacing.md } : null),
+    gap: spacing.sm,
+    ...(elevated ? shadows.sm : null),
   };
 
   const hasHeader =
@@ -65,7 +65,7 @@ export function Card({
     <View style={styles.header}>
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <View style={styles.headerText}>
-        {title ? <AppText variant="bodyBold" numberOfLines={2}>{title}</AppText> : null}
+        {title ? <AppText variant="arabicCardTitle" numberOfLines={2}>{title}</AppText> : null}
         {subtitle ? (
           <AppText variant="caption" muted numberOfLines={3}>{subtitle}</AppText>
         ) : null}
@@ -95,7 +95,7 @@ export function Card({
           onPress={secondaryAction.onPress}
           accessibilityRole="button"
           accessibilityLabel={secondaryAction.label}
-          style={[styles.actionChip, { borderColor: colors.border }]}
+          style={[styles.actionChip, { borderColor: colors.border, backgroundColor: colors.bgMuted }]}
         >
           <AppText variant="captionBold" style={{ color: colors.text }}>
             {secondaryAction.label}
@@ -134,7 +134,7 @@ export function Card({
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
-        style={({ pressed }) => [cardStyle, pressed && { opacity: 0.96 }, style]}
+        style={({ pressed }) => [cardStyle, pressed && { opacity: 0.95, transform: [{ scale: 0.99 }] }, style]}
       >
         {image}
         {header}
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radius.full,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     flexGrow: 1,

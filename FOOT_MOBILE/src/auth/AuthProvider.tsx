@@ -16,6 +16,8 @@ import { type Role, isAdmin as checkAdmin, hasAdminAccess as checkAdminAccess } 
 import { registerCurrentDevice, unregisterCurrentDevice } from '@/services/notifications/push-notifications';
 import { persistentStorage } from '@/services/storage/persistent-storage';
 import { secureStorage } from '@/services/storage/secure-storage';
+import { isPreviewModeActive, getActivePreviewPersona, subscribePreviewState } from '@/preview/previewState';
+import { getMockUserForPersona } from '@/preview/mockData';
 
 // ─── Public types ────────────────────────────────────────────
 
@@ -112,6 +114,16 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     }
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [, setPreviewVer] = useState(0);
+
+  // ── Reactive Preview Mode Subscription ──
+  useEffect(() => {
+    if (!__DEV__) return;
+    return subscribePreviewState(() => {
+      setPreviewVer((v) => v + 1);
+      queryClient.invalidateQueries();
+    });
+  }, []);
 
   // ── Session restoration on mount ──
   useEffect(() => {
@@ -131,8 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
         setUser(data.user);
         persistentStorage.setJson(CACHED_USER_KEY, data.user);
 
-        // Re-register the device token on session restore (fresh token may
-        // have been issued while the app was away, or the row was pruned).
+        // Re-register the device token on session restore
         void registerCurrentDevice();
       } catch {
         if (cancelled) return;
@@ -153,6 +164,11 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   // ── Login ──
   const login = useCallback(async (loginField: string, password: string): Promise<void> => {
+    if (__DEV__ && isPreviewModeActive()) {
+      queryClient.clear();
+      return;
+    }
+
     const deviceId = await secureStorage.getDeviceIdAsync();
 
     const res = await post<{ user: AuthUser; token: string }>(
@@ -165,14 +181,22 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     persistentStorage.setJson(CACHED_USER_KEY, res.user);
     setUser(res.user);
 
-    // Register this device for push notifications (best-effort).
+    // Register this device for push notifications
     void registerCurrentDevice();
   }, []);
 
   // ── Logout ──
   const logout = useCallback(async (): Promise<void> => {
-    // Remove the device push token before server-side logout so the user
-    // stops receiving notifications once signed out.
+    if (__DEV__ && isPreviewModeActive()) {
+      queryClient.clear();
+      try {
+        const { router } = await import('expo-router');
+        router.replace('/(auth)');
+      } catch {}
+      return;
+    }
+
+    // Remove the device push token before server-side logout
     await unregisterCurrentDevice().catch(() => {});
 
     // Best-effort server-side logout
@@ -244,6 +268,10 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
 
   // ── Refresh user from server ──
   const refreshUser = useCallback(async (): Promise<void> => {
+    if (__DEV__ && isPreviewModeActive()) {
+      return;
+    }
+
     try {
       const data = await get<{ user: AuthUser }>('/me');
       setUser(data.user);
@@ -290,34 +318,41 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
     return getUserMessage(error, 'حدث خطأ غير متوقع');
   }, []);
 
-  // ── Derived state ──
-  const isAuthenticated = !!user;
-  const isActivityLocked = !!user?.activity_locked;
-  const userRole = (user?.role as Role) ?? null;
+  // ── Derived state with Preview Mode support ──
+  const inPreview = __DEV__ && isPreviewModeActive();
+  const previewPersona = inPreview ? getActivePreviewPersona() : null;
+  const previewUser = inPreview && previewPersona ? getMockUserForPersona(previewPersona) : null;
+
+  const effectiveUser = inPreview ? previewUser : user;
+  const effectiveIsLoading = inPreview ? false : isLoading;
+
+  const isAuthenticated = !!effectiveUser;
+  const isActivityLocked = !!effectiveUser?.activity_locked;
+  const userRole = (effectiveUser?.role as Role) ?? null;
   const isAdminUser = checkAdmin(userRole ?? ('' as Role));
   const hasAdminAccessUser = userRole ? checkAdminAccess(userRole) : false;
 
-  const sessionState: SessionState = isLoading
+  const sessionState: SessionState = effectiveIsLoading
     ? 'restoring'
-    : !user
+    : !effectiveUser
       ? 'unauthenticated'
-      : user.status === 'blocked'
+      : effectiveUser.status === 'blocked'
         ? 'blocked'
-        : user.status === 'rejected'
+        : effectiveUser.status === 'rejected'
           ? 'rejected'
-          : user.status === 'pending'
+          : effectiveUser.status === 'pending'
             ? 'pending'
             : 'authenticated';
 
-  const can = useMemo(() => createCan(user), [user]);
-  const activityLock = useMemo(() => getActivityLockInfo(user), [user]);
+  const can = useMemo(() => createCan(effectiveUser), [effectiveUser]);
+  const activityLock = useMemo(() => getActivityLockInfo(effectiveUser), [effectiveUser]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      user,
+      user: effectiveUser,
       sessionState,
       isAuthenticated,
-      isLoading,
+      isLoading: effectiveIsLoading,
       isActivityLocked,
       isAdmin: isAdminUser,
       hasAdminAccess: hasAdminAccessUser,
@@ -331,7 +366,24 @@ export function AuthProvider({ children }: { children: ReactNode }): React.JSX.E
       updateCachedUser,
       getLoginErrorMessage,
     }),
-    [user, sessionState, isAuthenticated, isLoading, isActivityLocked, isAdminUser, hasAdminAccessUser, can, userRole, activityLock, login, logout, register, refreshUser, updateCachedUser, getLoginErrorMessage],
+    [
+      effectiveUser,
+      sessionState,
+      isAuthenticated,
+      effectiveIsLoading,
+      isActivityLocked,
+      isAdminUser,
+      hasAdminAccessUser,
+      can,
+      userRole,
+      activityLock,
+      login,
+      logout,
+      register,
+      refreshUser,
+      updateCachedUser,
+      getLoginErrorMessage,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

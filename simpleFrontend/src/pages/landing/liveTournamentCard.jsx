@@ -120,11 +120,8 @@ function TickerItem({ item, isDark }) {
   const hLogo = hTeam?.logo_url
   const aLogo = aTeam?.logo_url
 
-  const scoreText = item.match
-    ? `${item.match.home_score ?? 0} - ${item.match.away_score ?? 0}`
-    : item.home_score !== undefined && item.away_score !== undefined
-    ? `${item.home_score} - ${item.away_score}`
-    : item.score || '0 - 0'
+  const hScore = item.match?.home_score ?? item.home_score ?? 0
+  const aScore = item.match?.away_score ?? item.away_score ?? 0
 
   const [hErr, setHErr] = useState(false)
   const [aErr, setAErr] = useState(false)
@@ -179,8 +176,10 @@ function TickerItem({ item, isDark }) {
         <div className="flex items-center gap-1.5 min-w-0">{homeNode}</div>
       )}
 
-      <span className="rounded-md bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-xs font-black text-emerald-400 tabular-nums shadow-xs">
-        {scoreText}
+      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-xs font-black font-mono text-emerald-400 tabular-nums shadow-xs">
+        <span>{hScore}</span>
+        <span className="font-sans opacity-70">-</span>
+        <span>{aScore}</span>
       </span>
 
       {aId != null ? (

@@ -1,17 +1,24 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  CalendarDays,
   Camera,
   CheckCircle2,
+  ChevronLeft,
+  ExternalLink,
   Pencil,
   Plus,
+  RotateCcw,
   Save,
   Search,
   ShieldAlert,
   Star,
+  Table,
   Trash2,
+  Upload,
   UserCheck,
   UserMinus,
+  UserRound,
   Users,
   X,
 } from 'lucide-react'
@@ -23,13 +30,12 @@ import { matchesArabicSearch } from '../../../lib/searchUtils'
 import { toastApiError } from '../../../lib/errors'
 import { TeamAvatar } from '../../tournaments/shared'
 import Jersey from '../../manager/live/components/Jersey'
-import { Ban, DoorOpen, RotateCcw, CalendarDays } from 'lucide-react'
 import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 import TeamDisciplinePreviewModal from '../../../domains/committee/components/TeamDisciplinePreviewModal'
 import DisciplineMatchesReviewModal from '../../../domains/committee/components/DisciplineMatchesReviewModal'
 
 const inputClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10'
+  'w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#1B201D] px-3.5 py-2.5 text-sm font-bold text-slate-900 dark:text-white outline-none transition-all placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
 
 const POSITIONS = [
   { value: 'goalkeeper', label: 'حارس مرمى' },
@@ -38,24 +44,103 @@ const POSITIONS = [
   { value: 'forward', label: 'مهاجم' },
 ]
 
-export default function TeamSquadModal({ team, tournamentId, open, onClose, tournamentTeam, onRefresh }) {
+/**
+ * Intelligent helper to parse pasted text into player rows (name & jersey number).
+ * Supports lines copied from WhatsApp, Excel, Notes, or Word:
+ * Examples:
+ *   "1. ياسين بونو - 1"
+ *   "أحمد بنعلي\t10"
+ *   "رشيد الداودي - 7"
+ *   "سفيان أمرابط 4"
+ *   "كريم فوزي"
+ */
+function parsePastedPlayerText(rawText) {
+  if (!rawText || typeof rawText !== 'string') return []
+  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const parsed = []
+
+  for (const line of lines) {
+    // 1. Strip leading numbering like "1. ", "1- ", "1) ", or "- "
+    let clean = line.replace(/^\d+[\.\-\)]\s*/, '').replace(/^[-*•]\s*/, '').trim()
+    if (!clean) continue
+
+    let name = clean
+    let number = ''
+
+    // 2. Check tab-separated (from Excel/Sheets): "Name\t10"
+    if (clean.includes('\t')) {
+      const parts = clean.split('\t').map((p) => p.trim()).filter(Boolean)
+      if (parts.length >= 2) {
+        if (/^\d{1,2}$/.test(parts[1])) {
+          name = parts[0]
+          number = parts[1]
+        } else if (/^\d{1,2}$/.test(parts[0])) {
+          name = parts[1]
+          number = parts[0]
+        }
+      }
+    } else {
+      // 3. Match trailing number: "Name - 10" or "Name : 10" or "Name , 10" or "Name 10"
+      const trailingMatch = clean.match(/^(.*?)\s*[-–—:,]\s*(\d{1,2})$/) || clean.match(/^(.*?)\s+(\d{1,2})$/)
+      if (trailingMatch && trailingMatch[1].trim() && !/^\d+$/.test(trailingMatch[1].trim())) {
+        name = trailingMatch[1].trim()
+        number = trailingMatch[2].trim()
+      } else {
+        // 4. Match leading number: "10 - Name" or "10 : Name"
+        const leadingMatch = clean.match(/^(\d{1,2})\s*[-–—:,]\s*(.+)$/)
+        if (leadingMatch && leadingMatch[2].trim()) {
+          number = leadingMatch[1].trim()
+          name = leadingMatch[2].trim()
+        }
+      }
+    }
+
+    if (name) {
+      parsed.push({
+        name: name.replace(/[-–—:,]+$/, '').trim(),
+        number: number ? String(number) : '',
+      })
+    }
+  }
+
+  return parsed
+}
+
+export default function TeamSquadModal({
+  open,
+  team: passedTeam,
+  tournamentId: passedTournamentId,
+  tournament,
+  tournamentTeam,
+  onClose,
+  onRefresh,
+  onSquadUpdated,
+}) {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const { openTeam } = useProfileModal()
+  const { openTeam, openPlayer } = useProfileModal()
 
-  // Search filter
+  const tournamentId = passedTournamentId || tournament?.id
+  const team = passedTeam || tournamentTeam?.team || tournamentTeam
+  const isOpen = open !== undefined ? Boolean(open) : Boolean(team && tournamentId)
+
+  // View state: 'roster' | 'bulk'
+  const [activeTab, setActiveTab] = useState('roster')
   const [search, setSearch] = useState('')
 
-  // Bulk add state
-  const [showBulkAdd, setShowBulkAdd] = useState(false)
-  const [bulkRows, setBulkRows] = useState([{ name: '', number: '' }])
+  // Bulk Entry table state
+  const [bulkRows, setBulkRows] = useState([
+    { name: '', number: '' },
+    { name: '', number: '' },
+    { name: '', number: '' },
+  ])
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkErrors, setBulkErrors] = useState({})
   const [bulkTopError, setBulkTopError] = useState('')
 
-  // Single player add / edit modal state
+  // Single player inline edit modal state
   const [playerModalOpen, setPlayerModalOpen] = useState(false)
-  const [editingPlayer, setEditingPlayer] = useState(null) // null = add new, player obj = edit
+  const [editingPlayer, setEditingPlayer] = useState(null)
   const [playerForm, setPlayerForm] = useState({
     name: '',
     number: '',
@@ -70,15 +155,15 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
   const [playerFormErrors, setPlayerFormErrors] = useState({})
   const fileInputRef = useRef(null)
 
-  // Fast inline toggling / removing busy flags
+  // Fast inline actions busy states
   const [busyActionId, setBusyActionId] = useState(null)
   const [disciplineAction, setDisciplineAction] = useState(null)
   const [reviewMatchesOpen, setReviewMatchesOpen] = useState(false)
 
   const { data: payload, loading, refetch } = useApi(
     () => api.get(`/committee/tournaments/${tournamentId}/teams/${team?.id}/squad`).then((r) => r.data ?? {}),
-    [tournamentId, team?.id, open],
-    { enabled: open && Boolean(tournamentId && team?.id), staleTime: 0 },
+    [tournamentId, team?.id, isOpen],
+    { enabled: Boolean(isOpen && tournamentId && team?.id), staleTime: 0 },
   )
 
   const players = payload?.players ?? []
@@ -90,64 +175,147 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
 
   const handleClose = () => {
     setSearch('')
-    setShowBulkAdd(false)
-    setBulkRows([{ name: '', number: '' }])
     setBulkErrors({})
     setBulkTopError('')
     setPlayerModalOpen(false)
     setEditingPlayer(null)
     setPlayerPhotoFile(null)
     setPlayerPhotoPreview(null)
-    onClose()
+    if (onClose) onClose()
   }
 
-  // Bulk add helpers
-  const rowError = (i, field) => {
-    const messages = bulkErrors[`players.${i}.${field}`]
-    return Array.isArray(messages) ? messages[0] : messages || ''
+  // --- Bulk Add Helpers ---
+  const updateRow = (i, field, value) => {
+    setBulkRows((rows) => {
+      const next = rows.map((row, idx) => (idx === i ? { ...row, [field]: value } : row))
+      // Auto-add an empty row when typing in the last row
+      if (i === rows.length - 1 && value && rows.length < 30) {
+        next.push({ name: '', number: '' })
+      }
+      return next
+    })
+    if (bulkErrors[`players.${i}.${field}`]) {
+      setBulkErrors((prev) => {
+        const copy = { ...prev }
+        delete copy[`players.${i}.${field}`]
+        return copy
+      })
+    }
   }
 
-  const updateRow = (i, field, value) =>
-    setBulkRows((rows) => rows.map((row, idx) => (idx === i ? { ...row, [field]: value } : row)))
+  const addRow = () => {
+    setBulkRows((rows) => (rows.length < 30 ? [...rows, { name: '', number: '' }] : rows))
+  }
 
-  const addRow = () => setBulkRows((rows) => (rows.length < 30 ? [...rows, { name: '', number: '' }] : rows))
+  const removeRow = (i) => {
+    setBulkRows((rows) => (rows.length > 1 ? rows.filter((_, idx) => idx !== i) : [{ name: '', number: '' }]))
+  }
 
-  const removeRow = (i) => setBulkRows((rows) => (rows.length > 1 ? rows.filter((_, idx) => idx !== i) : rows))
+  const clearBulkRows = () => {
+    setBulkRows([
+      { name: '', number: '' },
+      { name: '', number: '' },
+      { name: '', number: '' },
+    ])
+    setBulkErrors({})
+    setBulkTopError('')
+  }
+
+  const handlePasteName = (e, rowIndex) => {
+    const text = e.clipboardData?.getData('text')
+    if (!text || !text.includes('\n')) return // normal inline paste for single line
+    e.preventDefault()
+
+    const parsed = parsePastedPlayerText(text)
+    if (parsed.length === 0) return
+
+    setBulkRows((prev) => {
+      const before = prev.slice(0, rowIndex)
+      const combined = [...before, ...parsed]
+      if (combined.length < 30) {
+        combined.push({ name: '', number: '' })
+      }
+      return combined.slice(0, 30)
+    })
+
+    toast.success(`تم استيراد ${parsed.length} لاعبين من النص المنسوخ بنجاح 📋`)
+  }
 
   const saveBulk = async () => {
     if (bulkSaving) return
-    const rows = bulkRows
+
+    const trimmedRows = bulkRows
       .map((row) => ({
         name: (row.name || '').trim(),
-        number: row.number !== '' && row.number != null ? Number(row.number) : undefined,
+        number: row.number !== '' && row.number != null ? Number(row.number) : null,
       }))
       .filter((row) => row.name !== '')
-    if (rows.length === 0) return
+
+    if (trimmedRows.length === 0) {
+      setBulkTopError('يرجى إدخال اسم لاعب واحد على الأقل')
+      return
+    }
+
+    // Client-side validations
+    const errors = {}
+    const seenNames = new Set()
+    const seenNumbers = new Set()
+    const existingNames = new Set(players.map((p) => (p.name || '').trim().toLowerCase()))
+    const existingNumbers = new Set(players.map((p) => p.number).filter((n) => n != null && n > 0))
+
+    trimmedRows.forEach((r, idx) => {
+      const normName = r.name.toLowerCase()
+      if (seenNames.has(normName)) {
+        errors[`players.${idx}.name`] = 'الاسم مكرر في الجدول'
+      } else if (existingNames.has(normName)) {
+        errors[`players.${idx}.name`] = 'اللاعب موجود بالفعل في تشكيلة الفريق'
+      } else {
+        seenNames.add(normName)
+      }
+
+      if (r.number !== null && r.number > 0) {
+        if (r.number > 99) {
+          errors[`players.${idx}.number`] = 'رقم القميص بين 0 و 99'
+        } else if (seenNumbers.has(r.number)) {
+          errors[`players.${idx}.number`] = 'الرقم مكرر في الجدول'
+        } else if (existingNumbers.has(r.number)) {
+          errors[`players.${idx}.number`] = 'الرقم مستخدم بالفعل'
+        } else {
+          seenNumbers.add(r.number)
+        }
+      }
+    })
+
+    if (Object.keys(errors).length > 0) {
+      setBulkErrors(errors)
+      setBulkTopError('يرجى تصحيح الأخطاء الموضحة في الجدول قبل الحفظ')
+      return
+    }
 
     setBulkSaving(true)
     setBulkErrors({})
     setBulkTopError('')
+
     try {
       const { data } = await api.post(`/committee/tournaments/${tournamentId}/teams/${team?.id}/squad/bulk`, {
-        players: rows,
+        players: trimmedRows.map((r) => ({
+          name: r.name,
+          number: r.number != null ? r.number : undefined,
+        })),
       })
-      const count = data?.created_count
-      const msg = count == null
-        ? t('committee.detail.playersAdded')
-        : count === 1
-          ? t('committee.detail.playerAdded')
-          : t('committee.detail.playersAdded', { count })
-      toast.success(msg)
-      setBulkRows([{ name: '', number: '' }])
-      setShowBulkAdd(false)
+      const count = data?.created_count ?? trimmedRows.length
+      toast.success(`تم حفظ واعتماد ${count} لاعبين بنجاح في تشكيلة البطولة! 🎉`)
+      clearBulkRows()
+      setActiveTab('roster')
       refetch()
+      if (onSquadUpdated) onSquadUpdated()
+      if (onRefresh) onRefresh()
     } catch (err) {
-      const errors = err.response?.data?.errors
-      if (errors && typeof errors === 'object' && Object.keys(errors).length > 0) {
-        setBulkErrors(errors)
-        const top = errors.players
-        setBulkTopError(Array.isArray(top) ? top[0] : typeof top === 'string' ? top : '')
-        if (!errors.players) toastApiError(err, t)
+      const errs = err.response?.data?.errors
+      if (errs && typeof errs === 'object') {
+        setBulkErrors(errs)
+        const top = errs.players
+        setBulkTopError(Array.isArray(top) ? top[0] : typeof top === 'string' ? top : 'تعذر حفظ قائمة اللاعبين')
       } else {
         toastApiError(err, t)
       }
@@ -156,7 +324,7 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
     }
   }
 
-  // Toggle squad inclusion
+  // --- Inline Single Player Actions ---
   const toggleSquadMembership = async (player) => {
     if (busyActionId) return
     setBusyActionId(`toggle-${player.id}`)
@@ -164,6 +332,8 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
       await api.put(`/committee/tournaments/${tournamentId}/teams/${team?.id}/squad/${player.id}`)
       toast.success(player.in_squad ? 'تم استبعاد اللاعب من قائمة البطولة' : 'تم اعتماد اللاعب في قائمة البطولة')
       refetch()
+      if (onSquadUpdated) onSquadUpdated()
+      if (onRefresh) onRefresh()
     } catch (err) {
       toastApiError(err, t)
     } finally {
@@ -171,10 +341,9 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
     }
   }
 
-  // Remove player
   const handleDeletePlayer = async (player) => {
     if (busyActionId) return
-    const confirmMsg = `هل أنت متأكد من حذف/استبعاد اللاعب "${player.name}" من قائمة الفريق والبطولة؟`
+    const confirmMsg = `هل أنت متأكد من حذف اللاعب "${player.name}" من قائمة الفريق والبطولة؟`
     if (!window.confirm(confirmMsg)) return
 
     setBusyActionId(`delete-${player.id}`)
@@ -182,6 +351,8 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
       await api.delete(`/committee/tournaments/${tournamentId}/teams/${team?.id}/squad/${player.id}`)
       toast.success('تمت إزالة اللاعب بنجاح')
       refetch()
+      if (onSquadUpdated) onSquadUpdated()
+      if (onRefresh) onRefresh()
     } catch (err) {
       toastApiError(err, t)
     } finally {
@@ -189,7 +360,6 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
     }
   }
 
-  // Open Add Modal
   const openAddModal = () => {
     setEditingPlayer(null)
     setPlayerForm({
@@ -206,7 +376,6 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
     setPlayerModalOpen(true)
   }
 
-  // Open Edit Modal
   const openEditModal = (player) => {
     setEditingPlayer(player)
     setPlayerForm({
@@ -218,12 +387,11 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
       remove_photo: false,
     })
     setPlayerPhotoFile(null)
-    setPlayerPhotoPreview(player.photo_url || player.photo_thumbnail_url || null)
+    setPlayerPhotoPreview(player.photo_thumbnail_url || player.photo_url || null)
     setPlayerFormErrors({})
     setPlayerModalOpen(true)
   }
 
-  // Handle Photo selection
   const handlePhotoChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -241,7 +409,6 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // Submit Player Form (Add or Edit)
   const submitPlayerForm = async (e) => {
     e?.preventDefault()
     if (playerFormSaving) return
@@ -270,30 +437,30 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
       }
 
       if (editingPlayer) {
-        // Edit existing player (POST route with multipart support)
         await api.post(
           `/committee/tournaments/${tournamentId}/teams/${team?.id}/squad/${editingPlayer.id}`,
           formData,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
+          { headers: { 'Content-Type': 'multipart/form-data' } },
         )
         toast.success('تم تحديث بيانات اللاعب بنجاح')
       } else {
-        // Add new player
         formData.append('force', '1')
         await api.post(
           `/committee/tournaments/${tournamentId}/teams/${team?.id}/squad`,
           formData,
-          { headers: { 'Content-Type': 'multipart/form-data' } }
+          { headers: { 'Content-Type': 'multipart/form-data' } },
         )
-        toast.success('تمت إضافة اللاعب بنجاح')
+        toast.success('تمت إضافة اللاعب واعتماده بنجاح')
       }
 
       setPlayerModalOpen(false)
       refetch()
+      if (onSquadUpdated) onSquadUpdated()
+      if (onRefresh) onRefresh()
     } catch (err) {
-      const errors = err.response?.data?.errors
-      if (errors && typeof errors === 'object' && Object.keys(errors).length > 0) {
-        setPlayerFormErrors(errors)
+      const errs = err.response?.data?.errors
+      if (errs && typeof errs === 'object' && Object.keys(errs).length > 0) {
+        setPlayerFormErrors(errs)
       } else {
         toastApiError(err, t)
       }
@@ -304,88 +471,467 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
 
   const filteredPlayers = players.filter((p) => {
     if (!search.trim()) return true
-    const q = search.trim().toLowerCase()
     return (
-      (p.name && p.name.toLowerCase().includes(q)) ||
-      (p.number != null && String(p.number).includes(q)) ||
-      (p.position && p.position.toLowerCase().includes(q))
+      matchesArabicSearch(search, p.name || '') ||
+      (p.number != null && String(p.number).includes(search.trim())) ||
+      (p.position && matchesArabicSearch(search, p.position))
     )
   })
 
   const getPositionLabel = (pos) => {
     const found = POSITIONS.find((p) => p.value === pos)
-    return found ? found.label : (pos || 'غير محدد')
+    return found ? found.label : pos || 'غير محدد'
   }
 
   return (
     <>
       <Modal
-        open={open}
+        open={isOpen}
         onClose={handleClose}
-        title={team?.name || t('committee.detail.squad')}
+        title={team?.name || 'تشكيلة الفريق'}
         subtitle="إدارة وتعديل قائمة لاعبي الفريق في البطولة بصلاحيات اللجنة المنظمة الكاملة"
         size="lg"
       >
-        <div className="space-y-4">
+        <div className="space-y-4" dir="rtl">
           {/* Header Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-3.5">
-            <div className="flex items-center gap-3">
-              <TeamAvatar team={team} onClick={team?.id != null ? () => { handleClose(); openTeam(team) } : undefined} className="size-12 shadow-sm" />
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-[#F7F8F5] dark:bg-[#252B27] p-3 sm:p-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <TeamAvatar
+                team={team}
+                onClick={team?.id != null ? () => { handleClose(); openTeam(team) } : undefined}
+                className="size-12 shrink-0 shadow-2xs"
+              />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h4 className="truncate text-base font-black text-slate-900">{team?.id != null ? <button type="button" onClick={() => { handleClose(); openTeam(team) }} className="max-w-full truncate text-start hover:text-emerald-600 transition-colors cursor-pointer">{team.name}</button> : (team?.name || '—')}</h4>
-                  {isFree && <Badge variant="info">{t('committee.detail.freeBadge')}</Badge>}
+                  <h4 className="truncate text-base font-black text-slate-900 dark:text-white">
+                    {team?.id != null ? (
+                      <button
+                        type="button"
+                        onClick={() => { handleClose(); openTeam(team) }}
+                        className="max-w-full truncate text-start hover:text-emerald-600 dark:hover:text-[#D0FF38] transition-colors cursor-pointer"
+                        title="عرض الملف الكامل للفريق"
+                      >
+                        {team.name}
+                      </button>
+                    ) : (
+                      team?.name || '—'
+                    )}
+                  </h4>
+                  {isFree && <Badge variant="info">فريق حر</Badge>}
                 </div>
-
-                <p className="text-xs font-semibold text-slate-500">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
                   {team?.city ? `${team.city} • ` : ''}
-                  إجمالي المسجلين: <span className="font-bold text-slate-700">{players.length}</span>
+                  إجمالي المسجلين: <span className="font-black text-slate-800 dark:text-slate-200 font-mono">{players.length}</span>
                 </p>
               </div>
-
             </div>
-
 
             <div className="flex flex-wrap items-center gap-2">
-              {team && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { handleClose(); openTeam(team) }}
-                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  title="عرض الحجوزات الأسبوعية وملف الفريق"
-                >
-                  <CalendarDays className="size-3.5 text-emerald-600" />
-                  <span>الحجوزات الأسبوعية</span>
-                </Button>
-              )}
               <Badge variant={squadCount > 0 ? (atMax ? 'danger' : 'success') : 'neutral'}>
-                {max != null
-                  ? `المعتمدون: ${squadCount} / ${max}`
-                  : `المعتمدون: ${squadCount}`}
+                {max != null ? `المعتمدون: ${squadCount} / ${max}` : `المعتمدون: ${squadCount}`}
               </Badge>
-              <Button size="sm" variant="soft" onClick={openAddModal} disabled={atMax}>
-                <Plus className="size-3.5" />
-                إضافة لاعب
-              </Button>
-              <Button
-                size="sm"
-                variant={showBulkAdd ? 'primary' : 'outline'}
-                onClick={() => setShowBulkAdd(!showBulkAdd)}
-              >
-                {showBulkAdd ? <X className="size-3.5" /> : <Users className="size-3.5" />}
-                {showBulkAdd ? 'إلغاء الإضافة السريعة' : 'إضافة سريعة'}
-              </Button>
             </div>
-
           </div>
 
+          {/* Navigation View Switcher (قائمة اللاعبين vs إضافة سريعة بالجدول) */}
+          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('roster')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
+                activeTab === 'roster'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-[#1B201D] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <Users className="size-4" />
+              <span>قائمة اللاعبين</span>
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                activeTab === 'roster' ? 'bg-white/20 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600'
+              }`}>
+                {players.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('bulk')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
+                activeTab === 'bulk'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-white dark:bg-[#1B201D] text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'
+              }`}
+            >
+              <Table className="size-4 text-emerald-500" />
+              <span>إضافة سريعة بالجدول</span>
+              <span className="rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-[10px] px-1.5 py-0.5 font-bold">
+                سريعة
+              </span>
+            </button>
+
+            <div className="ms-auto">
+              <Button size="sm" variant="soft" onClick={openAddModal} disabled={atMax}>
+                <Plus className="size-3.5" />
+                <span>إضافة لاعب فردي</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* TAB 1: BULK ENTRY TABLE (REQUIREMENT 2) */}
+          {activeTab === 'bulk' && (
+            <div className="space-y-3 rounded-2xl border border-emerald-500/25 bg-emerald-50/30 dark:bg-emerald-950/20 p-3.5 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/60 dark:border-emerald-800/60 pb-3">
+                <div>
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+                    <Table className="size-4 text-emerald-600 dark:text-[#D0FF38]" />
+                    <span>جدول الإدخال السريع للتشكيلة</span>
+                  </h4>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+                    أدخل أسماء اللاعبين وأرقام القمصان في صفوف الجدول، أو الصق قائمة كاملة من واتساب أو إكسيل.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={clearBulkRows}
+                    className="text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline cursor-pointer"
+                  >
+                    مسح الجدول
+                  </button>
+                  <Button size="sm" variant="outline" onClick={addRow} disabled={bulkRows.length >= 30}>
+                    <Plus className="size-3.5" />
+                    <span>إضافة صف</span>
+                  </Button>
+                </div>
+              </div>
+
+              {bulkTopError && (
+                <div className="rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-2.5 text-xs font-bold text-rose-700 dark:text-rose-300">
+                  {bulkTopError}
+                </div>
+              )}
+
+              {/* Table Container */}
+              <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1B201D] shadow-2xs">
+                <table className="w-full text-start border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#252B27] text-slate-700 dark:text-slate-300 font-black">
+                      <th className="py-2.5 px-3 w-10 text-center">#</th>
+                      <th className="py-2.5 px-3 text-start">اسم اللاعب الكامل (أو الصق قائمة أسماء هنا)</th>
+                      <th className="py-2.5 px-3 w-24 sm:w-28 text-center">رقم القميص #</th>
+                      <th className="py-2.5 px-3 w-12 text-center">إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {bulkRows.map((row, i) => {
+                      const nameError = bulkErrors[`players.${i}.name`]
+                      const numberError = bulkErrors[`players.${i}.number`]
+                      return (
+                        <tr
+                          key={i}
+                          className="hover:bg-slate-50/70 dark:hover:bg-[#252B27]/50 transition-colors"
+                        >
+                          {/* Row Index */}
+                          <td className="py-2 px-3 text-center font-mono font-bold text-slate-400">
+                            {i + 1}
+                          </td>
+
+                          {/* Player Name Column */}
+                          <td className="py-2 px-3">
+                            <input
+                              type="text"
+                              value={row.name}
+                              onPaste={(e) => handlePasteName(e, i)}
+                              onChange={(e) => updateRow(i, 'name', e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  if (i === bulkRows.length - 1) addRow()
+                                }
+                              }}
+                              placeholder="مثال: يوسف النصيري (أو الصق عدة أسطر)"
+                              className={`w-full h-10 rounded-lg border bg-white dark:bg-[#252B27] px-3 text-xs font-bold text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:ring-2 focus:ring-emerald-500/20 ${
+                                nameError
+                                  ? 'border-rose-400 bg-rose-50/30 dark:border-rose-800'
+                                  : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                              }`}
+                            />
+                            {nameError && (
+                              <span className="block mt-1 text-[10px] font-bold text-rose-600">
+                                {Array.isArray(nameError) ? nameError[0] : nameError}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Jersey Number Column */}
+                          <td className="py-2 px-3 text-center">
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              value={row.number}
+                              onChange={(e) => updateRow(i, 'number', e.target.value)}
+                              placeholder="#"
+                              className={`w-full h-10 rounded-lg border bg-white dark:bg-[#252B27] text-center font-mono text-xs font-black text-slate-900 dark:text-white placeholder-slate-400 outline-none transition focus:ring-2 focus:ring-emerald-500/20 ${
+                                numberError
+                                  ? 'border-rose-400 bg-rose-50/30 dark:border-rose-800'
+                                  : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500'
+                              }`}
+                            />
+                            {numberError && (
+                              <span className="block mt-1 text-[10px] font-bold text-rose-600">
+                                {Array.isArray(numberError) ? numberError[0] : numberError}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Row Delete Button */}
+                          <td className="py-2 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => removeRow(i)}
+                              disabled={bulkRows.length <= 1}
+                              className="grid size-8 place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 disabled:opacity-30 transition cursor-pointer mx-auto"
+                              title="حذف هذا الصف"
+                              aria-label="حذف الصف"
+                            >
+                              <X className="size-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Paste Help Tip Banner */}
+              <div className="flex items-start gap-2 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50 dark:bg-sky-950/30 p-2.5 text-xs text-sky-900 dark:text-sky-300">
+                <span className="text-sm">💡</span>
+                <span className="font-semibold leading-relaxed">
+                  <strong>نصيحة للإدخال فائق السرعة:</strong> انسخ قائمة اللاعبين من محادثة واتساب أو ملف إكسيل والصقها مباشرة في أي خانة اسم، وسيقوم النظام تلقائياً بإنشاء الأسطر وفصل أرقام القمصان لكل لاعب!
+                </span>
+              </div>
+
+              {/* Single Save All Players Button */}
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setActiveTab('roster')}>
+                  إلغاء والعودة للقائمة
+                </Button>
+                <Button
+                  size="md"
+                  onClick={saveBulk}
+                  loading={bulkSaving}
+                  disabled={bulkSaving || atMax}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-black shadow-sm gap-2"
+                >
+                  <Save className="size-4" />
+                  <span>حفظ واعتماد جميع اللاعبين</span>
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: ROSTER VIEW (REQUIREMENTS 3 & 4) */}
+          {activeTab === 'roster' && (
+            <div className="space-y-3">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="ابحث بالاسم أو رقم القميص أو المركز..."
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1B201D] py-2.5 pe-3 ps-10 text-xs font-bold text-slate-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition shadow-2xs"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Warnings & Max banners */}
+              {atMax && (
+                <p className="flex items-center gap-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 px-3.5 py-2.5 text-xs font-bold text-amber-800 dark:text-amber-300">
+                  <ShieldAlert className="size-4 shrink-0 text-amber-600" />
+                  تم بلوغ الحد الأقصى للاعبي البطولة ({max} لاعب). لا يمكن اعتماد لاعبين إضافيين دون إزاحة غيرهم.
+                </p>
+              )}
+
+              {/* Players Roster Grid */}
+              {loading ? (
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-20 rounded-2xl" />
+                  ))}
+                </div>
+              ) : filteredPlayers.length === 0 ? (
+                <Empty
+                  icon={Users}
+                  title={search ? 'لا توجد نتائج تطابق بحثك' : 'لا يوجد لاعبون مسجلون بعد'}
+                  description="اضغط على «إضافة سريعة بالجدول» لإدخال تشكيلة الفريق دفعة واحدة بسهولة وسرعة."
+                  action={
+                    <Button size="sm" onClick={() => setActiveTab('bulk')} className="bg-emerald-600 text-white font-bold gap-1.5">
+                      <Table className="size-3.5" />
+                      <span>إضافة تشكيلة سريعة بالجدول</span>
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="max-h-[50vh] overflow-y-auto pe-1">
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    {filteredPlayers.map((player) => {
+                      const isInSquad = Boolean(player.in_squad)
+                      const isSuspended = player.status === 'suspended'
+                      const isInjured = player.status === 'injured'
+                      const isUnavailable = player.status === 'unavailable'
+                      const photoSrc = player.photo_thumbnail_url || player.photo_url
+
+                      return (
+                        <div
+                          key={player.id}
+                          className={`relative flex items-center justify-between gap-3 rounded-2xl border p-3 transition-all ${
+                            isInSquad
+                              ? isSuspended
+                                ? 'border-rose-300 bg-rose-50/40 dark:border-rose-900/60 dark:bg-rose-950/20'
+                                : 'border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/25 dark:bg-emerald-950/15'
+                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1B201D] opacity-80 hover:opacity-100'
+                          }`}
+                        >
+                          {/* Player Photo/Avatar + Clickable Name and Details */}
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            {/* Avatar (Click opens edit dialog) */}
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(player)}
+                              className="relative shrink-0 cursor-pointer group"
+                              title="اضغط لتعديل صورة اللاعب أو بياناته"
+                            >
+                              {photoSrc ? (
+                                <img
+                                  src={photoSrc}
+                                  alt={player.name}
+                                  className="size-12 rounded-xl object-cover ring-2 ring-white dark:ring-slate-800 shadow-xs group-hover:ring-emerald-400 transition"
+                                />
+                              ) : (
+                                <div className="grid size-12 place-items-center rounded-xl bg-slate-100 dark:bg-slate-800 group-hover:ring-2 group-hover:ring-emerald-400 transition">
+                                  <Jersey number={player.number} variant={isInSquad ? 'home' : 'away'} className="size-9" />
+                                </div>
+                              )}
+                              {player.number != null && (
+                                <span className="absolute -bottom-1 -end-1 flex size-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white shadow font-mono">
+                                  {player.number}
+                                </span>
+                              )}
+                            </button>
+
+                            {/* Player Info */}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                {/* Clickable Player Name (Requirement 3) */}
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(player)}
+                                  className="max-w-full truncate text-start text-xs sm:text-sm font-black text-slate-900 dark:text-white hover:text-emerald-600 dark:hover:text-[#D0FF38] transition-colors cursor-pointer group/name inline-flex items-center gap-1"
+                                  title="اضغط لتعديل الاسم والرقم والصورة"
+                                >
+                                  <span className="truncate group-hover/name:underline">{player.name}</span>
+                                  <Pencil className="size-3 text-slate-400 opacity-0 group-hover/name:opacity-100 transition-opacity" />
+                                </button>
+                                {player.is_essential && (
+                                  <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-500" title="لاعب أساسي" />
+                                )}
+                              </div>
+
+                              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
+                                <span className="rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-slate-600 dark:text-slate-300">
+                                  {getPositionLabel(player.position)}
+                                </span>
+
+                                {isInSquad ? (
+                                  isSuspended ? (
+                                    <span className="rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 px-1.5 py-0.5">⛔ موقوف</span>
+                                  ) : isInjured ? (
+                                    <span className="rounded-md bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 px-1.5 py-0.5">🩹 مصاب</span>
+                                  ) : isUnavailable ? (
+                                    <span className="rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 px-1.5 py-0.5">⚪ غير متاح</span>
+                                  ) : (
+                                    <span className="rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5">🟢 معتمد</span>
+                                  )
+                                ) : (
+                                  <span className="rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5">غير مدرج</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {/* Edit Button */}
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(player)}
+                              className="grid size-8 place-items-center rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                              title="تعديل بيانات اللاعب والصورة"
+                              aria-label="تعديل"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+
+                            {/* Toggle squad inclusion */}
+                            <button
+                              type="button"
+                              onClick={() => toggleSquadMembership(player)}
+                              disabled={busyActionId === `toggle-${player.id}` || (!isInSquad && atMax)}
+                              className={`grid size-8 place-items-center rounded-xl transition cursor-pointer ${
+                                isInSquad
+                                  ? 'text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40'
+                                  : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                              } disabled:opacity-50`}
+                              title={isInSquad ? 'استبعاد من قائمة البطولة' : 'اعتماد في قائمة البطولة'}
+                              aria-label={isInSquad ? 'استبعاد' : 'اعتماد'}
+                            >
+                              {busyActionId === `toggle-${player.id}` ? (
+                                <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              ) : isInSquad ? (
+                                <UserMinus className="size-4" />
+                              ) : (
+                                <UserCheck className="size-4" />
+                              )}
+                            </button>
+
+                            {/* Delete Player */}
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePlayer(player)}
+                              disabled={busyActionId === `delete-${player.id}`}
+                              className="grid size-8 place-items-center rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer disabled:opacity-50"
+                              title="حذف اللاعب نهائياً"
+                              aria-label="حذف"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Weekly Subscriptions Card */}
           {payload?.weekly_subscriptions && payload.weekly_subscriptions.length > 0 && (
-            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-50/40 p-3 space-y-2">
+            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-50/40 dark:bg-emerald-950/20 p-3 space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs font-black text-emerald-900">
+                <div className="flex items-center gap-2 text-xs font-black text-emerald-900 dark:text-emerald-300">
                   <span className="grid size-6 place-items-center rounded-lg bg-emerald-600 text-white">
                     <CalendarDays className="size-3.5" />
                   </span>
@@ -394,16 +940,16 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 <button
                   type="button"
                   onClick={() => { handleClose(); openTeam(team) }}
-                  className="text-[11px] font-bold text-emerald-700 hover:underline"
+                  className="text-[11px] font-bold text-emerald-700 dark:text-[#D0FF38] hover:underline cursor-pointer"
                 >
                   عرض في الملف
                 </button>
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
                 {payload.weekly_subscriptions.map((ws) => (
-                  <div key={ws.id} className="flex items-center justify-between rounded-xl bg-white p-2.5 text-xs shadow-2xs border border-emerald-100">
-                    <div className="font-bold text-slate-800">
-                      <span className="text-emerald-700 font-black">{ws.day_name}</span> • {ws.start_time} - {ws.end_time}
+                  <div key={ws.id} className="flex items-center justify-between rounded-xl bg-white dark:bg-[#1B201D] p-2.5 text-xs shadow-2xs border border-emerald-100 dark:border-emerald-900/60">
+                    <div className="font-bold text-slate-800 dark:text-slate-200">
+                      <span className="text-emerald-700 dark:text-[#D0FF38] font-black">{ws.day_name}</span> • {ws.start_time} - {ws.end_time}
                     </div>
                     <div className="text-[11px] text-slate-500 font-semibold">{ws.terrain?.name || 'الملعب'}</div>
                   </div>
@@ -411,488 +957,37 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
               </div>
             </div>
           )}
-
-          {/* Warnings & Max banners */}
-          {atMax && (
-            <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs font-bold text-amber-800">
-              <ShieldAlert className="size-4 shrink-0 text-amber-600" />
-              تم بلوغ الحد الأقصى للاعبي البطولة ({max} لاعب). لا يمكن اعتماد لاعبين إضافيين دون إزاحة غيرهم.
-            </p>
-          )}
-
-          {warning && !atMax && (
-            <p className="flex items-center gap-2 rounded-xl bg-sky-50 px-3.5 py-2.5 text-xs font-bold text-sky-800">
-              <ShieldAlert className="size-4 shrink-0 text-sky-600" />
-              {warning}
-            </p>
-          )}
-
-          {/* Collapsible Bulk Add Section */}
-          {showBulkAdd && (
-            <div className="rounded-2xl border border-green-200 bg-green-50/70 p-4 transition-all">
-              <div className="mb-2 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-black text-green-900">{t('committee.detail.bulkAddPlayers')}</p>
-                  <p className="text-[11px] font-medium text-green-700">
-                    أدخل أسماء وأرقام اللاعبين لإضافتهم واعتمادهم فوراً في قائمة البطولة
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowBulkAdd(false)}
-                  className="rounded-lg p-1 text-green-700 hover:bg-green-100"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-
-
-              <div className="max-h-56 space-y-2 overflow-y-auto pe-1">
-                {bulkRows.map((row, i) => {
-                  const nameError = rowError(i, 'name')
-                  const numberError = rowError(i, 'number')
-                  return (
-                    <div key={i} className="rounded-xl border border-green-100 bg-white p-2">
-                      <div className="flex items-center gap-2">
-                        <span className="grid size-6 shrink-0 place-items-center rounded-lg bg-green-100 text-[10px] font-black text-green-700">
-                          {i + 1}
-                        </span>
-                        <input
-                          autoFocus={i === 0}
-                          className={`${inputClass} border-green-200 focus:border-green-500 ${nameError ? 'border-red-300 bg-red-50/40' : ''}`}
-                          placeholder="اسم اللاعب الكامل"
-                          value={row.name}
-                          onChange={(e) => updateRow(i, 'name', e.target.value)}
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          max="99"
-                          className={`${inputClass} w-20 border-green-200 focus:border-green-500 ${numberError ? 'border-red-300 bg-red-50/40' : ''}`}
-                          placeholder="الرقم #"
-                          value={row.number}
-                          onChange={(e) => updateRow(i, 'number', e.target.value)}
-                        />
-                        {bulkRows.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeRow(i)}
-                            className="grid size-7 shrink-0 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                            aria-label={t('committee.detail.removeRow')}
-                          >
-                            <X className="size-4" />
-                          </button>
-                        )}
-                      </div>
-
-                      {(nameError || numberError) && (
-                        <p className="mt-1.5 px-1 text-[10px] font-bold text-red-600">{nameError || numberError}</p>
-                      )}
-                    </div>
-
-                  )
-                })}
-              </div>
-
-
-              {bulkTopError && (
-                <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-[11px] font-bold text-red-600">{bulkTopError}</p>
-              )}
-
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={addRow}
-                  disabled={bulkRows.length >= 30 || bulkSaving}
-                  className="!text-green-800"
-                >
-                  <Plus className="size-3.5" />
-                  {t('committee.detail.addRow')}
-                </Button>
-                <Button size="sm" onClick={saveBulk} loading={bulkSaving} disabled={atMax || bulkRows.length === 0}>
-                  <Save className="size-3.5" />
-                  حفظ واعتماد اللاعبين
-                </Button>
-              </div>
-
-            </div>
-
-          )}
-
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="pointer-events-none absolute start-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ابحث بالاسم أو رقم القميص أو المركز..."
-              className="w-full rounded-xl border border-slate-200 bg-white py-2 pe-3 ps-10 text-xs font-medium text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-green-500 focus:ring-4 focus:ring-green-500/10"
-            />
-          </div>
-
-
-          {/* Players Roster Grid */}
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-2xl" />
-              ))}
-            </div>
-
-          ) : filteredPlayers.length === 0 ? (
-            <Empty
-              icon={Users}
-              title={search ? 'لا توجد نتائج تطابق بحثك' : t('committee.detail.noSquadPlayers')}
-              description="يمكن للجنة المنظمة إضافة وتعديل لاعبي الفريق في أي وقت لضمان سير البطولة بسلاسة."
-              action={
-                <Button size="sm" variant="soft" onClick={openAddModal} disabled={atMax}>
-                  <Plus className="size-3.5" />
-                  إضافة أول لاعب
-                </Button>
-              }
-            />
-          ) : (
-            <div className="max-h-[52vh] overflow-y-auto pe-1">
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredPlayers.map((player) => {
-                  const isInSquad = Boolean(player.in_squad)
-                  const isSuspended = player.status === 'suspended'
-                  const isInjured = player.status === 'injured'
-                  const isUnavailable = player.status === 'unavailable'
-                  const photoSrc = player.photo_thumbnail_url || player.photo_url
-
-                  return (
-                    <div
-                      key={player.id}
-                      className={`relative flex items-center gap-3.5 rounded-2xl border p-3 transition-all ${
-                        isInSquad
-                          ? isSuspended
-                            ? 'border-rose-300 bg-rose-50/40'
-                            : 'border-emerald-200 bg-emerald-50/30 ring-1 ring-emerald-500/10'
-                          : 'border-slate-200/80 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      {/* Player Photo or Jersey */}
-                      <div className="relative shrink-0">
-                        {photoSrc ? (
-                          <img
-                            src={photoSrc}
-                            alt={player.name}
-                            className="size-14 rounded-2xl object-cover ring-2 ring-white shadow-sm"
-                          />
-                        ) : (
-                          <div className="grid size-14 place-items-center rounded-2xl bg-slate-100">
-                            <Jersey number={player.number} variant={isInSquad ? 'home' : 'away'} className="size-11" />
-                          </div>
-
-                        )}
-
-                        {player.number != null && (
-                          <span className="absolute -bottom-1 -end-1 flex size-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-black text-white shadow">
-                            {player.number}
-                          </span>
-                        )}
-                      </div>
-
-
-                      {/* Info */}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <h5 className="truncate text-sm font-black text-slate-900">{player.name}</h5>
-                          {player.is_essential && (
-                            <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-500" title="لاعب أساسي" />
-                          )}
-                        </div>
-
-
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-                          <Badge variant="neutral" className="!px-1.5 !py-0 text-[10px]">
-                            {getPositionLabel(player.position)}
-                          </Badge>
-
-                          {isInSquad ? (
-                            isSuspended ? (
-                              <Badge variant="danger" className="!px-1.5 !py-0 text-[10px]">⛔ موقوف</Badge>
-                            ) : isInjured ? (
-                              <Badge variant="warning" className="!px-1.5 !py-0 text-[10px]">🩹 مصاب</Badge>
-                            ) : isUnavailable ? (
-                              <Badge variant="neutral" className="!px-1.5 !py-0 text-[10px]">⚪ غير متاح</Badge>
-                            ) : (
-                              <Badge variant="success" className="!px-1.5 !py-0 text-[10px]">🟢 معتمد للبطولة</Badge>
-                            )
-                          ) : (
-                            <Badge variant="neutral" className="!px-1.5 !py-0 text-[10px]">غير مدرج</Badge>
-                          )}
-
-                          {player.added_via_link && !player.link_reviewed && (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[9px] font-black text-amber-800 shadow-2xs"
-                              title={`أُضيف عبر الرابط من قِبل: ${player.added_by_recorder_name || 'مندوب المباراة'} (${player.added_by_recorder_phone || '—'})`}
-                            >
-                              <span>⚠️ أُضيف عبر الرابط – للمراجعة</span>
-                            </span>
-                          )}
-                        </div>
-
-                      </div>
-
-
-                      {/* Actions */}
-                      <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <div className="flex items-center gap-1">
-                          {player.added_via_link && !player.link_reviewed && (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                setBusyActionId(`review-${player.id}`)
-                                try {
-                                  await api.post(`/committee/tournaments/${tournamentId}/teams/${team?.id}/squad/${player.id}/review`)
-                                  toast.success('تم تأكيد مراجعة اللاعب')
-                                  refetch()
-                                } catch (err) {
-                                  toastApiError(err, t)
-                                } finally {
-                                  setBusyActionId(null)
-                                }
-                              }}
-                              disabled={busyActionId === `review-${player.id}`}
-                              className="grid size-7 place-items-center rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-                              title="اعتماد ومراجعة اللاعب (إزالة علامة المراجعة)"
-                              aria-label="اعتماد ومراجعة"
-                            >
-                              <CheckCircle2 className="size-3.5" />
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(player)}
-                            className="grid size-7 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                            title="تعديل بيانات اللاعب والصورة"
-                            aria-label="تعديل"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDeletePlayer(player)}
-                            disabled={busyActionId === `delete-${player.id}`}
-                            className="grid size-7 place-items-center rounded-lg text-rose-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
-                            title="حذف/إزالة اللاعب"
-                            aria-label="حذف"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-
-
-                        {/* Toggle squad inclusion button */}
-                        <button
-                          type="button"
-                          onClick={() => toggleSquadMembership(player)}
-                          disabled={busyActionId === `toggle-${player.id}` || (!isInSquad && atMax)}
-                          className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-bold transition-all ${
-                            isInSquad
-                              ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
-                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          } disabled:opacity-50`}
-                          title={isInSquad ? 'استبعاد من قائمة البطولة' : 'اعتماد في قائمة البطولة'}
-                        >
-                          {busyActionId === `toggle-${player.id}` ? (
-                            <span className="size-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          ) : isInSquad ? (
-                            <>
-                              <UserMinus className="size-3" />
-                              <span>استبعاد</span>
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck className="size-3" />
-                              <span>اعتماد</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                    </div>
-
-                  )
-                })}
-              </div>
-
-            </div>
-
-          )}
-
-          {/* Team Discipline & Status Actions */}
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-black text-slate-900">إجراءات انضباط ومشاركة الفريق في البطولة</p>
-                <p className="text-[11px] font-medium text-slate-500">
-                  صلاحيات اللجنة المنظمة لتسجيل انسحاب أو طرد الفريق أو مراجعة المباريات المتبقية
-                </p>
-              </div>
-
-
-              {tournamentTeam?.status === 'withdrawn' ? (
-                <div className="flex flex-wrap items-center gap-2">
-              {team && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { handleClose(); openTeam(team) }}
-                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  title="عرض الحجوزات الأسبوعية وملف الفريق"
-                >
-                  <CalendarDays className="size-3.5 text-emerald-600" />
-                  <span>الحجوزات الأسبوعية</span>
-                </Button>
-              )}
-                  <Badge variant="warning">حالة الفريق: منسحب</Badge>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => setReviewMatchesOpen(true)}
-                  >
-                    مراجعة المباريات والنتائج الاعتبارية
-                  </Button>
-                </div>
-
-              ) : tournamentTeam?.status === 'disqualified' ? (
-                <div className="flex flex-wrap items-center gap-2">
-              {team && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { handleClose(); openTeam(team) }}
-                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  title="عرض الحجوزات الأسبوعية وملف الفريق"
-                >
-                  <CalendarDays className="size-3.5 text-emerald-600" />
-                  <span>الحجوزات الأسبوعية</span>
-                </Button>
-              )}
-                  <Badge variant="danger">حالة الفريق: مُقصى</Badge>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={() => setReviewMatchesOpen(true)}
-                  >
-                    مراجعة المباريات والنتائج الاعتبارية
-                  </Button>
-                </div>
-
-              ) : (
-                <div className="flex flex-wrap items-center gap-2">
-              {team && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { handleClose(); openTeam(team) }}
-                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  title="عرض الحجوزات الأسبوعية وملف الفريق"
-                >
-                  <CalendarDays className="size-3.5 text-emerald-600" />
-                  <span>الحجوزات الأسبوعية</span>
-                </Button>
-              )}
-                  <button
-                    type="button"
-                    onClick={() => setDisciplineAction('withdraw')}
-                    className="inline-flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-black text-amber-800 transition-colors hover:bg-amber-100 shadow-xs cursor-pointer"
-                  >
-                    <DoorOpen className="size-4 text-amber-600" />
-                    <span>انسحاب — Withdraw Team</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDisciplineAction('disqualify')}
-                    className="inline-flex items-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-3.5 py-2 text-xs font-black text-rose-800 transition-colors hover:bg-rose-100 shadow-xs cursor-pointer"
-                  >
-                    <Ban className="size-4 text-rose-600" />
-                    <span>طرد — Disqualify Team</span>
-                  </button>
-                </div>
-
-              )}
-            </div>
-
-          </div>
-
         </div>
       </Modal>
 
-      {/* Consequences Preview Modal */}
-      <TeamDisciplinePreviewModal
-        open={Boolean(disciplineAction)}
-        onClose={() => setDisciplineAction(null)}
-        tournamentId={tournamentId}
-        team={team}
-        actionType={disciplineAction || 'withdraw'}
-        onSuccess={() => {
-          if (onRefresh) onRefresh()
-          onClose()
-        }}
-      />
-
-      {/* Discipline Matches Review Modal */}
-      <DisciplineMatchesReviewModal
-        open={reviewMatchesOpen}
-        onClose={() => setReviewMatchesOpen(false)}
-        tournamentId={tournamentId}
-        team={team}
-        onSuccess={() => {
-          if (onRefresh) onRefresh()
-        }}
-      />
-
-      {/* Add / Edit Player Modal */}
+      {/* MODAL: EDIT / ADD SINGLE PLAYER DETAILS & PHOTO (REQUIREMENT 3) */}
       <Modal
         open={playerModalOpen}
         onClose={() => setPlayerModalOpen(false)}
-        title={editingPlayer ? `تعديل اللاعب: ${editingPlayer.name}` : `إضافة لاعب إلى فريق ${team?.name || ''}`}
-        subtitle="صلاحية اللجنة المنظمة لتصحيح وتحديث بيانات اللاعبين وصورهم مباشرة"
+        title={editingPlayer ? `تعديل بيانات اللاعب: ${editingPlayer.name}` : `إضافة لاعب إلى ${team?.name || ''}`}
+        subtitle="تعديل اسم اللاعب ورقم القميص وصورته الشخصية والمركز"
         size="md"
       >
-        <form onSubmit={submitPlayerForm} className="space-y-4">
-          {/* Photo upload section */}
-          <div className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-3.5">
+        <form onSubmit={submitPlayerForm} className="space-y-4" dir="rtl">
+          {/* Photo upload section (Requirement 3.2) */}
+          <div className="flex items-center gap-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-[#F7F8F5] dark:bg-[#252B27] p-3.5">
             <div className="relative shrink-0">
               {playerPhotoPreview ? (
                 <img
                   src={playerPhotoPreview}
                   alt="Player preview"
-                  className="size-16 rounded-2xl object-cover ring-2 ring-emerald-500/20"
+                  className="size-16 rounded-2xl object-cover ring-2 ring-emerald-500/30 shadow-xs"
                 />
               ) : (
-                <div className="grid size-16 place-items-center rounded-2xl bg-white text-slate-400 ring-1 ring-slate-200">
+                <div className="grid size-16 place-items-center rounded-2xl bg-white dark:bg-[#1B201D] text-slate-400 ring-1 ring-slate-200 dark:ring-slate-700">
                   <Camera className="size-7" />
                 </div>
-
               )}
             </div>
 
-
             <div className="min-w-0 flex-1 space-y-1.5">
-              <p className="text-xs font-bold text-slate-800">صورة اللاعب (اختياري)</p>
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-200">صورة اللاعب (اختياري)</p>
               <div className="flex flex-wrap items-center gap-2">
-              {team && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => { handleClose(); openTeam(team) }}
-                  className="gap-1.5 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                  title="عرض الحجوزات الأسبوعية وملف الفريق"
-                >
-                  <CalendarDays className="size-3.5 text-emerald-600" />
-                  <span>الحجوزات الأسبوعية</span>
-                </Button>
-              )}
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -903,35 +998,33 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 />
                 <label
                   htmlFor="squad-player-photo-input"
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-white dark:bg-[#1B201D] px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 ring-1 ring-slate-200 dark:ring-slate-700 hover:bg-slate-50 transition"
                 >
-                  <Camera className="size-3.5 text-emerald-600" />
-                  {playerPhotoPreview ? 'تغيير الصورة' : 'رفع صورة'}
+                  <Camera className="size-3.5 text-emerald-600 dark:text-[#D0FF38]" />
+                  <span>{playerPhotoPreview ? 'تغيير الصورة' : 'رفع صورة'}</span>
                 </label>
 
                 {playerPhotoPreview && (
                   <button
                     type="button"
                     onClick={handleRemovePhoto}
-                    className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                    className="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
                   >
                     <X className="size-3.5" />
-                    إزالة
+                    <span>إزالة الصورة</span>
                   </button>
                 )}
               </div>
-
             </div>
-
           </div>
 
           {playerFormErrors.photo && (
             <p className="text-xs font-bold text-rose-600">{playerFormErrors.photo[0]}</p>
           )}
 
-          {/* Name Field */}
+          {/* Name Field (Requirement 3.1) */}
           <div>
-            <label className="mb-1 block text-xs font-bold text-slate-700">
+            <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300">
               اسم اللاعب <span className="text-rose-500">*</span>
             </label>
             <input
@@ -940,18 +1033,17 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
               value={playerForm.name}
               onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })}
               placeholder="مثال: محمد العلوي"
-              className={`${inputClass} ${playerFormErrors.name ? 'border-rose-300 bg-rose-50/40' : ''}`}
+              className={`${inputClass} ${playerFormErrors.name ? 'border-rose-400 bg-rose-50/30' : ''}`}
             />
             {playerFormErrors.name && (
               <p className="mt-1 text-xs font-bold text-rose-600">{playerFormErrors.name[0]}</p>
             )}
           </div>
 
-
-          {/* Number & Position row */}
+          {/* Number & Position (Requirement 3.3) */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-bold text-slate-700">رقم القميص</label>
+              <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300">رقم القميص</label>
               <input
                 type="number"
                 min="0"
@@ -959,16 +1051,15 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 value={playerForm.number}
                 onChange={(e) => setPlayerForm({ ...playerForm, number: e.target.value })}
                 placeholder="مثال: 10"
-                className={`${inputClass} ${playerFormErrors.number ? 'border-rose-300 bg-rose-50/40' : ''}`}
+                className={`${inputClass} ${playerFormErrors.number ? 'border-rose-400 bg-rose-50/30' : ''}`}
               />
               {playerFormErrors.number && (
                 <p className="mt-1 text-xs font-bold text-rose-600">{playerFormErrors.number[0]}</p>
               )}
             </div>
 
-
             <div>
-              <label className="mb-1 block text-xs font-bold text-slate-700">المركز</label>
+              <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300">المركز</label>
               <select
                 value={playerForm.position}
                 onChange={(e) => setPlayerForm({ ...playerForm, position: e.target.value })}
@@ -982,13 +1073,11 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 ))}
               </select>
             </div>
-
           </div>
-
 
           {/* Status Field */}
           <div>
-            <label className="mb-1 block text-xs font-bold text-slate-700">حالة اللاعب في البطولة</label>
+            <label className="mb-1 block text-xs font-bold text-slate-700 dark:text-slate-300">حالة اللاعب في البطولة</label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {[
                 { value: 'active', label: '🟢 متاح', hint: 'جاهز للمشاركة' },
@@ -1000,10 +1089,10 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                   key={st.value}
                   type="button"
                   onClick={() => setPlayerForm({ ...playerForm, status: st.value })}
-                  className={`flex flex-col items-center justify-center rounded-xl border p-2 text-center transition-all ${
+                  className={`flex flex-col items-center justify-center rounded-xl border p-2 text-center transition-all cursor-pointer ${
                     playerForm.status === st.value
-                      ? 'border-emerald-500 bg-emerald-50 text-emerald-800 ring-2 ring-emerald-500/20'
-                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                      ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                      : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#1B201D] text-slate-600 dark:text-slate-400 hover:border-slate-300'
                   }`}
                 >
                   <span className="text-xs font-black">{st.label}</span>
@@ -1011,23 +1100,40 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
                 </button>
               ))}
             </div>
-
           </div>
 
+          {/* Essential Toggle & Open Player Profile (Requirement 3.4) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-[#F7F8F5] dark:bg-[#252B27] p-2.5">
+              <input
+                type="checkbox"
+                checked={playerForm.is_essential}
+                onChange={(e) => setPlayerForm({ ...playerForm, is_essential: e.target.checked })}
+                className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">لاعب أساسي/نجم في التشكيلة</span>
+            </label>
 
-          {/* Essential Toggle */}
-          <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-100 bg-slate-50/50 p-2.5">
-            <input
-              type="checkbox"
-              checked={playerForm.is_essential}
-              onChange={(e) => setPlayerForm({ ...playerForm, is_essential: e.target.checked })}
-              className="size-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-            />
-            <span className="text-xs font-bold text-slate-800">لاعب أساسي/نجم في التشكيلة</span>
-          </label>
+            {editingPlayer?.id && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPlayerModalOpen(false)
+                  handleClose()
+                  openPlayer(editingPlayer.id)
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-[#D0FF38] hover:underline cursor-pointer p-1"
+                title="عرض الملف الشخصي الكامل للاعب"
+              >
+                <UserRound className="size-3.5" />
+                <span>عرض الملف الشخصي للاعب</span>
+                <ExternalLink className="size-3" />
+              </button>
+            )}
+          </div>
 
-          {/* Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-2">
+          {/* Form Action Buttons */}
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
             <Button
               type="button"
               variant="outline"
@@ -1037,12 +1143,11 @@ export default function TeamSquadModal({ team, tournamentId, open, onClose, tour
             >
               إلغاء
             </Button>
-            <Button type="submit" size="sm" loading={playerFormSaving}>
+            <Button type="submit" size="sm" loading={playerFormSaving} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
               <CheckCircle2 className="size-4" />
-              {editingPlayer ? 'حفظ التعديلات' : 'إضافة واعتماد'}
+              <span>{editingPlayer ? 'حفظ التعديلات' : 'إضافة واعتماد'}</span>
             </Button>
           </div>
-
         </form>
       </Modal>
     </>

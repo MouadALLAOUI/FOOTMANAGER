@@ -100,11 +100,10 @@ export default function LiveMatchActivity({ load, deps = [], pollMs = 15000, ena
                     </div>
                   )}
                   <div className="flex flex-col items-center px-2">
-                    <span
-                      dir="ltr"
-                      className="inline-flex items-center rounded-xl bg-[#111313] dark:bg-[#D0FF38] px-2.5 py-1 text-sm font-black text-white dark:text-[#111313] tabular-nums"
-                    >
-                      {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
+                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#111313] dark:bg-[#D0FF38] px-2.5 py-1 text-sm font-black text-white dark:text-[#111313] font-mono tabular-nums">
+                      <span>{f.match?.home_score ?? 0}</span>
+                      <span className="font-sans opacity-70">-</span>
+                      <span>{f.match?.away_score ?? 0}</span>
                     </span>
                     <Badge variant="danger">
                       {f.match?.current_minute != null
@@ -173,8 +172,10 @@ export default function LiveMatchActivity({ load, deps = [], pollMs = 15000, ena
                   ) : (
                     <span>{f.home_team?.name}</span>
                   )}
-                  <span className="font-black text-[#179955] dark:text-[#D0FF38] tabular-nums">
-                    {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
+                  <span className="inline-flex items-center gap-1 font-black font-mono text-[#179955] dark:text-[#D0FF38] tabular-nums">
+                    <span>{f.match?.home_score ?? 0}</span>
+                    <span className="font-sans opacity-70">-</span>
+                    <span>{f.match?.away_score ?? 0}</span>
                   </span>
                   {f.away_team?.id != null ? (
                     <Link

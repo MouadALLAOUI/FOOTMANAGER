@@ -353,7 +353,10 @@ class TournamentTeamController extends Controller
 
         $registration = TournamentTeam::query()
             ->where('tournament_id', $tournament->id)
-            ->where('team_id', $teamId)
+            ->where(function ($q) use ($teamId) {
+                $q->where('team_id', $teamId)
+                    ->orWhere('id', $teamId);
+            })
             ->first();
 
         if (! $registration || $registration->payment_status !== TournamentTeam::PAYMENT_PENDING) {
@@ -373,7 +376,10 @@ class TournamentTeamController extends Controller
 
         $registration = TournamentTeam::query()
             ->where('tournament_id', $tournament->id)
-            ->where('team_id', $teamId)
+            ->where(function ($q) use ($teamId) {
+                $q->where('team_id', $teamId)
+                    ->orWhere('id', $teamId);
+            })
             ->first();
 
         if (! $registration || $registration->payment_status !== TournamentTeam::PAYMENT_COMPLETED) {

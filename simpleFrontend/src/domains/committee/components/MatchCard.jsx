@@ -182,8 +182,10 @@ export default function MatchCard({
           <TeamSide team={f.home_team} name={homeName} align="start" />
           <div className="flex min-w-[92px] flex-col items-center">
             {showScore ? (
-              <span className="text-xl font-black tracking-tight text-[#111313] dark:text-[#F5F7F2]">
-                {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
+              <span className="inline-flex items-center gap-1.5 text-xl font-black font-mono tabular-nums tracking-tight text-[#111313] dark:text-[#F5F7F2]">
+                <span>{f.match?.home_score ?? 0}</span>
+                <span className="text-[#65706A] font-sans">-</span>
+                <span>{f.match?.away_score ?? 0}</span>
               </span>
             ) : (
               <span className="text-sm font-black text-[#65706A] dark:text-[#B2B9B3]">VS</span>
@@ -305,8 +307,10 @@ function PrevResultRow({ f, tournament }) {
         {f.home_team?.id != null ? <button type="button" onClick={() => openTeam(f.home_team)} className="min-w-0 truncate text-start text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2] hover:text-[#1F9D55] dark:hover:text-[#D0FF38] transition-colors cursor-pointer">{homeName}</button> : <span className="min-w-0 truncate text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">{homeName}</span>}
       </span>
       {isFinished && points ? (
-        <span className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#1F9D55]/15 px-2.5 py-0.5 text-[11px] font-black text-[#1F9D55] dark:text-[#30D158]">
-          {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
+        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#1F9D55]/15 px-2.5 py-0.5 text-[11px] font-black font-mono tabular-nums text-[#1F9D55] dark:text-[#30D158]">
+          <span>{f.match?.home_score ?? 0}</span>
+          <span className="font-sans opacity-70">-</span>
+          <span>{f.match?.away_score ?? 0}</span>
         </span>
       ) : (
         <span className="shrink-0 rounded-full bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[10px] font-black text-[#65706A] dark:text-[#B2B9B3]">

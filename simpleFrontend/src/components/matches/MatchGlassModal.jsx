@@ -681,15 +681,27 @@ function MatchCardBody({
 
         {/* Center Score & Details */}
         <div className="flex flex-col items-center text-center px-1">
-          <span className={`${forExport ? 'text-5xl' : 'text-3xl sm:text-5xl md:text-6xl'} font-black tracking-wider text-amber-100 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] font-mono`}>
-            {showScore ? `${homeScore ?? 0} - ${awayScore ?? 0}` : 'VS'}
+          <span className={`${forExport ? 'text-5xl' : 'text-3xl sm:text-5xl md:text-6xl'} font-black tracking-wider text-amber-100 drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)] font-mono tabular-nums`}>
+            {showScore ? (
+              <span className="inline-flex items-center gap-2 sm:gap-3">
+                <span>{homeScore ?? 0}</span>
+                <span className="opacity-70 font-sans">-</span>
+                <span>{awayScore ?? 0}</span>
+              </span>
+            ) : (
+              'VS'
+            )}
           </span>
           {/* Clarified Secondary Scores: Penalties or Half-Time */}
           {hasPenalties && (
             <div className="mt-1.5 flex items-center justify-center">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400/20 border border-amber-400/40 px-2.5 py-0.5 text-[10px] sm:text-xs font-black text-amber-300 drop-shadow">
                 <span>{isRtl ? 'ركلات الترجيح:' : 'Penalties:'}</span>
-                <span className="font-mono tabular-nums">{match.home_penalties} - {match.away_penalties}</span>
+                <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                  <span>{match.home_penalties}</span>
+                  <span className="font-sans">-</span>
+                  <span>{match.away_penalties}</span>
+                </span>
               </span>
             </div>
           )}
@@ -697,7 +709,11 @@ function MatchCardBody({
             <div className="mt-1 flex items-center justify-center">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 border border-emerald-400/30 px-2.5 py-0.5 text-[10px] sm:text-xs font-bold text-emerald-200 drop-shadow">
                 <span>{isRtl ? 'الشوط الأول:' : 'HT:'}</span>
-                <span className="font-mono tabular-nums">{match?.half_time_score || `${match.half_time_home_score} - ${match.half_time_away_score}`}</span>
+                <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                  <span>{match?.half_time_home_score ?? 0}</span>
+                  <span className="font-sans">-</span>
+                  <span>{match?.half_time_away_score ?? 0}</span>
+                </span>
               </span>
             </div>
           )}

@@ -137,8 +137,10 @@ function LiveCard({ f, t }) {
         <div className="pointer-events-none absolute inset-y-0 start-1/2 -translate-x-1/2 flex flex-col items-center justify-center">
           <div className="h-full w-px bg-white/10" />
           <div className="absolute z-10 flex flex-col items-center gap-0.5 rounded-xl bg-[#142320] px-2.5 py-1 shadow-xl ring-1 ring-white/15">
-            <span className="text-base font-black tabular-nums tracking-tight text-rose-400">
-              {m.home_score ?? 0} - {m.away_score ?? 0}
+            <span className="inline-flex items-center gap-1 text-base font-black font-mono tabular-nums tracking-tight text-rose-400">
+              <span>{m.home_score ?? 0}</span>
+              <span className="opacity-70 font-sans">-</span>
+              <span>{m.away_score ?? 0}</span>
             </span>
             <span className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">
               {t('landing.liveNext.liveScore')}

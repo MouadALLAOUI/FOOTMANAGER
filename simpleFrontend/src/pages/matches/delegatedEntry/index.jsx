@@ -1262,8 +1262,14 @@ export default function DelegatedMatchEntryPage() {
         <h2 className="text-2xl font-black mb-2 text-slate-900">تم إرسال النتيجة بنجاح!</h2>
         <div className="rounded-3xl bg-white border border-slate-200 p-5 my-4 max-w-sm w-full shadow-lg">
           <div className="text-xs font-bold text-slate-400 mb-2">النتيجة المسجلة:</div>
-          <div className="text-3xl font-black text-slate-900">
-            {fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{fixture.home_team?.name}</Link> : fixture.home_team?.name} <span className="text-emerald-600 mx-2">{displayScore.home} - {displayScore.away}</span> {fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{fixture.away_team?.name}</Link> : fixture.away_team?.name}
+          <div className="flex items-center justify-center gap-2 text-2xl sm:text-3xl font-black text-slate-900 flex-wrap">
+            <span>{fixture.home_team?.id != null ? <Link to={`/teams/${fixture.home_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{fixture.home_team?.name}</Link> : fixture.home_team?.name}</span>
+            <span className="inline-flex items-center gap-1.5 text-emerald-600 mx-2 font-mono tabular-nums">
+              <span>{displayScore.home}</span>
+              <span className="text-slate-400 font-sans">-</span>
+              <span>{displayScore.away}</span>
+            </span>
+            <span>{fixture.away_team?.id != null ? <Link to={`/teams/${fixture.away_team.id}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-700 hover:underline">{fixture.away_team?.name}</Link> : fixture.away_team?.name}</span>
           </div>
           <div className="mt-4 text-xs text-amber-800 font-bold bg-amber-50 border border-amber-200 rounded-xl p-2.5">
             الحالة: بانتظار اعتماد اللجنة المنظمة

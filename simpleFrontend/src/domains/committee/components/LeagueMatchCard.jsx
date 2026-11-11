@@ -216,8 +216,10 @@ export default function LeagueMatchCard({
           {/* Score or VS */}
           <div className="shrink-0 px-2 text-center">
             {isPlayed || isLive ? (
-              <span className="inline-flex items-center rounded-lg bg-[#111313] dark:bg-[#D0FF38] px-2.5 py-0.5 text-xs font-black text-white dark:text-[#111313] font-mono tabular-nums">
-                {fixture.match?.home_score ?? 0} : {fixture.match?.away_score ?? 0}
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-[#111313] dark:bg-[#D0FF38] px-2.5 py-0.5 text-xs font-black text-white dark:text-[#111313] font-mono tabular-nums">
+                <span>{fixture.match?.home_score ?? 0}</span>
+                <span className="font-sans opacity-70">-</span>
+                <span>{fixture.match?.away_score ?? 0}</span>
               </span>
             ) : (
               <span className="text-xs font-black text-[#65706A] dark:text-[#B2B9B3]">VS</span>

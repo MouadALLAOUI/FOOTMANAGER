@@ -469,11 +469,10 @@ function RecentResults({ fixtures, loading, onOpen, onShowTab }) {
 
                   {/* Center Score Pill */}
                   <div className="flex flex-col items-center px-1">
-                    <span
-                      dir="ltr"
-                      className="inline-flex min-w-[52px] sm:min-w-[60px] items-center justify-center rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] tabular-nums shadow-2xs"
-                    >
-                      {f.match.home_score} - {f.match.away_score}
+                    <span className="inline-flex min-w-[52px] sm:min-w-[60px] items-center justify-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-1 text-xs sm:text-sm font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums shadow-2xs">
+                      <span>{f.match.home_score}</span>
+                      <span className="text-[#65706A] font-sans">-</span>
+                      <span>{f.match.away_score}</span>
                     </span>
                     {pens && <span className="mt-0.5 text-[9px] font-bold text-[#65706A]">{pens}</span>}
                   </div>

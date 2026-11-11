@@ -402,8 +402,10 @@ export default function DelegatedSubmissionReviewModal({
             <div className="flex-1 text-end">
               <p className="text-sm font-black text-slate-900">{homeTeamId > 0 ? <Link to={`/teams/${homeTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{homeName}</Link> : homeName}</p>
             </div>
-            <div className="rounded-2xl bg-slate-900 px-5 py-2 text-2xl font-black text-white shadow-xs tracking-wider tabular-nums">
-              {sub.home_score} - {sub.away_score}
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-2 text-2xl font-black text-white shadow-xs tracking-wider font-mono tabular-nums">
+              <span>{sub.home_score}</span>
+              <span className="opacity-70 font-sans">-</span>
+              <span>{sub.away_score}</span>
             </div>
             <div className="flex-1 text-start">
               <p className="text-sm font-black text-slate-900">{awayTeamId > 0 ? <Link to={`/teams/${awayTeamId}`} target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 transition-colors">{awayName}</Link> : awayName}</p>
@@ -413,8 +415,13 @@ export default function DelegatedSubmissionReviewModal({
             <p className="text-[11px] font-bold text-amber-600 mt-2">شوطين إضافيين</p>
           )}
           {sub.home_penalties !== null && sub.home_penalties !== undefined && (
-            <p className="text-xs font-bold text-purple-700 mt-1">
-              ركلات الترجيح: {sub.home_penalties} - {sub.away_penalties}
+            <p className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 mt-1">
+              <span>ركلات الترجيح:</span>
+              <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                <span>{sub.home_penalties}</span>
+                <span className="font-sans">-</span>
+                <span>{sub.away_penalties}</span>
+              </span>
             </p>
           )}
         </div>

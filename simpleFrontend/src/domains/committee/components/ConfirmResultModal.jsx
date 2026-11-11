@@ -155,14 +155,23 @@ export default function ConfirmResultModal({
               <div className="min-w-0 flex-1 text-end">
                 <p className="truncate text-sm font-black">{homeId != null ? <Link to={`/teams/${homeId}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{homeName}</Link> : homeName}</p>
               </div>
-              <p className="shrink-0 text-4xl font-black tabular-nums">{score.home}<span className="mx-1 text-xl font-black text-emerald-200">-</span>{score.away}</p>
+              <div className="inline-flex items-center gap-1.5 shrink-0 text-4xl font-black font-mono tabular-nums">
+                <span>{score.home}</span>
+                <span className="text-xl font-black text-emerald-200 font-sans">-</span>
+                <span>{score.away}</span>
+              </div>
               <div className="min-w-0 flex-1 text-start">
                 <p className="truncate text-sm font-black">{awayId != null ? <Link to={`/teams/${awayId}`} target="_blank" rel="noopener noreferrer" className="hover:underline">{awayName}</Link> : awayName}</p>
               </div>
             </div>
             {isKnockout && homePen != null && awayPen != null && (
-              <p className="mt-2 text-center text-[11px] font-bold text-emerald-100">
-                {t('committee.result.penalties')}: {homePen} - {awayPen}
+              <p className="mt-2 text-center text-[11px] font-bold text-emerald-100 inline-flex items-center justify-center gap-1.5 w-full">
+                <span>{t('committee.result.penalties')}:</span>
+                <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+                  <span>{homePen}</span>
+                  <span className="font-sans">-</span>
+                  <span>{awayPen}</span>
+                </span>
               </p>
             )}
           </div>

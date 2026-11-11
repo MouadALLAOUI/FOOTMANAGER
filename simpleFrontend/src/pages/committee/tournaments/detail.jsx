@@ -518,8 +518,10 @@ export default function TournamentDetail() {
                         ) : (
                           <span>{fix.home_team?.name || 'المضيف'}</span>
                         )}
-                        <span className="rounded-md bg-[#111313] dark:bg-[#252B27] text-white px-2 py-0.5 text-xs tabular-nums font-mono">
-                          {sub?.home_score ?? 0} - {sub?.away_score ?? 0}
+                        <span className="inline-flex items-center gap-1 rounded-md bg-[#111313] dark:bg-[#252B27] text-white px-2 py-0.5 text-xs font-mono tabular-nums">
+                          <span>{sub?.home_score ?? 0}</span>
+                          <span className="font-sans opacity-70">-</span>
+                          <span>{sub?.away_score ?? 0}</span>
                         </span>
                         {fix.away_team?.id != null ? (
                           <Link

@@ -399,12 +399,21 @@ export function BracketView({ rounds, onOpen }) {
                     {winner === f.home_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
                   </div>
                   <div className="flex flex-col items-center">
-                    <span className="text-base font-black tabular-nums text-[#111313] dark:text-[#D0FF38]">
-                      {played ? `${f.home_score} - ${f.away_score}` : <span className="text-[#65706A]">VS</span>}
-                    </span>
+                    {played ? (
+                      <span className="inline-flex items-center gap-1.5 text-base font-black font-mono tabular-nums text-[#111313] dark:text-[#D0FF38]">
+                        <span>{f.home_score}</span>
+                        <span className="text-[#65706A] font-sans">-</span>
+                        <span>{f.away_score}</span>
+                      </span>
+                    ) : (
+                      <span className="text-base font-black text-[#65706A]">VS</span>
+                    )}
                     {played && f.home_penalties != null && (
-                      <span className="text-[9px] font-bold text-[#65706A]">
-                        p {f.home_penalties}-{f.away_penalties}
+                      <span className="inline-flex items-center gap-1 text-[9px] font-bold text-[#65706A] font-mono tabular-nums">
+                        <span>p</span>
+                        <span>{f.home_penalties}</span>
+                        <span>-</span>
+                        <span>{f.away_penalties}</span>
                       </span>
                     )}
                   </div>
@@ -667,7 +676,11 @@ export function FixtureRow({ f, onEdit, busy }) {
       )}
       <div className="flex min-w-[92px] flex-col items-center">
         {played ? (
-          <span className="text-lg font-black text-[#111313] dark:text-[#D0FF38]">{f.match.home_score} - {f.match.away_score}</span>
+          <span className="inline-flex items-center gap-1.5 text-lg font-black font-mono tabular-nums text-[#111313] dark:text-[#D0FF38]">
+            <span>{f.match.home_score}</span>
+            <span className="text-[#65706A] font-sans">-</span>
+            <span>{f.match.away_score}</span>
+          </span>
         ) : (
           <>
             <span className="text-sm font-black text-[#65706A]">VS</span>

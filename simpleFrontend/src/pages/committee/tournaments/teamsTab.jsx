@@ -680,7 +680,7 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                               {!isDeleted && p.payment_status === 'pending' && (
                                 <button
                                   type="button"
-                                  onClick={() => { setActiveMenuId(null); markPaid(teamId); }}
+                                  onClick={() => { setActiveMenuId(null); markPaid(targetId); }}
                                   className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-start cursor-pointer"
                                 >
                                   <Wallet className="size-3.5 text-emerald-600" />
@@ -690,7 +690,12 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
                               {!isDeleted && p.payment_status === 'completed' && (
                                 <button
                                   type="button"
-                                  onClick={() => { setActiveMenuId(null); unmarkPaid(teamId); }}
+                                  onClick={() => {
+                                    setActiveMenuId(null)
+                                    if (window.confirm('هل أنت متأكد من إلغاء تأكيد الأداء لهذا الفريق؟')) {
+                                      unmarkPaid(targetId)
+                                    }
+                                  }}
                                   className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-start cursor-pointer"
                                 >
                                   <RotateCcw className="size-3.5 text-amber-600" />
@@ -998,23 +1003,30 @@ export default function TeamsTab({ tournament, refresh, refreshKey }) {
 
       {squadTeam && (
         <TeamSquadModal
+          open={Boolean(squadTeam)}
           tournament={tournament}
+          tournamentId={tournament.id}
+          team={squadTeam.team || squadTeam}
           tournamentTeam={squadTeam}
           onClose={() => setSquadTeam(null)}
           onSquadUpdated={() => {
             refresh()
           }}
+          onRefresh={refresh}
         />
       )}
 
       {editFreeTeam && (
         <EditFreeTeamModal
+          open={Boolean(editFreeTeam)}
           tournament={tournament}
+          tournamentId={tournament.id}
           team={editFreeTeam}
           onClose={() => setEditFreeTeam(null)}
           onUpdated={() => {
             refresh()
           }}
+          onSaved={refresh}
         />
       )}
 

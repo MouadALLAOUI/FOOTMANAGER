@@ -96,9 +96,15 @@ export default function CommitteeBracket({ rounds }) {
                         {f.home_team?.id != null ? <button type="button" onClick={() => openTeam(f.home_team)} className="min-w-0 truncate text-start text-xs font-bold hover:text-emerald-600 transition-colors cursor-pointer">{f.home_team.name}</button> : <span className="truncate text-xs font-bold">{f.home_team?.name || t('committee.detail.tbd')}</span>}
                         {winner === f.home_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
                       </div>
-                      <span className="text-base font-black text-slate-900">
-                        {played ? `${f.home_score} - ${f.away_score}` : <span className="text-slate-400">vs</span>}
-                      </span>
+                      {played ? (
+                        <span className="inline-flex items-center gap-1.5 text-base font-black font-mono tabular-nums text-slate-900 dark:text-slate-100">
+                          <span>{f.home_score}</span>
+                          <span className="text-slate-400 font-sans">-</span>
+                          <span>{f.away_score}</span>
+                        </span>
+                      ) : (
+                        <span className="text-base font-black text-slate-400">vs</span>
+                      )}
                       <div className={`flex min-w-0 items-center justify-end gap-2 ${winner && winner === f.away_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
                         {winner === f.away_team_id && <Crown className="size-3.5 shrink-0 text-amber-500" />}
                         {f.away_team?.id != null ? <button type="button" onClick={() => openTeam(f.away_team)} className="min-w-0 truncate text-end text-xs font-bold hover:text-emerald-600 transition-colors cursor-pointer">{f.away_team.name}</button> : <span className="truncate text-xs font-bold">{f.away_team?.name || t('committee.detail.tbd')}</span>}

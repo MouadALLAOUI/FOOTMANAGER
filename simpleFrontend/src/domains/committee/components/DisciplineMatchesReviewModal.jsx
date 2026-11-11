@@ -296,8 +296,14 @@ export default function DisciplineMatchesReviewModal({
             <div className="max-h-32 space-y-1.5 overflow-y-auto pe-1 text-[11px] font-semibold text-slate-600">
               {completedMatches.map((m) => (
                 <div key={m.id} className="flex items-center justify-between rounded-lg bg-white px-2.5 py-1.5 border border-slate-200/60">
-                  <span>
-                    {(m.team_id ?? team?.id) != null ? <Link to={`/teams/${m.team_id ?? team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.team_name}</Link> : m.team_name} {m.home_score ?? 0} - {m.away_score ?? 0} {m.opponent?.id != null ? <Link to={`/teams/${m.opponent.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.opponent.name}</Link> : (m.opponent?.name || '—')}
+                  <span className="inline-flex items-center gap-1.5 flex-wrap">
+                    <span>{(m.team_id ?? team?.id) != null ? <Link to={`/teams/${m.team_id ?? team.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.team_name}</Link> : m.team_name}</span>
+                    <span className="inline-flex items-center gap-1 font-mono font-bold tabular-nums">
+                      <span>{m.home_score ?? 0}</span>
+                      <span className="text-slate-400 font-sans">-</span>
+                      <span>{m.away_score ?? 0}</span>
+                    </span>
+                    <span>{m.opponent?.id != null ? <Link to={`/teams/${m.opponent.id}`} onClick={() => onClose?.()} className="hover:text-emerald-600 transition-colors">{m.opponent.name}</Link> : (m.opponent?.name || '—')}</span>
                   </span>
                   <Badge variant="success">ملعوبة ومحفوظة</Badge>
                 </div>

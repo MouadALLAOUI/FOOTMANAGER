@@ -325,7 +325,7 @@ export default function TournamentMatchCard({
                   title="نتيجة مرسلة عبر المندوب بانتظار الاعتماد"
                 >
                   <AlertCircle className="size-3 text-amber-600" />
-                  <span>بانتظار الاعتماد ({fixture.delegated_submission.home_score} - {fixture.delegated_submission.away_score})</span>
+                  <span>بانتظار الاعتماد (<span className="inline-flex items-center gap-1 font-mono"><span>{fixture.delegated_submission.home_score}</span><span>-</span><span>{fixture.delegated_submission.away_score}</span></span>)</span>
                 </button>
               )}
 
@@ -447,10 +447,10 @@ export default function TournamentMatchCard({
 
             {/* Score Pill in Center */}
             <div className="shrink-0 px-1">
-              <div className="rounded-xl bg-slate-900 px-3.5 sm:px-4 py-1.5 text-center text-xs sm:text-sm font-black text-white shadow-xs tracking-wider tabular-nums">
-                {hasScore
-                  ? `${fixture.match?.home_score ?? 0} - ${fixture.match?.away_score ?? 0}`
-                  : '0 - 0'}
+              <div className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 sm:px-4 py-1.5 text-center text-xs sm:text-sm font-black text-white shadow-xs tracking-wider font-mono tabular-nums">
+                <span>{hasScore ? (fixture.match?.home_score ?? 0) : 0}</span>
+                <span className="opacity-70 font-sans">-</span>
+                <span>{hasScore ? (fixture.match?.away_score ?? 0) : 0}</span>
               </div>
             </div>
 

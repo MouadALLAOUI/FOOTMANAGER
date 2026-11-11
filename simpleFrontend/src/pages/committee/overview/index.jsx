@@ -1018,8 +1018,10 @@ export default function Overview({ onActiveTournamentChange = null }) {
                     </div>
 
                     <div className="px-4 text-center shrink-0">
-                      <span className="text-base sm:text-lg font-black text-[#0F172A]">
-                        {fixture.match?.home_score ?? 0} - {fixture.match?.away_score ?? 0}
+                      <span className="inline-flex items-center gap-1.5 text-base sm:text-lg font-black font-mono tabular-nums text-[#0F172A]">
+                        <span>{fixture.match?.home_score ?? 0}</span>
+                        <span className="text-slate-400 font-sans">-</span>
+                        <span>{fixture.match?.away_score ?? 0}</span>
                       </span>
                       <span className="block text-xs font-medium text-[#64748B] mt-0.5">
                         الجولة {fixture.matchday || 1}

@@ -359,11 +359,10 @@ export default function FixturesSection({ fixtures, mode = 'all', onOpen }) {
                             <div className="shrink-0 px-2 text-center">
                               {played || live ? (
                                 <div className="flex flex-col items-center">
-                                  <span
-                                    dir="ltr"
-                                    className="inline-flex items-center rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-2.5 py-0.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums shadow-2xs"
-                                  >
-                                    {f.match?.home_score ?? 0} - {f.match?.away_score ?? 0}
+                                  <span className="inline-flex items-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-2.5 py-0.5 text-xs font-black text-[#111313] dark:text-[#F5F7F2] font-mono tabular-nums shadow-2xs">
+                                    <span>{f.match?.home_score ?? 0}</span>
+                                    <span className="text-[#65706A] font-sans">-</span>
+                                    <span>{f.match?.away_score ?? 0}</span>
                                   </span>
                                   {pens && <span className="text-[9px] font-bold text-[#65706A] mt-0.5">{pens}</span>}
                                 </div>

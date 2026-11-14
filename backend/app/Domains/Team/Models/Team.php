@@ -21,6 +21,13 @@ class Team extends Model
     use HasFactory;
     use SoftDeletes;
 
+    protected $appends = [
+        'logo_url',
+        'logo_thumbnail_url',
+        'cover_image_url',
+        'cover_thumbnail_url',
+    ];
+
     protected $fillable = [
         'name',
         'is_free',

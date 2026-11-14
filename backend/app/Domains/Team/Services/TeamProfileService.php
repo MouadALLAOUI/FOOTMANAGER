@@ -105,7 +105,7 @@ class TeamProfileService
     private function assertValidImage($file): void
     {
         $mimes = implode(',', config('team.gallery.allowed_mimes'));
-        $maxKb = (int) config('team.gallery.max_size_kb');
+        $maxKb = max(10240, (int) config('team.gallery.max_size_kb', 10240));
 
         $validator = validator([
             'image' => $file,

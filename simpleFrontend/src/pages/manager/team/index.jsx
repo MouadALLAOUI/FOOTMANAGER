@@ -17,7 +17,9 @@ import {
   Users,
 } from 'lucide-react'
 import api from '../../../api/client'
-import { useTeamProfile, useStadiums, useCitiesSelect } from '../../../api/queries'
+import { useTeamProfile, useStadiums, useCitiesSelect, q } from '../../../api/queries'
+import { queryClient } from '../../../api/queryClient'
+import { normalizeImageUrl } from '../../../lib/thumb'
 import {
   Button,
   Field,
@@ -137,7 +139,7 @@ export default function Team() {
     )
   }
 
-  const coverUrl = team.cover_image_url
+  const coverUrl = team.cover_image_url ? normalizeImageUrl(team.cover_image_url) : null
 
   return (
     <div>
@@ -229,14 +231,26 @@ export default function Team() {
         open={logoModalOpen}
         onClose={() => setLogoModalOpen(false)}
         team={team}
-        onSuccess={() => refetch()}
+        onSuccess={(resData) => {
+          if (resData?.team) {
+            queryClient.setQueryData(q.teamProfile(), { team: resData.team })
+          }
+          queryClient.invalidateQueries({ queryKey: q.teamProfile() })
+          refetch()
+        }}
       />
 
       <TeamPhotoModal
         open={photoModalOpen}
         onClose={() => setPhotoModalOpen(false)}
         team={team}
-        onSuccess={() => refetch()}
+        onSuccess={(resData) => {
+          if (resData?.team) {
+            queryClient.setQueryData(q.teamProfile(), { team: resData.team })
+          }
+          queryClient.invalidateQueries({ queryKey: q.teamProfile() })
+          refetch()
+        }}
       />
 
       {/* Stats */}

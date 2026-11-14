@@ -13,7 +13,7 @@ class UpdateFreeTeamRequest extends FormRequest
 
     public function rules(): array
     {
-        $maxKb = (int) config('team.gallery.max_size_kb', 5120);
+        $maxKb = max(10240, (int) config('team.gallery.max_size_kb', 10240));
 
         return [
             'name' => 'sometimes|string|max:60',

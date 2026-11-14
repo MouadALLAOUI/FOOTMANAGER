@@ -446,7 +446,11 @@ export function useTeamFullData(id) {
           pageTeam?.logo_url ||
           firstTourParticipantTeam?.logo_url ||
           null,
-        cover_image_url: profileTeam?.cover_image_url || pageTeam?.cover_image_url || null,
+        cover_image_url:
+          profileTeam?.cover_image_url ||
+          pageTeam?.cover_image_url ||
+          firstTourParticipantTeam?.cover_image_url ||
+          null,
         primary_color: profileTeam?.primary_color || pageTeam?.primary_color || null,
         secondary_color: profileTeam?.secondary_color || pageTeam?.secondary_color || null,
         member_count: profileTeam?.member_count ?? null,

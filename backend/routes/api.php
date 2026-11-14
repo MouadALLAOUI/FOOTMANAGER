@@ -204,6 +204,7 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/tournaments', [PublicTournamentController::class, 'index']);
     Route::get('/tournaments/{tournament}', [PublicTournamentController::class, 'show']);
+    Route::post('/tournaments/{tournament}/view', [PublicTournamentController::class, 'recordView'])->middleware('throttle:60,1');
     Route::get('/tournaments/{tournament}/fixtures', [PublicTournamentController::class, 'fixtures']);
     Route::get('/tournaments/{tournament}/live', [PublicTournamentController::class, 'live']);
     Route::get('/tournaments/{tournament}/teams', [PublicTournamentController::class, 'teams']);

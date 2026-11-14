@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, Save, X } from 'lucide-react'
+import { Camera, Check, Save, UploadCloud, X } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Button, Field, inputClass, Modal } from '../../../components/dashboard/ui'
@@ -21,12 +21,16 @@ export default function EditFreeTeamModal({
   const { t } = useTranslation()
   const { toast } = useToast()
   const fileRef = useRef(null)
+  const photoRef = useRef(null)
   const [name, setName] = useState('')
   const [city, setCity] = useState('')
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(null)
   const [selectedPreset, setSelectedPreset] = useState(null)
   const [removing, setRemoving] = useState(false)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreview, setPhotoPreview] = useState(null)
+  const [removingPhoto, setRemovingPhoto] = useState(false)
   const [primaryColor, setPrimaryColor] = useState('')
   const [secondaryColor, setSecondaryColor] = useState('')
   const [busy, setBusy] = useState(false)
@@ -48,6 +52,9 @@ export default function EditFreeTeamModal({
     setLogoPreview(null)
     setSelectedPreset(null)
     setRemoving(false)
+    setPhotoFile(null)
+    setPhotoPreview(null)
+    setRemovingPhoto(false)
     setPrimaryColor(team?.primary_color ?? '')
     setSecondaryColor(team?.secondary_color ?? '')
   }, [isOpen, team])
@@ -76,6 +83,27 @@ export default function EditFreeTeamModal({
     }
   }
 
+  const onPickPhoto = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+    setRemovingPhoto(false)
+  }
+
+  const shownPhoto = photoPreview || (!removingPhoto ? team?.cover_image_url : null)
+
+  const clearPhotoChoice = () => {
+    if (photoFile) {
+      setPhotoFile(null)
+      setPhotoPreview(null)
+    } else if (removingPhoto) {
+      setRemovingPhoto(false)
+    } else if (team?.cover_image_url) {
+      setRemovingPhoto(true)
+    }
+  }
+
   const save = async () => {
     if (busy) return
     if (!name.trim()) {
@@ -98,6 +126,11 @@ export default function EditFreeTeamModal({
         fd.append('logo_preset_id', selectedPreset.id)
       } else if (removing) {
         fd.append('remove_logo', 1)
+      }
+      if (photoFile) {
+        fd.append('photo', photoFile)
+      } else if (removingPhoto) {
+        fd.append('remove_photo', 1)
       }
       await api.post(`/committee/tournaments/${tournamentId}/teams/${team?.id}`, fd)
       toast.success(t('committee.detail.editFreeTeamSaved') || 'تم حفظ بيانات الفريق بنجاح')
@@ -267,6 +300,54 @@ export default function EditFreeTeamModal({
               <input className={inputClass} value={city} onChange={(e) => setCity(e.target.value)} maxLength={255} />
             </Field>
           )}
+
+          {/* Collective Team Photo */}
+          <div>
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                الصورة الجماعية للفريق (16:9)
+              </span>
+              {shownPhoto && (
+                <button
+                  type="button"
+                  onClick={clearPhotoChoice}
+                  className="text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+                >
+                  حذف الصورة
+                </button>
+              )}
+            </div>
+            <input
+              ref={photoRef}
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,image/webp"
+              className="hidden"
+              onChange={onPickPhoto}
+            />
+            {shownPhoto ? (
+              <div
+                onClick={() => photoRef.current?.click()}
+                className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-900 cursor-pointer group"
+              >
+                <img src={shownPhoto} alt="" className="size-full object-cover group-hover:opacity-90 transition-opacity" />
+                <span className="absolute inset-x-0 bottom-0 bg-black/60 py-1.5 text-center text-[10px] font-bold text-white">
+                  اضغط لتغيير الصورة
+                </span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => photoRef.current?.click()}
+                className="flex aspect-[16/9] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4 text-center hover:border-emerald-500 cursor-pointer transition-colors"
+              >
+                <Camera className="size-6 text-slate-400" />
+                <span className="mt-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                  إضافة صورة جماعية للفريق
+                </span>
+                <span className="text-[10px] text-slate-400">JPG, PNG, WebP حتى 5MB</span>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">

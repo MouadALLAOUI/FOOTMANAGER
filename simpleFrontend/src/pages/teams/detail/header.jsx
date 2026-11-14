@@ -65,57 +65,94 @@ export default function TeamHeader({ team, form = [], isPrivate = false, onShare
   const captainId = typeof team.captain === 'object' ? team.captain?.id : null
   const captainNumber = typeof team.captain === 'object' ? team.captain?.number : null
 
+  const hasPhoto = Boolean(team.cover_image_url)
+
   return (
     <section className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs">
-      {/* Subtle Top Stadium Cover Banner (preserves brand color or crisp stadium dark/emerald gradient) */}
-      <div className="relative h-24 sm:h-32 w-full overflow-hidden bg-gradient-to-l from-[#10291B] via-[#173A26] to-[#111313]">
-        {team.cover_image_url ? (
-          <img
-            src={team.cover_image_url}
-            alt={team.name}
-            className="size-full object-cover opacity-55"
-          />
-        ) : (
-          <>
-            <div className="pointer-events-none absolute -top-12 -end-12 size-44 rounded-full bg-[#B8F000]/20 blur-2xl" />
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#B8F000]/50 to-transparent" />
-          </>
-        )}
+      {hasPhoto ? (
+        /* Top Header with Collective Photo Banner */
+        <div className="relative w-full overflow-hidden bg-gradient-to-l from-[#10291B] via-[#173A26] to-[#111313] p-3 sm:p-5">
+          {/* Top Corner Badges & Share Button */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {isPrivate && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/50 backdrop-blur-xs px-2.5 py-1 text-[11px] font-black text-white">
+                  <Lock className="size-3 text-amber-300" />
+                  <span>ملف خاص</span>
+                </span>
+              )}
+              {team.primary_stadium?.name && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/45 backdrop-blur-xs px-2.5 py-1 text-[11px] font-bold text-white max-w-[200px] sm:max-w-xs truncate">
+                  <MapPin className="size-3 shrink-0 text-[#D0FF38]" />
+                  <span className="truncate">{team.primary_stadium.name}</span>
+                </span>
+              )}
+            </div>
 
-        {/* Top Corner Badges */}
-        <div className="absolute inset-x-3 top-3 sm:inset-x-5 sm:top-4 flex items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {isPrivate && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/50 backdrop-blur-sm px-2.5 py-1 text-[11px] font-black text-white">
-                <Lock className="size-3 text-amber-300" />
-                <span>ملف خاص</span>
-              </span>
-            )}
-            {team.primary_stadium?.name && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/45 backdrop-blur-sm px-2.5 py-1 text-[11px] font-bold text-white max-w-[200px] sm:max-w-xs truncate">
-                <MapPin className="size-3 shrink-0 text-[#D0FF38]" />
-                <span className="truncate">{team.primary_stadium.name}</span>
-              </span>
-            )}
+            <button
+              type="button"
+              onClick={onShareClick}
+              aria-label="مشاركة بطاقة الفريق"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-3.5 py-2 text-xs font-black text-[#111313] shadow-md transition-all active:scale-[0.98] cursor-pointer shrink-0"
+            >
+              <Share2 className="size-3.5" />
+              <span>مشاركة البطاقة</span>
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onShareClick}
-            aria-label="مشاركة بطاقة الفريق"
-            className="inline-flex items-center gap-1.5 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-3.5 py-2 text-xs font-black text-[#111313] shadow-md transition-all active:scale-[0.98] cursor-pointer shrink-0"
-          >
-            <Share2 className="size-3.5" />
-            <span>مشاركة البطاقة</span>
-          </button>
+          {/* Wide Collective Team Photograph (16:9 Aspect Ratio) */}
+          <div className="mt-3 relative w-full aspect-[16/9] overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 shadow-lg bg-slate-950">
+            <img
+              src={team.cover_image_url}
+              alt={`الصورة الجماعية لفريق ${team.name}`}
+              className="size-full object-cover"
+              loading="eager"
+              decoding="async"
+            />
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Subtle Top Stadium Cover Banner (when team has no collective photo) */
+        <div className="relative h-24 sm:h-32 w-full overflow-hidden bg-gradient-to-l from-[#10291B] via-[#173A26] to-[#111313]">
+          <div className="pointer-events-none absolute -top-12 -end-12 size-44 rounded-full bg-[#B8F000]/20 blur-2xl" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#B8F000]/50 to-transparent" />
+
+          {/* Top Corner Badges */}
+          <div className="absolute inset-x-3 top-3 sm:inset-x-5 sm:top-4 flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {isPrivate && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/25 bg-black/50 backdrop-blur-xs px-2.5 py-1 text-[11px] font-black text-white">
+                  <Lock className="size-3 text-amber-300" />
+                  <span>ملف خاص</span>
+                </span>
+              )}
+              {team.primary_stadium?.name && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-black/45 backdrop-blur-xs px-2.5 py-1 text-[11px] font-bold text-white max-w-[200px] sm:max-w-xs truncate">
+                  <MapPin className="size-3 shrink-0 text-[#D0FF38]" />
+                  <span className="truncate">{team.primary_stadium.name}</span>
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={onShareClick}
+              aria-label="مشاركة بطاقة الفريق"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#B8F000] dark:bg-[#D0FF38] hover:brightness-105 px-3.5 py-2 text-xs font-black text-[#111313] shadow-md transition-all active:scale-[0.98] cursor-pointer shrink-0"
+            >
+              <Share2 className="size-3.5" />
+              <span>مشاركة البطاقة</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Team Identity Body */}
       <div className="px-4 sm:px-7 pb-5 sm:pb-7">
-        <div className="relative -mt-12 sm:-mt-14 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-start min-w-0">
-            {/* Team Emblem Frame */}
+        {hasPhoto ? (
+          /* Approved Centered Structure (Overlapping 16:9 Collective Photo) */
+          <div className="relative -mt-12 sm:-mt-14 flex flex-col items-center text-center">
+            {/* Team Emblem Frame Overlapping Photo */}
             <div className="relative shrink-0 rounded-3xl bg-white dark:bg-[#1B201D] p-1.5 shadow-lg ring-1 ring-[#E1E5DF] dark:ring-[#303832]">
               <TeamLogo
                 team={team}
@@ -125,84 +162,174 @@ export default function TeamHeader({ team, form = [], isPrivate = false, onShare
               />
             </div>
 
-            <div className="min-w-0 pt-1 pb-1">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mb-2">
-                {categoryLabel && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-[#179955]/30 bg-[#179955]/10 dark:bg-[#42D889]/15 px-2.5 py-0.5 text-[11px] font-black text-[#179955] dark:text-[#42D889]">
-                    <Shield className="size-3" />
-                    <span>{categoryLabel}</span>
-                  </span>
-                )}
-                {levelLabel && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">
-                    <Sparkles className="size-3 text-[#179955] dark:text-[#D0FF38]" />
-                    <span>المستوى: {levelLabel}</span>
-                  </span>
-                )}
-                {team.founded_year && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
-                    <CalendarDays className="size-3" />
-                    <span>تأسس {team.founded_year}</span>
-                  </span>
-                )}
-              </div>
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
+              {categoryLabel && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-[#179955]/30 bg-[#179955]/10 dark:bg-[#42D889]/15 px-3 py-1 text-xs font-black text-[#179955] dark:text-[#42D889]">
+                  <Shield className="size-3.5" />
+                  <span>{categoryLabel}</span>
+                </span>
+              )}
+              {levelLabel && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">
+                  <Sparkles className="size-3 text-[#179955] dark:text-[#D0FF38]" />
+                  <span>المستوى: {levelLabel}</span>
+                </span>
+              )}
+              {team.founded_year && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                  <CalendarDays className="size-3" />
+                  <span>تأسس {team.founded_year}</span>
+                </span>
+              )}
+            </div>
 
-              <div className="flex items-center justify-center sm:justify-start gap-2 min-w-0">
-                <h1 className="text-2xl sm:text-3xl font-black text-[#111313] dark:text-[#F5F7F2] tracking-tight break-words" dir="auto">
-                  {team.name}
-                </h1>
-                <CheckCircle2
-                  className="size-5 shrink-0 text-[#179955] dark:text-[#D0FF38]"
-                  title="فريق مسجل في أجي نقصرو"
+            <div className="mt-2.5 flex items-center justify-center gap-2 min-w-0">
+              <CheckCircle2
+                className="size-6 shrink-0 text-[#179955] dark:text-[#D0FF38]"
+                title="فريق مسجل في أجي نقصرو"
+              />
+              <h1 className="text-2xl sm:text-3xl font-black text-[#111313] dark:text-[#F5F7F2] tracking-tight break-words" dir="auto">
+                {team.name}
+              </h1>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">
+              {team.players_count != null && (
+                <span className="inline-flex items-center gap-1">
+                  <span>{team.players_count} لاعب في القائمة</span>
+                  <Users className="size-3.5 shrink-0" />
+                </span>
+              )}
+              {uniqueLocation && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="size-3.5 text-[#179955] dark:text-[#D0FF38] shrink-0" />
+                  <span>{uniqueLocation}</span>
+                </span>
+              )}
+              {team.association_name && (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 className="size-3.5 shrink-0" />
+                  <span>{team.association_name}</span>
+                </span>
+              )}
+            </div>
+
+            {/* Recent Form Pills (Last 5 Finished Matches) */}
+            {form.length > 0 && (
+              <div className="mt-3.5 flex flex-col items-center gap-1.5">
+                <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                  الفورمة الأخيرة
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {form.slice(-5).map((res, idx) => {
+                    const meta = FORM_BADGE_MAP[res] || FORM_BADGE_MAP.D
+                    return (
+                      <span
+                        key={idx}
+                        title={meta.label}
+                        className={`grid size-7 place-items-center rounded-xl border text-xs font-black ${meta.cls}`}
+                      >
+                        {meta.short}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Original Layout for Teams without Photo */
+          <div className="relative -mt-12 sm:-mt-14 flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-4 text-center sm:text-start min-w-0">
+              {/* Team Emblem Frame */}
+              <div className="relative shrink-0 rounded-3xl bg-white dark:bg-[#1B201D] p-1.5 shadow-lg ring-1 ring-[#E1E5DF] dark:ring-[#303832]">
+                <TeamLogo
+                  team={team}
+                  className="size-24 sm:size-28"
+                  rounded="rounded-2xl"
+                  fontSize="text-2xl sm:text-3xl"
                 />
               </div>
 
-              <div className="mt-2 flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1.5 text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">
-                {uniqueLocation && (
-                  <span className="inline-flex items-center gap-1">
-                    <MapPin className="size-3.5 text-[#179955] dark:text-[#D0FF38] shrink-0" />
-                    <span>{uniqueLocation}</span>
-                  </span>
-                )}
-                {team.association_name && (
-                  <span className="inline-flex items-center gap-1">
-                    <Building2 className="size-3.5 shrink-0" />
-                    <span>{team.association_name}</span>
-                  </span>
-                )}
-                {team.players_count != null && (
-                  <span className="inline-flex items-center gap-1">
-                    <Users className="size-3.5 shrink-0" />
-                    <span>{team.players_count} لاعب في القائمة</span>
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Recent Form Pills (Last 5 Finished Matches) */}
-          {form.length > 0 && (
-            <div className="flex flex-col items-center md:items-end gap-1.5 shrink-0">
-              <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
-                الفورمة الأخيرة
-              </span>
-              <div className="flex items-center gap-1.5">
-                {form.slice(-5).map((res, idx) => {
-                  const meta = FORM_BADGE_MAP[res] || FORM_BADGE_MAP.D
-                  return (
-                    <span
-                      key={idx}
-                      title={meta.label}
-                      className={`grid size-7 place-items-center rounded-xl border text-xs font-black ${meta.cls}`}
-                    >
-                      {meta.short}
+              <div className="min-w-0 pt-1 pb-1">
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mb-2">
+                  {categoryLabel && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#179955]/30 bg-[#179955]/10 dark:bg-[#42D889]/15 px-2.5 py-0.5 text-[11px] font-black text-[#179955] dark:text-[#42D889]">
+                      <Shield className="size-3" />
+                      <span>{categoryLabel}</span>
                     </span>
-                  )
-                })}
+                  )}
+                  {levelLabel && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[11px] font-bold text-[#111313] dark:text-[#F5F7F2]">
+                      <Sparkles className="size-3 text-[#179955] dark:text-[#D0FF38]" />
+                      <span>المستوى: {levelLabel}</span>
+                    </span>
+                  )}
+                  {team.founded_year && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] px-2.5 py-0.5 text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                      <CalendarDays className="size-3" />
+                      <span>تأسس {team.founded_year}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center sm:justify-start gap-2 min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-black text-[#111313] dark:text-[#F5F7F2] tracking-tight break-words" dir="auto">
+                    {team.name}
+                  </h1>
+                  <CheckCircle2
+                    className="size-5 shrink-0 text-[#179955] dark:text-[#D0FF38]"
+                    title="فريق مسجل في أجي نقصرو"
+                  />
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1.5 text-xs font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                  {uniqueLocation && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="size-3.5 text-[#179955] dark:text-[#D0FF38] shrink-0" />
+                      <span>{uniqueLocation}</span>
+                    </span>
+                  )}
+                  {team.association_name && (
+                    <span className="inline-flex items-center gap-1">
+                      <Building2 className="size-3.5 shrink-0" />
+                      <span>{team.association_name}</span>
+                    </span>
+                  )}
+                  {team.players_count != null && (
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="size-3.5 shrink-0" />
+                      <span>{team.players_count} لاعب في القائمة</span>
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Recent Form Pills (Last 5 Finished Matches) */}
+            {form.length > 0 && (
+              <div className="flex flex-col items-center md:items-end gap-1.5 shrink-0">
+                <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">
+                  الفورمة الأخيرة
+                </span>
+                <div className="flex items-center gap-1.5">
+                  {form.slice(-5).map((res, idx) => {
+                    const meta = FORM_BADGE_MAP[res] || FORM_BADGE_MAP.D
+                    return (
+                      <span
+                        key={idx}
+                        title={meta.label}
+                        className={`grid size-7 place-items-center rounded-xl border text-xs font-black ${meta.cls}`}
+                      >
+                        {meta.short}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Team Description if provided */}
         {team.description && (

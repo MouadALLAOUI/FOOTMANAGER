@@ -30,6 +30,7 @@ import {
 import { useToast } from '../../../components/ui/Toast'
 import TeamLogo from '../../../components/profile/TeamLogo'
 import TeamLogoModal from '../../../components/profile/TeamLogoModal'
+import TeamPhotoModal from '../../../components/profile/TeamPhotoModal'
 import { toastApiError } from '../../../lib/errors'
 
 const categoryLabels = { get adult() { return i18n.t('dash.adults') }, get teenager() { return i18n.t('dash.teens') }, get children() { return i18n.t('dash.children') } }
@@ -67,6 +68,7 @@ export default function Team() {
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
   const [logoModalOpen, setLogoModalOpen] = useState(false)
+  const [photoModalOpen, setPhotoModalOpen] = useState(false)
 
   const team = data?.team
   const stadiums = stadiumsData?.data || []
@@ -164,6 +166,15 @@ export default function Team() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
 
+        <button
+          type="button"
+          onClick={() => setPhotoModalOpen(true)}
+          className="absolute top-4 end-4 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-slate-950/60 backdrop-blur-xs px-3.5 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-slate-950/80 transition-colors cursor-pointer"
+        >
+          <Camera className="size-3.5" />
+          <span>{coverUrl ? 'تغيير الصورة الجماعية' : 'إضافة صورة جماعية'}</span>
+        </button>
+
         <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end gap-4 p-6">
           <div className="group relative">
             <TeamLogo
@@ -217,6 +228,13 @@ export default function Team() {
       <TeamLogoModal
         open={logoModalOpen}
         onClose={() => setLogoModalOpen(false)}
+        team={team}
+        onSuccess={() => refetch()}
+      />
+
+      <TeamPhotoModal
+        open={photoModalOpen}
+        onClose={() => setPhotoModalOpen(false)}
         team={team}
         onSuccess={() => refetch()}
       />
@@ -387,6 +405,41 @@ export default function Team() {
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="grid size-9 place-items-center rounded-xl bg-emerald-50 text-emerald-600">
+                <Camera className="size-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-900">الصورة الجماعية للفريق</h3>
+                <p className="text-[11px] font-semibold text-slate-400">تظهر في ملف الفريق والبطاقة الرسمية (16:9)</p>
+              </div>
+            </div>
+            {coverUrl ? (
+              <div className="space-y-3">
+                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
+                  <img src={coverUrl} alt="صورة الفريق الجماعية" className="size-full object-cover" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="w-full cursor-pointer" onClick={() => setPhotoModalOpen(true)}>
+                    <Camera className="size-3.5" />
+                    <span>تغيير أو حذف الصورة</span>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-2">
+                <Button variant="outline" size="sm" className="w-full cursor-pointer" onClick={() => setPhotoModalOpen(true)}>
+                  <Upload className="size-3.5" />
+                  <span>إضافة صورة جماعية</span>
+                </Button>
+                <p className="mt-2 text-[10px] font-semibold text-slate-400">
+                  أضف صورة تشكيلة فريقك الجماعية لتكتمل بطاقة ملف الفريق
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -21,6 +21,8 @@ class UpdateFreeTeamRequest extends FormRequest
             'logo' => "sometimes|image|mimes:jpeg,png,jpg,webp|max:{$maxKb}",
             'logo_preset_id' => 'nullable|integer|exists:presets,id',
             'remove_logo' => 'sometimes|boolean',
+            'photo' => "sometimes|image|mimes:jpeg,png,jpg,webp|max:{$maxKb}",
+            'remove_photo' => 'sometimes|boolean',
             'primary_color' => 'nullable|string|max:20',
             'secondary_color' => 'nullable|string|max:20',
         ];

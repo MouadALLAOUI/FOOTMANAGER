@@ -1134,6 +1134,10 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::put('/manager/team-profile', [TeamProfileController::class, 'update']);
                 Route::post('/manager/team-profile/logo', [TeamProfileController::class, 'uploadLogo']);
                 Route::post('/manager/team-profile/logo-preset', [TeamProfileController::class, 'applyLogoPreset']);
+                Route::post('/manager/team-profile/photo', [TeamProfileController::class, 'uploadPhoto']);
+                Route::delete('/manager/team-profile/photo', [TeamProfileController::class, 'deletePhoto']);
+                Route::post('/manager/team-profile/cover', [TeamProfileController::class, 'uploadPhoto']);
+                Route::delete('/manager/team-profile/cover', [TeamProfileController::class, 'deletePhoto']);
             });
 
             // Team formations (multi-formation CRUD)

@@ -19,6 +19,7 @@ class TournamentTeamResource extends JsonResource
                 'id' => $this->team->id,
                 'name' => $this->team->name,
                 'logo_url' => $this->team->logo_url,
+                'cover_image_url' => $this->team->cover_image_url,
                 'city' => $this->team->city,
                 'category' => $this->team->category,
                 'level' => $this->team->level,

@@ -29,7 +29,10 @@ use App\Domains\Tournament\Services\TournamentStatisticsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class PublicTournamentController extends Controller
 {
@@ -99,15 +102,28 @@ class PublicTournamentController extends Controller
     {
         $tournament = $this->resolveTournament($tournament);
 
+        try {
+            if (! Schema::hasColumn('tournaments', 'views_count')) {
+                Artisan::call('migrate', ['--force' => true]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Auto-migration check in recordView failed: ' . $e->getMessage());
+        }
+
         $ip = (string) ($request->ip() ?? '');
         $ua = (string) ($request->userAgent() ?? '');
         $hash = sha1($ip . '|' . $ua);
         $cacheKey = "tour_view:{$tournament->id}:{$hash}";
 
-        $isNewVisit = Cache::add($cacheKey, 1, now()->addHours(2));
+        // 30-second deduplication: prevents rapid render/click spam while allowing genuine visits/reloads to count
+        $isNewVisit = Cache::add($cacheKey, 1, now()->addSeconds(30));
         if ($isNewVisit) {
-            Tournament::query()->whereKey($tournament->id)->increment('views_count');
-            $tournament->refresh();
+            try {
+                Tournament::query()->whereKey($tournament->id)->increment('views_count');
+                $tournament->refresh();
+            } catch (\Throwable $e) {
+                Log::warning('Increment views_count failed: ' . $e->getMessage());
+            }
         }
 
         return response()->json([

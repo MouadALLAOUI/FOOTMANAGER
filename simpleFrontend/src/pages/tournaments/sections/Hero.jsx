@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, MapPin, Trophy, Copy, Check, MessageCircle } from 'lucide-react'
+import { CalendarDays, MapPin, Trophy, Copy, Check, MessageCircle, Eye } from 'lucide-react'
 import { formatTournamentDateRange } from '../list/shared'
 import { useToast } from '../../../components/ui/Toast'
 
@@ -155,6 +155,12 @@ export default function Hero({ tour, embedded = false }) {
               {subtitleText && (
                 <span className="inline-flex items-center rounded-full bg-black/55 border border-white/15 px-3 py-1 text-[11px] sm:text-xs font-bold text-white/95 backdrop-blur-xs">
                   {subtitleText}
+                </span>
+              )}
+              {tour.views_count != null && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/55 border border-white/15 px-2.5 py-1 text-[11px] sm:text-xs font-bold text-white/95 backdrop-blur-xs">
+                  <Eye className="size-3.5 text-[#B8F000]" />
+                  <span>{Number(tour.views_count).toLocaleString('ar-MA')} مشاهدة</span>
                 </span>
               )}
               {venue && (

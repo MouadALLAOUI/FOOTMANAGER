@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -54,31 +54,36 @@ export default function PublicTournamentDetail() {
   const tour = detailQuery.data
   syncTournamentGroupNames(tour)
   const [recordedViews, setRecordedViews] = useState(null)
+  const viewRecordedRef = useRef(false)
 
   useEffect(() => {
-    if (!slug || !tour?.id) return
-    const sessionKey = `tour_view_${tour.id}`
-    try {
-      if (sessionStorage.getItem(sessionKey)) return
-      sessionStorage.setItem(sessionKey, '1')
-    } catch {
-      // Ignore storage errors in private browsing modes
-    }
+    if (!tour?.id || viewRecordedRef.current) return
+    viewRecordedRef.current = true
 
     api
-      .post(`/v1/tournaments/${encodeURIComponent(slug)}/view`)
+      .post(`/v1/tournaments/${tour.id}/view`)
       .then((res) => {
         if (typeof res?.data?.views_count === 'number') {
           setRecordedViews(res.data.views_count)
         }
       })
-      .catch(() => {})
-  }, [slug, tour?.id])
+      .catch((err) => {
+        console.warn('Could not record tournament view:', err)
+      })
+  }, [tour?.id])
 
-  const tourWithViews = useMemo(
-    () => (recordedViews != null && tour ? { ...tour, views_count: recordedViews } : tour),
-    [tour, recordedViews],
-  )
+  const tourWithViews = useMemo(() => {
+    if (!tour) return tour
+    if (recordedViews == null) return tour
+    return {
+      ...tour,
+      views_count: recordedViews,
+      stats: {
+        ...(tour.stats || {}),
+        views_count: recordedViews,
+      },
+    }
+  }, [tour, recordedViews])
 
   useSeo({
     title: tour?.name ? `${tour.name} — بطولة كرة قدم` : 'تفاصيل البطولة',

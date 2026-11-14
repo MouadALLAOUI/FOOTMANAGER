@@ -144,4 +144,72 @@ class TeamProfileController extends Controller
             'team' => $team,
         ]);
     }
+
+    public function uploadPhoto(Request $request): JsonResponse
+    {
+        $maxKb = (int) config('team.gallery.max_size_kb', 5120);
+
+        $request->validate([
+            'photo' => "required|image|mimes:jpeg,png,jpg,webp|max:{$maxKb}",
+        ]);
+
+        $team = $this->resolver->for($request->user());
+
+        if ($team->cover_image_path && Storage::disk('public')->exists($team->cover_image_path)) {
+            Storage::disk('public')->delete($team->cover_image_path);
+        }
+
+        if ($team->cover_thumbnail_path && Storage::disk('public')->exists($team->cover_thumbnail_path)) {
+            Storage::disk('public')->delete($team->cover_thumbnail_path);
+        }
+
+        $result = app(ImageThumbnailService::class)
+            ->storeWithThumbnail($request->file('photo'), 'teams/covers');
+
+        $team->update([
+            'cover_image_path' => $result['path'],
+            'cover_thumbnail_path' => $result['thumbnail_path'],
+        ]);
+
+        \App\Domains\Shared\Support\TeamCache::flushTeam($team->id);
+
+        $team->load(['primaryStadium', 'manager']);
+        $team->manager?->makeVisible('phone', 'email', 'is_whatsapp');
+
+        return response()->json([
+            'message' => 'تم حفظ الصورة الجماعية بنجاح!',
+            'cover_image_url' => $team->cover_image_url,
+            'cover_thumbnail_url' => $team->cover_thumbnail_url,
+            'team' => $team,
+        ]);
+    }
+
+    public function deletePhoto(Request $request): JsonResponse
+    {
+        $team = $this->resolver->for($request->user());
+
+        if ($team->cover_image_path && Storage::disk('public')->exists($team->cover_image_path)) {
+            Storage::disk('public')->delete($team->cover_image_path);
+        }
+
+        if ($team->cover_thumbnail_path && Storage::disk('public')->exists($team->cover_thumbnail_path)) {
+            Storage::disk('public')->delete($team->cover_thumbnail_path);
+        }
+
+        $team->update([
+            'cover_image_path' => null,
+            'cover_thumbnail_path' => null,
+        ]);
+
+        \App\Domains\Shared\Support\TeamCache::flushTeam($team->id);
+
+        $team->load(['primaryStadium', 'manager']);
+        $team->manager?->makeVisible('phone', 'email', 'is_whatsapp');
+
+        return response()->json([
+            'message' => 'تم حذف الصورة الجماعية بنجاح!',
+            'cover_image_url' => null,
+            'team' => $team,
+        ]);
+    }
 }

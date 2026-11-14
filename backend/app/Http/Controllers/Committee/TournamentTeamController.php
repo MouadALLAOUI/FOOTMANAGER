@@ -193,6 +193,17 @@ class TournamentTeamController extends Controller
 
         unset($data['logo_preset_id'], $data['remove_logo']);
 
+        $photoFile = $data['photo'] ?? null;
+        unset($data['photo']);
+
+        if ($photoFile) {
+            $this->storeFreeTeamPhoto($team, $photoFile);
+        } elseif (! empty($data['remove_photo'])) {
+            $this->clearFreeTeamPhoto($team);
+        }
+
+        unset($data['remove_photo']);
+
         if ($data) {
             $team->update($data);
         }
@@ -266,6 +277,37 @@ class TournamentTeamController extends Controller
     private function deleteFreeTeamLogoFiles(Team $team): void
     {
         foreach ([$team->logo_path, $team->logo_thumbnail_path] as $path) {
+            if ($path && Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+        }
+    }
+
+    private function storeFreeTeamPhoto(Team $team, $file): void
+    {
+        $this->deleteFreeTeamPhotoFiles($team);
+
+        $result = app(ImageThumbnailService::class)->storeWithThumbnail($file, 'teams/covers');
+
+        $team->update([
+            'cover_image_path' => $result['path'],
+            'cover_thumbnail_path' => $result['thumbnail_path'],
+        ]);
+    }
+
+    private function clearFreeTeamPhoto(Team $team): void
+    {
+        $this->deleteFreeTeamPhotoFiles($team);
+
+        $team->update([
+            'cover_image_path' => null,
+            'cover_thumbnail_path' => null,
+        ]);
+    }
+
+    private function deleteFreeTeamPhotoFiles(Team $team): void
+    {
+        foreach ([$team->cover_image_path, $team->cover_thumbnail_path] as $path) {
             if ($path && Storage::disk('public')->exists($path)) {
                 Storage::disk('public')->delete($path);
             }

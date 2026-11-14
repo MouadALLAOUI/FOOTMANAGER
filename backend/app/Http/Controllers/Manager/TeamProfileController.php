@@ -147,7 +147,7 @@ class TeamProfileController extends Controller
 
     public function uploadPhoto(Request $request): JsonResponse
     {
-        $maxKb = (int) config('team.gallery.max_size_kb', 5120);
+        $maxKb = max(10240, (int) config('team.gallery.max_size_kb', 10240));
 
         $request->validate([
             'photo' => "required|image|mimes:jpeg,png,jpg,webp|max:{$maxKb}",

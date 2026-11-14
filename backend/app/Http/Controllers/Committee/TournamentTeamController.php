@@ -170,9 +170,9 @@ class TournamentTeamController extends Controller
 
         $data = $request->validated();
 
-        // After the first settled result only identity edits (name/logo) are allowed.
+        // After the first settled result only identity edits (name/logo/photo) are allowed.
         if ($tournament->hasSettledResult()) {
-            $data = array_intersect_key($data, array_flip(['name', 'logo', 'remove_logo', 'logo_preset_id']));
+            $data = array_intersect_key($data, array_flip(['name', 'logo', 'remove_logo', 'logo_preset_id', 'photo', 'remove_photo']));
         }
 
         if (isset($data['name'])) {

@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react'
 import TeamLogo from '../../../components/profile/TeamLogo'
+import { normalizeImageUrl } from '../../../lib/thumb'
 import { useProfileModal } from '../../../components/profile/ProfileModalContext'
 
 const CATEGORY_LABELS = {
@@ -103,7 +104,7 @@ export default function TeamHeader({ team, form = [], isPrivate = false, onShare
           {/* Wide Collective Team Photograph (16:9 Aspect Ratio) */}
           <div className="mt-3 relative w-full aspect-[16/9] overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 shadow-lg bg-slate-950">
             <img
-              src={team.cover_image_url}
+              src={normalizeImageUrl(team.cover_image_url)}
               alt={`الصورة الجماعية لفريق ${team.name}`}
               className="size-full object-cover"
               loading="eager"

@@ -13,10 +13,11 @@ import {
 import api from '../../api/client'
 import { useToast } from '../ui/Toast'
 import { toastApiError } from '../../lib/errors'
+import { normalizeImageUrl } from '../../lib/thumb'
 import { Button, Modal } from '../dashboard/ui'
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg']
-const MAX_SIZE = 5 * 1024 * 1024 // 5MB
+const MAX_SIZE = 10 * 1024 * 1024 // 10MB
 
 export default function TeamPhotoModal({ open, onClose, team, onSuccess }) {
   const { t } = useTranslation()
@@ -29,7 +30,7 @@ export default function TeamPhotoModal({ open, onClose, team, onSuccess }) {
   const [error, setError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const currentPhotoUrl = team?.cover_image_url || null
+  const currentPhotoUrl = team?.cover_image_url ? normalizeImageUrl(team.cover_image_url) : null
 
   useEffect(() => {
     if (!open) {
@@ -52,7 +53,7 @@ export default function TeamPhotoModal({ open, onClose, team, onSuccess }) {
     }
 
     if (file.size > MAX_SIZE) {
-      setError('حجم الصورة يتجاوز الحد الأقصى (5MB)')
+      setError('حجم الصورة يتجاوز الحد الأقصى (10MB)')
       return
     }
 
@@ -76,9 +77,7 @@ export default function TeamPhotoModal({ open, onClose, team, onSuccess }) {
     try {
       const fd = new FormData()
       fd.append('photo', selectedFile)
-      const res = await api.post('/manager/team-profile/photo', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const res = await api.post('/manager/team-profile/photo', fd)
       toast.success(res.data?.message || 'تم حفظ الصورة الجماعية بنجاح!')
       onSuccess?.(res.data)
       onClose()

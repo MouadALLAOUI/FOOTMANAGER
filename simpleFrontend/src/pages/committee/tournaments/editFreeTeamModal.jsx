@@ -7,6 +7,7 @@ import { Button, Field, inputClass, Modal } from '../../../components/dashboard/
 import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import { BRAND_COLORS } from '../../../lib/brandColors'
+import { normalizeImageUrl } from '../../../lib/thumb'
 
 export default function EditFreeTeamModal({
   open,
@@ -91,7 +92,7 @@ export default function EditFreeTeamModal({
     setRemovingPhoto(false)
   }
 
-  const shownPhoto = photoPreview || (!removingPhoto ? team?.cover_image_url : null)
+  const shownPhoto = photoPreview || (!removingPhoto && team?.cover_image_url ? normalizeImageUrl(team.cover_image_url) : null)
 
   const clearPhotoChoice = () => {
     if (photoFile) {

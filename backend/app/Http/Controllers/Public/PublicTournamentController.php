@@ -29,6 +29,7 @@ use App\Domains\Tournament\Services\TournamentStatisticsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 
 class PublicTournamentController extends Controller
 {
@@ -92,6 +93,27 @@ class PublicTournamentController extends Controller
         $tournament->load(['organizer', 'stadium.images'])->loadCount('tournamentTeams');
 
         return response()->json(['data' => new TournamentDetailResource($tournament)]);
+    }
+
+    public function recordView(Request $request, string $tournament): JsonResponse
+    {
+        $tournament = $this->resolveTournament($tournament);
+
+        $ip = (string) ($request->ip() ?? '');
+        $ua = (string) ($request->userAgent() ?? '');
+        $hash = sha1($ip . '|' . $ua);
+        $cacheKey = "tour_view:{$tournament->id}:{$hash}";
+
+        $isNewVisit = Cache::add($cacheKey, 1, now()->addHours(2));
+        if ($isNewVisit) {
+            Tournament::query()->whereKey($tournament->id)->increment('views_count');
+            $tournament->refresh();
+        }
+
+        return response()->json([
+            'views_count' => (int) ($tournament->views_count ?? 0),
+            'recorded' => (bool) $isNewVisit,
+        ]);
     }
 
     public function fixtures(Request $request, string $tournament): AnonymousResourceCollection

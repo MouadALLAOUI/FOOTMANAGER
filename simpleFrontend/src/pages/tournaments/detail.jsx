@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -13,6 +13,7 @@ import {
   Target,
   Trophy,
   Users,
+  UsersRound,
 } from 'lucide-react'
 import api from '../../api/client'
 import { useApi } from '../../hooks/useApi'
@@ -24,6 +25,7 @@ import TournamentStageBar from '../../components/tournaments/TournamentStageBar'
 import Hero from './sections/Hero'
 import RegistrationSection from './sections/RegistrationSection'
 import OverviewSection from './sections/OverviewSection'
+import ParticipatingTeamsSection from './sections/ParticipatingTeamsSection'
 import TeamsSection from './sections/TeamsSection'
 import FixturesSection from './sections/FixturesSection'
 import ScorersSection from './sections/ScorersSection'
@@ -34,13 +36,6 @@ import PartnersSection from './sections/PartnersSection'
 import ContactSection from './sections/ContactSection'
 import MatchDetailModal from './components/MatchDetailModal'
 import LiveMatchActivity from '../../components/LiveMatchActivity'
-
-const PRIMARY_TABS = [
-  { key: 'overview', icon: Info, label: 'معلومات' },
-  { key: 'teams', icon: Users, label: 'المجموعات' },
-  { key: 'matches', icon: Calendar, label: 'المباريات' },
-  { key: 'standings', icon: BarChart3, label: 'الترتيب' },
-]
 
 const SECONDARY_SECTION_ICONS = {
   bracket: Network,
@@ -58,6 +53,32 @@ export default function PublicTournamentDetail() {
   const detailQuery = useApi(() => api.get(`/v1/tournaments/${slug}`).then((r) => r.data.data), [slug], { staleTime: 0 })
   const tour = detailQuery.data
   syncTournamentGroupNames(tour)
+  const [recordedViews, setRecordedViews] = useState(null)
+
+  useEffect(() => {
+    if (!slug || !tour?.id) return
+    const sessionKey = `tour_view_${tour.id}`
+    try {
+      if (sessionStorage.getItem(sessionKey)) return
+      sessionStorage.setItem(sessionKey, '1')
+    } catch {
+      // Ignore storage errors in private browsing modes
+    }
+
+    api
+      .post(`/v1/tournaments/${encodeURIComponent(slug)}/view`)
+      .then((res) => {
+        if (typeof res?.data?.views_count === 'number') {
+          setRecordedViews(res.data.views_count)
+        }
+      })
+      .catch(() => {})
+  }, [slug, tour?.id])
+
+  const tourWithViews = useMemo(
+    () => (recordedViews != null && tour ? { ...tour, views_count: recordedViews } : tour),
+    [tour, recordedViews],
+  )
 
   useSeo({
     title: tour?.name ? `${tour.name} — بطولة كرة قدم` : 'تفاصيل البطولة',
@@ -66,8 +87,9 @@ export default function PublicTournamentDetail() {
     image: tour?.cover_image_url,
   })
 
+  const teamsActive = ['overview', 'participating_teams', 'teams', 'groups'].includes(active)
   const fixturesActive = ['overview', 'matches', 'results'].includes(active)
-  const standingsActive = ['overview', 'teams', 'standings'].includes(active)
+  const standingsActive = ['overview', 'participating_teams', 'teams', 'groups', 'standings'].includes(active)
   const isKnockout = ['groups_knockout', 'knockout_only'].includes(tour?.tournament_format)
   const statsActive = active === 'scorers' || active === 'overview'
   const bracketActive = active === 'bracket' || (Boolean(tour) && isKnockout && active === 'overview')
@@ -85,8 +107,34 @@ export default function PublicTournamentDetail() {
   const teamsQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/teams`).then((r) => r.data.data),
     [slug],
-    { enabled: active === 'teams' && Boolean(tour), staleTime: 0 },
+    { enabled: teamsActive && Boolean(tour), staleTime: 0 },
   )
+
+  const hasGroups = useMemo(() => {
+    if (!tour) return false
+    if (tour.tournament_format === 'league') return false
+    if (tour.tournament_format === 'knockout_only' && !tour.groups_count) return false
+    if (Number(tour.groups_count) > 1) return true
+    if (Array.isArray(standingsQuery.data?.groups) && standingsQuery.data.groups.length > 1) return true
+    return tour.tournament_format === 'groups_knockout' || Boolean(tour.groups_count)
+  }, [tour, standingsQuery.data])
+
+  const primaryTabs = useMemo(() => {
+    const tabs = [{ key: 'overview', icon: Info, label: 'معلومات' }]
+
+    tabs.push({ key: 'participating_teams', icon: Users, label: 'الفرق المشاركة' })
+
+    if (hasGroups) {
+      tabs.push({ key: 'groups', icon: UsersRound, label: 'المجموعات' })
+    }
+
+    tabs.push(
+      { key: 'matches', icon: Calendar, label: 'المباريات' },
+      { key: 'standings', icon: BarChart3, label: 'الترتيب' },
+    )
+
+    return tabs
+  }, [hasGroups])
   const bracketQuery = useApi(
     () => api.get(`/v1/tournaments/${slug}/bracket`).then((r) => r.data.data),
     [slug],
@@ -215,14 +263,16 @@ export default function PublicTournamentDetail() {
     <div className="mx-auto w-full max-w-[1400px] space-y-4 px-3 sm:px-6 lg:px-8 pb-24 lg:pb-32">
       {/* Unified Hero Header + 4-Segment Primary Navigation Bar */}
       <div className="overflow-hidden rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] shadow-2xs">
-        <Hero tour={tour} embedded />
+        <Hero tour={tourWithViews} embedded />
 
         <nav aria-label={t('public.detail.ariaTabs')} className="p-2 sm:p-2.5 bg-white dark:bg-[#1B201D]">
-          <div role="tablist" className="grid grid-cols-4 gap-1.5">
-            {PRIMARY_TABS.map(({ key, icon: Icon, label }) => {
-              const isActive = active === key || (key === 'matches' && active === 'results')
-              const displayLabel =
-                key === 'teams' && tour.tournament_format === 'league' ? 'الفرق' : label
+          <div role="tablist" className={`grid gap-1 sm:gap-1.5 ${primaryTabs.length === 5 ? 'grid-cols-5' : 'grid-cols-4'}`}>
+            {primaryTabs.map(({ key, icon: Icon, label }) => {
+              const isActive =
+                active === key ||
+                (key === 'matches' && active === 'results') ||
+                (key === 'participating_teams' && active === 'teams' && !hasGroups) ||
+                (key === 'groups' && active === 'teams' && hasGroups)
               return (
                 <button
                   key={key}
@@ -230,15 +280,15 @@ export default function PublicTournamentDetail() {
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => handleSection(key)}
-                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2.5 px-1.5 text-center transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2 sm:py-2.5 px-1 sm:px-1.5 text-center transition-all cursor-pointer ${
                     isActive
                       ? 'bg-[#B8F000] dark:bg-[#D0FF38] text-[#111313] shadow-2xs'
                       : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#E9ECE7] dark:hover:bg-[#303832]'
                   }`}
                 >
-                  <Icon className="size-4.5 stroke-[2.3]" />
-                  <span className="text-[11px] sm:text-xs font-black leading-tight truncate max-w-full">
-                    {displayLabel}
+                  <Icon className="size-4 sm:size-4.5 stroke-[2.3]" />
+                  <span className="text-[10px] sm:text-xs font-black leading-tight truncate max-w-full">
+                    {label}
                   </span>
                 </button>
               )
@@ -270,13 +320,13 @@ export default function PublicTournamentDetail() {
         </nav>
       </div>
 
-      <RegistrationSection tour={tour} />
+      <RegistrationSection tour={tourWithViews} />
 
       <section id={`section-${active}`} className="scroll-mt-32">
         {active === 'overview' && (
           <>
             <OverviewSection
-              tour={tour}
+              tour={tourWithViews}
               fixtures={fixturesQuery.data}
               standings={standingsQuery.data}
               stats={statsQuery.data}
@@ -309,7 +359,15 @@ export default function PublicTournamentDetail() {
           </>
         )}
 
-        {active === 'teams' && (
+        {(active === 'participating_teams' || (active === 'teams' && !hasGroups)) && (
+          <ParticipatingTeamsSection
+            teams={teamsQuery.data}
+            standings={standingsQuery.data}
+            loading={teamsQuery.loading || (teamsQuery.isFetching && teamsQuery.data == null)}
+          />
+        )}
+
+        {(active === 'groups' || (active === 'teams' && hasGroups)) && (
           <TeamsSection
             teams={teamsQuery.data}
             standings={standingsQuery.data}

@@ -27,6 +27,7 @@ class TournamentResource extends JsonResource
             'end_date' => $this->end_date?->toDateString(),
             'first_match_day' => $this->first_match_day?->toDateString(),
             'status' => $this->status,
+            'views_count' => (int) ($this->views_count ?? 0),
             'is_hidden' => $this->isHidden(),
             'has_settled_result' => $this->hasSettledResult(),
             'hidden_at' => $this->hidden_at?->toIso8601String(),

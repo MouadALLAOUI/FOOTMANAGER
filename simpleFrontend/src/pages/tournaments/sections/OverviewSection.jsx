@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock,
+  Eye,
   Flag,
   Flame,
   Hand,
@@ -114,58 +115,59 @@ function QuickInfoStrip({ tour, stats }) {
   const totalMatches = tour?.stats?.fixtures ?? stats?.summary?.total_matches ?? 0
   const played = tour?.stats?.finished_matches ?? stats?.summary?.matches_played ?? 0
   const progress = totalMatches > 0 ? Math.min(100, Math.round((played / totalMatches) * 100)) : 0
+  const views = tour?.views_count ?? tour?.stats?.views_count ?? 0
 
   // SVG circle parameters
-  const size = 34
-  const strokeWidth = 3.5
+  const size = 30
+  const strokeWidth = 3
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
   const dashOffset = circumference - (progress / 100) * circumference
 
   return (
-    <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] py-3 px-2 sm:px-4 sm:py-3.5 shadow-2xs">
-      <div className="grid grid-cols-4 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] items-center">
+    <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] py-3 px-2 sm:px-4 sm:py-3.5 shadow-2xs overflow-x-auto no-scrollbar">
+      <div className="grid grid-cols-5 divide-x divide-x-reverse divide-[#E1E5DF] dark:divide-[#303832] items-center min-w-[340px] sm:min-w-0">
         {/* 1. Teams Count */}
-        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3">
-          <Users className="size-4.5 sm:size-5 shrink-0 text-[#111313] dark:text-[#D0FF38]" strokeWidth={2} />
+        <div className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3">
+          <Users className="size-4 sm:size-5 shrink-0 text-[#111313] dark:text-[#D0FF38]" strokeWidth={2} />
           <div className="text-center sm:text-start min-w-0">
-            <p className="text-sm sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
-              {teams}
+            <p className="text-xs sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+              {Number(teams).toLocaleString('ar-MA')}
             </p>
-            <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+            <p className="mt-0.5 text-[9px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
               فريقاً
             </p>
           </div>
         </div>
 
         {/* 2. Total Matches */}
-        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3">
-          <Swords className="size-4.5 sm:size-5 shrink-0 text-[#111313] dark:text-[#D0FF38]" strokeWidth={2} />
+        <div className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3">
+          <Swords className="size-4 sm:size-5 shrink-0 text-[#111313] dark:text-[#D0FF38]" strokeWidth={2} />
           <div className="text-center sm:text-start min-w-0">
-            <p className="text-sm sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
-              {totalMatches}
+            <p className="text-xs sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+              {Number(totalMatches).toLocaleString('ar-MA')}
             </p>
-            <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+            <p className="mt-0.5 text-[9px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
               مباراة
             </p>
           </div>
         </div>
 
         {/* 3. Completed Matches */}
-        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3">
-          <CheckCircle2 className="size-4.5 sm:size-5 shrink-0 text-[#179955] dark:text-[#42D889]" strokeWidth={2.2} />
+        <div className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3">
+          <CheckCircle2 className="size-4 sm:size-5 shrink-0 text-[#179955] dark:text-[#42D889]" strokeWidth={2.2} />
           <div className="text-center sm:text-start min-w-0">
-            <p className="text-sm sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
-              {played}
+            <p className="text-xs sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+              {Number(played).toLocaleString('ar-MA')}
             </p>
-            <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
-              مباراة منجزة
+            <p className="mt-0.5 text-[9px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+              <span className="hidden sm:inline">مباراة </span>منجزة
             </p>
           </div>
         </div>
 
         {/* 4. Progress Ring + Percentage */}
-        <div className="flex items-center justify-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3">
+        <div className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3">
           <div className="relative shrink-0 grid place-items-center" style={{ width: size, height: size }}>
             <svg width={size} height={size} className="-rotate-90">
               <circle
@@ -192,11 +194,24 @@ function QuickInfoStrip({ tour, stats }) {
             </svg>
           </div>
           <div className="text-center sm:text-start min-w-0">
-            <p className="text-sm sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+            <p className="text-xs sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
               {progress}%
             </p>
-            <p className="mt-0.5 text-[10px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
-              نسبة التقدم
+            <p className="mt-0.5 text-[9px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+              <span className="hidden sm:inline">نسبة </span>التقدم
+            </p>
+          </div>
+        </div>
+
+        {/* 5. Real Views Counter */}
+        <div className="flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-3">
+          <Eye className="size-4 sm:size-5 shrink-0 text-[#179955] dark:text-[#42D889]" strokeWidth={2} />
+          <div className="text-center sm:text-start min-w-0">
+            <p className="text-xs sm:text-lg font-black leading-none text-[#111313] dark:text-[#F5F7F2] tabular-nums">
+              {Number(views).toLocaleString('ar-MA')}
+            </p>
+            <p className="mt-0.5 text-[9px] sm:text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] truncate">
+              مشاهدة
             </p>
           </div>
         </div>

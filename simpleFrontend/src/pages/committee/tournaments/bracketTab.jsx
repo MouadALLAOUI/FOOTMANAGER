@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, Crown, Layers, Network, RefreshCw, Swords, UserCheck } from 'lucide-react'
+import { AlertTriangle, Crown, Layers, Network, RefreshCw, Shuffle, Swords, UserCheck } from 'lucide-react'
 import api from '../../../api/client'
 import { useApi } from '../../../hooks/useApi'
 import { Button, Empty, Skeleton } from '../../../components/dashboard/ui'
@@ -8,6 +8,7 @@ import { useToast } from '../../../components/ui/Toast'
 import { toastApiError } from '../../../lib/errors'
 import CommitteeBracket from '../../../domains/committee/components/CommitteeBracket'
 import KnockoutOptionModal from '../../../domains/committee/components/KnockoutOptionModal'
+import KnockoutDrawModal from './draw/KnockoutDrawModal'
 import TournamentStageBar from '../../../components/tournaments/TournamentStageBar'
 import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
 import { formatGroupName } from '../../../lib/groupNames'
@@ -17,6 +18,7 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
   const { toast } = useToast()
   const [busy, setBusy] = useState(null)
   const [optionModal, setOptionModal] = useState(false)
+  const [drawModal, setDrawModal] = useState(false)
   const [oddChoice, setOddChoice] = useState(false)
   const [invalidNotice, setInvalidNotice] = useState(null)
 
@@ -225,6 +227,10 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
           <UserCheck className="size-4" />
           {t('committee.detail.populateBracket')}
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setDrawModal(true)}>
+          <Shuffle className="size-4" />
+          {meta?.draw_status === 'confirmed' ? 'مراجعة القرعة الإقصائية' : 'إجراء القرعة الإقصائية'}
+        </Button>
       </div>
 
       {rounds.length === 0 ? (
@@ -246,6 +252,15 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
         descKey={oddChoice ? ODD_KO_TITLE_KEYS.descKey : undefined}
         recommendedKey={oddChoice ? ODD_KO_TITLE_KEYS.recommendedKey : undefined}
         trail={oddChoice ? currentValidation?.trail : undefined}
+      />
+      <KnockoutDrawModal
+        open={drawModal}
+        onClose={() => setDrawModal(false)}
+        tournament={tournament}
+        onConfirmed={() => {
+          refresh()
+          refetch()
+        }}
       />
     </div>
   )

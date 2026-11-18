@@ -190,7 +190,7 @@ class TournamentFixtureService
         $expected = $this->setup->resolveKnockoutTeams($tournament);
         $teams = [];
 
-        if ($tournament->tournament_format === 'groups_knockout') {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
             $qualify = max(1, (int) ($tournament->qualify_per_group ?: 2));
             $standings = $this->standings->standings($tournament);
 
@@ -1495,7 +1495,7 @@ class TournamentFixtureService
 
         if ($rounds->isEmpty()) {
             throw new DomainException(
-                $tournament->tournament_format === 'groups_knockout'
+                in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)
                     ? 'أكمل جميع مباريات دور المجموعات لإنشاء الأدوار الإقصائية'
                     : 'صيغة البطولة لا تتضمن أدواراً إقصائية'
             );

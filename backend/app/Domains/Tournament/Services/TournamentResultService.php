@@ -1106,7 +1106,7 @@ class TournamentResultService
                 ->value('id');
 
             if ($firstKnockoutRoundId && (int) $round->id === (int) $firstKnockoutRoundId) {
-                if ($tournament->tournament_format === 'groups_knockout' && ! $this->setup->groupStageComplete($tournament)) {
+                if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true) && ! $this->setup->groupStageComplete($tournament)) {
                     throw new DomainException('أكمل جميع مباريات دور المجموعات قبل تسجيل نتائج الأدوار الإقصائية');
                 }
 

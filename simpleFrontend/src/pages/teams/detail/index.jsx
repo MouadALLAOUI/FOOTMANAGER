@@ -6,6 +6,7 @@ import MatchDetailModal from '../../tournaments/components/MatchDetailModal'
 import { useTeamFullData } from './useTeamFullData'
 import TeamHeader from './header'
 import TeamStatsGrid from './statsGrid'
+import TeamTournamentJourney from './TeamTournamentJourney'
 import TeamMatchHistory from './matchHistory'
 import TeamTournamentHistory from './tournamentHistory'
 import TeamRosterSection from './rosterSection'
@@ -145,6 +146,11 @@ export default function PublicTeamDetail() {
 
               <TeamStatsGrid stats={stats} weeklyBookings={weeklyBookings} />
 
+              <TeamTournamentJourney
+                team={team}
+                onOpenMatch={(f) => setOpenMatch(f?.fixture ? f : { fixture: f, tournamentKey: f?.tournament_slug || f?.tournamentSlug })}
+              />
+
               <TeamMatchHistory matches={matches} onOpenMatch={setOpenMatch} />
 
               <TeamTournamentHistory tournaments={tournaments} />
@@ -215,7 +221,7 @@ export default function PublicTeamDetail() {
                 open={Boolean(openMatch)}
                 onClose={() => setOpenMatch(null)}
                 tournamentKey={openMatch?.tournamentKey}
-                fixture={openMatch?.fixture}
+                fixture={openMatch?.fixture || openMatch}
               />
 
               <TeamShareModal

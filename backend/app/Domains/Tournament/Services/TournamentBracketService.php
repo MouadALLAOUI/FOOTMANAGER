@@ -48,7 +48,7 @@ class TournamentBracketService
 
             if ($rounds->isEmpty()) {
                 throw new DomainException(
-                    $tournament->tournament_format === 'groups_knockout'
+                    in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)
                         ? 'أكمل جميع مباريات دور المجموعات لإنشاء الأدوار الإقصائية'
                         : 'صيغة البطولة لا تتضمن أدواراً إقصائية'
                 );
@@ -245,7 +245,7 @@ class TournamentBracketService
         $count = $this->effectiveKnockoutCount($tournament);
         $mode = ($tournament->plan ?? [])['knockout']['mode'] ?? null;
 
-        if ($tournament->tournament_format === 'groups_knockout') {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
             return $this->knockoutGateFor($count, $mode);
         }
 
@@ -358,15 +358,11 @@ class TournamentBracketService
     public function bracketMeta(Tournament $tournament): ?array
     {
         $plan = $tournament->plan ?? [];
-        $knockout = $plan['knockout'] ?? null;
-
-        if (! $knockout || ! isset($knockout['mode'])) {
-            return null;
-        }
+        $knockout = $plan['knockout'] ?? [];
 
         $groups = null;
 
-        if ($knockout['mode'] === 'groups6' && isset($knockout['groups'])) {
+        if (($knockout['mode'] ?? null) === 'groups6' && isset($knockout['groups'])) {
             $teams = [];
 
             foreach ($knockout['groups'] as $group) {
@@ -388,8 +384,15 @@ class TournamentBracketService
         }
 
         return [
-            'mode' => $knockout['mode'],
+            'mode' => $knockout['mode'] ?? null,
             'groups' => $groups,
+            'draw_status' => $knockout['draw_status'] ?? 'pending',
+            'draw_confirmed_at' => $knockout['draw_confirmed_at'] ?? null,
+            'draw_confirmed_by' => $knockout['draw_confirmed_by'] ?? null,
+            'rules' => $knockout['rules'] ?? [
+                'prevent_same_group_r1' => true,
+            ],
+            'round_rules' => $knockout['round_rules'] ?? [],
         ];
     }
 
@@ -1191,7 +1194,7 @@ class TournamentBracketService
      */
     public function isSixTeamBracket(Tournament $tournament): bool
     {
-        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_only', 'league'], true)) {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_only', 'league', 'groups_double_round_robin_knockout'], true)) {
             return false;
         }
 

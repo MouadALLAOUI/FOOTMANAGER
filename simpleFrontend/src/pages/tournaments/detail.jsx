@@ -34,6 +34,7 @@ import GallerySection from './sections/GallerySection'
 import SponsorsSection from './sections/SponsorsSection'
 import PartnersSection from './sections/PartnersSection'
 import ContactSection from './sections/ContactSection'
+import KnockoutBracketSection from './sections/KnockoutBracketSection'
 import MatchDetailModal from './components/MatchDetailModal'
 import LiveMatchActivity from '../../components/LiveMatchActivity'
 
@@ -95,7 +96,7 @@ export default function PublicTournamentDetail() {
   const teamsActive = ['overview', 'participating_teams', 'teams', 'groups'].includes(active)
   const fixturesActive = ['overview', 'matches', 'results'].includes(active)
   const standingsActive = ['overview', 'participating_teams', 'teams', 'groups', 'standings'].includes(active)
-  const isKnockout = ['groups_knockout', 'knockout_only'].includes(tour?.tournament_format)
+  const isKnockout = ['groups_knockout', 'knockout_only', 'groups_double_round_robin_knockout'].includes(tour?.tournament_format)
   const statsActive = active === 'scorers' || active === 'overview'
   const bracketActive = active === 'bracket' || (Boolean(tour) && isKnockout && active === 'overview')
 
@@ -193,7 +194,7 @@ export default function PublicTournamentDetail() {
   const secondarySections = useMemo(() => {
     if (!tour) return []
     const finishedCount = tour.stats?.finished_matches ?? 0
-    const hasKnockout = ['groups_knockout', 'knockout_only'].includes(tour.tournament_format)
+    const hasKnockout = ['groups_knockout', 'knockout_only', 'groups_double_round_robin_knockout'].includes(tour.tournament_format)
     const visible = {
       bracket: hasKnockout,
       scorers: finishedCount > 0,
@@ -430,7 +431,7 @@ export default function PublicTournamentDetail() {
           active === 'bracket' && (
             <div className="space-y-5">
               <TournamentStageBar rounds={bracketQuery.data} />
-              <BracketView rounds={bracketQuery.data} onOpen={setOpenMatch} />
+              <KnockoutBracketSection rounds={bracketQuery.data} onOpenMatch={setOpenMatch} />
             </div>
           )
         )}

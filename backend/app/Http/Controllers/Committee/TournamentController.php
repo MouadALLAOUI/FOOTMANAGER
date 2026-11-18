@@ -71,7 +71,7 @@ class TournamentController extends Controller
         // Tournament creation is unrestricted; plan/upgrade limits are disabled as a later feature.
         $data = $request->validated();
 
-        if (in_array($data['tournament_format'], ['groups_knockout', 'groups_only'], true)) {
+        if (in_array($data['tournament_format'], ['groups_knockout', 'groups_only', 'groups_double_round_robin_knockout'], true)) {
             $data['teams_per_group'] = (int) ($data['teams_per_group'] ?? 4);
             $data['groups_count'] = $this->deriveGroupsCount($data);
         } elseif ($data['tournament_format'] === 'league') {
@@ -192,7 +192,7 @@ class TournamentController extends Controller
 
             $format = $data['tournament_format'] ?? $tournament->tournament_format;
 
-            if (in_array($format, ['groups_knockout', 'groups_only'], true)) {
+            if (in_array($format, ['groups_knockout', 'groups_only', 'groups_double_round_robin_knockout'], true)) {
                 $data['teams_per_group'] = (int) ($data['teams_per_group'] ?? $tournament->teams_per_group ?? 4);
                 $data['groups_count'] = $this->deriveGroupsCount($data + ['teams_count' => $data['teams_count'] ?? $tournament->teams_count]);
 

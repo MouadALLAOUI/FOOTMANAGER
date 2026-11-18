@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Bell,
+  Menu,
   Moon,
   Sun,
   LayoutDashboard,
@@ -21,6 +22,7 @@ import { useTheme } from '../../context/ThemeContext'
 import { useNotificationUnreadCount } from '../../api/queries'
 import { triggerPwaInstall, isStandalone } from './pwaHelper'
 import NotificationSheet from './notificationSheet'
+import SidebarNav from './sidebarNav'
 
 export default function MainHeader({ theme = 'dark', onToggleTheme, transparent = false }) {
   const { theme: ctxTheme, toggleTheme: ctxToggleTheme, isDark: ctxIsDark } = useTheme()
@@ -32,6 +34,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
   const navigate = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Real notifications (only when user is authenticated)
   const { data: unreadData } = useNotificationUnreadCount({
@@ -109,6 +112,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
                 }
                 setNotifOpen((v) => !v)
                 setAccountMenuOpen(false)
+                setSidebarOpen(false)
               }}
               aria-label="الإشعارات والتنبيهات"
               className={`relative grid size-10 place-items-center rounded-lg border transition-all cursor-pointer ${
@@ -146,6 +150,7 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
               onClick={() => {
                 setAccountMenuOpen((v) => !v)
                 setNotifOpen(false)
+                setSidebarOpen(false)
               }}
               aria-label="قائمة الحساب والإعدادات"
               title={user ? user.name : 'قائمة الحساب'}
@@ -326,8 +331,41 @@ export default function MainHeader({ theme = 'dark', onToggleTheme, transparent 
               </>
             )}
           </div>
+
+          {/* زر القائمة الجانبية (Hamburger Menu Button) */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setSidebarOpen((v) => !v)
+                setNotifOpen(false)
+                setAccountMenuOpen(false)
+              }}
+              aria-label={sidebarOpen ? 'إغلاق القائمة الجانبية' : 'فتح القائمة الجانبية'}
+              aria-expanded={sidebarOpen}
+              className={`relative grid size-10 place-items-center rounded-lg border transition-all cursor-pointer ${
+                transparent
+                  ? 'border-white/20 bg-white/10 text-white hover:bg-white/20 backdrop-blur-xs'
+                  : isDark
+                  ? 'border-[#303832] bg-[#252B27] text-[#B2B9B3] hover:text-[#F5F7F2]'
+                  : 'border-[#E1E5DF] bg-[#E9ECE7] text-[#111313] hover:text-black'
+              }`}
+            >
+              {sidebarOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* القائمة الجانبية المستجيبة (RTL Slide-in Sidebar) */}
+      <SidebarNav
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onOpenNotifications={() => {
+          setSidebarOpen(false)
+          setNotifOpen(true)
+        }}
+      />
     </header>
   )
 }

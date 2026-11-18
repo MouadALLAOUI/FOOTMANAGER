@@ -30,7 +30,7 @@ class UpdateTournamentRequest extends FormRequest
             'registration_start_at' => 'nullable|date',
             'registration_end_at' => 'nullable|date',
             'registration_fee' => 'nullable|numeric|min:0|max:99999999',
-            'tournament_format' => 'sometimes|in:groups_knockout,groups_only,knockout_only,league,custom',
+            'tournament_format' => 'sometimes|in:groups_knockout,groups_only,knockout_only,league,custom,groups_double_round_robin_knockout',
             'teams_count' => 'sometimes|integer|min:2|max:64',
             'groups_count' => 'nullable|integer|min:1|max:16',
             'teams_per_group' => 'nullable|integer|min:2|max:16',

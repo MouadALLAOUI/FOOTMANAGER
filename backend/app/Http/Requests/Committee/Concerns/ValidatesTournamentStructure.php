@@ -42,8 +42,8 @@ trait ValidatesTournamentStructure
         $qualify = $this->effectiveValue('qualify_per_group');
         $knockout = $this->effectiveValue('knockout_teams');
 
-        $isGroupFormat = in_array($format, ['groups_knockout', 'groups_only'], true);
-        $hasKnockout = in_array($format, ['groups_knockout', 'knockout_only'], true);
+        $isGroupFormat = in_array($format, ['groups_knockout', 'groups_only', 'groups_double_round_robin_knockout'], true);
+        $hasKnockout = in_array($format, ['groups_knockout', 'knockout_only', 'groups_double_round_robin_knockout'], true);
         $perGroupInt = max(2, (int) ($perGroup ?? 2));
         $effectiveGroups = $this->effectiveGroups($teams, $perGroupInt, $groups);
 
@@ -91,7 +91,7 @@ trait ValidatesTournamentStructure
         }
 
         // For groups + knockout the knockout field must match the derived value.
-        if ($format === 'groups_knockout' && $qualify !== null) {
+        if (in_array($format, ['groups_knockout', 'groups_double_round_robin_knockout'], true) && $qualify !== null) {
             $expected = $effectiveGroups * (int) $qualify;
 
             if ($expected > $teams) {

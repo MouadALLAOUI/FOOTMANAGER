@@ -187,7 +187,7 @@ class TournamentSetupService
      */
     public function ensureKnockoutRoundsWhenReady(Tournament $tournament, Season $season): array
     {
-        if ($tournament->tournament_format === 'groups_knockout' && ! $this->groupStageComplete($tournament)) {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true) && ! $this->groupStageComplete($tournament)) {
             return [];
         }
 
@@ -318,7 +318,7 @@ class TournamentSetupService
 
     public function resolveKnockoutTeams(Tournament $tournament): int
     {
-        if ($tournament->tournament_format === 'groups_knockout') {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
             $perGroup = max(1, (int) ($tournament->qualify_per_group ?: 2));
 
             return max(2, (int) $tournament->groups_count * $perGroup);

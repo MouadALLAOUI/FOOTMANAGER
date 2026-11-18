@@ -112,6 +112,7 @@ use App\Http\Controllers\Manager\TournamentSquadController as ManagerTournamentS
 use App\Http\Controllers\Player\PlayerController as PlayerProfileController;
 use App\Http\Controllers\Public\LeaderboardController;
 use App\Http\Controllers\Public\PlayerLeaderboardController;
+use App\Http\Controllers\Public\PublicTeamJourneyController;
 use App\Http\Controllers\Public\PublicTournamentController;
 use App\Http\Controllers\Public\PublicLiveMatchDataController;
 use App\Http\Controllers\Public\PresetController as PublicPresetController;
@@ -190,6 +191,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/live/{token}/react', [PublicLiveMatchDataController::class, 'react'])->middleware('throttle:60,1');
 
     Route::get('/teams/{team}/page', [TeamPageController::class, 'show']);
+    Route::get('/teams/{team}/tournaments/{tournament?}/journey', [PublicTeamJourneyController::class, 'show']);
     Route::get('/feed', [FeedController::class, 'index']);
     Route::get('/comments', [CommentController::class, 'index']);
     Route::get('/comments/{comment}/replies', [CommentController::class, 'replies']);
@@ -1014,10 +1016,13 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
             Route::get('/bracket', [TournamentBracketController::class, 'index']);
             Route::get('/bracket/validation', [TournamentBracketController::class, 'validation']);
+            Route::get('/bracket/draw-teams', [TournamentBracketController::class, 'drawTeams']);
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/bracket', [TournamentBracketController::class, 'store']);
                 Route::post('/bracket/populate', [TournamentBracketController::class, 'populate']);
+                Route::post('/bracket/confirm-draw', [TournamentBracketController::class, 'confirmDraw']);
+                Route::put('/bracket/rules', [TournamentBracketController::class, 'updateKnockoutRules']);
                 Route::post('/bracket/sync', [TournamentBracketController::class, 'sync']);
             });
 

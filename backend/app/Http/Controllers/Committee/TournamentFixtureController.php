@@ -333,13 +333,15 @@ class TournamentFixtureController extends Controller
 
         $this->assertDrawReadyForFixtures($tournament);
 
+        $isDoubleRR = (bool) ($data['double_round_robin'] ?? ($tournament->tournament_format === 'groups_double_round_robin_knockout'));
+
         if ($request->boolean('regenerate')) {
             $result = $this->fixtures->regenerateGroupFixtures(
                 $tournament,
                 $data['starts_on'] ?? null,
                 $data['stadium_ids'] ?? null,
                 $data['default_time'] ?? '20:00',
-                (bool) ($data['double_round_robin'] ?? false),
+                $isDoubleRR,
                 $strategy,
             );
         } else {
@@ -358,7 +360,7 @@ class TournamentFixtureController extends Controller
                 $data['starts_on'] ?? null,
                 $data['stadium_ids'] ?? null,
                 $data['default_time'] ?? '20:00',
-                (bool) ($data['double_round_robin'] ?? false),
+                $isDoubleRR,
                 $strategy,
             );
         }

@@ -601,9 +601,9 @@ export function useTeamFullData(id) {
             ? {
                 rank: hasMeaningfulRank ? standingRank : null,
                 played: standingRow.played ?? 0,
-                wins: standingRow.wins ?? 0,
-                draws: standingRow.draws ?? 0,
-                losses: standingRow.losses ?? 0,
+                wins: standingRow.wins ?? (standingRow.won ?? 0),
+                draws: standingRow.draws ?? (standingRow.drawn ?? 0),
+                losses: standingRow.losses ?? (standingRow.lost ?? 0),
                 goalsFor: standingRow.goals_for ?? 0,
                 goalsAgainst: standingRow.goals_against ?? 0,
                 goalDifference: standingRow.goal_difference ?? 0,

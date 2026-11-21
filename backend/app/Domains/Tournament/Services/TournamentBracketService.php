@@ -54,7 +54,7 @@ class TournamentBracketService
                 );
             }
 
-            $knockoutTeams = $this->setup->resolveKnockoutTeams($tournament);
+            $knockoutTeams = $this->effectiveKnockoutCount($tournament);
             $playInTarget = $this->setup->playInSizes($knockoutTeams)['target'];
 
             $expectedCounts = match ($effectiveMode) {
@@ -358,6 +358,14 @@ class TournamentBracketService
      */
     public function qualifiedTeamIds(Tournament $tournament): array
     {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
+            $detailed = app(TournamentFixtureService::class)->qualifiedTeamsDetailed($tournament);
+            $teams = $detailed['teams'] ?? [];
+            if (! empty($teams)) {
+                return array_values(array_map(fn ($t) => (int) $t['team_id'], $teams));
+            }
+        }
+
         return $this->knockoutTeamIds($tournament);
     }
 
@@ -367,6 +375,14 @@ class TournamentBracketService
      */
     public function effectiveKnockoutCount(Tournament $tournament): int
     {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
+            $detailed = app(TournamentFixtureService::class)->qualifiedTeamsDetailed($tournament);
+            $qCount = count($detailed['teams'] ?? []);
+            if ($qCount > 0) {
+                return $qCount;
+            }
+        }
+
         return $this->setup->resolveKnockoutTeams($tournament);
     }
 
@@ -553,8 +569,13 @@ class TournamentBracketService
                 return $this->populateSixByes($tournament, $fixtures, array_values($qualified));
             }
 
-            if (count($qualified) !== $fixtures->count() * 2) {
-                throw new DomainException('عدد الفرق المتأهلة لا يطابق حجم الدور الأول ('.($fixtures->count() * 2).')');
+            $expectedCount = $fixtures->count() * 2;
+            if (count($qualified) !== $expectedCount) {
+                if (count($qualified) >= $expectedCount) {
+                    $qualified = array_slice($qualified, 0, $expectedCount);
+                } else {
+                    throw new DomainException('عدد الفرق المتأهلة لا يطابق حجم الدور الأول ('.$expectedCount.')');
+                }
             }
 
             $fixtureCount = $fixtures->count();

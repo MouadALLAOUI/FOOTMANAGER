@@ -236,7 +236,7 @@ class TournamentFixtureService
         }
 
         return [
-            'expected' => $expected,
+            'expected' => ! empty($teams) ? count($teams) : $expected,
             'teams' => $teams,
             'count' => count($teams),
         ];

@@ -193,8 +193,13 @@ class TournamentFixtureService
         if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
             $qualify = max(1, (int) ($tournament->qualify_per_group ?: 2));
             $standings = $this->standings->standings($tournament);
+            $participatingGroupIds = $this->setup->participatingGroupIds($tournament);
 
             foreach ($standings['groups'] as $group) {
+                if (! $group['group_id'] || ! in_array((int) $group['group_id'], $participatingGroupIds, true)) {
+                    continue;
+                }
+
                 foreach (array_slice($group['rows'], 0, $qualify) as $rank => $row) {
                     if (! $row['team']) {
                         continue;
@@ -203,7 +208,7 @@ class TournamentFixtureService
                         'team_id' => (int) $row['team_id'],
                         'name' => $row['team']['name'],
                         'logo_url' => $row['team']['logo_url'],
-                        'group_id' => $row['group_id'],
+                        'group_id' => (int) $row['group_id'],
                         'group_name' => $group['name'],
                         'rank' => $rank + 1,
                     ];
@@ -231,7 +236,7 @@ class TournamentFixtureService
         }
 
         return [
-            'expected' => $expected,
+            'expected' => ! empty($teams) ? count($teams) : $expected,
             'teams' => $teams,
             'count' => count($teams),
         ];

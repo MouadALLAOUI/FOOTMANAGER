@@ -100,7 +100,14 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
   const drawStatus = drawData?.draw_status || meta?.draw_status || 'pending'
   const isDrawConfirmed = drawStatus === 'confirmed'
   const groupStageDetails = drawData?.group_stage_details || null
-  const isGroupStageComplete = drawData?.can_finalize_qualification ?? (currentValidation?.group_stage_complete ?? true)
+  const realIncompleteGroups = useMemo(() => {
+    return (groupStageDetails?.incomplete_groups || []).filter(
+      (grp) => grp.remaining_matches > 0 && grp.total_matches > 0,
+    )
+  }, [groupStageDetails])
+  const isGroupStageComplete =
+    realIncompleteGroups.length === 0 &&
+    (drawData?.can_finalize_qualification ?? (currentValidation?.group_stage_complete ?? true))
 
   // Find final fixture and champion if completed
   const finalRound = useMemo(() => {
@@ -169,7 +176,11 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
     try {
       const gate = await fetchValidation()
 
-      if (gate.status === 'incomplete_groups') {
+      const realIncomplete = (gate.incomplete_groups || []).filter(
+        (grp) => grp.remaining_matches > 0 && grp.total_matches > 0,
+      )
+
+      if (gate.status === 'incomplete_groups' && realIncomplete.length > 0) {
         toast.error(gate.explanation || 'لا يمكن إنشاء السلم قبل اكتمال دور المجموعات')
         setInvalidNotice(gate)
         return
@@ -391,7 +402,7 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
           </div>
 
           {/* Group completion warning / details (TEST B) */}
-          {!isGroupStageComplete && groupStageDetails?.incomplete_groups?.length > 0 && (
+          {!isGroupStageComplete && realIncompleteGroups.length > 0 && (
             <div className="rounded-xl border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs">
               <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold mb-1.5">
                 <AlertTriangle className="size-4 shrink-0 text-amber-600" />
@@ -401,12 +412,12 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
                 {groupStageDetails.explanation}
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {groupStageDetails.incomplete_groups.map((grp) => (
+                {realIncompleteGroups.map((grp) => (
                   <div
                     key={grp.group_id}
                     className="flex items-center justify-between rounded-lg bg-white dark:bg-[#252B27] p-2.5 ring-1 ring-amber-200 dark:ring-amber-900/40"
                   >
-                    <span className="font-bold text-[#111313] dark:text-[#F5F7F2]">{grp.group_name}</span>
+                    <span className="font-bold text-[#111313] dark:text-[#F5F7F2]">{formatGroupName(grp.group_name, { groupId: grp.group_id, tournamentId: tournament?.id })}</span>
                     <span className="text-[11px] text-amber-700 dark:text-amber-300 font-bold">
                       متبقي {grp.remaining_matches} من أصل {grp.total_matches} مباريات
                     </span>
@@ -418,6 +429,42 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
                   <Swords className="size-3.5" />
                   الانتقال إلى جدول مباريات المجموعات
                 </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Available Groups for this tournament */}
+          {groupStageDetails?.groups?.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <h4 className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] flex items-center gap-1.5">
+                <Layers className="size-4 text-[#179955]" />
+                المجموعات المتوفرة في هذه البطولة ({groupStageDetails.groups.length} مجموعات):
+              </h4>
+              <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                {groupStageDetails.groups.map((grp) => (
+                  <div
+                    key={grp.group_id}
+                    className="flex items-center justify-between rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3 shadow-2xs"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-black text-[#111313] dark:text-[#F5F7F2]">
+                        {formatGroupName(grp.group_name, { groupId: grp.group_id, tournamentId: tournament?.id })}
+                      </p>
+                      <p className="text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                        {grp.total_matches > 0 ? `${grp.total_matches} مباريات مسجلة` : 'لم تُجدول المباريات'}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                        grp.is_complete
+                          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                          : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
+                      }`}
+                    >
+                      {grp.is_complete ? 'مكتملة 100%' : grp.total_matches === 0 ? 'غير مجدولة' : `متبقي ${grp.remaining_matches}`}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -455,7 +502,7 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
                           {team.rank === 1 ? 'بطل المجموعة' : 'وصيف المجموعة'}
                         </span>
                         <span className="text-[#65706A] dark:text-[#B2B9B3]">
-                          {team.group_name}
+                          {formatGroupName(team.group_name, { groupId: team.group_id, tournamentId: tournament?.id })}
                         </span>
                       </div>
                     </div>

@@ -54,7 +54,7 @@ class TournamentBracketService
                 );
             }
 
-            $knockoutTeams = $this->setup->resolveKnockoutTeams($tournament);
+            $knockoutTeams = $this->effectiveKnockoutCount($tournament);
             $playInTarget = $this->setup->playInSizes($knockoutTeams)['target'];
 
             $expectedCounts = match ($effectiveMode) {
@@ -248,15 +248,21 @@ class TournamentBracketService
         if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
             $details = $this->setup->groupStageDetails($tournament);
             if (! $details['complete']) {
-                return [
-                    'count' => $count,
-                    'status' => 'incomplete_groups',
-                    'options' => [],
-                    'mode' => $mode,
-                    'group_stage_complete' => false,
-                    'explanation' => $details['explanation'],
-                    'incomplete_groups' => $details['incomplete_groups'],
-                ];
+                // Only block if there are genuinely unfinished fixtures in participating groups
+                $hasRealIncomplete = collect($details['incomplete_groups'] ?? [])
+                    ->contains(fn ($grp) => ($grp['remaining_matches'] ?? 0) > 0 && ($grp['total_matches'] ?? 0) > 0);
+
+                if ($hasRealIncomplete) {
+                    return [
+                        'count' => $count,
+                        'status' => 'incomplete_groups',
+                        'options' => [],
+                        'mode' => $mode,
+                        'group_stage_complete' => false,
+                        'explanation' => $details['explanation'],
+                        'incomplete_groups' => $details['incomplete_groups'],
+                    ];
+                }
             }
 
             $gate = $this->knockoutGateFor($count, $mode);
@@ -352,6 +358,14 @@ class TournamentBracketService
      */
     public function qualifiedTeamIds(Tournament $tournament): array
     {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
+            $detailed = app(TournamentFixtureService::class)->qualifiedTeamsDetailed($tournament);
+            $teams = $detailed['teams'] ?? [];
+            if (! empty($teams)) {
+                return array_values(array_map(fn ($t) => (int) $t['team_id'], $teams));
+            }
+        }
+
         return $this->knockoutTeamIds($tournament);
     }
 
@@ -361,6 +375,14 @@ class TournamentBracketService
      */
     public function effectiveKnockoutCount(Tournament $tournament): int
     {
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
+            $detailed = app(TournamentFixtureService::class)->qualifiedTeamsDetailed($tournament);
+            $qCount = count($detailed['teams'] ?? []);
+            if ($qCount > 0) {
+                return $qCount;
+            }
+        }
+
         return $this->setup->resolveKnockoutTeams($tournament);
     }
 
@@ -547,8 +569,13 @@ class TournamentBracketService
                 return $this->populateSixByes($tournament, $fixtures, array_values($qualified));
             }
 
-            if (count($qualified) !== $fixtures->count() * 2) {
-                throw new DomainException('عدد الفرق المتأهلة لا يطابق حجم الدور الأول ('.($fixtures->count() * 2).')');
+            $expectedCount = $fixtures->count() * 2;
+            if (count($qualified) !== $expectedCount) {
+                if (count($qualified) >= $expectedCount) {
+                    $qualified = array_slice($qualified, 0, $expectedCount);
+                } else {
+                    throw new DomainException('عدد الفرق المتأهلة لا يطابق حجم الدور الأول ('.$expectedCount.')');
+                }
             }
 
             $fixtureCount = $fixtures->count();

@@ -102,44 +102,18 @@ class TournamentBracketController extends Controller
      */
     private function qualifiedTeams(Tournament $tournament): array
     {
+        // Strictly rely on the officially qualified teams from active participating groups
+        $detailed = $this->fixtures->qualifiedTeamsDetailed($tournament);
+        $teams = $detailed['teams'] ?? [];
+
+        if (! empty($teams)) {
+            return array_values(array_map(fn ($t) => (int) $t['team_id'], $teams));
+        }
+
         $knockoutTeams = (int) $this->bracket->resolvedKnockoutTeams($tournament);
+        $fallback = $this->bracket->knockoutTeamIds($tournament);
 
-        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
-            $standings = $this->standings->standings($tournament);
-            $groups = $standings['groups'];
-
-            if ($groups === []) {
-                throw new DomainException('لا توجد مجموعات جاهزة لاستخراج المتأهلين');
-            }
-
-            $perGroup = intdiv($knockoutTeams, count($groups));
-
-            if ($perGroup < 1) {
-                throw new DomainException('عدد الفرق المتأهلة أقل من عدد المجموعات');
-            }
-
-            $qualified = [];
-
-            foreach ($groups as $group) {
-                foreach (array_slice($group['rows'], 0, $perGroup) as $row) {
-                    $qualified[] = (int) $row['team_id'];
-                }
-            }
-
-            if (count($qualified) !== $knockoutTeams) {
-                throw new DomainException('عدد الفرق المتأهلة لا يطابق الحجم المتوقع للدور الإقصائي');
-            }
-
-            return $qualified;
-        }
-
-        $teams = $this->bracket->knockoutTeamIds($tournament);
-
-        if (count($teams) !== $knockoutTeams) {
-            throw new DomainException('عدد الفرق المسجلة لا يطابق الحجم المتوقع للدور الإقصائي');
-        }
-
-        return $teams;
+        return array_slice($fallback, 0, $knockoutTeams);
     }
 
     public function drawTeams(Tournament $tournament): JsonResponse
@@ -169,6 +143,7 @@ class TournamentBracketController extends Controller
             'data' => [
                 'qualified_teams' => $detailed['teams'] ?? [],
                 'group_stage_details' => $groupDetails,
+                'available_groups' => $groupDetails['groups'],
                 'can_finalize_qualification' => $groupDetails['complete'],
                 'first_round' => $firstRound ? [
                     'id' => $firstRound->id,
@@ -203,7 +178,10 @@ class TournamentBracketController extends Controller
 
         if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
             $details = $this->setup->groupStageDetails($tournament);
-            if (! $details['complete']) {
+            $hasRealIncomplete = collect($details['incomplete_groups'] ?? [])
+                ->contains(fn ($grp) => ($grp['remaining_matches'] ?? 0) > 0 && ($grp['total_matches'] ?? 0) > 0);
+
+            if (! $details['complete'] && $hasRealIncomplete) {
                 throw new DomainException($details['explanation'] ?? 'لا يمكن اعتماد القرعة قبل اكتمال جميع مباريات دور المجموعات');
             }
         }

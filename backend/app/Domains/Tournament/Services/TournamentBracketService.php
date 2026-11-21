@@ -22,7 +22,6 @@ class TournamentBracketService
     public function __construct(
         private readonly TournamentSetupService $setup,
         private readonly TournamentStandingsService $standings,
-        private readonly TournamentFixtureService $fixtures,
     ) {}
 
     /**
@@ -241,7 +240,8 @@ class TournamentBracketService
     {
         $this->setup->cleanupEmptyGroups($tournament);
 
-        $qualifiedInfo = $this->fixtures->qualifiedTeamsDetailed($tournament);
+        $fixturesService = app(TournamentFixtureService::class);
+        $qualifiedInfo = $fixturesService->qualifiedTeamsDetailed($tournament);
         $qualifiedTeams = $qualifiedInfo['teams'] ?? [];
 
         if (empty($qualifiedTeams)) {

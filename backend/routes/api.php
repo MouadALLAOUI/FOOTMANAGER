@@ -1017,13 +1017,18 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/bracket', [TournamentBracketController::class, 'index']);
             Route::get('/bracket/validation', [TournamentBracketController::class, 'validation']);
             Route::get('/bracket/draw-teams', [TournamentBracketController::class, 'drawTeams']);
+            Route::get('/bracket/draw-versions', [TournamentBracketController::class, 'drawVersions']);
+            Route::get('/disciplinary', [TournamentBracketController::class, 'disciplinary']);
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/bracket', [TournamentBracketController::class, 'store']);
                 Route::post('/bracket/populate', [TournamentBracketController::class, 'populate']);
                 Route::post('/bracket/confirm-draw', [TournamentBracketController::class, 'confirmDraw']);
+                Route::post('/bracket/draw-rollback', [TournamentBracketController::class, 'drawRollback']);
                 Route::put('/bracket/rules', [TournamentBracketController::class, 'updateKnockoutRules']);
                 Route::post('/bracket/sync', [TournamentBracketController::class, 'sync']);
+                Route::post('/disciplinary/tournament-long', [TournamentBracketController::class, 'issueTournamentLongSuspension']);
+                Route::delete('/disciplinary/tournament-long/{playerId}', [TournamentBracketController::class, 'liftTournamentLongSuspension']);
             });
 
             Route::get('/statistics', [TournamentStatisticsController::class, 'index']);

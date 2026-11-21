@@ -1,5 +1,6 @@
 const STAGE_KEYS = {
   play_in: 'playIn',
+  round_of_32: 'roundOf32',
   round_of_16: 'roundOf16',
   quarterfinal: 'quarterfinal',
   semifinal: 'semifinal',

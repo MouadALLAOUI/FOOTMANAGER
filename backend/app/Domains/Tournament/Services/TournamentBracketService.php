@@ -248,15 +248,21 @@ class TournamentBracketService
         if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
             $details = $this->setup->groupStageDetails($tournament);
             if (! $details['complete']) {
-                return [
-                    'count' => $count,
-                    'status' => 'incomplete_groups',
-                    'options' => [],
-                    'mode' => $mode,
-                    'group_stage_complete' => false,
-                    'explanation' => $details['explanation'],
-                    'incomplete_groups' => $details['incomplete_groups'],
-                ];
+                // Only block if there are genuinely unfinished fixtures in participating groups
+                $hasRealIncomplete = collect($details['incomplete_groups'] ?? [])
+                    ->contains(fn ($grp) => ($grp['remaining_matches'] ?? 0) > 0 && ($grp['total_matches'] ?? 0) > 0);
+
+                if ($hasRealIncomplete) {
+                    return [
+                        'count' => $count,
+                        'status' => 'incomplete_groups',
+                        'options' => [],
+                        'mode' => $mode,
+                        'group_stage_complete' => false,
+                        'explanation' => $details['explanation'],
+                        'incomplete_groups' => $details['incomplete_groups'],
+                    ];
+                }
             }
 
             $gate = $this->knockoutGateFor($count, $mode);

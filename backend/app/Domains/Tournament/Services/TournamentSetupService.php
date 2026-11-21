@@ -165,6 +165,16 @@ class TournamentSetupService
             return $existing;
         }
 
+        // If teams are already assigned to groups, do NOT create arbitrary empty groups
+        $hasAssignedTeams = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->whereNotNull('group_id')
+            ->exists();
+
+        if ($hasAssignedTeams) {
+            return $existing;
+        }
+
         $groups = collect($existing);
         $usedNames = $existing->pluck('name')->flip();
         $index = $existing->count() + 1;
@@ -221,6 +231,38 @@ class TournamentSetupService
     }
 
     /**
+     * Permanently deletes empty groups with 0 teams from the database
+     * so they never appear or block tournament workflows.
+     */
+    public function cleanupEmptyGroups(Tournament $tournament): int
+    {
+        $competitionId = $tournament->competition_id;
+        $seasonId = $tournament->season_id;
+        if (! $competitionId || ! $seasonId) {
+            return 0;
+        }
+
+        $participatingGroupIds = $this->participatingGroupIds($tournament);
+
+        $emptyGroups = Group::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
+            ->whereNotIn('id', $participatingGroupIds)
+            ->get();
+
+        $deleted = 0;
+        foreach ($emptyGroups as $group) {
+            $hasFixtures = Fixture::query()->where('group_id', $group->id)->exists();
+            if (! $hasFixtures) {
+                $group->delete();
+                $deleted++;
+            }
+        }
+
+        return $deleted;
+    }
+
+    /**
      * @return array{complete: bool, groups: array<int, array<string, mixed>>, incomplete_groups: array<int, array<string, mixed>>, explanation: string|null}
      */
     public function groupStageDetails(Tournament $tournament): array
@@ -236,6 +278,9 @@ class TournamentSetupService
                 'explanation' => 'لم يتم إعداد مسابقة وموسم البطولة بعد',
             ];
         }
+
+        // Clean up any empty groups with 0 teams permanently from DB
+        $this->cleanupEmptyGroups($tournament);
 
         // Active participating groups: ONLY groups with genuinely registered teams in this tournament
         $participatingGroupIds = $this->participatingGroupIds($tournament);
@@ -323,7 +368,7 @@ class TournamentSetupService
                 }
             }
 
-            $isComplete = ($total > 0 && $remaining === 0);
+            $isComplete = ($total > 0 ? $remaining === 0 : true);
             $resolvedName = $planGroupNames[$group->id] ?? $group->name;
 
             $info = [
@@ -336,12 +381,12 @@ class TournamentSetupService
             ];
 
             $byGroup[] = $info;
-            if (! $isComplete) {
+            if (! $isComplete && $remaining > 0) {
                 $incomplete[] = $info;
             }
         }
 
-        $isAllComplete = ! empty($groups) && empty($incomplete);
+        $isAllComplete = ! empty($byGroup) && empty($incomplete);
         $explanation = null;
         if (! $isAllComplete) {
             $names = array_map(function ($g) {

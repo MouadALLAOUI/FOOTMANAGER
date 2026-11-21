@@ -100,7 +100,14 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
   const drawStatus = drawData?.draw_status || meta?.draw_status || 'pending'
   const isDrawConfirmed = drawStatus === 'confirmed'
   const groupStageDetails = drawData?.group_stage_details || null
-  const isGroupStageComplete = drawData?.can_finalize_qualification ?? (currentValidation?.group_stage_complete ?? true)
+  const realIncompleteGroups = useMemo(() => {
+    return (groupStageDetails?.incomplete_groups || []).filter(
+      (grp) => grp.remaining_matches > 0 && grp.total_matches > 0,
+    )
+  }, [groupStageDetails])
+  const isGroupStageComplete =
+    realIncompleteGroups.length === 0 &&
+    (drawData?.can_finalize_qualification ?? (currentValidation?.group_stage_complete ?? true))
 
   // Find final fixture and champion if completed
   const finalRound = useMemo(() => {
@@ -169,7 +176,11 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
     try {
       const gate = await fetchValidation()
 
-      if (gate.status === 'incomplete_groups') {
+      const realIncomplete = (gate.incomplete_groups || []).filter(
+        (grp) => grp.remaining_matches > 0 && grp.total_matches > 0,
+      )
+
+      if (gate.status === 'incomplete_groups' && realIncomplete.length > 0) {
         toast.error(gate.explanation || 'لا يمكن إنشاء السلم قبل اكتمال دور المجموعات')
         setInvalidNotice(gate)
         return
@@ -391,7 +402,7 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
           </div>
 
           {/* Group completion warning / details (TEST B) */}
-          {!isGroupStageComplete && groupStageDetails?.incomplete_groups?.length > 0 && (
+          {!isGroupStageComplete && realIncompleteGroups.length > 0 && (
             <div className="rounded-xl border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 p-4 text-xs">
               <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-bold mb-1.5">
                 <AlertTriangle className="size-4 shrink-0 text-amber-600" />
@@ -401,7 +412,7 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
                 {groupStageDetails.explanation}
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {groupStageDetails.incomplete_groups.map((grp) => (
+                {realIncompleteGroups.map((grp) => (
                   <div
                     key={grp.group_id}
                     className="flex items-center justify-between rounded-lg bg-white dark:bg-[#252B27] p-2.5 ring-1 ring-amber-200 dark:ring-amber-900/40"

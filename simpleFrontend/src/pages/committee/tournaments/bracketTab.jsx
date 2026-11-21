@@ -102,12 +102,10 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
   const groupStageDetails = drawData?.group_stage_details || null
   const realIncompleteGroups = useMemo(() => {
     return (groupStageDetails?.incomplete_groups || []).filter(
-      (grp) => grp.remaining_matches > 0 && grp.total_matches > 0,
+      (grp) => (Number(grp.remaining_matches) || 0) > 0 && (Number(grp.total_matches) || 0) > 0,
     )
   }, [groupStageDetails])
-  const isGroupStageComplete =
-    realIncompleteGroups.length === 0 &&
-    (drawData?.can_finalize_qualification ?? (currentValidation?.group_stage_complete ?? true))
+  const isGroupStageComplete = realIncompleteGroups.length === 0
 
   // Find final fixture and champion if completed
   const finalRound = useMemo(() => {

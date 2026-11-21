@@ -11,6 +11,7 @@ use App\Domains\Competition\Models\Fixture;
 use App\Domains\Competition\Models\Group;
 use App\Domains\Competition\Models\Round;
 use App\Domains\Competition\Models\Season;
+use App\Domains\Competition\Models\Standing;
 use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Shared\Exceptions\DomainException;
@@ -218,7 +219,7 @@ class TournamentSetupService
      */
     public function participatingGroupIds(Tournament $tournament): array
     {
-        return TournamentTeam::query()
+        $teamGroupIds = TournamentTeam::query()
             ->where('tournament_id', $tournament->id)
             ->where('status', TournamentTeam::STATUS_REGISTERED)
             ->whereNotNull('group_id')
@@ -228,6 +229,20 @@ class TournamentSetupService
             ->filter()
             ->values()
             ->all();
+
+        if (empty($teamGroupIds)) {
+            return [];
+        }
+
+        $existing = Group::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->whereIn('id', $teamGroupIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_values($existing);
     }
 
     /**
@@ -252,11 +267,24 @@ class TournamentSetupService
 
         $deleted = 0;
         foreach ($emptyGroups as $group) {
-            $hasFixtures = Fixture::query()->where('group_id', $group->id)->exists();
-            if (! $hasFixtures) {
-                $group->delete();
-                $deleted++;
-            }
+            // Delete any orphan fixtures belonging to this empty group
+            Fixture::query()->where('group_id', $group->id)->delete();
+
+            // Delete any standings belonging to this empty group
+            Standing::query()->where('group_id', $group->id)->delete();
+
+            // Clear any references in tournament teams
+            TournamentTeam::query()->where('group_id', $group->id)->update(['group_id' => null]);
+
+            // Permanently delete the empty group
+            $group->delete();
+            $deleted++;
+        }
+
+        // Synchronize tournament groups_count to match active participating groups if teams are assigned
+        if (! empty($participatingGroupIds) && $tournament->groups_count !== count($participatingGroupIds)) {
+            $tournament->groups_count = count($participatingGroupIds);
+            $tournament->save();
         }
 
         return $deleted;
@@ -349,6 +377,12 @@ class TournamentSetupService
         foreach ($groups as $group) {
             $groupFixtures = $fixtures->where('group_id', $group->id);
             $total = $groupFixtures->count();
+
+            // Strictly ignore any group that has 0 total matches — it's not an active match group
+            if ($total === 0) {
+                continue;
+            }
+
             $finished = 0;
             $remaining = 0;
 
@@ -368,7 +402,7 @@ class TournamentSetupService
                 }
             }
 
-            $isComplete = ($total > 0 ? $remaining === 0 : true);
+            $isComplete = ($remaining === 0);
             $resolvedName = $planGroupNames[$group->id] ?? $group->name;
 
             $info = [
@@ -388,11 +422,8 @@ class TournamentSetupService
 
         $isAllComplete = ! empty($byGroup) && empty($incomplete);
         $explanation = null;
-        if (! $isAllComplete) {
+        if (! $isAllComplete && ! empty($incomplete)) {
             $names = array_map(function ($g) {
-                if ($g['total_matches'] === 0) {
-                    return "{$g['group_name']} (لم تُجدول مبارياتها بعد)";
-                }
                 return "{$g['group_name']} (متبقي {$g['remaining_matches']} مباريات)";
             }, $incomplete);
             $explanation = 'دور المجموعات لم يكتمل بعد: ' . implode('، ', $names);

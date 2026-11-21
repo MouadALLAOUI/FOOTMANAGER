@@ -144,12 +144,12 @@ export default function PublicTeamDetail() {
                 onShareClick={() => setShareOpen(true)}
               />
 
-              <TeamStatsGrid stats={stats} weeklyBookings={weeklyBookings} />
-
               <TeamTournamentJourney
                 team={team}
                 onOpenMatch={(f) => setOpenMatch(f?.fixture ? f : { fixture: f, tournamentKey: f?.tournament_slug || f?.tournamentSlug })}
               />
+
+              <TeamStatsGrid stats={stats} weeklyBookings={weeklyBookings} />
 
               <TeamMatchHistory matches={matches} onOpenMatch={setOpenMatch} />
 

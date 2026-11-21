@@ -25,13 +25,15 @@ class TournamentTeamJourneyService
         $tournamentsList = Tournament::query()
             ->whereIn('id', $participatingTournamentIds)
             ->orderByDesc('start_date')
-            ->get(['id', 'name', 'slug', 'status', 'start_date', 'tournament_format'])
+            ->get(['id', 'name', 'slug', 'status', 'start_date', 'tournament_format', 'logo_path', 'cover_path'])
             ->map(fn (Tournament $t) => [
                 'id' => $t->id,
                 'name' => $t->name,
                 'slug' => $t->slug,
                 'status' => $t->status,
                 'format' => $t->tournament_format,
+                'logo_url' => $t->logo_url,
+                'cover_url' => $t->cover_url,
             ])
             ->values()
             ->all();
@@ -79,6 +81,8 @@ class TournamentTeamJourneyService
                 'slug' => $tournament->slug,
                 'status' => $tournament->status,
                 'format' => $tournament->tournament_format,
+                'logo_url' => $tournament->logo_url,
+                'cover_url' => $tournament->cover_url,
             ],
             'group_stage' => $groupSummary,
             'knockout_stages' => $knockoutStages,
@@ -104,6 +108,45 @@ class TournamentTeamJourneyService
             return null;
         }
 
+        $groupRound = Round::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('stage', RoundStage::Group)
+            ->first();
+
+        $groupMatches = [];
+        if ($groupRound) {
+            $fixtures = Fixture::query()
+                ->with(['homeTeam', 'awayTeam', 'match'])
+                ->where('round_id', $groupRound->id)
+                ->where(function ($q) use ($team) {
+                    $q->where('home_team_id', $team->id)
+                        ->orWhere('away_team_id', $team->id);
+                })
+                ->orderBy('scheduled_at')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($fixtures as $f) {
+                $isHome = (int) $f->home_team_id === (int) $team->id;
+                $opp = $isHome ? $f->awayTeam : $f->homeTeam;
+                $groupMatches[] = [
+                    'fixture_id' => $f->id,
+                    'match_id' => $f->match_id,
+                    'scheduled_at' => $f->scheduled_at?->toIso8601String(),
+                    'status' => $f->match?->status?->value ?? ($f->status?->value ?? 'scheduled'),
+                    'is_home' => $isHome,
+                    'opponent' => $opp ? [
+                        'id' => $opp->id,
+                        'name' => $opp->name,
+                        'logo_url' => $opp->logo_url,
+                    ] : null,
+                    'team_score' => $isHome ? $f->home_score : $f->away_score,
+                    'opponent_score' => $isHome ? $f->away_score : $f->home_score,
+                ];
+            }
+        }
+
         foreach ($standings['groups'] ?? [] as $group) {
             foreach ($group['rows'] ?? [] as $rank => $row) {
                 if ((int) ($row['team_id'] ?? 0) === (int) $team->id) {
@@ -123,6 +166,7 @@ class TournamentTeamJourneyService
                         'goal_difference' => (int) ($row['goal_difference'] ?? 0),
                         'points' => (int) ($row['points'] ?? 0),
                         'qualified' => $isQualified,
+                        'matches' => $groupMatches,
                     ];
                 }
             }

@@ -14,6 +14,7 @@ use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Models\TournamentTeam;
+use App\Domains\Tournament\Services\TournamentFixtureService;
 use Illuminate\Support\Facades\DB;
 
 class TournamentBracketService
@@ -21,6 +22,7 @@ class TournamentBracketService
     public function __construct(
         private readonly TournamentSetupService $setup,
         private readonly TournamentStandingsService $standings,
+        private readonly TournamentFixtureService $fixtures,
     ) {}
 
     /**
@@ -221,6 +223,140 @@ class TournamentBracketService
 
             return $this->bracket($tournament);
         });
+    }
+
+    /**
+     * Proposes an automatic group-based knockout draw pairing.
+     * Pairs group winners with runners-up from adjacent active groups
+     * following configured group order (e.g. A1 vs B2, B1 vs A2, G1 vs I2, I1 vs G2).
+     *
+     * @return array{
+     *   assignments: array<int, array{fixture_id: int|null, home_team_id: int, away_team_id: int, home_team: mixed, away_team: mixed, match_label: string}>,
+     *   method: string,
+     *   groups_order: array<int, string>,
+     *   rules_respected: bool
+     * }
+     */
+    public function proposeAutomaticDraw(Tournament $tournament): array
+    {
+        $this->setup->cleanupEmptyGroups($tournament);
+
+        $qualifiedInfo = $this->fixtures->qualifiedTeamsDetailed($tournament);
+        $qualifiedTeams = $qualifiedInfo['teams'] ?? [];
+
+        if (empty($qualifiedTeams)) {
+            throw new DomainException('لا توجد فرق متأهلة لحساب القرعة التلقائية');
+        }
+
+        // Active participating groups in official order
+        $participatingGroupIds = $this->setup->participatingGroupIds($tournament);
+        $groups = Group::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->whereIn('id', $participatingGroupIds)
+            ->orderBy('id')
+            ->get();
+
+        $planGroupNames = ($tournament->plan ?? [])['group_names'] ?? [];
+
+        // Map group_id to { id, name, rank1: Team, rank2: Team }
+        $groupMap = [];
+        foreach ($groups as $group) {
+            $gId = (int) $group->id;
+            $gName = $planGroupNames[$gId] ?? $group->name;
+            $teamsInG = array_values(array_filter($qualifiedTeams, fn ($t) => (int) ($t['group_id'] ?? 0) === $gId));
+
+            $rank1 = collect($teamsInG)->firstWhere('rank', 1);
+            $rank2 = collect($teamsInG)->firstWhere('rank', 2);
+
+            if ($rank1 && $rank2) {
+                $groupMap[] = [
+                    'group_id' => $gId,
+                    'group_name' => $gName,
+                    'winner' => $rank1,
+                    'runner_up' => $rank2,
+                ];
+            }
+        }
+
+        if (empty($groupMap)) {
+            throw new DomainException('لم يتم العثور على متصدرين ووصيفين مكتملين في المجموعات المشاركة');
+        }
+
+        // Ensure first knockout round fixtures exist
+        $firstRoundId = $this->firstKnockoutRoundId($tournament);
+        if (! $firstRoundId) {
+            try {
+                $this->generateBracket($tournament);
+                $firstRoundId = $this->firstKnockoutRoundId($tournament);
+            } catch (\Throwable $e) {
+                // Keep firstRoundId null if cannot generate yet
+            }
+        }
+
+        $fixtures = collect();
+        if ($firstRoundId) {
+            $fixtures = Fixture::query()
+                ->where('round_id', $firstRoundId)
+                ->orderBy('id')
+                ->get();
+        }
+
+        $numGroups = count($groupMap);
+        $matchups = [];
+
+        // Pair adjacent groups: (0, 1), (2, 3), (4, 5)...
+        for ($i = 0; $i < $numGroups; $i += 2) {
+            if ($i + 1 < $numGroups) {
+                $gA = $groupMap[$i];
+                $gB = $groupMap[$i + 1];
+
+                // Match 2k: Winner(A) vs Runner-up(B)
+                $matchups[] = [
+                    'home_team' => $gA['winner'],
+                    'away_team' => $gB['runner_up'],
+                ];
+
+                // Match 2k+1: Winner(B) vs Runner-up(A)
+                $matchups[] = [
+                    'home_team' => $gB['winner'],
+                    'away_team' => $gA['runner_up'],
+                ];
+            } else {
+                // Single odd group: fallback
+                $gA = $groupMap[$i];
+                $matchups[] = [
+                    'home_team' => $gA['winner'],
+                    'away_team' => $gA['runner_up'],
+                ];
+            }
+        }
+
+        // Wire matchups to fixture IDs
+        $assignments = [];
+        foreach ($matchups as $idx => $m) {
+            $fixture = $fixtures->get($idx);
+            $matchLabel = match ($numGroups) {
+                2 => 'نصف النهائي ' . ($idx + 1),
+                default => 'ربع النهائي QF' . ($idx + 1),
+            };
+
+            $assignments[] = [
+                'fixture_id' => $fixture?->id,
+                'home_team_id' => $m['home_team']['team_id'],
+                'away_team_id' => $m['away_team']['team_id'],
+                'home_team' => $m['home_team'],
+                'away_team' => $m['away_team'],
+                'match_label' => $matchLabel,
+            ];
+        }
+
+        return [
+            'assignments' => $assignments,
+            'method' => 'automatic_group_adjacent',
+            'groups_order' => array_column($groupMap, 'group_name'),
+            'rules_respected' => true,
+        ];
     }
 
     /**

@@ -1022,6 +1022,7 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
 
             Route::middleware('activity.not_locked')->group(function () {
                 Route::post('/bracket', [TournamentBracketController::class, 'store']);
+                Route::post('/bracket/auto-draw-proposal', [TournamentBracketController::class, 'autoDrawProposal']);
                 Route::post('/bracket/populate', [TournamentBracketController::class, 'populate']);
                 Route::post('/bracket/confirm-draw', [TournamentBracketController::class, 'confirmDraw']);
                 Route::post('/bracket/draw-rollback', [TournamentBracketController::class, 'drawRollback']);

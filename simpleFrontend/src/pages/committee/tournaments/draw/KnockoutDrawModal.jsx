@@ -10,6 +10,7 @@ import {
   Eye,
   History,
   Lock,
+  MoveRight,
   Redo2,
   RefreshCw,
   RotateCcw,
@@ -17,9 +18,13 @@ import {
   ShieldAlert,
   ShieldCheck,
   Shuffle,
+  Sparkles,
+  Swords,
+  Trash2,
   Undo2,
   UserCheck,
   Users,
+  Wand2,
   X,
 } from 'lucide-react'
 import api from '../../../../api/client'
@@ -103,12 +108,14 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [data, setData] = useState(null)
+  const [drawMode, setDrawMode] = useState('manual') // 'manual' | 'automatic'
   const [preventSameGroup, setPreventSameGroup] = useState(true)
   const [requireFirstVsSecond, setRequireFirstVsSecond] = useState(true)
   const [assignments, setAssignments] = useState({}) // { [fixtureId]: { home: teamId, away: teamId } }
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [confirmPrompt, setConfirmPrompt] = useState(false)
   const [reviewMode, setReviewMode] = useState(false)
+  const [autoDrawConfirm, setAutoDrawConfirm] = useState(false)
 
   // Undo / Redo history stack for draft assignments
   const [history, setHistory] = useState([])
@@ -163,14 +170,24 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
       setData(d)
       setPreventSameGroup(d.rules?.prevent_same_group_r1 ?? true)
 
-      // Initialize assignments from existing fixtures
+      // Initialize assignments from existing fixtures or virtual slots
       const initial = {}
-      ;(d.fixtures || []).forEach((f) => {
-        initial[f.id] = {
-          home: f.home_team_id || null,
-          away: f.away_team_id || null,
+      const existingFixtures = d.fixtures || []
+      if (existingFixtures.length > 0) {
+        existingFixtures.forEach((f) => {
+          initial[f.id] = {
+            home: f.home_team_id || null,
+            away: f.away_team_id || null,
+          }
+        })
+      } else {
+        // Fallback virtual fixtures slots
+        const qCount = Math.max(Math.ceil((d.qualified_teams?.length || 8) / 2), 4)
+        for (let i = 1; i <= qCount; i++) {
+          initial[i] = { home: null, away: null }
         }
-      })
+      }
+
       setAssignments(initial)
       setHistory([JSON.parse(JSON.stringify(initial))])
       setHistoryIdx(0)
@@ -203,11 +220,35 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
   }, [open, tournament.id])
 
   const qualifiedTeams = data?.qualified_teams || []
-  const fixtures = data?.fixtures || []
+  const rawFixtures = data?.fixtures || []
   const drawStatus = data?.draw_status || 'pending'
   const isConfirmed = drawStatus === 'confirmed'
   const groupStageDetails = data?.group_stage_details || null
-  const isGroupStageComplete = data?.can_finalize_qualification ?? true
+
+  // Ensure effective fixtures are NEVER empty so destination slots are ALWAYS visible!
+  const effectiveFixtures = useMemo(() => {
+    if (rawFixtures && rawFixtures.length > 0) {
+      return rawFixtures
+    }
+    const matchCount = Math.max(Math.ceil((qualifiedTeams.length || 8) / 2), 4)
+    return Array.from({ length: matchCount }, (_, idx) => ({
+      id: idx + 1,
+      isVirtual: true,
+      home_team_id: null,
+      away_team_id: null,
+      home_team: null,
+      away_team: null,
+    }))
+  }, [rawFixtures, qualifiedTeams.length])
+
+  // Only consider real incomplete groups (strictly > 0 remaining AND > 0 total)
+  const realIncomplete = useMemo(() => {
+    return (groupStageDetails?.incomplete_groups || []).filter(
+      (grp) => (Number(grp.remaining_matches) || 0) > 0 && (Number(grp.total_matches) || 0) > 0,
+    )
+  }, [groupStageDetails])
+
+  const isGroupStageComplete = realIncomplete.length === 0
 
   // Map team by id for quick lookup
   const teamMap = useMemo(() => {
@@ -240,13 +281,13 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
   // Unassigned counts
   const unassignedTeams = qualifiedTeams.filter((tm) => !assignedIds.has(tm.team_id))
   const filledSlots = assignedIds.size
-  const totalSlots = fixtures.length * 2
-  const remainingCount = totalSlots - filledSlots
+  const totalSlots = effectiveFixtures.length * 2
+  const remainingCount = Math.max(0, totalSlots - filledSlots)
 
   // Completed matchups count
   const completedMatchups = useMemo(() => {
-    return fixtures.filter((f) => assignments[f.id]?.home && assignments[f.id]?.away).length
-  }, [fixtures, assignments])
+    return effectiveFixtures.filter((f) => assignments[f.id]?.home && assignments[f.id]?.away).length
+  }, [effectiveFixtures, assignments])
 
   // Slot assignment click handler with Deadlock & Constraint checking
   const handleSlotClick = (fixtureId, side) => {
@@ -290,7 +331,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
       }
 
       // Mathematical Deadlock / Look-ahead check
-      const solvable = isDrawSolvable(fixtures, nextAssignments, teamMap, qualifiedTeams)
+      const solvable = isDrawSolvable(effectiveFixtures, nextAssignments, teamMap, qualifiedTeams)
       if (!solvable) {
         toast.error(
           'تعذر هذا التسكين (انغلاق رياضي): هذا التسكين يجعل إكمال القرعة للفرق المتبقية مستحيلاً دون مخالفة قاعدة منع مواجهة فريقي نفس المجموعة!',
@@ -314,6 +355,35 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
     }
   }
 
+  // HTML5 Drag & Drop Support (Desktop)
+  const handleDragStart = (e, team) => {
+    if (isConfirmed || assignedIds.has(team.team_id)) {
+      e.preventDefault()
+      return
+    }
+    e.dataTransfer.setData('text/plain', JSON.stringify(team))
+    setSelectedTeam(team)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+  }
+
+  const handleDropOnSlot = (e, fixtureId, side) => {
+    e.preventDefault()
+    try {
+      const dataStr = e.dataTransfer.getData('text/plain')
+      if (!dataStr) return
+      const team = JSON.parse(dataStr)
+      if (team && team.team_id) {
+        setSelectedTeam(team)
+        setTimeout(() => handleSlotClick(fixtureId, side), 10)
+      }
+    } catch (err) {
+      // Ignore parse errors
+    }
+  }
+
   // Swap home and away in a fixture
   const handleSwapMatch = (fixtureId) => {
     if (isConfirmed) return
@@ -332,7 +402,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
   const handleReset = () => {
     if (isConfirmed) return
     const cleared = {}
-    fixtures.forEach((f) => {
+    effectiveFixtures.forEach((f) => {
       cleared[f.id] = { home: null, away: null }
     })
     pushHistory(cleared)
@@ -341,9 +411,75 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
     toast.info('تم إفراغ خانات القرعة المسودة')
   }
 
+  // Generate Automatic Group-Based Draw Proposal
+  const handleGenerateAutoDraw = async () => {
+    if (filledSlots > 0 && !autoDrawConfirm) {
+      setAutoDrawConfirm(true)
+      return
+    }
+
+    setAutoDrawConfirm(false)
+    setBusy(true)
+    try {
+      let proposalAssignments = null
+
+      // Attempt backend API proposal
+      try {
+        const res = await api.post(`/committee/tournaments/${tournament.id}/bracket/auto-draw-proposal`)
+        proposalAssignments = res.data.data?.assignments
+      } catch (err) {
+        // Fallback: client-side automatic pairing algorithm
+        const activeGroupIds = Array.from(new Set(qualifiedTeams.map((t) => t.group_id).filter(Boolean)))
+        activeGroupIds.sort((a, b) => a - b)
+
+        const groupList = []
+        for (const gId of activeGroupIds) {
+          const inGroup = qualifiedTeams.filter((t) => t.group_id === gId)
+          const r1 = inGroup.find((t) => t.rank === 1)
+          const r2 = inGroup.find((t) => t.rank === 2)
+          if (r1 && r2) {
+            groupList.push({ winner: r1, runner_up: r2 })
+          }
+        }
+
+        const matchups = []
+        for (let i = 0; i < groupList.length; i += 2) {
+          if (i + 1 < groupList.length) {
+            matchups.push({ home_team: groupList[i].winner, away_team: groupList[i + 1].runner_up })
+            matchups.push({ home_team: groupList[i + 1].winner, away_team: groupList[i].runner_up })
+          } else {
+            matchups.push({ home_team: groupList[i].winner, away_team: groupList[i].runner_up })
+          }
+        }
+
+        proposalAssignments = matchups.map((m, idx) => ({
+          home_team_id: m.home_team.team_id,
+          away_team_id: m.away_team.team_id,
+        }))
+      }
+
+      if (proposalAssignments && proposalAssignments.length > 0) {
+        const newAssignments = {}
+        effectiveFixtures.forEach((f, idx) => {
+          const p = proposalAssignments[idx]
+          newAssignments[f.id] = {
+            home: p?.home_team_id || null,
+            away: p?.away_team_id || null,
+          }
+        })
+        pushHistory(newAssignments)
+        toast.success('تم إنشاء التوزيع التلقائي حسب المجموعات بنجاح (مسودة قابلة للتعديل والاعتماد)!')
+      }
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // Full validation check for confirmation
   const validationErrors = []
-  fixtures.forEach((f, idx) => {
+  effectiveFixtures.forEach((f, idx) => {
     const pair = assignments[f.id] || { home: null, away: null }
     const matchLabel = `المباراة QF${idx + 1}`
 
@@ -374,20 +510,41 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
 
     setBusy(true)
     try {
-      const payloadAssignments = fixtures.map((f) => ({
-        fixture_id: f.id,
-        home_team_id: assignments[f.id].home,
-        away_team_id: assignments[f.id].away,
-      }))
+      // If fixtures are virtual, generate bracket first
+      let activeFixtures = rawFixtures
+      if (!activeFixtures || activeFixtures.length === 0) {
+        await api.post(`/committee/tournaments/${tournament.id}/bracket`)
+        const refreshRes = await api.get(`/committee/tournaments/${tournament.id}/bracket/draw-teams`)
+        activeFixtures = refreshRes.data.data?.fixtures || []
+      }
+
+      if (activeFixtures.length === 0) {
+        throw new Error('تعذر إيجاد مباريات الدور الأول لتثبيت القرعة فيها')
+      }
+
+      // Map assignments to actual fixture IDs
+      const payloadAssignments = activeFixtures.map((f, idx) => {
+        const key = f.id in assignments ? f.id : effectiveFixtures[idx]?.id
+        const pair = assignments[key] || { home: null, away: null }
+        return {
+          fixture_id: f.id,
+          home_team_id: pair.home,
+          away_team_id: pair.away,
+        }
+      })
 
       await api.post(`/committee/tournaments/${tournament.id}/bracket/confirm-draw`, {
         assignments: payloadAssignments,
         prevent_same_group_r1: preventSameGroup,
-        reason: 'اعتماد القرعة اليدوية الموجهة (القواعد 1 و 2)',
+        reason:
+          drawMode === 'automatic'
+            ? 'اعتماد القرعة التلقائية حسب المجموعات المتجاورة (القواعد 1 و 2)'
+            : 'اعتماد القرعة اليدوية الموجهة (القواعد 1 و 2)',
       })
 
       toast.success('تم اعتماد القرعة الإقصائية وتثبيت مباريات ربع النهائي بنجاح!')
       setConfirmPrompt(false)
+      setReviewMode(false)
       if (onConfirmed) onConfirmed()
       loadDrawData()
     } catch (e) {
@@ -426,7 +583,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
       open={open}
       onClose={onClose}
       size="xl"
-      title="منظومة القرعة اليدوية للأدوار الإقصائية (خروج المغلوب)"
+      title="منظومة قرعة الأدوار الإقصائية (خروج المغلوب)"
     >
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-[#65706A]">
@@ -488,19 +645,6 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
         </div>
       ) : (
         <div className="space-y-5">
-          {/* Group Completion Guard Warning */}
-          {!isGroupStageComplete && groupStageDetails?.explanation && (
-            <div className="flex flex-wrap items-start gap-2.5 rounded-2xl border border-amber-300 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 p-3.5 text-xs text-amber-800 dark:text-amber-300">
-              <AlertTriangle className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
-              <div className="flex-1 space-y-1">
-                <p className="font-black">تنبيه: دور المجموعات لم يكتمل بعد!</p>
-                <p className="text-[11px] leading-relaxed opacity-95">
-                  {groupStageDetails.explanation}. لا يمكن اعتماد القرعة رسمياً إلا بعد استكمال كافة المباريات وتحديد المتأهلين بنسبة 100%.
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Header Info Banner */}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5 sm:p-4">
             <div className="flex items-center gap-3">
@@ -508,7 +652,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                 className={`grid size-11 place-items-center rounded-xl font-bold ${
                   isConfirmed
                     ? 'bg-[#179955]/15 text-[#179955] dark:bg-[#42D889]/20 dark:text-[#42D889]'
-                    : 'bg-amber-500/15 text-amber-600 dark:bg-amber-400/20 dark:text-amber-400'
+                    : 'bg-emerald-500/15 text-[#179955] dark:bg-emerald-400/20 dark:text-[#42D889]'
                 }`}
               >
                 {isConfirmed ? <Lock className="size-5" /> : <Shuffle className="size-5" />}
@@ -525,13 +669,13 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                         : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                     }`}
                   >
-                    {isConfirmed ? 'معتمدة ومجمدة' : 'سحب يدوي حر'}
+                    {isConfirmed ? 'معتمدة ومجمدة' : 'مسودة قيد التوزيع'}
                   </span>
                 </div>
                 <p className="text-xs text-[#65706A] dark:text-[#B2B9B3]">
                   {isConfirmed
                     ? `تم اعتماد هذه القرعة رسمياً في ${new Date(data?.draw_confirmed_at).toLocaleDateString('ar-MA')}`
-                    : 'اسحب أو انقر على الفريق من الوعاء ثم انقر على الخانة المطلوبة في مباريات ربع النهائي.'}
+                    : 'حدد وضع القرعة المناسب (يدوية أو تلقائية) لتوزيع الفرق في خانات ربع النهائي.'}
                 </p>
               </div>
             </div>
@@ -579,7 +723,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                     className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
                   >
                     <RotateCcw className="size-3.5" />
-                    إفراغ الخانات
+                    مسح التوزيع
                   </Button>
                 </>
               ) : (
@@ -596,34 +740,127 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
             </div>
           </div>
 
-          {/* Section C: DRAW STATUS STRIP */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 text-center">
-              <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">الفرق المتأهلة</span>
-              <p className="mt-0.5 text-base font-black text-[#111313] dark:text-[#F5F7F2]">
-                {qualifiedTeams.length} فرق
-              </p>
-            </div>
+          {/* TWO DRAW MODES: Top Segmented Selector */}
+          {!isConfirmed && (
+            <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 shadow-2xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* Mode A: Manual Draw */}
+                <button
+                  type="button"
+                  onClick={() => setDrawMode('manual')}
+                  className={`flex items-start gap-3 rounded-xl p-3 text-start transition ${
+                    drawMode === 'manual'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-[#179955] ring-2 ring-[#179955]/20'
+                      : 'bg-[#F7F8F5] dark:bg-[#252B27] border border-transparent hover:border-[#E1E5DF] dark:hover:border-[#303832]'
+                  }`}
+                >
+                  <div
+                    className={`grid size-9 shrink-0 place-items-center rounded-lg ${
+                      drawMode === 'manual'
+                        ? 'bg-[#179955] text-white'
+                        : 'bg-white dark:bg-[#1B201D] text-[#65706A]'
+                    }`}
+                  >
+                    <Shuffle className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-[#111313] dark:text-[#F5F7F2]">
+                        القرعة اليدوية
+                      </span>
+                      {drawMode === 'manual' && (
+                        <span className="rounded-full bg-[#179955] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                          مفعلة
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                      اختر الفرق بنفسك وحدد المواجهات داخل الشجرة يدوياً.
+                    </p>
+                  </div>
+                </button>
 
-            <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 text-center">
-              <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">الفرق المسكنة</span>
-              <p className="mt-0.5 text-base font-black text-[#179955] dark:text-[#42D889]">
-                {filledSlots} / {totalSlots}
-              </p>
-            </div>
+                {/* Mode B: Automatic Group-Based Draw */}
+                <button
+                  type="button"
+                  onClick={() => setDrawMode('automatic')}
+                  className={`flex items-start gap-3 rounded-xl p-3 text-start transition ${
+                    drawMode === 'automatic'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border border-[#179955] ring-2 ring-[#179955]/20'
+                      : 'bg-[#F7F8F5] dark:bg-[#252B27] border border-transparent hover:border-[#E1E5DF] dark:hover:border-[#303832]'
+                  }`}
+                >
+                  <div
+                    className={`grid size-9 shrink-0 place-items-center rounded-lg ${
+                      drawMode === 'automatic'
+                        ? 'bg-[#179955] text-white'
+                        : 'bg-white dark:bg-[#1B201D] text-[#65706A]'
+                    }`}
+                  >
+                    <Wand2 className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-[#111313] dark:text-[#F5F7F2]">
+                        القرعة التلقائية حسب المجموعات
+                      </span>
+                      {drawMode === 'automatic' && (
+                        <span className="rounded-full bg-[#179955] px-1.5 py-0.2 text-[9px] font-bold text-white">
+                          مفعلة
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                      يقوم النظام بتوزيع المتصدرين لمواجهة أوصيف المجموعات المجاورة تلقائياً.
+                    </p>
+                  </div>
+                </button>
+              </div>
 
-            <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 text-center">
-              <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">الفرق المتبقية</span>
-              <p className="mt-0.5 text-base font-black text-amber-600 dark:text-amber-400">
-                {remainingCount}
-              </p>
+              {/* Automatic Mode Action Bar */}
+              {drawMode === 'automatic' && (
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] p-2.5">
+                  <div className="flex items-center gap-2 text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                    <Sparkles className="size-4 text-[#179955] shrink-0" />
+                    <span>
+                      التوزيع التلقائي يتبع القواعد الرسمية: متصدر ضد وصيف وتفادي فريقي نفس المجموعة.
+                    </span>
+                  </div>
+                  <Button
+                    size="xs"
+                    variant="primary"
+                    loading={busy}
+                    onClick={handleGenerateAutoDraw}
+                  >
+                    <Wand2 className="size-3.5" />
+                    إنشاء التوزيع التلقائي
+                  </Button>
+                </div>
+              )}
             </div>
+          )}
 
-            <div className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 text-center">
-              <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3]">المواجهات المكتملة</span>
-              <p className="mt-0.5 text-base font-black text-[#111313] dark:text-[#F5F7F2]">
-                {completedMatchups} / {fixtures.length}
-              </p>
+          {/* Section C: PROGRESS & STATUS INDICATOR */}
+          <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3.5 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="size-4 text-[#179955]" />
+                حالة توزيع الفرق: تم توزيع {filledSlots} من {totalSlots} فرق
+              </span>
+              <span className="text-xs font-black text-[#179955]">
+                {Math.round((filledSlots / Math.max(1, totalSlots)) * 100)}%
+              </span>
+            </div>
+            {/* Progress Bar */}
+            <div className="h-2 w-full overflow-hidden rounded-full bg-[#E1E5DF] dark:bg-[#303832]">
+              <div
+                className="h-full bg-[#179955] transition-all duration-300"
+                style={{ width: `${Math.min(100, Math.round((filledSlots / Math.max(1, totalSlots)) * 100))}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-[#65706A] dark:text-[#B2B9B3] pt-0.5">
+              <span>الفرق المتبقية في الأوعية: <b className="text-amber-600 dark:text-amber-400">{remainingCount}</b></span>
+              <span>المواجهات المكتملة: <b className="text-[#179955] dark:text-[#42D889]">{completedMatchups} من {effectiveFixtures.length}</b></span>
             </div>
           </div>
 
@@ -651,17 +888,21 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
             </div>
           )}
 
-          {/* Section A: QUALIFIED TEAMS POOL (Vertical & Touch-Friendly) */}
+          {/* AREA A: QUALIFIED TEAMS POOL (Vertical & Touch/Drag-Friendly) */}
           {!isConfirmed && (
             <div className="space-y-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5 sm:p-4">
               <div className="flex items-center justify-between text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
                 <span className="flex items-center gap-1.5">
                   <Users className="size-4 text-[#179955]" />
-                  أوعية الفرق المتأهلة ({unassignedTeams.length} متبقي):
+                  المنطقة أ — الفرق المتأهلة ({unassignedTeams.length} متبقي في الوعاء):
                 </span>
-                {selectedTeam && (
+                {selectedTeam ? (
                   <span className="text-[#179955] dark:text-[#42D889] animate-pulse">
-                    محدد: {selectedTeam.name} ({selectedTeam.rank === 1 ? 'متصدر' : 'وصيف'}) — انقر على الخانة المرغوبة
+                    محدد: {selectedTeam.name} ({selectedTeam.rank === 1 ? 'متصدر' : 'وصيف'}) — انقر على الخانة المطلوبة في ربع النهائي
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                    اسحب الفريق أو اضغط عليه لتحديده ثم اضغط على الخانة الفارغة
                   </span>
                 )}
               </div>
@@ -677,32 +918,38 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                     const isSelected = selectedTeam?.team_id === team.team_id
 
                     return (
-                      <button
+                      <div
                         key={team.team_id}
-                        type="button"
-                        disabled={isAssigned}
-                        onClick={() => setSelectedTeam(isSelected ? null : team)}
-                        className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition text-start ${
+                        draggable={!isAssigned && !isConfirmed}
+                        onDragStart={(e) => handleDragStart(e, team)}
+                        onClick={() => {
+                          if (isAssigned) return
+                          setSelectedTeam(isSelected ? null : team)
+                        }}
+                        className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition text-start select-none ${
                           isAssigned
                             ? 'opacity-40 bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed'
                             : isSelected
-                            ? 'border-[#179955] bg-[#179955]/15 text-[#179955] ring-2 ring-[#179955]/30'
-                            : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:border-[#179955]'
+                            ? 'border-[#179955] bg-[#179955]/15 text-[#179955] ring-2 ring-[#179955]/30 cursor-pointer'
+                            : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:border-[#179955] cursor-grab'
                         }`}
                       >
                         <TeamAvatar team={team} className="size-7 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-xs font-black">{team.name}</p>
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="rounded bg-amber-100 dark:bg-amber-900/40 px-1 py-0.2 text-[9px] font-bold text-amber-800 dark:text-amber-300">
-                              الأول
+                            <span className="rounded bg-emerald-100 dark:bg-emerald-900/40 px-1 py-0.2 text-[9px] font-bold text-emerald-800 dark:text-emerald-300">
+                              بطل
                             </span>
                             <span className="text-[10px] text-[#65706A] dark:text-[#B2B9B3]">
-                              {team.group_name}
+                              {formatGroupName(team.group_name, { groupId: team.group_id, tournamentId: tournament?.id })}
                             </span>
                           </div>
                         </div>
-                      </button>
+                        {isAssigned && (
+                          <Check className="size-3.5 text-emerald-600 shrink-0" />
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -711,7 +958,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
               {/* Pot 2: Group Runners-up (Rank 2) */}
               <div className="space-y-1.5 pt-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-[#65706A] dark:text-[#B2B9B3]">
-                  الوعاء 2 — وصافة المجموعات (المركز الثاني):
+                  الوعاء 2 — أوصياء المجموعات (المركز الثاني):
                 </span>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {pot2Teams.map((team) => {
@@ -719,17 +966,20 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                     const isSelected = selectedTeam?.team_id === team.team_id
 
                     return (
-                      <button
+                      <div
                         key={team.team_id}
-                        type="button"
-                        disabled={isAssigned}
-                        onClick={() => setSelectedTeam(isSelected ? null : team)}
-                        className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition text-start ${
+                        draggable={!isAssigned && !isConfirmed}
+                        onDragStart={(e) => handleDragStart(e, team)}
+                        onClick={() => {
+                          if (isAssigned) return
+                          setSelectedTeam(isSelected ? null : team)
+                        }}
+                        className={`flex items-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition text-start select-none ${
                           isAssigned
                             ? 'opacity-40 bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed'
                             : isSelected
-                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/30 text-blue-700 ring-2 ring-blue-500/30'
-                            : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:border-blue-500'
+                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-950/30 text-blue-700 ring-2 ring-blue-500/30 cursor-pointer'
+                            : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] hover:border-blue-500 cursor-grab'
                         }`}
                       >
                         <TeamAvatar team={team} className="size-7 shrink-0" />
@@ -737,14 +987,17 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                           <p className="truncate text-xs font-black">{team.name}</p>
                           <div className="flex items-center gap-1 mt-0.5">
                             <span className="rounded bg-blue-100 dark:bg-blue-900/40 px-1 py-0.2 text-[9px] font-bold text-blue-800 dark:text-blue-300">
-                              الثاني
+                              وصيف
                             </span>
                             <span className="text-[10px] text-[#65706A] dark:text-[#B2B9B3]">
-                              {team.group_name}
+                              {formatGroupName(team.group_name, { groupId: team.group_id, tournamentId: tournament?.id })}
                             </span>
                           </div>
                         </div>
-                      </button>
+                        {isAssigned && (
+                          <Check className="size-3.5 text-blue-600 shrink-0" />
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -752,11 +1005,12 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
             </div>
           )}
 
-          {/* Section B: DRAW POSITIONS (4 Quarter-Finals Matches) */}
+          {/* AREA B: FIRST-ROUND MATCH SLOTS (Visible & Interactive Destination Positions) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-black text-[#111313] dark:text-[#F5F7F2]">
-                مواجهات ربع النهائي (QF1 إلى QF4):
+              <h4 className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] flex items-center gap-1.5">
+                <Swords className="size-4 text-[#179955]" />
+                المنطقة ب — خانات مباريات ربع النهائي ({effectiveFixtures.length} مواجهات):
               </h4>
               <button
                 type="button"
@@ -764,12 +1018,13 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                 className="flex items-center gap-1 text-xs font-bold text-[#179955] hover:underline"
               >
                 <Eye className="size-3.5" />
-                {reviewMode ? 'إخفاء المعاينة المركزة' : 'معاينة المواجهات المكتملة'}
+                {reviewMode ? 'إخفاء جدول المعاينة' : 'مراجعة جدول القرعة'}
               </button>
             </div>
 
+            {/* Match Slots Grid */}
             <div className="grid gap-3 sm:grid-cols-2">
-              {fixtures.map((fixture, idx) => {
+              {effectiveFixtures.map((fixture, idx) => {
                 const pair = assignments[fixture.id] || { home: null, away: null }
                 const homeTeam = pair.home ? teamMap[pair.home] : null
                 const awayTeam = pair.away ? teamMap[pair.away] : null
@@ -808,7 +1063,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                         <span className="rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] px-2 py-0.5 font-black text-[#111313] dark:text-[#F5F7F2]">
                           QF{idx + 1}
                         </span>
-                        <span className="font-bold">المباراة {idx + 1}</span>
+                        <span className="font-bold">المباراة {idx + 1} (ربع النهائي)</span>
                       </div>
 
                       {!isConfirmed && (homeTeam || awayTeam) && (
@@ -824,15 +1079,19 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                     </div>
 
                     <div className="space-y-2">
-                      {/* Home Team Slot */}
+                      {/* Home Team Slot (Slot A) */}
                       <div
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDropOnSlot(e, fixture.id, 'home')}
                         onClick={() => handleSlotClick(fixture.id, 'home')}
                         className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition ${
-                          isConfirmed ? 'cursor-default' : 'cursor-pointer hover:border-[#179955]'
+                          isConfirmed ? 'cursor-default' : 'cursor-pointer'
                         } ${
                           homeTeam
                             ? 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] font-bold text-[#111313] dark:text-[#F5F7F2]'
-                            : 'border-dashed border-[#E1E5DF] dark:border-[#303832] bg-transparent text-[#65706A]'
+                            : selectedTeam && selectedTeam.rank === 1
+                            ? 'border-dashed border-[#179955] bg-emerald-50/50 dark:bg-emerald-950/20 text-[#179955] ring-2 ring-[#179955]/30'
+                            : 'border-dashed border-[#E1E5DF] dark:border-[#303832] bg-transparent text-[#65706A] hover:border-[#179955]'
                         }`}
                       >
                         {homeTeam ? (
@@ -847,7 +1106,10 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-dashed py-1">انقر لتسكين الفريق المستضيف</span>
+                          <div className="flex items-center gap-1.5 py-1 text-xs">
+                            <span className="font-bold">الخانة 1 (متصدر):</span>
+                            <span>{selectedTeam ? 'اضغط لتسكين الفريق هنا' : 'اسحب أو اضغط للتسكين'}</span>
+                          </div>
                         )}
                         {!isConfirmed && homeTeam && (
                           <button
@@ -857,6 +1119,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                               handleSlotClick(fixture.id, 'home')
                             }}
                             className="text-[#65706A] hover:text-red-500 p-1"
+                            title="إزالة الفريق من الخانة"
                           >
                             <X className="size-3.5" />
                           </button>
@@ -870,15 +1133,19 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                         </span>
                       </div>
 
-                      {/* Away Team Slot */}
+                      {/* Away Team Slot (Slot B) */}
                       <div
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDropOnSlot(e, fixture.id, 'away')}
                         onClick={() => handleSlotClick(fixture.id, 'away')}
                         className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition ${
-                          isConfirmed ? 'cursor-default' : 'cursor-pointer hover:border-[#179955]'
+                          isConfirmed ? 'cursor-default' : 'cursor-pointer'
                         } ${
                           awayTeam
                             ? 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] font-bold text-[#111313] dark:text-[#F5F7F2]'
-                            : 'border-dashed border-[#E1E5DF] dark:border-[#303832] bg-transparent text-[#65706A]'
+                            : selectedTeam && selectedTeam.rank === 2
+                            ? 'border-dashed border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 text-blue-600 ring-2 ring-blue-500/30'
+                            : 'border-dashed border-[#E1E5DF] dark:border-[#303832] bg-transparent text-[#65706A] hover:border-blue-500'
                         }`}
                       >
                         {awayTeam ? (
@@ -893,7 +1160,10 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                             </div>
                           </div>
                         ) : (
-                          <span className="text-xs text-dashed py-1">انقر لتسكين الفريق الضيف</span>
+                          <div className="flex items-center gap-1.5 py-1 text-xs">
+                            <span className="font-bold">الخانة 2 (وصيف):</span>
+                            <span>{selectedTeam ? 'اضغط لتسكين الفريق هنا' : 'اسحب أو اضغط للتسكين'}</span>
+                          </div>
                         )}
                         {!isConfirmed && awayTeam && (
                           <button
@@ -903,6 +1173,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                               handleSlotClick(fixture.id, 'away')
                             }}
                             className="text-[#65706A] hover:text-red-500 p-1"
+                            title="إزالة الفريق من الخانة"
                           >
                             <X className="size-3.5" />
                           </button>
@@ -926,7 +1197,68 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
             </div>
           </div>
 
-          {/* Section D: ACTIONS (Sticky Bottom Bar) */}
+          {/* Section D: REVIEW TABLE / DRAWER (If review mode active) */}
+          {reviewMode && (
+            <div className="rounded-2xl border border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 p-4 space-y-3">
+              <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-300 flex items-center gap-2">
+                <CheckCircle2 className="size-4" />
+                جدول مراجعة مواجهات ربع النهائي قبل الاعتماد:
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-start text-xs">
+                  <thead>
+                    <tr className="border-b border-emerald-200 dark:border-emerald-900/40 text-[11px] text-[#65706A]">
+                      <th className="py-2 pe-3 text-start">المباراة</th>
+                      <th className="py-2 pe-3 text-start">الفريق الأول (المستضيف)</th>
+                      <th className="py-2 pe-3 text-center">ضد</th>
+                      <th className="py-2 pe-3 text-start">الفريق الثاني (الضيف)</th>
+                      <th className="py-2 pe-3 text-start">طريقة القرعة</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-emerald-100 dark:divide-emerald-900/20">
+                    {effectiveFixtures.map((f, idx) => {
+                      const pair = assignments[f.id] || {}
+                      const h = pair.home ? teamMap[pair.home] : null
+                      const a = pair.away ? teamMap[pair.away] : null
+                      return (
+                        <tr key={f.id} className="font-bold">
+                          <td className="py-2.5 pe-3 font-black text-[#111313] dark:text-[#F5F7F2]">QF{idx + 1}</td>
+                          <td className="py-2.5 pe-3">
+                            {h ? (
+                              <div className="flex items-center gap-1.5">
+                                <TeamAvatar team={h} className="size-5 shrink-0" />
+                                <span>{h.name}</span>
+                                <span className="text-[10px] text-[#65706A]">({formatGroupName(h.group_name, { groupId: h.group_id, tournamentId: tournament?.id })})</span>
+                              </div>
+                            ) : (
+                              <span className="text-amber-600">فارغة</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 pe-3 text-center text-[#65706A]">VS</td>
+                          <td className="py-2.5 pe-3">
+                            {a ? (
+                              <div className="flex items-center gap-1.5">
+                                <TeamAvatar team={a} className="size-5 shrink-0" />
+                                <span>{a.name}</span>
+                                <span className="text-[10px] text-[#65706A]">({formatGroupName(a.group_name, { groupId: a.group_id, tournamentId: tournament?.id })})</span>
+                              </div>
+                            ) : (
+                              <span className="text-amber-600">فارغة</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 pe-3 text-[11px] text-[#65706A]">
+                            {drawMode === 'automatic' ? 'تلقائية حسب المجموعات' : 'يدوية موجهة'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Section E: ACTIONS (Sticky Bottom Bar) */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#E1E5DF] dark:border-[#303832] pt-4">
             <Button variant="ghost" onClick={onClose}>
               إغلاق
@@ -974,6 +1306,40 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
             </Button>
             <Button variant="primary" loading={busy} onClick={handleConfirmDraw}>
               نعم، اعتمد القرعة رسمياً
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Auto-Draw Replace Confirmation Modal */}
+      <Modal
+        open={autoDrawConfirm}
+        onClose={() => setAutoDrawConfirm(false)}
+        size="sm"
+        title="تأكيد استبدال التوزيع بالتلقائي"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="size-5 shrink-0" />
+            <p>
+              سيؤدي هذا الإجراء إلى استبدال الخانات المسكنة حالياً بتوزيع تلقائي جديد حسب ترتيب المجموعات المجاورة.
+            </p>
+          </div>
+          <p className="text-xs text-[#65706A] dark:text-[#B2B9B3]">
+            هل تريد المتابعة وتوليد التوزيع التلقائي الآن؟
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setAutoDrawConfirm(false)}>
+              إلغاء
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setAutoDrawConfirm(false)
+                handleGenerateAutoDraw()
+              }}
+            >
+              نعم، توليد التوزيع التلقائي
             </Button>
           </div>
         </div>

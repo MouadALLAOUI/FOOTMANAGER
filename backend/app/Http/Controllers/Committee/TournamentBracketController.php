@@ -126,6 +126,21 @@ class TournamentBracketController extends Controller
         $firstRound = null;
         $fixtures = collect();
 
+        if (! $firstRoundId && in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
+            $groupDetails = $this->setup->groupStageDetails($tournament);
+            $hasRealIncomplete = collect($groupDetails['incomplete_groups'] ?? [])
+                ->contains(fn ($grp) => ($grp['remaining_matches'] ?? 0) > 0 && ($grp['total_matches'] ?? 0) > 0);
+
+            if ($groupDetails['complete'] || ! $hasRealIncomplete) {
+                try {
+                    $this->bracket->generateBracket($tournament);
+                    $firstRoundId = $this->bracket->firstKnockoutRoundId($tournament);
+                } catch (\Throwable $e) {
+                    // Ignore, will return empty fixtures if not yet ready
+                }
+            }
+        }
+
         if ($firstRoundId) {
             $firstRound = Round::query()->find($firstRoundId);
             $fixtures = Fixture::query()
@@ -138,13 +153,14 @@ class TournamentBracketController extends Controller
         $plan = $tournament->plan ?? [];
         $knockoutPlan = $plan['knockout'] ?? [];
         $groupDetails = $this->setup->groupStageDetails($tournament);
+        $isComplete = $groupDetails['complete'] || empty($groupDetails['incomplete_groups']);
 
         return response()->json([
             'data' => [
                 'qualified_teams' => $detailed['teams'] ?? [],
                 'group_stage_details' => $groupDetails,
                 'available_groups' => $groupDetails['groups'],
-                'can_finalize_qualification' => $groupDetails['complete'],
+                'can_finalize_qualification' => $isComplete,
                 'first_round' => $firstRound ? [
                     'id' => $firstRound->id,
                     'name' => $firstRound->name,
@@ -165,6 +181,17 @@ class TournamentBracketController extends Controller
                 ],
                 'round_rules' => $knockoutPlan['round_rules'] ?? [],
             ],
+        ]);
+    }
+
+    public function autoDrawProposal(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $proposal = $this->bracket->proposeAutomaticDraw($tournament);
+
+        return response()->json([
+            'data' => $proposal,
         ]);
     }
 

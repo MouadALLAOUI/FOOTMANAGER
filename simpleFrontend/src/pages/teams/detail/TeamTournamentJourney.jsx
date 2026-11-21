@@ -29,8 +29,8 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
   const [shareOpen, setShareOpen] = useState(false)
 
   const journeyUrl = selectedTournamentId
-    ? `/teams/${team?.id}/tournaments/${selectedTournamentId}/journey`
-    : `/teams/${team?.id}/tournaments/journey`
+    ? `/v1/teams/${team?.id}/tournaments/${selectedTournamentId}/journey`
+    : `/v1/teams/${team?.id}/tournaments/journey`
 
   const { data, loading, refetch } = useApi(
     () => api.get(journeyUrl).then((r) => r.data.data),
@@ -61,8 +61,44 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
     )
   }
 
-  if (!data?.has_tournaments) {
-    return null // Team has no tournament history
+  // Clean empty state when team has no tournament history
+  if (!data?.has_tournaments || tournaments.length === 0) {
+    return (
+      <section className="space-y-4 rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 sm:p-6 shadow-2xs" dir="rtl">
+        <div className="flex items-center gap-3 border-b border-[#E1E5DF]/70 dark:border-[#303832]/70 pb-4">
+          <div className="grid size-10 place-items-center rounded-2xl bg-[#179955]/15 text-[#179955] dark:bg-[#42D889]/20 dark:text-[#42D889]">
+            <Trophy className="size-5" />
+          </div>
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
+              رحلة الفريق في البطولة
+            </h2>
+            <p className="text-xs text-[#65706A] dark:text-[#B2B9B3]">
+              تتبع المسار التنافسي المباشر، نتائج دور المجموعات، ومواجهات خروج المغلوب
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5]/60 dark:bg-[#252B27]/40 py-10 px-4 text-center">
+          <div className="grid size-14 place-items-center rounded-2xl bg-[#E1E5DF]/50 dark:bg-[#303832]/60 text-[#65706A] dark:text-[#B2B9B3] mb-3">
+            <Trophy className="size-7 opacity-75" />
+          </div>
+          <h3 className="text-sm font-black text-[#111313] dark:text-[#F5F7F2]">
+            لم يسجل الفريق في أي بطولة حتى الآن
+          </h3>
+          <p className="mt-1 max-w-sm text-xs text-[#65706A] dark:text-[#B2B9B3]">
+            عند انضمام الفريق ومشاركته في البطولات الرسمية، سيتم هنا عرض ترتيبه في دور المجموعات ومساره خطوة بخطوة في الأدوار الإقصائية.
+          </p>
+          <Link
+            to="/tournaments"
+            className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#111313] dark:bg-[#D0FF38] px-4 py-2 text-xs font-black text-white dark:text-[#111313] hover:opacity-90 transition"
+          >
+            <span>استكشاف البطولات المتاحة</span>
+            <ChevronLeft className="size-3.5 rtl:rotate-0 ltr:rotate-180" />
+          </Link>
+        </div>
+      </section>
+    )
   }
 
   return (
@@ -70,9 +106,17 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
       {/* Section Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="grid size-12 place-items-center rounded-2xl bg-[#179955]/15 text-[#179955] dark:bg-[#42D889]/20 dark:text-[#42D889]">
-            <Trophy className="size-6" />
-          </div>
+          {selectedTour?.logo_url ? (
+            <img
+              src={selectedTour.logo_url}
+              alt={selectedTour.name}
+              className="size-12 rounded-2xl object-cover border border-[#E1E5DF] dark:border-[#303832] shrink-0"
+            />
+          ) : (
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#179955]/15 text-[#179955] dark:bg-[#42D889]/20 dark:text-[#42D889]">
+              <Trophy className="size-6" />
+            </div>
+          )}
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
@@ -91,14 +135,14 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
           </div>
         </div>
 
-        {/* Header Controls: Tournament Switcher & Share */}
+        {/* Header Controls: Tournament Switcher & Actions */}
         <div className="flex items-center gap-2">
           {tournaments.length > 1 && (
             <div className="relative">
               <select
                 value={selectedTour?.id || ''}
                 onChange={(e) => setSelectedTournamentId(e.target.value)}
-                className="appearance-none rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] py-2 pe-8 ps-3 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] focus:border-[#179955] focus:outline-hidden"
+                className="appearance-none rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] py-2 pe-8 ps-3 text-xs font-bold text-[#111313] dark:text-[#F5F7F2] focus:border-[#179955] focus:outline-hidden cursor-pointer"
               >
                 {tournaments.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -118,14 +162,41 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
           {selectedTour?.slug && (
             <Link
               to={`/tournaments/${selectedTour.slug}?tab=bracket&highlightTeam=${team?.id}`}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3 py-2 text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] hover:text-[#179955] transition"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3 py-2 text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] hover:text-[#179955] hover:border-[#179955] transition"
             >
-              <Network className="size-4" />
+              <Network className="size-4 text-[#179955]" />
               <span>عرض شجرة الإقصائيات</span>
             </Link>
           )}
         </div>
       </div>
+
+      {/* Multiple Tournaments Quick Switcher Pills */}
+      {tournaments.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+          <span className="text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] shrink-0">
+            البطولات المشارك بها:
+          </span>
+          {tournaments.map((t) => {
+            const isSelected = (selectedTour?.id === t.id) || (selectedTournamentId === t.id)
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSelectedTournamentId(t.id)}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold transition cursor-pointer ${
+                  isSelected
+                    ? 'bg-[#179955] text-white shadow-2xs'
+                    : 'bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2] hover:bg-[#F7F8F5]'
+                }`}
+              >
+                <Trophy className="size-3.5" />
+                <span>{t.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {/* Champion Banner (Only if team won the tournament and confirmed) */}
       {summary?.is_champion && (
@@ -250,6 +321,63 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
               </p>
             </div>
           </div>
+
+          {/* Group Stage Matches List */}
+          {group.matches?.length > 0 && (
+            <div className="border-t border-[#E1E5DF]/70 dark:border-[#303832]/70 p-4 space-y-2 bg-[#F7F8F5]/30 dark:bg-[#252B27]/20">
+              <span className="text-[11px] font-bold text-[#65706A] dark:text-[#B2B9B3] block mb-1">
+                مباريات دور المجموعات ({group.matches.length}):
+              </span>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {group.matches.map((m) => {
+                  const isFinished = m.status === 'finished' || m.status === 'completed'
+                  const canOpen = Boolean(onOpenMatch) && Boolean(m.match_id)
+                  const hasScores = m.team_score !== null && m.opponent_score !== null
+                  const isWin = isFinished && hasScores && m.team_score > m.opponent_score
+                  const isLoss = isFinished && hasScores && m.team_score < m.opponent_score
+
+                  return (
+                    <div
+                      key={m.fixture_id}
+                      onClick={() => canOpen && onOpenMatch({ id: m.fixture_id, match_id: m.match_id })}
+                      className={`flex items-center justify-between gap-3 rounded-xl border border-[#E1E5DF]/70 dark:border-[#303832]/70 bg-white dark:bg-[#1B201D] px-3.5 py-2.5 text-xs transition ${
+                        canOpen ? 'cursor-pointer hover:border-[#179955]' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {m.opponent && <TeamAvatar team={m.opponent} className="size-7 shrink-0" />}
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-[#111313] dark:text-[#F5F7F2]">
+                            {m.opponent?.name || 'خصم غير محدد'}
+                          </p>
+                          <span className="text-[10px] text-[#65706A]">
+                            {m.is_home ? 'داخل الديار' : 'خارج الديار'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {isFinished && hasScores ? (
+                          <div className="flex items-center gap-1.5 font-mono font-black tabular-nums">
+                            <span className={isWin ? 'text-[#179955] dark:text-[#42D889]' : isLoss ? 'text-red-500' : ''}>
+                              {m.team_score}
+                            </span>
+                            <span className="text-[#65706A]">-</span>
+                            <span className={isLoss ? 'text-red-500' : ''}>{m.opponent_score}</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                            مجدولة
+                          </span>
+                        )}
+                        {canOpen && <ChevronLeft className="size-3 text-[#65706A]" />}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -366,7 +494,7 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
                               <div className="rounded-xl bg-[#F7F8F5] dark:bg-[#252B27] px-3 py-1">
                                 <span className="text-[9px] text-[#65706A]">المجموع</span>
                                 <p className="font-mono text-xs font-black text-[#111313] dark:text-[#F5F7F2]">
-                                  {stage.aggregate.team_score} - {stage.aggregate.opponent_score}
+                                   {stage.aggregate.team_score} - {stage.aggregate.opponent_score}
                                 </p>
                               </div>
                             </div>
@@ -376,7 +504,7 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
                         {/* Matches List in this Stage */}
                         <div className="space-y-2">
                           {(stage.matches || []).map((m, mIdx) => {
-                            const isFinished = m.status === 'finished'
+                            const isFinished = m.status === 'finished' || m.status === 'completed'
                             const canOpen = Boolean(onOpenMatch) && Boolean(m.match_id)
 
                             return (

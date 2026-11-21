@@ -164,6 +164,9 @@ Route::get('/push/public-key', [PushSubscriptionController::class, 'publicKey'])
 Route::get('/live/{token}/data', [PublicLiveMatchDataController::class, 'data'])->middleware('throttle:120,1');
 Route::post('/live/{token}/react', [PublicLiveMatchDataController::class, 'react'])->middleware('throttle:60,1');
 
+Route::get('/teams/{team}/tournaments/journey', [PublicTeamJourneyController::class, 'show']);
+Route::get('/teams/{team}/tournaments/{tournament}/journey', [PublicTeamJourneyController::class, 'show']);
+
 Route::get('/search', [SearchController::class, 'search']);
 Route::get('/search/suggest', [SearchController::class, 'suggest']);
 Route::get('/search/popular', [SearchController::class, 'popular']);
@@ -191,7 +194,8 @@ Route::prefix('v1')->group(function () {
     Route::post('/live/{token}/react', [PublicLiveMatchDataController::class, 'react'])->middleware('throttle:60,1');
 
     Route::get('/teams/{team}/page', [TeamPageController::class, 'show']);
-    Route::get('/teams/{team}/tournaments/{tournament?}/journey', [PublicTeamJourneyController::class, 'show']);
+    Route::get('/teams/{team}/tournaments/journey', [PublicTeamJourneyController::class, 'show']);
+    Route::get('/teams/{team}/tournaments/{tournament}/journey', [PublicTeamJourneyController::class, 'show']);
     Route::get('/feed', [FeedController::class, 'index']);
     Route::get('/comments', [CommentController::class, 'index']);
     Route::get('/comments/{comment}/replies', [CommentController::class, 'replies']);

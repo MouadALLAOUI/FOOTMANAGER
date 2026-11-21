@@ -34,7 +34,13 @@ class TournamentSetupService
 
             $groupRound = $this->ensureGroupRound($tournament, $season);
             if ($tournament->tournament_format !== 'league') {
-                $groups = $this->ensureGroups($tournament, $season, $groupRound, $tournament->group_mode !== 'free');
+                $hasAssignedTeams = TournamentTeam::query()
+                    ->where('tournament_id', $tournament->id)
+                    ->where('status', TournamentTeam::STATUS_REGISTERED)
+                    ->whereNotNull('group_id')
+                    ->exists();
+
+                $groups = $this->ensureGroups($tournament, $season, $groupRound, ! $hasAssignedTeams && $tournament->group_mode !== 'free');
                 $this->ensureKnockoutRoundsWhenReady($tournament, $season);
                 $tournament->knockout_teams = $this->resolveKnockoutTeams($tournament);
             } else {
@@ -195,6 +201,26 @@ class TournamentSetupService
     }
 
     /**
+     * Active participating group IDs for the tournament:
+     * strictly groups that contain at least one registered team.
+     *
+     * @return int[]
+     */
+    public function participatingGroupIds(Tournament $tournament): array
+    {
+        return TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->whereNotNull('group_id')
+            ->distinct()
+            ->pluck('group_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array{complete: bool, groups: array<int, array<string, mixed>>, incomplete_groups: array<int, array<string, mixed>>, explanation: string|null}
      */
     public function groupStageDetails(Tournament $tournament): array
@@ -211,55 +237,58 @@ class TournamentSetupService
             ];
         }
 
-        // Available groups for this tournament:
-        // 1. Groups with registered teams in this tournament
-        $assignedGroupIds = TournamentTeam::query()
-            ->where('tournament_id', $tournament->id)
-            ->where('status', TournamentTeam::STATUS_REGISTERED)
-            ->whereNotNull('group_id')
-            ->distinct()
-            ->pluck('group_id')
-            ->all();
+        // Active participating groups: ONLY groups with genuinely registered teams in this tournament
+        $participatingGroupIds = $this->participatingGroupIds($tournament);
 
-        // 2. Fixtures scheduled for this tournament's competition & season
-        $fixtures = Fixture::query()
-            ->where('competition_id', $competitionId)
-            ->where('season_id', $seasonId)
-            ->whereNotNull('group_id')
-            ->get(['id', 'match_id', 'status', 'group_id']);
-
-        $fixtureGroupIds = $fixtures->pluck('group_id')->filter()->unique()->all();
-
-        // Groups available strictly for this tournament
-        $activeGroupIds = array_values(array_unique(array_merge($assignedGroupIds, $fixtureGroupIds)));
-
-        $groupsQuery = Group::query()
-            ->where('competition_id', $competitionId)
-            ->where('season_id', $seasonId)
-            ->orderBy('id');
-
-        if (! empty($activeGroupIds)) {
-            $groupsQuery->whereIn('id', $activeGroupIds);
-        } elseif ($tournament->groups_count > 0) {
-            $groupsQuery->limit($tournament->groups_count);
+        if (empty($participatingGroupIds)) {
+            return [
+                'complete' => false,
+                'groups' => [],
+                'incomplete_groups' => [],
+                'explanation' => 'لم يتم توزيع الفرق المشاركة على المجموعات بعد',
+            ];
         }
 
-        $groups = $groupsQuery->get();
+        // Query strictly the groups that contain active participating teams
+        $groups = Group::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
+            ->whereIn('id', $participatingGroupIds)
+            ->orderBy('id')
+            ->get();
 
         if ($groups->isEmpty()) {
             return [
                 'complete' => false,
                 'groups' => [],
                 'incomplete_groups' => [],
-                'explanation' => 'لا توجد مجموعات مسجلة في البطولة',
+                'explanation' => 'لا توجد مجموعات مشاركة مسجلة في البطولة',
             ];
         }
 
+        // Only query fixtures belonging to active participating groups
+        $fixtures = Fixture::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
+            ->whereIn('group_id', $participatingGroupIds)
+            ->get(['id', 'match_id', 'status', 'group_id']);
+
+        $planGroupNames = ($tournament->plan ?? [])['group_names'] ?? [];
+
         if ($fixtures->isEmpty()) {
+            $unready = $groups->map(fn ($g) => [
+                'group_id' => $g->id,
+                'group_name' => $planGroupNames[$g->id] ?? $g->name,
+                'total_matches' => 0,
+                'finished_matches' => 0,
+                'remaining_matches' => 0,
+                'is_complete' => false,
+            ])->all();
+
             return [
                 'complete' => false,
-                'groups' => [],
-                'incomplete_groups' => [],
+                'groups' => $unready,
+                'incomplete_groups' => $unready,
                 'explanation' => 'لم يتم جدولة مباريات دور المجموعات بعد',
             ];
         }
@@ -268,8 +297,6 @@ class TournamentSetupService
         $matchStatuses = $matchIds->isNotEmpty()
             ? FootballMatch::query()->whereKey($matchIds->all())->pluck('status', 'id')
             : collect();
-
-        $planGroupNames = ($tournament->plan ?? [])['group_names'] ?? [];
 
         $byGroup = [];
         $incomplete = [];
@@ -423,8 +450,11 @@ class TournamentSetupService
     {
         if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
             $perGroup = max(1, (int) ($tournament->qualify_per_group ?: 2));
+            $participatingCount = count($this->participatingGroupIds($tournament));
 
-            return max(2, (int) $tournament->groups_count * $perGroup);
+            $groupsCount = $participatingCount > 0 ? $participatingCount : max(1, (int) $tournament->groups_count);
+
+            return max(2, $groupsCount * $perGroup);
         }
 
         if ($tournament->knockout_teams) {

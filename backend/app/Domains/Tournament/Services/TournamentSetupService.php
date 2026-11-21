@@ -211,11 +211,40 @@ class TournamentSetupService
             ];
         }
 
-        $groups = Group::query()
+        // Available groups for this tournament:
+        // 1. Groups with registered teams in this tournament
+        $assignedGroupIds = TournamentTeam::query()
+            ->where('tournament_id', $tournament->id)
+            ->where('status', TournamentTeam::STATUS_REGISTERED)
+            ->whereNotNull('group_id')
+            ->distinct()
+            ->pluck('group_id')
+            ->all();
+
+        // 2. Fixtures scheduled for this tournament's competition & season
+        $fixtures = Fixture::query()
             ->where('competition_id', $competitionId)
             ->where('season_id', $seasonId)
-            ->orderBy('id')
-            ->get();
+            ->whereNotNull('group_id')
+            ->get(['id', 'match_id', 'status', 'group_id']);
+
+        $fixtureGroupIds = $fixtures->pluck('group_id')->filter()->unique()->all();
+
+        // Groups available strictly for this tournament
+        $activeGroupIds = array_values(array_unique(array_merge($assignedGroupIds, $fixtureGroupIds)));
+
+        $groupsQuery = Group::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
+            ->orderBy('id');
+
+        if (! empty($activeGroupIds)) {
+            $groupsQuery->whereIn('id', $activeGroupIds);
+        } elseif ($tournament->groups_count > 0) {
+            $groupsQuery->limit($tournament->groups_count);
+        }
+
+        $groups = $groupsQuery->get();
 
         if ($groups->isEmpty()) {
             return [
@@ -225,12 +254,6 @@ class TournamentSetupService
                 'explanation' => 'لا توجد مجموعات مسجلة في البطولة',
             ];
         }
-
-        $fixtures = Fixture::query()
-            ->where('competition_id', $competitionId)
-            ->where('season_id', $seasonId)
-            ->whereNotNull('group_id')
-            ->get(['id', 'match_id', 'status', 'group_id']);
 
         if ($fixtures->isEmpty()) {
             return [
@@ -245,6 +268,8 @@ class TournamentSetupService
         $matchStatuses = $matchIds->isNotEmpty()
             ? FootballMatch::query()->whereKey($matchIds->all())->pluck('status', 'id')
             : collect();
+
+        $planGroupNames = ($tournament->plan ?? [])['group_names'] ?? [];
 
         $byGroup = [];
         $incomplete = [];
@@ -272,9 +297,11 @@ class TournamentSetupService
             }
 
             $isComplete = ($total > 0 && $remaining === 0);
+            $resolvedName = $planGroupNames[$group->id] ?? $group->name;
+
             $info = [
                 'group_id' => $group->id,
-                'group_name' => $group->name,
+                'group_name' => $resolvedName,
                 'total_matches' => $total,
                 'finished_matches' => $finished,
                 'remaining_matches' => $remaining,
@@ -290,7 +317,12 @@ class TournamentSetupService
         $isAllComplete = ! empty($groups) && empty($incomplete);
         $explanation = null;
         if (! $isAllComplete) {
-            $names = array_map(fn ($g) => "{$g['group_name']} (متبقي {$g['remaining_matches']} مباريات)", $incomplete);
+            $names = array_map(function ($g) {
+                if ($g['total_matches'] === 0) {
+                    return "{$g['group_name']} (لم تُجدول مبارياتها بعد)";
+                }
+                return "{$g['group_name']} (متبقي {$g['remaining_matches']} مباريات)";
+            }, $incomplete);
             $explanation = 'دور المجموعات لم يكتمل بعد: ' . implode('، ', $names);
         }
 

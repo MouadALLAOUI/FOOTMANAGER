@@ -27,6 +27,7 @@ import { Button, Modal } from '../../../../components/dashboard/ui'
 import { useToast } from '../../../../components/ui/Toast'
 import { toastApiError } from '../../../../lib/errors'
 import { TeamAvatar } from '../../../tournaments/shared'
+import { formatGroupName } from '../../../../lib/groupNames'
 
 /**
  * Constraint-Aware Deadlock Solver
@@ -262,7 +263,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
       if (preventSameGroup && opponent && opponent.group_id && selectedTeam.group_id) {
         if (opponent.group_id === selectedTeam.group_id) {
           toast.error(
-            `مخالفة اللائحة (القاعدة 1): لا يمكن مواجهة فريقين من نفس المجموعة (${selectedTeam.group_name}) في ربع النهائي!`,
+            `مخالفة اللائحة (القاعدة 1): لا يمكن مواجهة فريقين من نفس المجموعة (${formatGroupName(selectedTeam.group_name, { groupId: selectedTeam.group_id, tournamentId: tournament?.id })}) في ربع النهائي!`,
           )
           return
         }
@@ -840,7 +841,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                             <div className="min-w-0">
                               <p className="truncate font-black">{homeTeam.name}</p>
                               <div className="flex items-center gap-1 text-[10px] text-[#65706A] dark:text-[#B2B9B3]">
-                                <span>{homeTeam.group_name}</span>
+                                <span>{formatGroupName(homeTeam.group_name, { groupId: homeTeam.group_id, tournamentId: tournament?.id })}</span>
                                 <span className="font-bold">({homeTeam.rank === 1 ? 'متصدر' : 'وصيف'})</span>
                               </div>
                             </div>
@@ -886,7 +887,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                             <div className="min-w-0">
                               <p className="truncate font-black">{awayTeam.name}</p>
                               <div className="flex items-center gap-1 text-[10px] text-[#65706A] dark:text-[#B2B9B3]">
-                                <span>{awayTeam.group_name}</span>
+                                <span>{formatGroupName(awayTeam.group_name, { groupId: awayTeam.group_id, tournamentId: tournament?.id })}</span>
                                 <span className="font-bold">({awayTeam.rank === 1 ? 'متصدر' : 'وصيف'})</span>
                               </div>
                             </div>
@@ -911,7 +912,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
 
                     {isSameGroupConflict && (
                       <p className="mt-2 text-center text-[10px] font-bold text-red-500">
-                        ⚠️ مخالفة: الفريقان من نفس المجموعة ({homeTeam.group_name})
+                        ⚠️ مخالفة: الفريقان من نفس المجموعة ({formatGroupName(homeTeam.group_name, { groupId: homeTeam.group_id, tournamentId: tournament?.id })})
                       </p>
                     )}
                     {isSameRankConflict && (

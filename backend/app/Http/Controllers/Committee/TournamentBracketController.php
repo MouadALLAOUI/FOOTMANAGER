@@ -169,6 +169,7 @@ class TournamentBracketController extends Controller
             'data' => [
                 'qualified_teams' => $detailed['teams'] ?? [],
                 'group_stage_details' => $groupDetails,
+                'available_groups' => $groupDetails['groups'],
                 'can_finalize_qualification' => $groupDetails['complete'],
                 'first_round' => $firstRound ? [
                     'id' => $firstRound->id,

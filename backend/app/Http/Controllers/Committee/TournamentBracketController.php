@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers\Committee;
 
+use App\Domains\Competition\Enums\RoundStage;
 use App\Domains\Competition\Models\Fixture;
 use App\Domains\Competition\Models\Round;
+use App\Domains\Match\Enums\MatchStatus;
+use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Services\TournamentBracketService;
 use App\Domains\Tournament\Services\TournamentFixtureService;
 use App\Domains\Tournament\Services\TournamentStandingsService;
+use App\Domains\Tournament\Services\TournamentSuspensionService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +27,7 @@ class TournamentBracketController extends Controller
         private readonly TournamentBracketService $bracket,
         private readonly TournamentStandingsService $standings,
         private readonly TournamentFixtureService $fixtures,
+        private readonly TournamentSuspensionService $suspensions,
     ) {}
 
     public function index(Tournament $tournament): JsonResponse
@@ -271,15 +276,30 @@ class TournamentBracketController extends Controller
             }
 
             $plan = $tournament->plan ?? [];
-            $plan['knockout'] = array_merge($plan['knockout'] ?? [], [
-                'draw_status' => 'confirmed',
-                'draw_confirmed_at' => now()->toISOString(),
-                'draw_confirmed_by' => $request->user()?->id,
-                'rules' => [
-                    'prevent_same_group_r1' => $preventSameGroup,
-                ],
-            ]);
+            $knockout = $plan['knockout'] ?? [];
+            $versions = $knockout['draw_versions'] ?? [];
+            $nextVersion = count($versions) + 1;
 
+            $versions[] = [
+                'version' => $nextVersion,
+                'confirmed_at' => now()->toISOString(),
+                'confirmed_by' => $request->user()?->id,
+                'confirmed_by_name' => $request->user()?->name ?? 'مسؤول اللجنة',
+                'assignments_count' => count($assignments),
+                'assignments' => $assignments,
+                'reason' => $request->input('reason', 'اعتماد قرعة الدور الأول'),
+            ];
+
+            $knockout['draw_status'] = 'confirmed';
+            $knockout['draw_confirmed_at'] = now()->toISOString();
+            $knockout['draw_confirmed_by'] = $request->user()?->id;
+            $knockout['current_version'] = $nextVersion;
+            $knockout['draw_versions'] = $versions;
+            $knockout['rules'] = [
+                'prevent_same_group_r1' => $preventSameGroup,
+            ];
+
+            $plan['knockout'] = $knockout;
             $tournament->forceFill(['plan' => $plan])->save();
         });
 
@@ -310,6 +330,135 @@ class TournamentBracketController extends Controller
         return response()->json([
             'data' => $knockout,
             'message' => 'تم حفظ قواعد الأدوار الإقصائية بنجاح',
+        ]);
+    }
+
+    public function drawVersions(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('view', $tournament);
+
+        $plan = $tournament->plan ?? [];
+        $knockout = $plan['knockout'] ?? [];
+
+        return response()->json([
+            'data' => [
+                'current_version' => $knockout['current_version'] ?? null,
+                'draw_status' => $knockout['draw_status'] ?? 'pending',
+                'versions' => $knockout['draw_versions'] ?? [],
+            ],
+        ]);
+    }
+
+    public function drawRollback(Request $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
+            throw new DomainException('لا يمكن التراجع عن القرعة لبطولة مكتملة أو ملغاة', 422);
+        }
+
+        $knockoutRoundIds = Round::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('stage', '!=', RoundStage::Group)
+            ->pluck('id');
+
+        $playedMatches = FootballMatch::query()
+            ->whereIn('round_id', $knockoutRoundIds)
+            ->whereIn('status', [MatchStatus::Finished->value, ...MatchStatus::live()])
+            ->get(['id', 'home_team_id', 'away_team_id', 'home_score', 'away_score', 'status']);
+
+        if ($playedMatches->isNotEmpty()) {
+            throw new DomainException('لا يمكن التراجع عن القرعة المعتمدة لوجود مباريات بدأت أو انتهت بالفعل في الأدوار الإقصائية', 422);
+        }
+
+        $reason = trim((string) $request->input('reason', ''));
+        if (empty($reason)) {
+            throw new DomainException('يرجى تقديم سبب صريح وموثق لطلب التراجع عن القرعة المعتمدة', 422);
+        }
+
+        $firstRoundId = $this->bracket->firstKnockoutRoundId($tournament);
+        if ($firstRoundId) {
+            Fixture::query()
+                ->where('round_id', $firstRoundId)
+                ->update([
+                    'home_team_id' => null,
+                    'away_team_id' => null,
+                ]);
+        }
+
+        $plan = $tournament->plan ?? [];
+        $knockout = $plan['knockout'] ?? [];
+        $versions = $knockout['draw_versions'] ?? [];
+
+        $versions[] = [
+            'action' => 'rollback',
+            'rolled_back_at' => now()->toISOString(),
+            'rolled_back_by' => $request->user()?->id,
+            'rolled_back_by_name' => $request->user()?->name ?? 'مسؤول اللجنة',
+            'reason' => $reason,
+        ];
+
+        $knockout['draw_status'] = 'pending';
+        $knockout['draw_confirmed_at'] = null;
+        $knockout['draw_confirmed_by'] = null;
+        $knockout['draw_versions'] = $versions;
+        $plan['knockout'] = $knockout;
+        $tournament->forceFill(['plan' => $plan])->save();
+
+        return response()->json([
+            'data' => $this->bracket->bracket($tournament),
+            'message' => 'تم إلغاء اعتماد القرعة وإعادتها لحالة المسودة للتمكن من إعادة التسكين بأمان',
+        ]);
+    }
+
+    public function disciplinary(Tournament $tournament): JsonResponse
+    {
+        $this->authorize('view', $tournament);
+
+        return response()->json([
+            'data' => $this->suspensions->tournamentDisciplinarySummary($tournament),
+        ]);
+    }
+
+    public function issueTournamentLongSuspension(Request $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'player_id' => 'required|integer',
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $result = $this->suspensions->issueTournamentLongSuspension(
+            $tournament,
+            (int) $validated['player_id'],
+            $validated['reason'],
+            $request->user()->id
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => 'تم إصدار قرار الإيقاف لكامل البطولة وتطبيقه رسمياً',
+        ]);
+    }
+
+    public function liftTournamentLongSuspension(Request $request, Tournament $tournament, int $playerId): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $reason = (string) $request->input('reason', 'إلغاء بقرار اللجنة المنظمة');
+
+        $result = $this->suspensions->liftTournamentLongSuspension(
+            $tournament,
+            $playerId,
+            $reason,
+            $request->user()->id
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => 'تم رفع الإيقاف عن اللاعب رسمياً',
         ]);
     }
 }

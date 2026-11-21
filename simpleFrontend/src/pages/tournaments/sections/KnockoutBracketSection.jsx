@@ -13,6 +13,7 @@ import {
   Trophy,
 } from 'lucide-react'
 import { TeamAvatar } from '../shared'
+import { stageLabel } from '../../../domains/committee/lib/stages'
 
 export default function KnockoutBracketSection({ rounds, onOpenMatch, championTeam }) {
   const { t } = useTranslation()
@@ -95,7 +96,7 @@ export default function KnockoutBracketSection({ rounds, onOpenMatch, championTe
                 : 'border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] text-[#65706A] dark:text-[#B2B9B3]'
             }`}
           >
-            {round.name}
+            {stageLabel(t, round.stage, round.name)}
           </button>
         ))}
       </div>
@@ -124,7 +125,7 @@ export default function KnockoutBracketSection({ rounds, onOpenMatch, championTe
                         : 'bg-white dark:bg-[#1B201D] border border-[#E1E5DF] dark:border-[#303832] text-[#111313] dark:text-[#F5F7F2]'
                     }`}
                   >
-                    {round.name}
+                    {stageLabel(t, round.stage, round.name)}
                   </span>
                   <p className="mt-1 text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
                     {round.fixtures?.length || 0} {round.fixtures?.length === 1 ? 'مباراة' : 'مباريات'}
@@ -165,6 +166,14 @@ export default function KnockoutBracketSection({ rounds, onOpenMatch, championTe
                           <span>
                             {isPlayed ? (
                               <span className="font-bold text-[#179955] dark:text-[#42D889]">انتهت</span>
+                            ) : fixture.status === 'live' || fixture.status === 'in_progress' ? (
+                              <span className="font-bold text-amber-600 dark:text-amber-400 animate-pulse">جارية الآن</span>
+                            ) : fixture.status === 'pending_approval' ? (
+                              <span className="font-bold text-purple-600 dark:text-purple-400">بانتظار اعتماد النتيجة</span>
+                            ) : !homeId && !awayId ? (
+                              <span className="text-[#65706A]">لم تحدد المواجهة بعد</span>
+                            ) : !homeId || !awayId ? (
+                              <span className="text-[#65706A]">بانتظار المتأهل</span>
                             ) : fixture.scheduled_at ? (
                               new Date(fixture.scheduled_at).toLocaleDateString('ar-MA', {
                                 month: 'short',

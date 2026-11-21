@@ -9,6 +9,7 @@ use App\Domains\Player\Models\Player;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
+use App\Domains\Tournament\Services\TournamentSuspensionService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,10 @@ use Illuminate\Http\Request;
 class TournamentFixtureLineupController extends Controller
 {
     use AuthorizesRequests;
+
+    public function __construct(
+        private readonly TournamentSuspensionService $suspensions,
+    ) {}
 
     /**
      * GET  /committee/tournaments/{tournament}/fixtures/{fixture}/lineups
@@ -110,6 +115,14 @@ class TournamentFixtureLineupController extends Controller
         // Verify the team is part of this fixture.
         if ($teamId !== (int) $fixture->home_team_id && $teamId !== (int) $fixture->away_team_id) {
             throw new DomainException('الفريق غير مشارك في هذه المباراة', 422);
+        }
+
+        // Verify player is not suspended (Rule A, Rule B)
+        if ($confirmed && $this->suspensions->playerIsSuspended($fixture, $playerId)) {
+            $suspendedList = $this->suspensions->suspendedFor($fixture);
+            $entry = collect($suspendedList)->firstWhere('player_id', $playerId);
+            $reason = $entry['reason'] ?? 'عقوبة انضباطية نشطة';
+            throw new DomainException("لا يمكن تأكيد حضور اللاعب ({$player->name}) لأنه موقوف رسمياً عن هذه المباراة ({$reason})", 422);
         }
 
         // Ensure the fixture has a match record (create a minimal one if needed).

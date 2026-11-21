@@ -6,14 +6,14 @@ import {
   Check,
   CheckCircle2,
   Clock,
-  Crown,
-  Dices,
+  History,
   Lock,
+  Redo2,
   RefreshCw,
   RotateCcw,
   Shield,
   Shuffle,
-  Trash2,
+  Undo2,
   UserCheck,
   X,
 } from 'lucide-react'
@@ -35,6 +35,51 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [confirmPrompt, setConfirmPrompt] = useState(false)
 
+  // Undo / Redo history stack for draft assignments
+  const [history, setHistory] = useState([])
+  const [historyIdx, setHistoryIdx] = useState(-1)
+
+  // Clear slots confirm dialog
+  const [clearConfirm, setClearConfirm] = useState(false)
+
+  // Version History Modal / View
+  const [showHistory, setShowHistory] = useState(false)
+  const [versions, setVersions] = useState([])
+  const [loadingVersions, setLoadingVersions] = useState(false)
+
+  // Rollback dialog
+  const [rollbackPrompt, setRollbackPrompt] = useState(false)
+  const [rollbackReason, setRollbackReason] = useState('')
+  const [rollbackBusy, setRollbackBusy] = useState(false)
+
+  // Push new state to history
+  const pushHistory = (newAssignments) => {
+    setHistory((prev) => {
+      const slice = prev.slice(0, historyIdx + 1)
+      return [...slice, JSON.parse(JSON.stringify(newAssignments))]
+    })
+    setHistoryIdx((prev) => prev + 1)
+    setAssignments(newAssignments)
+  }
+
+  const handleUndo = () => {
+    if (historyIdx > 0) {
+      const prevIdx = historyIdx - 1
+      setHistoryIdx(prevIdx)
+      setAssignments(JSON.parse(JSON.stringify(history[prevIdx])))
+      setSelectedTeam(null)
+    }
+  }
+
+  const handleRedo = () => {
+    if (historyIdx < history.length - 1) {
+      const nextIdx = historyIdx + 1
+      setHistoryIdx(nextIdx)
+      setAssignments(JSON.parse(JSON.stringify(history[nextIdx])))
+      setSelectedTeam(null)
+    }
+  }
+
   const loadDrawData = async () => {
     setLoading(true)
     try {
@@ -52,6 +97,8 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
         }
       })
       setAssignments(initial)
+      setHistory([JSON.parse(JSON.stringify(initial))])
+      setHistoryIdx(0)
     } catch (e) {
       toastApiError(e, t)
     } finally {
@@ -59,9 +106,23 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
     }
   }
 
+  const loadVersions = async () => {
+    setLoadingVersions(true)
+    try {
+      const res = await api.get(`/committee/tournaments/${tournament.id}/bracket/draw-versions`)
+      setVersions(res.data.data?.versions || [])
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setLoadingVersions(false)
+    }
+  }
+
   useEffect(() => {
     if (open) {
       loadDrawData()
+      setShowHistory(false)
+      setSelectedTeam(null)
     }
   }, [open, tournament.id])
 
@@ -94,110 +155,53 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
 
     if (selectedTeam) {
       // If a team is currently selected from pool
-      setAssignments((prev) => ({
-        ...prev,
+      const updated = {
+        ...assignments,
         [fixtureId]: {
-          ...prev[fixtureId],
+          ...assignments[fixtureId],
           [side]: selectedTeam.team_id,
         },
-      }))
+      }
+      pushHistory(updated)
       setSelectedTeam(null)
     } else if (currentTeamId) {
       // Clicked an occupied slot: remove team back to pool
-      setAssignments((prev) => ({
-        ...prev,
+      const updated = {
+        ...assignments,
         [fixtureId]: {
-          ...prev[fixtureId],
+          ...assignments[fixtureId],
           [side]: null,
         },
-      }))
+      }
+      pushHistory(updated)
     }
   }
 
   // Swap home and away in a fixture
   const handleSwapMatch = (fixtureId) => {
     if (isConfirmed) return
-    setAssignments((prev) => {
-      const current = prev[fixtureId] || { home: null, away: null }
-      return {
-        ...prev,
-        [fixtureId]: {
-          home: current.away,
-          away: current.home,
-        },
-      }
-    })
+    const current = assignments[fixtureId] || { home: null, away: null }
+    const updated = {
+      ...assignments,
+      [fixtureId]: {
+        home: current.away,
+        away: current.home,
+      },
+    }
+    pushHistory(updated)
   }
 
-  // Clear all assignments
+  // Clear all assignments (with confirmation)
   const handleReset = () => {
     if (isConfirmed) return
     const cleared = {}
     fixtures.forEach((f) => {
       cleared[f.id] = { home: null, away: null }
     })
-    setAssignments(cleared)
+    pushHistory(cleared)
     setSelectedTeam(null)
-  }
-
-  // Smart random draw respecting preventSameGroup
-  const handleAutoDraw = () => {
-    if (isConfirmed) return
-
-    const teams = [...qualifiedTeams]
-    let attempts = 0
-    let success = false
-    let result = {}
-
-    while (attempts < 50 && !success) {
-      attempts++
-      const shuffled = [...teams].sort(() => Math.random() - 0.5)
-      const candidate = {}
-      let valid = true
-
-      for (let i = 0; i < fixtures.length; i++) {
-        const home = shuffled[i * 2]
-        const away = shuffled[i * 2 + 1]
-
-        if (!home || !away) {
-          valid = false
-          break
-        }
-
-        if (preventSameGroup && home.group_id && away.group_id && home.group_id === away.group_id) {
-          valid = false
-          break
-        }
-
-        candidate[fixtures[i].id] = {
-          home: home.team_id,
-          away: away.team_id,
-        }
-      }
-
-      if (valid) {
-        result = candidate
-        success = true
-      }
-    }
-
-    if (success) {
-      setAssignments(result)
-      setSelectedTeam(null)
-      toast.success('تم إجراء السحب التلقائي بنجاح مع احترام القواعد')
-    } else {
-      // Fallback simple shuffle
-      const candidate = {}
-      const shuffled = [...teams].sort(() => Math.random() - 0.5)
-      fixtures.forEach((f, idx) => {
-        candidate[f.id] = {
-          home: shuffled[idx * 2]?.team_id || null,
-          away: shuffled[idx * 2 + 1]?.team_id || null,
-        }
-      })
-      setAssignments(candidate)
-      toast.info('تم السحب التلقائي (يرجى مراجعة المواجهات للتحقق من قيد المجموعات)')
-    }
+    setClearConfirm(false)
+    toast.info('تم إفراغ خانات القرعة المسودة')
   }
 
   // Validation checks
@@ -236,12 +240,13 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
       await api.post(`/committee/tournaments/${tournament.id}/bracket/confirm-draw`, {
         assignments: payloadAssignments,
         prevent_same_group_r1: preventSameGroup,
+        reason: 'اعتماد القرعة اليدوية الأولى',
       })
 
       toast.success('تم اعتماد القرعة الإقصائية وتثبيت المباريات بنجاح!')
       setConfirmPrompt(false)
       if (onConfirmed) onConfirmed()
-      onClose()
+      loadDrawData()
     } catch (e) {
       toastApiError(e, t)
     } finally {
@@ -249,17 +254,99 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
     }
   }
 
+  // Rollback draw
+  const handleRollbackDraw = async () => {
+    if (!rollbackReason.trim()) {
+      toast.error('يرجى توضيح سبب التراجع عن القرعة')
+      return
+    }
+
+    setRollbackBusy(true)
+    try {
+      await api.post(`/committee/tournaments/${tournament.id}/bracket/draw-rollback`, {
+        reason: rollbackReason.trim(),
+      })
+      toast.success('تم إلغاء اعتماد القرعة وإعادتها لمسودة قابلة للتعديل بنجاح')
+      setRollbackPrompt(false)
+      setRollbackReason('')
+      if (onConfirmed) onConfirmed()
+      loadDrawData()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setRollbackBusy(false)
+    }
+  }
+
   return (
-    <Modal open={open} onClose={onClose} size="xl" title="قرعة الأدوار الإقصائية (خروج المغلوب)">
+    <Modal
+      open={open}
+      onClose={onClose}
+      size="xl"
+      title="منظومة القرعة الإقصائية اليدوية (خروج المغلوب)"
+    >
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-[#65706A]">
           <RefreshCw className="size-8 animate-spin text-[#179955]" />
-          <p className="mt-3 text-sm font-bold">جاري تحميل بيانات الفرق المتأهلة...</p>
+          <p className="mt-3 text-sm font-bold">جاري تحميل بيانات السلم والفرق المتأهلة...</p>
+        </div>
+      ) : showHistory ? (
+        /* Version History View */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] flex items-center gap-2">
+              <History className="size-4 text-[#179955]" />
+              سجل نسخ واعتمادات القرعة
+            </h4>
+            <Button size="xs" variant="outline" onClick={() => setShowHistory(false)}>
+              العودة للقرعة
+            </Button>
+          </div>
+
+          {loadingVersions ? (
+            <div className="flex items-center justify-center py-10 text-xs text-[#65706A]">
+              <RefreshCw className="size-4 animate-spin me-2 text-[#179955]" />
+              جاري تحميل سجل النسخ...
+            </div>
+          ) : versions.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-[#E1E5DF] dark:border-[#303832] py-10 text-center text-xs text-[#65706A]">
+              لا توجد نسخ معتمدة سابقة مسجلة لهذه البطولة حتى الآن.
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[420px] overflow-y-auto pe-1">
+              {versions.map((ver, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3 text-xs space-y-1.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-black text-[#111313] dark:text-[#F5F7F2]">
+                      النسخة #{ver.version} {ver.action === 'rollback' ? '(إلغاء وتراجع)' : '(اعتماد رسمي)'}
+                    </span>
+                    <span className="text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                      {ver.timestamp ? new Date(ver.timestamp).toLocaleString('ar-MA') : ''}
+                    </span>
+                  </div>
+                  {ver.reason && (
+                    <p className="text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                      <span className="font-bold">السبب المدوّن: </span>
+                      {ver.reason}
+                    </p>
+                  )}
+                  {ver.assignments_count !== undefined && (
+                    <p className="text-[10px] text-[#179955] dark:text-[#42D889] font-bold">
+                      عدد المواجهات المسكنة: {ver.assignments_count} مباراة
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {/* Header Info Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3.5 sm:p-4">
             <div className="flex items-center gap-3">
               <div
                 className={`grid size-11 place-items-center rounded-xl font-bold ${
@@ -282,30 +369,75 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                         : 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                     }`}
                   >
-                    {isConfirmed ? 'معتمدة ومجمدة' : 'مسودة قيد الإعداد'}
+                    {isConfirmed ? 'معتمدة ومجمدة' : 'سحب يدوي — مسودة'}
                   </span>
                 </div>
                 <p className="text-xs text-[#65706A] dark:text-[#B2B9B3]">
                   {isConfirmed
                     ? `تم اعتماد هذه القرعة رسمياً في ${new Date(data?.draw_confirmed_at).toLocaleDateString('ar-MA')}`
-                    : `اختر أو اسحب الفرق المتأهلة (${qualifiedTeams.length} فريقاً) لتوزيعها في خانات المواجهات المباشرة.`}
+                    : `انقر لاختيار الفريق ثم انقر على الخانة المرغوبة (${qualifiedTeams.length} فرق متأهلة).`}
                 </p>
               </div>
             </div>
 
-            {/* Actions for draft mode */}
-            {!isConfirmed && (
-              <div className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" onClick={handleAutoDraw} disabled={busy}>
-                  <Dices className="size-4" />
-                  سحب عشوائي ذكي
+            {/* Actions strip */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => {
+                  setShowHistory(true)
+                  loadVersions()
+                }}
+              >
+                <History className="size-3.5" />
+                سجل النسخ
+              </Button>
+
+              {!isConfirmed ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={handleUndo}
+                    disabled={historyIdx <= 0}
+                    title="تراجع عن آخر حركة"
+                  >
+                    <Undo2 className="size-3.5" />
+                    تراجع
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={handleRedo}
+                    disabled={historyIdx >= history.length - 1}
+                    title="إعادة آخر حركة"
+                  >
+                    <Redo2 className="size-3.5" />
+                    إعادة
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    onClick={() => setClearConfirm(true)}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                  >
+                    <RotateCcw className="size-3.5" />
+                    إفراغ الخانات
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setRollbackPrompt(true)}
+                  className="text-amber-600 border-amber-300 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                >
+                  <RotateCcw className="size-3.5" />
+                  طلب التراجع عن الاعتماد
                 </Button>
-                <Button variant="ghost" size="sm" onClick={handleReset} disabled={busy}>
-                  <RotateCcw className="size-4" />
-                  إفراغ الخانات
-                </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Constraint toggle */}
@@ -317,7 +449,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
                   قاعدة تجنب مواجهة فريقي نفس المجموعة
                 </p>
                 <p className="text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
-                  يمنع التسكين في مواجهة واحدة إذا كان الفريقان متأهلين من نفس المجموعة
+                  تنبيه تلقائي عند تسكين فريقين من نفس المجموعة في مواجهة واحدة
                 </p>
               </div>
             </div>
@@ -533,7 +665,7 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
             </div>
           </div>
 
-          {/* Footer Controls */}
+          {/* Sticky Bottom Bar */}
           <div className="flex items-center justify-between border-t border-[#E1E5DF] dark:border-[#303832] pt-4">
             <Button variant="ghost" onClick={onClose}>
               إغلاق
@@ -582,6 +714,73 @@ export default function KnockoutDrawModal({ open, onClose, tournament, onConfirm
             </Button>
             <Button variant="primary" loading={busy} onClick={handleConfirmDraw}>
               نعم، اعتمد القرعة رسمياً
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Clear Slots Confirmation Modal */}
+      <Modal
+        open={clearConfirm}
+        onClose={() => setClearConfirm(false)}
+        size="sm"
+        title="تأكيد إفراغ خانات القرعة"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-[#65706A] dark:text-[#B2B9B3]">
+            هل أنت متأكد من رغبتك في إفراغ كافة الخانات المسكنة وإعادة الفرق إلى الوعاء؟
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setClearConfirm(false)}>
+              إلغاء
+            </Button>
+            <Button variant="danger" onClick={handleReset}>
+              نعم، إفراغ الخانات
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Rollback Prompt Modal */}
+      <Modal
+        open={rollbackPrompt}
+        onClose={() => setRollbackPrompt(false)}
+        size="sm"
+        title="طلب التراجع عن القرعة المعتمدة"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="size-5 shrink-0" />
+            <p>
+              سيتم إرجاع القرعة إلى وضع المسودة غير المعتمدة لمسح التسكين وتعديله. لن يتاح هذا الإجراء إذا كانت أي مباراة إقصائية قد لُعبت بالفعل.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#111313] dark:text-[#F5F7F2] mb-1">
+              سبب التراجع وإعادة السحب (إلزامي للتوثيق):
+            </label>
+            <textarea
+              value={rollbackReason}
+              onChange={(e) => setRollbackReason(e.target.value)}
+              rows={3}
+              placeholder="مثال: رصد خطأ في تسكين الفرق، قرار اللجنة المنظمة بإعادة القرعة..."
+              className="w-full rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 text-xs text-[#111313] dark:text-[#F5F7F2] focus:border-[#179955] focus:outline-none"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setRollbackPrompt(false)} disabled={rollbackBusy}>
+              إلغاء
+            </Button>
+            <Button
+              variant="primary"
+              loading={rollbackBusy}
+              disabled={!rollbackReason.trim()}
+              onClick={handleRollbackDraw}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              تأكيد التراجع عن القرعة
             </Button>
           </div>
         </div>

@@ -23,6 +23,7 @@
   "stages": {
     "group": "دور المجموعات",
     "playIn": "دور تمهيدي",
+    "roundOf32": "دور الـ32",
     "roundOf16": "دور الـ16",
     "quarterfinal": "ربع النهائي",
     "semifinal": "نصف النهائي",

@@ -134,7 +134,9 @@ export default function KnockoutBracketSection({ rounds, onOpenMatch, championTe
 
                 {/* Round Fixtures */}
                 <div className="flex flex-1 flex-col justify-around gap-6">
-                  {(round.fixtures || []).map((fixture) => {
+                  {(round.fixtures || []).map((fixture, fIdx) => {
+                    const stagePrefix = round.stage === 'quarterfinal' ? 'QF' : round.stage === 'semifinal' ? 'SF' : round.stage === 'final' ? 'FINAL' : 'M'
+                    const matchTag = stagePrefix === 'FINAL' ? 'النهائي' : `${stagePrefix}${fIdx + 1}`
                     const isPlayed = fixture.status === 'finished'
                     const winnerId = fixture.winner_team_id
                     const homeId = fixture.home_team?.id ?? fixture.home_team_id
@@ -163,6 +165,9 @@ export default function KnockoutBracketSection({ rounds, onOpenMatch, championTe
                       >
                         {/* Match Status / Date Header */}
                         <div className="flex items-center justify-between border-b border-[#E1E5DF]/60 dark:border-[#303832]/60 px-3.5 py-1.5 text-[10px] text-[#65706A] dark:text-[#B2B9B3]">
+                          <span className="font-black font-mono px-1.5 py-0.2 rounded bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2]">
+                            {matchTag}
+                          </span>
                           <span>
                             {isPlayed ? (
                               <span className="font-bold text-[#179955] dark:text-[#42D889]">انتهت</span>

@@ -73,10 +73,16 @@ export default function CommitteeBracket({ rounds }) {
             subtitle={round.stage}
           >
             <div className={`grid gap-3 ${round.fixtures?.length > 1 ? 'sm:grid-cols-2' : ''}`}>
-              {(round.fixtures || []).map((f) => {
+              {(round.fixtures || []).map((f, fIdx) => {
+                const stagePrefix = round.stage === 'quarterfinal' ? 'QF' : round.stage === 'semifinal' ? 'SF' : round.stage === 'final' ? 'FINAL' : 'M'
+                const matchTag = stagePrefix === 'FINAL' ? 'النهائي' : `${stagePrefix}${fIdx + 1}`
+
                 if (f.bye_team) {
                   return (
                     <div key={f.id} className="overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50/60">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-3 py-1 text-[10px] font-black text-slate-500">
+                        <span>{matchTag}</span>
+                      </div>
                       {renderBye(f)}
                     </div>
                   )
@@ -86,6 +92,14 @@ export default function CommitteeBracket({ rounds }) {
                 const winner = f.winner_team_id
                 return (
                   <div key={f.id} className="overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50/60">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-100/40 dark:bg-slate-800/40 px-3 py-1 text-[10px] font-black text-slate-600 dark:text-slate-300">
+                      <span className="rounded bg-slate-200/80 dark:bg-slate-700 px-1.5 py-0.2 font-mono">{matchTag}</span>
+                      {f.scheduled_at && (
+                        <span className="font-mono text-[9px] text-slate-400">
+                          {new Date(f.scheduled_at).toLocaleDateString('ar-MA')}
+                        </span>
+                      )}
+                    </div>
                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-3">
                       <div className={`flex min-w-0 items-center gap-2 ${winner && winner === f.home_team_id ? 'text-slate-900' : 'text-slate-500'}`}>
                         <TeamAvatar

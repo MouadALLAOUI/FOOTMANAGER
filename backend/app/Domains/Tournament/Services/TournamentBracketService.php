@@ -246,7 +246,22 @@ class TournamentBracketService
         $mode = ($tournament->plan ?? [])['knockout']['mode'] ?? null;
 
         if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
-            return $this->knockoutGateFor($count, $mode);
+            $details = $this->setup->groupStageDetails($tournament);
+            if (! $details['complete']) {
+                return [
+                    'count' => $count,
+                    'status' => 'incomplete_groups',
+                    'options' => [],
+                    'mode' => $mode,
+                    'group_stage_complete' => false,
+                    'explanation' => $details['explanation'],
+                    'incomplete_groups' => $details['incomplete_groups'],
+                ];
+            }
+
+            $gate = $this->knockoutGateFor($count, $mode);
+            $gate['group_stage_complete'] = true;
+            return $gate;
         }
 
         $registered = count($this->qualifiedTeamIds($tournament));

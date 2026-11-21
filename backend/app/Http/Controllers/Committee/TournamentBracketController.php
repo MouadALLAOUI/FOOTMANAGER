@@ -12,6 +12,7 @@ use App\Domains\Shared\Exceptions\DomainException;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Services\TournamentBracketService;
 use App\Domains\Tournament\Services\TournamentFixtureService;
+use App\Domains\Tournament\Services\TournamentSetupService;
 use App\Domains\Tournament\Services\TournamentStandingsService;
 use App\Domains\Tournament\Services\TournamentSuspensionService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -28,6 +29,7 @@ class TournamentBracketController extends Controller
         private readonly TournamentStandingsService $standings,
         private readonly TournamentFixtureService $fixtures,
         private readonly TournamentSuspensionService $suspensions,
+        private readonly TournamentSetupService $setup,
     ) {}
 
     public function index(Tournament $tournament): JsonResponse
@@ -161,10 +163,13 @@ class TournamentBracketController extends Controller
 
         $plan = $tournament->plan ?? [];
         $knockoutPlan = $plan['knockout'] ?? [];
+        $groupDetails = $this->setup->groupStageDetails($tournament);
 
         return response()->json([
             'data' => [
                 'qualified_teams' => $detailed['teams'] ?? [],
+                'group_stage_details' => $groupDetails,
+                'can_finalize_qualification' => $groupDetails['complete'],
                 'first_round' => $firstRound ? [
                     'id' => $firstRound->id,
                     'name' => $firstRound->name,
@@ -194,6 +199,13 @@ class TournamentBracketController extends Controller
 
         if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
             throw new DomainException('لا يمكن تعديل القرعة لبطولة مكتملة أو ملغاة');
+        }
+
+        if (in_array($tournament->tournament_format, ['groups_knockout', 'groups_double_round_robin_knockout'], true)) {
+            $details = $this->setup->groupStageDetails($tournament);
+            if (! $details['complete']) {
+                throw new DomainException($details['explanation'] ?? 'لا يمكن اعتماد القرعة قبل اكتمال جميع مباريات دور المجموعات');
+            }
         }
 
         $assignments = $request->input('assignments', []);
@@ -251,8 +263,16 @@ class TournamentBracketController extends Controller
                 $homeGroup = $qualifiedMap[$homeId]['group_id'] ?? null;
                 $awayGroup = $qualifiedMap[$awayId]['group_id'] ?? null;
                 if ($homeGroup && $awayGroup && $homeGroup === $awayGroup) {
-                    throw new DomainException("الفريقان ({$qualifiedMap[$homeId]['name']}) و ({$qualifiedMap[$awayId]['name']}) من نفس المجموعة — يمنع القانون التقائهما في الدور الأول");
+                    throw new DomainException("الفريقان ({$qualifiedMap[$homeId]['name']}) و ({$qualifiedMap[$awayId]['name']}) من نفس المجموعة — تنص اللائحة (القاعدة 1) على منع التقائهما في ربع النهائي");
                 }
+            }
+
+            // Rule 2: First-place team must face a second-place team from another group
+            $homeRank = $qualifiedMap[$homeId]['rank'] ?? null;
+            $awayRank = $qualifiedMap[$awayId]['rank'] ?? null;
+            if ($homeRank && $awayRank && $homeRank === $awayRank) {
+                $rankLabel = $homeRank === 1 ? 'متصدرين لمجموعتيهما' : 'وصيفين لمجموعتيهما';
+                throw new DomainException("المباراة لا يمكن أن تجمع بين فريقين {$rankLabel} — تنص اللائحة (القاعدة 2) على أن يواجه متصدر المجموعة وصيف مجموعة أخرى في ربع النهائي");
             }
 
             $assignedTeamIds[] = $homeId;

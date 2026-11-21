@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowRight,
@@ -48,7 +48,25 @@ const SECONDARY_SECTION_ICONS = {
 export default function PublicTournamentDetail() {
   const { t } = useTranslation()
   const { slug } = useParams()
-  const [active, setActive] = useState('overview')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const highlightParam = searchParams.get('highlightTeam') || searchParams.get('team')
+  const [active, setActive] = useState(tabParam === 'bracket' ? 'bracket' : 'overview')
+
+  useEffect(() => {
+    if (tabParam && tabParam !== active) {
+      setActive(tabParam)
+    }
+  }, [tabParam])
+
+  const highlightTeamId = highlightParam ? Number(highlightParam) || highlightParam : null
+
+  const handleClearHighlight = () => {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('highlightTeam')
+    nextParams.delete('team')
+    setSearchParams(nextParams, { replace: true })
+  }
   const [openMatch, setOpenMatch] = useState(null)
 
   const detailQuery = useApi(() => api.get(`/v1/tournaments/${slug}`).then((r) => r.data.data), [slug], { staleTime: 0 })
@@ -254,6 +272,13 @@ export default function PublicTournamentDetail() {
 
   const handleSection = (key) => {
     setActive(key)
+    const nextParams = new URLSearchParams(searchParams)
+    if (key !== 'overview') {
+      nextParams.set('tab', key)
+    } else {
+      nextParams.delete('tab')
+    }
+    setSearchParams(nextParams, { replace: true })
   }
 
   const handleLiveMatchesJump = () => {
@@ -431,7 +456,12 @@ export default function PublicTournamentDetail() {
           active === 'bracket' && (
             <div className="space-y-5">
               <TournamentStageBar rounds={bracketQuery.data} />
-              <KnockoutBracketSection rounds={bracketQuery.data} onOpenMatch={setOpenMatch} />
+              <KnockoutBracketSection
+                rounds={bracketQuery.data}
+                highlightTeamId={highlightTeamId}
+                onClearHighlight={handleClearHighlight}
+                onOpenMatch={setOpenMatch}
+              />
             </div>
           )
         )}

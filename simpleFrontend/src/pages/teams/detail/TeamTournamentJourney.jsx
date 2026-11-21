@@ -76,7 +76,7 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-black text-[#111313] dark:text-[#F5F7F2]">
-                رحلة الفريق نحو اللقب
+                رحلة الفريق في البطولة
               </h2>
               {summary?.is_champion && (
                 <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2.5 py-0.5 text-xs font-black text-amber-600 dark:text-amber-400">
@@ -117,11 +117,11 @@ export default function TeamTournamentJourney({ team, onOpenMatch }) {
 
           {selectedTour?.slug && (
             <Link
-              to={`/tournaments/${selectedTour.slug}`}
+              to={`/tournaments/${selectedTour.slug}?tab=bracket&highlightTeam=${team?.id}`}
               className="inline-flex items-center gap-1.5 rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3 py-2 text-xs font-bold text-[#65706A] dark:text-[#B2B9B3] hover:text-[#179955] transition"
             >
               <Network className="size-4" />
-              <span className="hidden sm:inline">السلم العام</span>
+              <span>عرض شجرة الإقصائيات</span>
             </Link>
           )}
         </div>

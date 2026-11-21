@@ -106,6 +106,11 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
     )
   }, [groupStageDetails])
   const isGroupStageComplete = realIncompleteGroups.length === 0
+  const activeAvailableGroups = useMemo(() => {
+    return (groupStageDetails?.groups || []).filter(
+      (grp) => (Number(grp.total_matches) || 0) > 0,
+    )
+  }, [groupStageDetails])
 
   // Find final fixture and champion if completed
   const finalRound = useMemo(() => {
@@ -432,14 +437,14 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
           )}
 
           {/* Available Groups for this tournament */}
-          {groupStageDetails?.groups?.length > 0 && (
+          {activeAvailableGroups?.length > 0 && (
             <div className="space-y-2 pt-1">
               <h4 className="text-xs font-black text-[#111313] dark:text-[#F5F7F2] flex items-center gap-1.5">
                 <Layers className="size-4 text-[#179955]" />
-                المجموعات المتوفرة في هذه البطولة ({groupStageDetails.groups.length} مجموعات):
+                المجموعات المتوفرة في هذه البطولة ({activeAvailableGroups.length} مجموعات):
               </h4>
               <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
-                {groupStageDetails.groups.map((grp) => (
+                {activeAvailableGroups.map((grp) => (
                   <div
                     key={grp.group_id}
                     className="flex items-center justify-between rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] p-3 shadow-2xs"

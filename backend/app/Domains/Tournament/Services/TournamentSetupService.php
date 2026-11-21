@@ -194,23 +194,51 @@ class TournamentSetupService
         return $this->ensureKnockoutRounds($tournament, $season);
     }
 
-    public function groupStageComplete(Tournament $tournament): bool
+    /**
+     * @return array{complete: bool, groups: array<int, array<string, mixed>>, incomplete_groups: array<int, array<string, mixed>>, explanation: string|null}
+     */
+    public function groupStageDetails(Tournament $tournament): array
     {
         $competitionId = $tournament->competition_id;
         $seasonId = $tournament->season_id;
 
         if (! $competitionId || ! $seasonId) {
-            return false;
+            return [
+                'complete' => false,
+                'groups' => [],
+                'incomplete_groups' => [],
+                'explanation' => 'لم يتم إعداد مسابقة وموسم البطولة بعد',
+            ];
+        }
+
+        $groups = Group::query()
+            ->where('competition_id', $competitionId)
+            ->where('season_id', $seasonId)
+            ->orderBy('id')
+            ->get();
+
+        if ($groups->isEmpty()) {
+            return [
+                'complete' => false,
+                'groups' => [],
+                'incomplete_groups' => [],
+                'explanation' => 'لا توجد مجموعات مسجلة في البطولة',
+            ];
         }
 
         $fixtures = Fixture::query()
             ->where('competition_id', $competitionId)
             ->where('season_id', $seasonId)
             ->whereNotNull('group_id')
-            ->get(['id', 'match_id', 'status']);
+            ->get(['id', 'match_id', 'status', 'group_id']);
 
         if ($fixtures->isEmpty()) {
-            return false;
+            return [
+                'complete' => false,
+                'groups' => [],
+                'incomplete_groups' => [],
+                'explanation' => 'لم يتم جدولة مباريات دور المجموعات بعد',
+            ];
         }
 
         $matchIds = $fixtures->pluck('match_id')->filter()->values();
@@ -218,22 +246,65 @@ class TournamentSetupService
             ? FootballMatch::query()->whereKey($matchIds->all())->pluck('status', 'id')
             : collect();
 
-        foreach ($fixtures as $fixture) {
-            if (in_array($fixture->status?->value, [FixtureStatus::Cancelled->value, FixtureStatus::Postponed->value], true)) {
-                continue;
+        $byGroup = [];
+        $incomplete = [];
+
+        foreach ($groups as $group) {
+            $groupFixtures = $fixtures->where('group_id', $group->id);
+            $total = $groupFixtures->count();
+            $finished = 0;
+            $remaining = 0;
+
+            foreach ($groupFixtures as $fixture) {
+                if (in_array($fixture->status?->value, [FixtureStatus::Cancelled->value, FixtureStatus::Postponed->value], true)) {
+                    $finished++;
+                    continue;
+                }
+
+                $status = $matchStatuses->get($fixture->match_id);
+                $status = $status instanceof MatchStatus ? $status->value : $status;
+
+                if (in_array($status, [MatchStatus::Finished->value, MatchStatus::Cancelled->value, MatchStatus::Postponed->value], true)) {
+                    $finished++;
+                } else {
+                    $remaining++;
+                }
             }
 
-            $status = $matchStatuses->get($fixture->match_id);
-            $status = $status instanceof MatchStatus ? $status->value : $status;
+            $isComplete = ($total > 0 && $remaining === 0);
+            $info = [
+                'group_id' => $group->id,
+                'group_name' => $group->name,
+                'total_matches' => $total,
+                'finished_matches' => $finished,
+                'remaining_matches' => $remaining,
+                'is_complete' => $isComplete,
+            ];
 
-            if (in_array($status, [MatchStatus::Finished->value, MatchStatus::Cancelled->value, MatchStatus::Postponed->value], true)) {
-                continue;
+            $byGroup[] = $info;
+            if (! $isComplete) {
+                $incomplete[] = $info;
             }
-
-            return false;
         }
 
-        return true;
+        $isAllComplete = ! empty($groups) && empty($incomplete);
+        $explanation = null;
+        if (! $isAllComplete) {
+            $names = array_map(fn ($g) => "{$g['group_name']} (متبقي {$g['remaining_matches']} مباريات)", $incomplete);
+            $explanation = 'دور المجموعات لم يكتمل بعد: ' . implode('، ', $names);
+        }
+
+        return [
+            'complete' => $isAllComplete,
+            'groups' => $byGroup,
+            'incomplete_groups' => $incomplete,
+            'explanation' => $explanation,
+        ];
+    }
+
+    public function groupStageComplete(Tournament $tournament): bool
+    {
+        return $this->groupStageDetails($tournament)['complete'];
     }
 
     /**

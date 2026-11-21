@@ -153,14 +153,22 @@ class TournamentTeamJourneyService
                     $qualifyCount = max(1, (int) ($tournament->qualify_per_group ?: 2));
                     $isQualified = ($rank + 1) <= $qualifyCount;
 
+                    $wins = (int) ($row['wins'] ?? ($row['won'] ?? 0));
+                    $draws = (int) ($row['draws'] ?? ($row['drawn'] ?? 0));
+                    $losses = (int) ($row['losses'] ?? ($row['lost'] ?? 0));
+                    $played = (int) ($row['played'] ?? ($wins + $draws + $losses));
+
                     return [
                         'group_id' => $group['id'] ?? null,
                         'group_name' => $group['name'] ?? 'المجموعة',
                         'rank' => $rank + 1,
-                        'played' => (int) ($row['played'] ?? 0),
-                        'won' => (int) ($row['won'] ?? 0),
-                        'drawn' => (int) ($row['drawn'] ?? 0),
-                        'lost' => (int) ($row['lost'] ?? 0),
+                        'played' => $played,
+                        'won' => $wins,
+                        'wins' => $wins,
+                        'drawn' => $draws,
+                        'draws' => $draws,
+                        'lost' => $losses,
+                        'losses' => $losses,
                         'goals_for' => (int) ($row['goals_for'] ?? 0),
                         'goals_against' => (int) ($row['goals_against'] ?? 0),
                         'goal_difference' => (int) ($row['goal_difference'] ?? 0),
@@ -327,10 +335,14 @@ class TournamentTeamJourneyService
     {
         $totalMatches = 0;
         $totalWins = 0;
+        $totalDraws = 0;
+        $totalLosses = 0;
 
         if ($group) {
             $totalMatches += (int) ($group['played'] ?? 0);
-            $totalWins += (int) ($group['won'] ?? 0);
+            $totalWins += (int) ($group['won'] ?? ($group['wins'] ?? 0));
+            $totalDraws += (int) ($group['drawn'] ?? ($group['draws'] ?? 0));
+            $totalLosses += (int) ($group['lost'] ?? ($group['losses'] ?? 0));
         }
 
         $isChampion = false;
@@ -342,6 +354,10 @@ class TournamentTeamJourneyService
                     $totalMatches++;
                     if ($m['team_score'] > $m['opponent_score']) {
                         $totalWins++;
+                    } elseif ($m['team_score'] < $m['opponent_score']) {
+                        $totalLosses++;
+                    } else {
+                        $totalDraws++;
                     }
                 }
             }
@@ -360,6 +376,8 @@ class TournamentTeamJourneyService
             'current_stage_label' => $currentStageLabel,
             'total_matches' => $totalMatches,
             'total_wins' => $totalWins,
+            'total_draws' => $totalDraws,
+            'total_losses' => $totalLosses,
             'is_champion' => $isChampion,
         ];
     }

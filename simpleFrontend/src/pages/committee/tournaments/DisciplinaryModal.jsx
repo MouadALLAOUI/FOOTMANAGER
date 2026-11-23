@@ -137,6 +137,75 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
     }
   }
 
+  // Sub-modal for manual yellow cards reset
+  const [resetModal, setResetModal] = useState(false)
+  const [resetScope, setResetScope] = useState('group') // 'group' or 'all'
+
+  const handleResetYellows = async () => {
+    setBusyAction('reset_yellows')
+    try {
+      const res = await api.post(`/committee/tournaments/${tournament.id}/disciplinary/reset-yellows`, {
+        scope: resetScope,
+      })
+      toast.success(res.data?.message || 'تم تصفير الإنذارات بنجاح')
+      setResetModal(false)
+      loadData()
+      if (onUpdated) onUpdated()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  const handleLiftSuspension = async (player) => {
+    const isTournamentLong = player.tournament_long
+    const promptMsg = isTournamentLong
+      ? `هل أنت متأكد من رغبتك في رفع العقوبة لنهاية الدوري عن اللاعب (${player.name})؟`
+      : `هل أنت متأكد من رغبتك في رفع الإيقاف عن اللاعب (${player.name}) ليصبح متاحاً للمشاركة؟`
+
+    if (!confirm(promptMsg)) {
+      return
+    }
+
+    setBusyAction(`lift_${player.player_id}`)
+    try {
+      if (isTournamentLong) {
+        await api.delete(`/committee/tournaments/${tournament.id}/disciplinary/tournament-long/${player.player_id}`)
+      } else {
+        await api.post(`/committee/tournaments/${tournament.id}/disciplinary/lift-suspension`, {
+          player_id: player.player_id,
+          reason: 'رفع الإيقاف بقرار اللجنة المنظمة',
+        })
+      }
+      toast.success(`تم رفع الإيقاف عن اللاعب (${player.name}) بنجاح وأصبح متاحاً للمشاركة`)
+      loadData()
+      if (onUpdated) onUpdated()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
+  const handleReinstateSuspension = async (player) => {
+    if (!confirm(`هل أنت متأكد من رغبتك في إلغاء العفو وإعادة تطبيق الإيقاف على اللاعب (${player.name})؟`)) {
+      return
+    }
+
+    setBusyAction(`reinstate_${player.player_id}`)
+    try {
+      await api.delete(`/committee/tournaments/${tournament.id}/disciplinary/pardoned/${player.player_id}`)
+      toast.success(`تم إعادة تطبيق الإيقاف على اللاعب (${player.name}) وفق القواعد`)
+      loadData()
+      if (onUpdated) onUpdated()
+    } catch (e) {
+      toastApiError(e, t)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   const handleLiftTournamentLong = async (playerId, playerName) => {
     if (!confirm(`هل أنت متأكد من رغبتك في رفع العقوبة لنهاية الدوري عن اللاعب (${playerName})؟`)) {
       return
@@ -160,6 +229,7 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
     return list.map((p) => {
       const isSusp = Boolean(p.is_suspended || !p.is_eligible || p.suspension_status === 'active')
       const isTl = Boolean(p.tournament_long || p.suspension_type === 'tournament_long')
+      const isPardoned = Boolean(p.is_pardoned)
       return {
         ...p,
         player_id: p.player_id || p.id,
@@ -168,15 +238,16 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
         player_name: p.player_name || p.name || 'لاعب غير معروف',
         team_name: p.team_name || p.team?.name || 'غير محدد',
         team_logo: p.team_logo || p.team?.logo_url,
-        is_suspended: isSusp,
+        is_suspended: isSusp && !isPardoned,
+        is_pardoned: isPardoned,
         tournament_long: isTl,
-        status_label: p.status_label || p.eligibility_label || (isTl ? 'موقوف لكامل البطولة ⛔' : isSusp ? 'موقوف لمباراة واحدة ⚠️' : 'مؤهل للمشاركة'),
+        status_label: p.status_label || p.eligibility_label || (isPardoned ? 'تم رفع الإيقاف بقرار اللجنة ✅' : isTl ? 'موقوف لكامل البطولة ⛔' : isSusp ? 'موقوف لمباراة واحدة ⚠️' : 'مؤهل للمشاركة'),
         group_yellows: Number(p.group_yellows ?? p.group_yellow_cards ?? 0),
         knockout_yellows: Number(p.knockout_yellows ?? p.knockout_yellow_cards ?? 0),
         second_yellows: Number(p.second_yellows ?? p.second_yellow_cards ?? 0),
         direct_reds: Number(p.direct_reds ?? p.direct_red_cards ?? 0),
         total_cards: Number(p.total_cards ?? ((p.group_yellows ?? p.group_yellow_cards ?? 0) + (p.knockout_yellows ?? p.knockout_yellow_cards ?? 0) + (p.second_yellows ?? p.second_yellow_cards ?? 0) + (p.direct_reds ?? p.direct_red_cards ?? 0))),
-        active_suspension: p.active_suspension || (isSusp && p.suspension_reason ? { reason: p.suspension_reason, type: p.suspension_type } : null),
+        active_suspension: (!isPardoned && p.active_suspension) || (!isPardoned && isSusp && p.suspension_reason ? { reason: p.suspension_reason, type: p.suspension_type } : null),
       }
     })
   }, [data])
@@ -202,6 +273,7 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
       // Filter status
       if (filter === 'suspended' && !p.is_suspended) return false
       if (filter === 'tournament_long' && !p.tournament_long) return false
+      if (filter === 'pardoned' && !p.is_pardoned) return false
       if (filter === 'warning') {
         const totalYellows = (p.knockout_yellows || 0) + (summary.yellow_resets_applied ? 0 : (p.group_yellows || 0))
         if (totalYellows !== 1 || p.is_suspended) return false
@@ -251,11 +323,22 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
               </p>
             </div>
 
-            <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 p-3 text-center">
-              <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">تصفير إنذارات المجموعات (C)</span>
-              <p className="mt-1 text-xs font-black text-emerald-700 dark:text-emerald-300">
-                {summary.yellow_resets_applied ? 'مفعّل للمتأهلين' : 'قيد الانتظار'}
-              </p>
+            <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50 dark:bg-emerald-950/20 p-3 text-center flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">تصفير إنذارات المجموعات (C)</span>
+                <p className="mt-1 text-xs font-black text-emerald-700 dark:text-emerald-300">
+                  {summary.yellow_resets_applied ? 'مفعّل للمتأهلين' : 'قيد الانتظار'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setResetScope('group'); setResetModal(true); }}
+                className="mt-2 text-[10px] font-black text-emerald-700 dark:text-emerald-300 hover:underline flex items-center justify-center gap-1"
+                title="تصفير الإنذارات يدويًا بقرار من اللجنة"
+              >
+                <RefreshCw className="size-2.5" />
+                تصفير يدوي الآن
+              </button>
             </div>
           </div>
 
@@ -306,6 +389,19 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
               >
                 عقوبات لنهاية الدوري ({summary.tournament_long_count})
               </button>
+              {allPlayers.some((p) => p.is_pardoned) && (
+                <button
+                  type="button"
+                  onClick={() => setFilter('pardoned')}
+                  className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                    filter === 'pardoned'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-[#F7F8F5] dark:bg-[#252B27] text-[#65706A] dark:text-[#B2B9B3] hover:text-emerald-600'
+                  }`}
+                >
+                  رفع الإيقاف ({allPlayers.filter((p) => p.is_pardoned).length})
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setFilter('warning')}
@@ -319,7 +415,16 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setResetModal(true)}
+                className="border-emerald-600/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-bold"
+              >
+                <RefreshCw className="size-3.5" />
+                تصفير الإنذارات يدويًا
+              </Button>
               <Button size="sm" variant="outline" onClick={handleOpenAdd}>
                 <Plus className="size-4" />
                 إصدار عقوبة لنهاية الدوري
@@ -357,6 +462,8 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
                       ? 'border-purple-300 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20'
                       : player.is_suspended
                       ? 'border-red-300 dark:border-red-900/60 bg-red-50/50 dark:bg-red-950/20'
+                      : player.is_pardoned
+                      ? 'border-emerald-300 dark:border-emerald-900/60 bg-emerald-50/30 dark:bg-emerald-950/20'
                       : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D]'
                   }`}
                 >
@@ -368,6 +475,8 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
                           ? 'bg-purple-600/15 text-purple-700 dark:text-purple-300'
                           : player.is_suspended
                           ? 'bg-red-600/15 text-red-600 dark:text-red-400'
+                          : player.is_pardoned
+                          ? 'bg-emerald-600/15 text-emerald-600 dark:text-emerald-400'
                           : 'bg-[#179955]/15 text-[#179955] dark:text-[#42D889]'
                       }`}
                     >
@@ -389,6 +498,8 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
                               ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300'
                               : player.is_suspended
                               ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+                              : player.is_pardoned
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                               : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
                           }`}
                         >
@@ -404,7 +515,7 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
                     </div>
                   </div>
 
-                  {/* Cards Breakdown & Reason */}
+                  {/* Cards Breakdown & Reason & Action Buttons */}
                   <div className="flex flex-wrap items-center gap-3">
                     {/* Cards chips */}
                     <div className="flex items-center gap-1.5 text-[11px]">
@@ -460,6 +571,41 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
                       </span>
                     )}
 
+                    {/* Pardoned status & reinstate button */}
+                    {player.is_pardoned && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/40 flex items-center gap-1">
+                          <CheckCircle2 className="size-3 text-emerald-600" />
+                          تم رفع الإيقاف بقرار اللجنة
+                        </span>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          loading={busyAction === `reinstate_${player.player_id}`}
+                          onClick={() => handleReinstateSuspension(player)}
+                          className="text-amber-600 hover:text-amber-700 text-[10px] font-bold"
+                          title="إلغاء قرار رفع الإيقاف وإعادة العقوبة"
+                        >
+                          إعادة الإيقاف
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Remove player from suspended list / lift suspension */}
+                    {player.is_suspended && !player.tournament_long && (
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        loading={busyAction === `lift_${player.player_id}`}
+                        onClick={() => handleLiftSuspension(player)}
+                        className="text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-800"
+                        title="رفع الإيقاف عن اللاعب وإزالته من الموقوفين"
+                      >
+                        <UserCheck className="size-3.5 text-emerald-600" />
+                        رفع الإيقاف (إعفاء)
+                      </Button>
+                    )}
+
                     {player.tournament_long && (
                       <div className="flex items-center gap-2">
                         <span className="rounded-lg bg-purple-100 dark:bg-purple-900/40 px-2 py-1 text-[11px] font-bold text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/40">
@@ -469,8 +615,8 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
                           size="xs"
                           variant="ghost"
                           loading={busyAction === `lift_${player.player_id}`}
-                          onClick={() => handleLiftTournamentLong(player.player_id, player.name)}
-                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleLiftSuspension(player)}
+                          className="text-red-600 hover:text-red-700 font-bold bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800"
                         >
                           <Trash2 className="size-3 text-red-500" />
                           رفع العقوبة
@@ -585,6 +731,98 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
               className="bg-purple-700 hover:bg-purple-800 text-white"
             >
               تثبيت العقوبة لنهاية الدوري
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Manual Yellow Cards Reset Scope Dialog */}
+      <Modal
+        open={resetModal}
+        onClose={() => setResetModal(false)}
+        size="md"
+        title="تصفير الإنذارات يدويًا بقرار اللجنة"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-800 dark:text-amber-300">
+            <p className="font-bold flex items-center gap-1.5">
+              <AlertTriangle className="size-4 shrink-0 text-amber-600" />
+              تنبيه تنظيمي بخصوص تصفير الإنذارات:
+            </p>
+            <p className="mt-1 text-[11px] opacity-90 leading-relaxed">
+              تصفير الإنذارات يقوم بمسح عداد البطاقات الصفراء الفردية المتراكمة على اللاعبين وفق النطاق المحدد.
+              ملاحظة: الإيقافات السارية الناتجة عن البطاقات الحمراء المباشرة أو عقوبات نهاية الدوري لن تسقط بهذا الإجراء وتتطلب إعفاءً منفرداً.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#111313] dark:text-[#F5F7F2] mb-2">
+              حدد نطاق تصفير الإنذارات:
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label
+                className={`flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition ${
+                  resetScope === 'group'
+                    ? 'border-[#179955] bg-[#179955]/10 dark:bg-[#179955]/20'
+                    : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="resetScope"
+                  value="group"
+                  checked={resetScope === 'group'}
+                  onChange={() => setResetScope('group')}
+                  className="mt-0.5 text-[#179955] focus:ring-[#179955]"
+                />
+                <div>
+                  <span className="block text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+                    إنذارات المجموعات فقط (القاعدة C)
+                  </span>
+                  <span className="block text-[11px] text-[#65706A] dark:text-[#B2B9B3] mt-0.5">
+                    تصفير الإنذارات الفردية المحصلة في دور المجموعات عند التأهل للإقصائيات
+                  </span>
+                </div>
+              </label>
+
+              <label
+                className={`flex items-start gap-2 p-3 rounded-xl border cursor-pointer transition ${
+                  resetScope === 'all'
+                    ? 'border-[#179955] bg-[#179955]/10 dark:bg-[#179955]/20'
+                    : 'border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D]'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="resetScope"
+                  value="all"
+                  checked={resetScope === 'all'}
+                  onChange={() => setResetScope('all')}
+                  className="mt-0.5 text-[#179955] focus:ring-[#179955]"
+                />
+                <div>
+                  <span className="block text-xs font-bold text-[#111313] dark:text-[#F5F7F2]">
+                    تصفير شامل لكافة الإنذارات
+                  </span>
+                  <span className="block text-[11px] text-[#65706A] dark:text-[#B2B9B3] mt-0.5">
+                    تصفير جميع الإنذارات المتراكمة (المجموعات + الإقصائيات) لكافة اللاعبين
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="ghost" onClick={() => setResetModal(false)} disabled={busyAction === 'reset_yellows'}>
+              إلغاء
+            </Button>
+            <Button
+              variant="primary"
+              loading={busyAction === 'reset_yellows'}
+              onClick={handleResetYellows}
+              className="bg-[#179955] hover:bg-[#138047] text-white"
+            >
+              تأكيد تصفير الإنذارات
             </Button>
           </div>
         </div>

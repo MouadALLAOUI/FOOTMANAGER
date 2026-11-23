@@ -1034,6 +1034,9 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/bracket/sync', [TournamentBracketController::class, 'sync']);
                 Route::post('/disciplinary/tournament-long', [TournamentBracketController::class, 'issueTournamentLongSuspension']);
                 Route::delete('/disciplinary/tournament-long/{playerId}', [TournamentBracketController::class, 'liftTournamentLongSuspension']);
+                Route::post('/disciplinary/lift-suspension', [TournamentBracketController::class, 'liftPlayerSuspension']);
+                Route::delete('/disciplinary/pardoned/{playerId}', [TournamentBracketController::class, 'reinstateSuspension']);
+                Route::post('/disciplinary/reset-yellows', [TournamentBracketController::class, 'resetYellowCards']);
             });
 
             Route::get('/statistics', [TournamentStatisticsController::class, 'index']);

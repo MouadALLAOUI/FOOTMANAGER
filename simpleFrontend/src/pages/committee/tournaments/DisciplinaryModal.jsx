@@ -39,6 +39,8 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
   const [addReason, setAddReason] = useState('')
   const [teamsWithPlayers, setTeamsWithPlayers] = useState([])
   const [loadingTeams, setLoadingTeams] = useState(false)
+  const [teamPlayers, setTeamPlayers] = useState([])
+  const [loadingPlayers, setLoadingPlayers] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -62,12 +64,18 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
     if (teamsWithPlayers.length > 0) return
     setLoadingTeams(true)
     try {
-      // Fetch tournament teams with rosters
+      // Fetch tournament teams
       const res = await api.get(`/committee/tournaments/${tournament.id}/teams`)
-      const teams = res.data.data || []
-      setTeamsWithPlayers(teams)
-      if (teams.length > 0 && !addTeamId) {
-        setAddTeamId(teams[0].id)
+      const raw = res.data?.data || []
+      const list = raw.map((item) => {
+        const teamObj = item.team || item
+        const id = teamObj.id || item.team_id || item.id
+        const name = teamObj.name || item.team_name || item.name || 'فريق'
+        return { id: String(id), name }
+      }).filter((t) => t.id)
+      setTeamsWithPlayers(list)
+      if (list.length > 0 && !addTeamId) {
+        setAddTeamId(list[0].id)
       }
     } catch (e) {
       toastApiError(e, t)
@@ -75,6 +83,29 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
       setLoadingTeams(false)
     }
   }
+
+  // Fetch players for the selected team in the add modal
+  useEffect(() => {
+    if (!addTeamId) {
+      setTeamPlayers([])
+      return
+    }
+    let cancelled = false
+    setLoadingPlayers(true)
+    api.get(`/committee/teams/${addTeamId}/players`)
+      .then((res) => {
+        if (!cancelled) {
+          setTeamPlayers(res.data?.data || [])
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setTeamPlayers([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPlayers(false)
+      })
+    return () => { cancelled = true }
+  }, [addTeamId])
 
   const handleOpenAdd = () => {
     setAddModal(true)
@@ -124,14 +155,46 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
     }
   }
 
-  const summary = data?.summary || {
-    total_players_tracked: 0,
-    active_suspensions_count: 0,
-    tournament_long_count: 0,
-    yellow_resets_applied: false,
-  }
+  const allPlayers = useMemo(() => {
+    const list = data?.players || data?.records || []
+    return list.map((p) => {
+      const isSusp = Boolean(p.is_suspended || !p.is_eligible || p.suspension_status === 'active')
+      const isTl = Boolean(p.tournament_long || p.suspension_type === 'tournament_long')
+      return {
+        ...p,
+        player_id: p.player_id || p.id,
+        id: p.id || p.player_id,
+        name: p.name || p.player_name || 'لاعب غير معروف',
+        player_name: p.player_name || p.name || 'لاعب غير معروف',
+        team_name: p.team_name || p.team?.name || 'غير محدد',
+        team_logo: p.team_logo || p.team?.logo_url,
+        is_suspended: isSusp,
+        tournament_long: isTl,
+        status_label: p.status_label || p.eligibility_label || (isTl ? 'موقوف لكامل البطولة ⛔' : isSusp ? 'موقوف لمباراة واحدة ⚠️' : 'مؤهل للمشاركة'),
+        group_yellows: Number(p.group_yellows ?? p.group_yellow_cards ?? 0),
+        knockout_yellows: Number(p.knockout_yellows ?? p.knockout_yellow_cards ?? 0),
+        second_yellows: Number(p.second_yellows ?? p.second_yellow_cards ?? 0),
+        direct_reds: Number(p.direct_reds ?? p.direct_red_cards ?? 0),
+        total_cards: Number(p.total_cards ?? ((p.group_yellows ?? p.group_yellow_cards ?? 0) + (p.knockout_yellows ?? p.knockout_yellow_cards ?? 0) + (p.second_yellows ?? p.second_yellow_cards ?? 0) + (p.direct_reds ?? p.direct_red_cards ?? 0))),
+        active_suspension: p.active_suspension || (isSusp && p.suspension_reason ? { reason: p.suspension_reason, type: p.suspension_type } : null),
+      }
+    })
+  }, [data])
 
-  const allPlayers = data?.players || []
+  const summary = useMemo(() => {
+    const raw = data?.summary || {}
+    const trackedCount = raw.total_players_tracked ?? raw.total_players_disciplined ?? allPlayers.length
+    const activeCount = raw.active_suspensions_count ?? raw.active_suspensions ?? allPlayers.filter((p) => p.is_suspended).length
+    const tlCount = raw.tournament_long_count ?? allPlayers.filter((p) => p.tournament_long).length
+    const yellowReset = Boolean(raw.yellow_resets_applied)
+
+    return {
+      total_players_tracked: trackedCount,
+      active_suspensions_count: activeCount,
+      tournament_long_count: tlCount,
+      yellow_resets_applied: yellowReset,
+    }
+  }, [data, allPlayers])
 
   // Filtered and searched list
   const filteredPlayers = useMemo(() => {
@@ -155,12 +218,6 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
       return true
     })
   }, [allPlayers, filter, search, summary.yellow_resets_applied])
-
-  const selectedTeamPlayers = useMemo(() => {
-    if (!addTeamId) return []
-    const team = teamsWithPlayers.find((t) => String(t.id) === String(addTeamId))
-    return team?.players || []
-  }, [teamsWithPlayers, addTeamId])
 
   return (
     <Modal open={open} onClose={onClose} size="xl" title="سجل الانضباط والبطاقات والعقوبات">
@@ -487,14 +544,14 @@ export default function DisciplinaryModal({ open, onClose, tournament, onUpdated
                 </label>
                 <select
                   value={addPlayerId}
-                  disabled={!addTeamId}
+                  disabled={!addTeamId || loadingPlayers}
                   onChange={(e) => setAddPlayerId(e.target.value)}
                   className="w-full rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] px-3 py-2 text-xs text-[#111313] dark:text-[#F5F7F2] focus:border-[#179955] focus:outline-none disabled:opacity-50"
                 >
-                  <option value="">-- اختر اللاعب --</option>
-                  {selectedTeamPlayers.map((player) => (
+                  <option value="">{loadingPlayers ? '-- جاري تحميل اللاعبين... --' : '-- اختر اللاعب --'}</option>
+                  {teamPlayers.map((player) => (
                     <option key={player.id} value={player.id}>
-                      {player.name} {player.shirt_number ? `(#${player.shirt_number})` : ''}
+                      {player.name} {player.number || player.shirt_number ? `(#${player.number || player.shirt_number})` : ''}
                     </option>
                   ))}
                 </select>

@@ -26,6 +26,7 @@ class StoreFixtureResultRequest extends FormRequest
             'extra_time' => 'sometimes|boolean',
             'notes' => 'nullable|string|max:2000',
             'force' => 'sometimes|boolean',
+            'force_disciplinary' => 'sometimes|boolean',
             'scorers' => 'nullable|array|max:40',
             'scorers.*.team_id' => 'required|integer|exists:teams,id',
             'scorers.*.player_id' => 'nullable|integer|exists:players,id',

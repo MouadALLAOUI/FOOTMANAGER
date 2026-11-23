@@ -112,7 +112,8 @@ class TournamentResultService
 
             if (isset($data['events'])) {
                 $data['events'] = $this->normalizeCardTypes($data['events']);
-                $this->assertNoSuspendedPlayers($fixture, $data['events']);
+                $allowForce = (bool) ($data['force'] ?? $data['force_disciplinary'] ?? false);
+                $this->assertNoSuspendedPlayers($fixture, $data['events'], $allowForce);
             }
 
             $this->replaceResultEvents($match, $data, $userId);
@@ -283,7 +284,8 @@ class TournamentResultService
 
             if (array_key_exists('events', $data)) {
                 $data['events'] = $this->normalizeCardTypes($data['events']);
-                $this->assertNoSuspendedPlayers($fixture, $data['events']);
+                $allowForce = (bool) ($data['force'] ?? $data['force_disciplinary'] ?? false);
+                $this->assertNoSuspendedPlayers($fixture, $data['events'], $allowForce);
 
                 $this->replaceResultEvents($match, ['events' => $data['events']], $userId);
                 $this->recomputeScore($match);
@@ -1005,8 +1007,12 @@ class TournamentResultService
      *
      * @param  array<int, array<string, mixed>>  $events
      */
-    private function assertNoSuspendedPlayers(Fixture $fixture, array $events): void
+    private function assertNoSuspendedPlayers(Fixture $fixture, array $events, bool $allowForce = false): void
     {
+        if ($allowForce) {
+            return;
+        }
+
         $suspendedIds = collect($this->suspensions->suspendedFor($fixture))
             ->pluck('player_id')
             ->map(fn ($id) => (int) $id)
@@ -1456,7 +1462,9 @@ class TournamentResultService
                 throw new DomainException('لا يمكن إضافة أحداث للاعب المطرود في هذه المباراة');
             }
 
-            if ($this->suspensions->playerIsSuspended($fixture, $playerId)) {
+            $allowForce = (bool) ($data['force'] ?? $data['force_disciplinary'] ?? false);
+
+            if (! $allowForce && $this->suspensions->playerIsSuspended($fixture, $playerId)) {
                 throw new DomainException('لا يمكن تسجيل أحداث للاعب الموقوف في هذه المباراة');
             }
         }
@@ -1470,7 +1478,9 @@ class TournamentResultService
                 throw new DomainException('اللاعب المساعد لا ينتمي إلى الفريق المختار');
             }
 
-            if ($this->suspensions->playerIsSuspended($fixture, $assistPlayerId)) {
+            $allowForce = (bool) ($data['force'] ?? $data['force_disciplinary'] ?? false);
+
+            if (! $allowForce && $this->suspensions->playerIsSuspended($fixture, $assistPlayerId)) {
                 throw new DomainException('لا يمكن تسجيل أحداث للاعب الموقوف في هذه المباراة');
             }
 

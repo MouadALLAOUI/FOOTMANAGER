@@ -354,6 +354,24 @@ export default function EventForm({ type, form, setField, setForm, homeId, awayI
         </div>
       )}
 
+      {((form.player_id && suspendedIds.includes(form.player_id)) || (form.assist_player_id && suspendedIds.includes(form.assist_player_id))) && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 flex items-start gap-2">
+          <span className="text-base">⚠️</span>
+          <div className="flex-1 space-y-1">
+            <p className="font-bold">تنبيه إداري: اللاعب المختار مسجل كموقوف في سجل انضباط البطولة.</p>
+            <label className="flex items-center gap-2 cursor-pointer pt-1 text-[11px] font-semibold text-amber-950">
+              <input
+                type="checkbox"
+                checked={Boolean(form.force_disciplinary)}
+                onChange={(e) => setForm((f) => ({ ...f, force_disciplinary: e.target.checked }))}
+                className="size-4 accent-amber-600 rounded"
+              />
+              <span>تأكيد اعتماد الحدث للاعب بقرار استثنائي من اللجنة المنظمة (تجاوز الإيقاف)</span>
+            </label>
+          </div>
+        </div>
+      )}
+
       {validation && (
         <p className="rounded-xl bg-rose-50 px-3 py-2 text-center text-xs font-bold text-rose-600">
           {t(`committee.result.${validation}`, { min: minMinute, max: maxMinute })}

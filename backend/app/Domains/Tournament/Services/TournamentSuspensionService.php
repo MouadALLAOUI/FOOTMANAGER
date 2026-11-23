@@ -58,12 +58,15 @@ class TournamentSuspensionService
             return $suspended;
         }
 
+        $resetsYellowsOnKnockout = $tournament->accumulatesAcrossGroupStageOnly()
+            || $tournament->tournament_format === 'groups_knockout';
+
         foreach ($teamIds as $teamId) {
             $simulated = $this->simulateTeam(
                 $tournament,
                 $teamId,
                 $fixture,
-                $tournament->accumulatesAcrossGroupStageOnly(),
+                $resetsYellowsOnKnockout,
             );
 
             foreach ($simulated as $entry) {
@@ -244,18 +247,34 @@ class TournamentSuspensionService
             ->get()
             ->keyBy('id');
 
-        $upcomingFixture = $fixtures->firstWhere('status', FixtureStatus::Scheduled->value)
-            ?? $fixtures->sortByDesc('id')->first();
-
         $activeSuspendedMap = [];
-        if ($upcomingFixture) {
-            foreach ($this->suspendedFor($upcomingFixture) as $susp) {
-                $activeSuspendedMap[$susp['player_id']] = $susp;
+        $teamIdsWithCards = $players->pluck('team_id')->unique()->filter()->values();
+
+        foreach ($teamIdsWithCards as $teamId) {
+            $nextTeamFixture = $fixtures
+                ->filter(fn ($f) => ((int) $f->home_team_id === (int) $teamId || (int) $f->away_team_id === (int) $teamId))
+                ->firstWhere('status', FixtureStatus::Scheduled->value)
+                ?? $fixtures
+                    ->filter(fn ($f) => ((int) $f->home_team_id === (int) $teamId || (int) $f->away_team_id === (int) $teamId))
+                    ->sortByDesc('id')
+                    ->first();
+
+            if ($nextTeamFixture) {
+                foreach ($this->suspendedFor($nextTeamFixture) as $susp) {
+                    if ((int) ($susp['team_id'] ?? 0) === (int) $teamId) {
+                        $activeSuspendedMap[$susp['player_id']] = $susp;
+                    }
+                }
             }
         }
 
         $records = [];
-        $groupRoundId = $fixtures->first(fn ($f) => $this->isGroupFixture($f))?->round_id;
+        $groupMatchIds = $fixtures
+            ->filter(fn ($f) => $this->isGroupFixture($f))
+            ->pluck('match_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         foreach ($playerIds as $playerId) {
             $player = $players->get($playerId);
@@ -266,11 +285,11 @@ class TournamentSuspensionService
             $playerEvents = $events->where('player_id', $playerId);
 
             $groupYellows = $playerEvents
-                ->filter(fn ($e) => ($this->isYellow($e)) && in_array($e->match_id, $fixtures->where('round_id', $groupRoundId)->pluck('match_id')->all()))
+                ->filter(fn ($e) => ($this->isYellow($e)) && in_array((int) $e->match_id, $groupMatchIds, true))
                 ->count();
 
             $knockoutYellows = $playerEvents
-                ->filter(fn ($e) => ($this->isYellow($e)) && ! in_array($e->match_id, $fixtures->where('round_id', $groupRoundId)->pluck('match_id')->all()))
+                ->filter(fn ($e) => ($this->isYellow($e)) && ! in_array((int) $e->match_id, $groupMatchIds, true))
                 ->count();
 
             $directReds = $playerEvents
@@ -301,22 +320,38 @@ class TournamentSuspensionService
                 $eligibility = 'موقوف لمباراة واحدة ⚠️';
             }
 
+            $isSuspended = $status === 'active';
+            $isTournamentLong = $suspensionType === 'tournament_long';
+
             $records[] = [
                 'player_id' => $player->id,
+                'id' => $player->id,
+                'name' => $player->name,
                 'player_name' => $player->name,
                 'team_id' => $player->team_id,
                 'team_name' => $player->team?->name ?? 'غير محدد',
                 'team_logo' => $player->team?->logo_url,
+                'group_yellows' => $groupYellows,
                 'group_yellow_cards' => $groupYellows,
+                'knockout_yellows' => $knockoutYellows,
                 'knockout_yellow_cards' => $knockoutYellows,
+                'second_yellows' => $secondYellows,
                 'second_yellow_cards' => $secondYellows,
+                'direct_reds' => $directReds,
                 'direct_red_cards' => $directReds,
                 'total_cards' => $groupYellows + $knockoutYellows + $secondYellows + $directReds,
+                'is_suspended' => $isSuspended,
+                'is_eligible' => ! $isSuspended,
+                'tournament_long' => $isTournamentLong,
                 'suspension_type' => $suspensionType,
                 'suspension_reason' => $suspensionReason,
                 'suspension_status' => $status,
-                'is_eligible' => $status !== 'active',
+                'status_label' => $eligibility,
                 'eligibility_label' => $eligibility,
+                'active_suspension' => $isSuspended ? [
+                    'type' => $suspensionType,
+                    'reason' => $suspensionReason,
+                ] : null,
             ];
         }
 
@@ -328,13 +363,20 @@ class TournamentSuspensionService
             return $b['total_cards'] <=> $a['total_cards'];
         });
 
+        $resetsYellowsOnKnockout = $tournament->accumulatesAcrossGroupStageOnly()
+            || $tournament->tournament_format === 'groups_knockout';
+
         return [
             'tournament_id' => $tournament->id,
             'records' => $records,
+            'players' => $records,
             'summary' => [
+                'total_players_tracked' => count($records),
                 'total_players_disciplined' => count($records),
                 'active_suspensions' => count(array_filter($records, fn ($r) => ! $r['is_eligible'])),
+                'active_suspensions_count' => count(array_filter($records, fn ($r) => ! $r['is_eligible'])),
                 'tournament_long_count' => $tournamentLong->count(),
+                'yellow_resets_applied' => $resetsYellowsOnKnockout,
             ],
         ];
     }
@@ -461,9 +503,15 @@ class TournamentSuspensionService
 
     private function isGroupFixture(Fixture $fixture): bool
     {
-        return $fixture->round_id === null
-            || ! $fixture->round
-            || $fixture->round->stage === RoundStage::Group;
+        if ($fixture->group_id !== null) {
+            return true;
+        }
+
+        if ($fixture->round) {
+            return $fixture->round->stage === RoundStage::Group;
+        }
+
+        return false;
     }
 
     private function isDismissal(MatchEvent $event): bool

@@ -36,7 +36,6 @@ export default function PlayerSelector({ teamId, value, valueName, onSelect, onC
   }, [])
 
   const pick = (p) => {
-    if (suspendedIds.includes(p.id)) return
     onSelect(p)
     setOpen(false)
     setQuery('')
@@ -135,8 +134,7 @@ export default function PlayerSelector({ teamId, value, valueName, onSelect, onC
                       key={p.id}
                       type="button"
                       onClick={() => pick(p)}
-                      disabled={suspended}
-                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start hover:bg-slate-50 ${p.id === value ? 'bg-green-50' : ''} ${suspended ? 'cursor-not-allowed opacity-60' : ''}`}
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-start hover:bg-slate-50 ${p.id === value ? 'bg-green-50' : ''} ${suspended ? 'bg-rose-50/40 border border-rose-200/50' : ''}`}
                     >
                       <span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-700">{p.name}</span>
                       {suspended && (

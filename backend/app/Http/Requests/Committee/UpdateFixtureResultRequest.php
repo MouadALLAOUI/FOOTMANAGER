@@ -29,6 +29,7 @@ class UpdateFixtureResultRequest extends FormRequest
             'current_period' => 'nullable|string|max:20',
             'current_minute' => 'nullable|integer|min:0|max:180',
             'force' => 'sometimes|boolean',
+            'force_disciplinary' => 'sometimes|boolean',
             'referees' => 'nullable|array|max:4',
             'referees.*.role' => 'required|in:main,assistant1,assistant2,fourth',
             'referees.*.referee_id' => 'required|integer|exists:referees,id',

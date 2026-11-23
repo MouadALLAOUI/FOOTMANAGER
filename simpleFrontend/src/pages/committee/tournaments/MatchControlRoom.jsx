@@ -503,8 +503,6 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
 
   const tapPlayer = (player, teamId, variant = 'home', bench = []) => {
     if (quickBusyId != null) return
-    const blocked = (suspendedByTeam[teamId] || []).includes(player.id) || (redCardedIds[teamId] || []).includes(player.id)
-    if (blocked) return
     setOneTapPlayer(player)
     setOneTapTeamId(teamId)
     setOneTapVariant(variant)
@@ -765,7 +763,11 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         player_of_the_match: mvpId ? Number(mvpId) : null,
         events: evts.map(toApiEvent),
       }
-      if (force || (alreadyFinished && finish)) payload.force = true
+      const hasForceDisc = evts.some((e) => e.force_disciplinary)
+      if (force || hasForceDisc || (alreadyFinished && finish)) {
+        payload.force = true
+        if (hasForceDisc) payload.force_disciplinary = true
+      }
       if (finish) payload.status = 'finished'
       else if (alreadyFinished) payload.status = 'finished'
       else if (statusOverride) payload.status = statusOverride
@@ -954,12 +956,13 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         return
       }
       const suspendedIds = suspendedByTeam[f.team_id] || []
-      if (suspendedIds.includes(f.player_id)) {
+      const forceDisc = Boolean(f.force_disciplinary || overrides.force_disciplinary)
+      if (suspendedIds.includes(f.player_id) && !forceDisc) {
         if (overrides.form) return false
         setValidation('playerSuspended')
         return
       }
-      if (isPlayerRedCarded(f.player_id, evRelMinute)) {
+      if (isPlayerRedCarded(f.player_id, evRelMinute) && !forceDisc) {
         if (overrides.form) return false
         setValidation('playerRedCarded')
         return
@@ -977,12 +980,13 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
         return
       }
       const suspendedIds = suspendedByTeam[f.team_id] || []
-      if (suspendedIds.includes(f.assist_player_id)) {
+      const forceDisc = Boolean(f.force_disciplinary || overrides.force_disciplinary)
+      if (suspendedIds.includes(f.assist_player_id) && !forceDisc) {
         if (overrides.form) return false
         setValidation('playerSuspended')
         return
       }
-      if (isPlayerRedCarded(f.assist_player_id, evRelMinute)) {
+      if (isPlayerRedCarded(f.assist_player_id, evRelMinute) && !forceDisc) {
         if (overrides.form) return false
         setValidation('playerRedCarded')
         return
@@ -1022,6 +1026,7 @@ export default function MatchControlRoom({ fixture, tournament, onClose, onSaved
       goalType: f.goalType || 'regular',
       reason: f.reason?.trim() || '',
       note: f.note?.trim() || '',
+      force_disciplinary: Boolean(f.force_disciplinary),
     }
 
     const nextEvents = editing

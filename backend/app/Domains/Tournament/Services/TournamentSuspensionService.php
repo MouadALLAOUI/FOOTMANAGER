@@ -77,6 +77,18 @@ class TournamentSuspensionService
             }
         }
 
+        // Rule: Remove any player pardoned/exempted by committee
+        $pardonedIds = collect(($tournament->plan ?? [])['disciplinary']['pardoned_player_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($pardonedIds !== []) {
+            $suspended = array_values(array_filter(
+                $suspended,
+                fn ($entry) => ! in_array((int) $entry['player_id'], $pardonedIds, true)
+            ));
+        }
+
         return $suspended;
     }
 
@@ -107,6 +119,10 @@ class TournamentSuspensionService
 
         $targetId = (int) $target->id;
 
+        $disciplinary = ($tournament->plan ?? [])['disciplinary'] ?? [];
+        $manualReset = ! empty($disciplinary['manual_yellow_resets_applied']);
+        $manualScope = $disciplinary['manual_yellow_reset_scope'] ?? 'group';
+
         $state = collect();
         $suspended = [];
         $inGroupStage = true;
@@ -116,13 +132,22 @@ class TournamentSuspensionService
             $isTarget = (int) $fixture->id === $targetId;
 
             // RULE C: When crossing from group stage to knockout stage,
+            // or if manual yellow reset is active,
             // reset accumulated yellow count to 0, but PRESERVE pending suspensions (Rule B)!
-            if ($groupOnly && ! $isGroup && $inGroupStage) {
+            if (($groupOnly || ($manualReset && $manualScope === 'group')) && ! $isGroup && $inGroupStage) {
                 $state = $state->map(function ($playerState) {
                     $playerState['yellows'] = 0;
                     return $playerState;
                 });
                 $inGroupStage = false;
+            }
+
+            // If scope is 'all', all accumulated individual yellows are cleared across matches
+            if ($manualReset && $manualScope === 'all') {
+                $state = $state->map(function ($playerState) {
+                    $playerState['yellows'] = 0;
+                    return $playerState;
+                });
             }
 
             $playable = ! in_array($fixture->status?->value, [
@@ -276,6 +301,13 @@ class TournamentSuspensionService
             ->map(fn ($id) => (int) $id)
             ->all();
 
+        $pardonedIds = collect(($tournament->plan ?? [])['disciplinary']['pardoned_player_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $manualReset = ! empty(($tournament->plan ?? [])['disciplinary']['manual_yellow_resets_applied']);
+        $manualScope = ($tournament->plan ?? [])['disciplinary']['manual_yellow_reset_scope'] ?? 'group';
+
         foreach ($playerIds as $playerId) {
             $player = $players->get($playerId);
             if (! $player) {
@@ -302,13 +334,19 @@ class TournamentSuspensionService
 
             $tlRecord = $tournamentLong->firstWhere('player_id', (int) $playerId);
             $activeSusp = $activeSuspendedMap[$playerId] ?? null;
+            $isPardoned = in_array((int) $playerId, $pardonedIds, true);
 
             $suspensionType = null;
             $suspensionReason = null;
             $status = 'none';
             $eligibility = 'مؤهل للمشاركة';
 
-            if ($tlRecord) {
+            if ($isPardoned) {
+                $status = 'pardoned';
+                $suspensionType = null;
+                $suspensionReason = null;
+                $eligibility = 'تم رفع الإيقاف بقرار اللجنة ✅';
+            } elseif ($tlRecord) {
                 $suspensionType = 'tournament_long';
                 $suspensionReason = $tlRecord['reason'] ?? 'إيقاف لكامل البطولة بقرار تأديبي';
                 $status = 'active';
@@ -342,6 +380,7 @@ class TournamentSuspensionService
                 'total_cards' => $groupYellows + $knockoutYellows + $secondYellows + $directReds,
                 'is_suspended' => $isSuspended,
                 'is_eligible' => ! $isSuspended,
+                'is_pardoned' => $isPardoned,
                 'tournament_long' => $isTournamentLong,
                 'suspension_type' => $suspensionType,
                 'suspension_reason' => $suspensionReason,
@@ -376,7 +415,10 @@ class TournamentSuspensionService
                 'active_suspensions' => count(array_filter($records, fn ($r) => ! $r['is_eligible'])),
                 'active_suspensions_count' => count(array_filter($records, fn ($r) => ! $r['is_eligible'])),
                 'tournament_long_count' => $tournamentLong->count(),
-                'yellow_resets_applied' => $resetsYellowsOnKnockout,
+                'pardoned_count' => count($pardonedIds),
+                'yellow_resets_applied' => $resetsYellowsOnKnockout || $manualReset,
+                'manual_yellow_resets_applied' => $manualReset,
+                'manual_yellow_reset_scope' => $manualScope,
             ],
         ];
     }
@@ -435,6 +477,92 @@ class TournamentSuspensionService
         $tournament->forceFill(['plan' => $plan])->save();
 
         return $disciplinary['tournament_long_suspensions'];
+    }
+
+    /**
+     * Lift or remove any suspension (match suspension or tournament-long) for a player.
+     */
+    public function liftPlayerSuspension(Tournament $tournament, int $playerId, string $reason, int $liftedBy): array
+    {
+        $plan = $tournament->plan ?? [];
+        $disciplinary = $plan['disciplinary'] ?? [];
+        $pardoned = collect($disciplinary['pardoned_player_ids'] ?? [])->map(fn ($id) => (int) $id)->all();
+
+        if (! in_array($playerId, $pardoned, true)) {
+            $pardoned[] = $playerId;
+        }
+
+        // Also remove from tournament_long if present
+        $longSuspensions = collect($disciplinary['tournament_long_suspensions'] ?? [])
+            ->reject(fn ($tl) => (int) $tl['player_id'] === $playerId)
+            ->values()
+            ->all();
+
+        $disciplinary['pardoned_player_ids'] = $pardoned;
+        $disciplinary['tournament_long_suspensions'] = $longSuspensions;
+        $disciplinary['audit'] = array_merge($disciplinary['audit'] ?? [], [[
+            'action' => 'lift_player_suspension',
+            'player_id' => $playerId,
+            'reason' => $reason,
+            'lifted_by' => $liftedBy,
+            'lifted_at' => now()->toISOString(),
+        ]]);
+
+        $plan['disciplinary'] = $disciplinary;
+        $tournament->forceFill(['plan' => $plan])->save();
+
+        return $disciplinary;
+    }
+
+    /**
+     * Reinstate a previously lifted suspension.
+     */
+    public function reinstatePlayerSuspension(Tournament $tournament, int $playerId, int $userId): array
+    {
+        $plan = $tournament->plan ?? [];
+        $disciplinary = $plan['disciplinary'] ?? [];
+        $pardoned = collect($disciplinary['pardoned_player_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn ($id) => $id === $playerId)
+            ->values()
+            ->all();
+
+        $disciplinary['pardoned_player_ids'] = $pardoned;
+        $disciplinary['audit'] = array_merge($disciplinary['audit'] ?? [], [[
+            'action' => 'reinstate_suspension',
+            'player_id' => $playerId,
+            'reinstated_by' => $userId,
+            'reinstated_at' => now()->toISOString(),
+        ]]);
+
+        $plan['disciplinary'] = $disciplinary;
+        $tournament->forceFill(['plan' => $plan])->save();
+
+        return $disciplinary;
+    }
+
+    /**
+     * Manually reset accumulated yellow cards for group stage or all matches.
+     */
+    public function resetYellowCards(Tournament $tournament, string $scope, int $userId): array
+    {
+        $plan = $tournament->plan ?? [];
+        $disciplinary = $plan['disciplinary'] ?? [];
+
+        $disciplinary['manual_yellow_resets_applied'] = true;
+        $disciplinary['manual_yellow_reset_scope'] = in_array($scope, ['group', 'all'], true) ? $scope : 'group';
+        $disciplinary['manual_yellow_reset_at'] = now()->toISOString();
+        $disciplinary['audit'] = array_merge($disciplinary['audit'] ?? [], [[
+            'action' => 'reset_yellow_cards',
+            'scope' => $scope,
+            'reset_by' => $userId,
+            'reset_at' => now()->toISOString(),
+        ]]);
+
+        $plan['disciplinary'] = $disciplinary;
+        $tournament->forceFill(['plan' => $plan])->save();
+
+        return $disciplinary;
     }
 
     /**

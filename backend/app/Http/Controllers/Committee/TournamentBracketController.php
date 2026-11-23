@@ -486,4 +486,68 @@ class TournamentBracketController extends Controller
             'message' => 'تم رفع الإيقاف عن اللاعب رسمياً',
         ]);
     }
+
+    public function liftPlayerSuspension(Request $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'player_id' => 'required|integer',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $reason = $validated['reason'] ?? 'رفع الإيقاف بقرار من اللجنة المنظمة';
+
+        $result = $this->suspensions->liftPlayerSuspension(
+            $tournament,
+            (int) $validated['player_id'],
+            $reason,
+            $request->user()->id
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => 'تم رفع الإيقاف عن اللاعب وأصبح متاحاً للمشاركة رسمياً',
+        ]);
+    }
+
+    public function reinstateSuspension(Request $request, Tournament $tournament, int $playerId): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $result = $this->suspensions->reinstatePlayerSuspension(
+            $tournament,
+            $playerId,
+            $request->user()->id
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => 'تم إلغاء العفو وإعادة تطبيق الإيقاف وفق القواعد',
+        ]);
+    }
+
+    public function resetYellowCards(Request $request, Tournament $tournament): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $validated = $request->validate([
+            'scope' => 'nullable|string|in:group,all',
+        ]);
+
+        $scope = $validated['scope'] ?? 'group';
+
+        $result = $this->suspensions->resetYellowCards(
+            $tournament,
+            $scope,
+            $request->user()->id
+        );
+
+        return response()->json([
+            'data' => $result,
+            'message' => $scope === 'all'
+                ? 'تم تصفير جميع الإنذارات المتراكمة لجميع الفرق بنجاح'
+                : 'تم تصفير إنذارات دور المجموعات بنجاح (القاعدة C)',
+        ]);
+    }
 }

@@ -554,9 +554,9 @@ class TournamentBracketController extends Controller
                 'away_team_id' => $f->away_team_id,
                 'home_team' => $f->homeTeam ? ['id' => $f->homeTeam->id, 'name' => $f->homeTeam->name, 'logo_url' => $f->homeTeam->logo_url] : null,
                 'away_team' => $f->awayTeam ? ['id' => $f->awayTeam->id, 'name' => $f->awayTeam->name, 'logo_url' => $f->awayTeam->logo_url] : null,
-                'scheduled_at' => $m?->scheduled_at?->toIso8601String() ?? $f->scheduled_at?->toIso8601String(),
-                'stadium_id' => $m?->stadium_id ?? $f->stadium_id,
-                'stadium' => $m?->stadium ? ['id' => $m->stadium->id, 'name' => $m->stadium->name, 'city' => $m->stadium->city] : ($f->stadium ? ['id' => $f->stadium->id, 'name' => $f->stadium->name, 'city' => $f->stadium->city] : null),
+                'scheduled_at' => $f->scheduled_at?->toIso8601String(),
+                'stadium_id' => $f->stadium_id ?? $m?->stadium_id,
+                'stadium' => $f->stadium ? ['id' => $f->stadium->id, 'name' => $f->stadium->name, 'city' => $f->stadium->city] : ($m?->stadium ? ['id' => $m->stadium->id, 'name' => $m->stadium->name, 'city' => $m->stadium->city] : null),
                 'status' => $mStatus,
                 'home_score' => $m?->home_score,
                 'away_score' => $m?->away_score,
@@ -664,9 +664,9 @@ class TournamentBracketController extends Controller
         $assignedTeamIds = [];
 
         foreach ($assignments as $a) {
-            $fixtureId = $a['fixture_id'] ?? null;
-            $homeId = $a['home_team_id'] ?? null;
-            $awayId = $a['away_team_id'] ?? null;
+            $fixtureId = isset($a['fixture_id']) ? (int) $a['fixture_id'] : null;
+            $homeId = isset($a['home_team_id']) ? (int) $a['home_team_id'] : null;
+            $awayId = isset($a['away_team_id']) ? (int) $a['away_team_id'] : null;
 
             if (! $fixtureId || ! isset($fixtures[$fixtureId])) {
                 throw new DomainException('مباراة غير صالحة في القرعة');
@@ -676,16 +676,16 @@ class TournamentBracketController extends Controller
                 throw new DomainException('يجب تعيين الفريقين معاً في كل مباراة');
             }
 
-            if ((int) $homeId === (int) $awayId) {
+            if ($homeId === $awayId) {
                 throw new DomainException('لا يمكن لفريق أن يواجه نفسه في المباراة');
             }
 
-            if (in_array((int) $homeId, $assignedTeamIds, true) || in_array((int) $awayId, $assignedTeamIds, true)) {
+            if (in_array($homeId, $assignedTeamIds, true) || in_array($awayId, $assignedTeamIds, true)) {
                 throw new DomainException('تم تعيين أحد الفرق في أكثر من خانة واحدة في هذا الدور');
             }
 
-            $assignedTeamIds[] = (int) $homeId;
-            $assignedTeamIds[] = (int) $awayId;
+            $assignedTeamIds[] = $homeId;
+            $assignedTeamIds[] = $awayId;
         }
 
         $expectedCount = $fixtures->count() * 2;
@@ -698,11 +698,26 @@ class TournamentBracketController extends Controller
             $prevFixtures = $prevRound ? Fixture::query()->where('round_id', $prevRound->id)->with('match')->get() : collect();
 
             foreach ($assignments as $a) {
-                $f = $fixtures[$a['fixture_id']];
+                $fixtureId = (int) $a['fixture_id'];
+                $f = $fixtures[$fixtureId];
                 $homeId = (int) $a['home_team_id'];
                 $awayId = (int) $a['away_team_id'];
-                $scheduledAt = ! empty($a['scheduled_at']) ? Carbon::parse($a['scheduled_at']) : $f->scheduled_at;
-                $stadiumId = ! empty($a['stadium_id']) ? (int) $a['stadium_id'] : $f->stadium_id;
+
+                $scheduledAt = null;
+                if (! empty($a['scheduled_at'])) {
+                    try {
+                        $scheduledAt = Carbon::parse($a['scheduled_at']);
+                    } catch (\Throwable $e) {
+                        $scheduledAt = $f->scheduled_at;
+                    }
+                } else {
+                    $scheduledAt = $f->scheduled_at;
+                }
+
+                $stadiumId = ! empty($a['stadium_id']) ? (int) $a['stadium_id'] : ($f->stadium_id ?: null);
+                if ($stadiumId !== null && $stadiumId <= 0) {
+                    $stadiumId = null;
+                }
 
                 $sourceHomeId = $a['source_home_fixture_id'] ?? null;
                 $sourceAwayId = $a['source_away_fixture_id'] ?? null;
@@ -733,7 +748,6 @@ class TournamentBracketController extends Controller
                     $match->forceFill([
                         'home_team_id' => $homeId,
                         'away_team_id' => $awayId,
-                        'scheduled_at' => $scheduledAt,
                         'stadium_id' => $stadiumId,
                     ])->save();
                 }
@@ -903,8 +917,8 @@ class TournamentBracketController extends Controller
                 'away_team' => $away,
                 'source_home_fixture_id' => $home['source_fixture_id'] ?? null,
                 'source_away_fixture_id' => $away['source_fixture_id'] ?? null,
-                'scheduled_at' => $f->match?->scheduled_at?->toIso8601String() ?? $f->scheduled_at?->toIso8601String(),
-                'stadium_id' => $f->match?->stadium_id ?? $f->stadium_id,
+                'scheduled_at' => $f->scheduled_at?->toIso8601String(),
+                'stadium_id' => $f->stadium_id ?? $f->match?->stadium_id,
             ];
         }
 

@@ -9,12 +9,15 @@ use App\Domains\Match\Enums\MatchStatus;
 use App\Domains\Match\Models\FootballMatch;
 use App\Domains\Shared\Base\Controller;
 use App\Domains\Shared\Exceptions\DomainException;
+use App\Domains\Stadium\Models\Stadium;
+use App\Domains\Team\Models\Team;
 use App\Domains\Tournament\Models\Tournament;
 use App\Domains\Tournament\Services\TournamentBracketService;
 use App\Domains\Tournament\Services\TournamentFixtureService;
 use App\Domains\Tournament\Services\TournamentSetupService;
 use App\Domains\Tournament\Services\TournamentStandingsService;
 use App\Domains\Tournament\Services\TournamentSuspensionService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -434,6 +437,480 @@ class TournamentBracketController extends Controller
         return response()->json([
             'data' => $this->bracket->bracket($tournament),
             'message' => 'تم إلغاء اعتماد القرعة وإعادتها لحالة المسودة للتمكن من إعادة التسكين بأمان',
+        ]);
+    }
+
+    public function roundDrawData(Tournament $tournament, Round $round): JsonResponse
+    {
+        $this->authorize('view', $tournament);
+
+        if ((int) $round->competition_id !== (int) $tournament->competition_id || (int) $round->season_id !== (int) $tournament->season_id) {
+            throw new DomainException('هذا الدور لا يتبع لهذه البطولة');
+        }
+
+        $knockoutRounds = Round::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('stage', '!=', RoundStage::Group)
+            ->orderBy('order_index')
+            ->get()
+            ->values();
+
+        $roundIndex = $knockoutRounds->search(fn ($r) => (int) $r->id === (int) $round->id);
+        if ($roundIndex === false) {
+            throw new DomainException('الدور المحدد ليس دوراً إقصائياً في هذه البطولة');
+        }
+
+        $previousRound = $roundIndex > 0 ? $knockoutRounds[$roundIndex - 1] : null;
+        $qualifiedTeams = [];
+        $allPrevFinished = true;
+
+        if ($roundIndex === 0) {
+            // First knockout round (e.g. QF) - qualified teams from group stage
+            $detailed = $this->fixtures->qualifiedTeamsDetailed($tournament);
+            $teams = $detailed['teams'] ?? [];
+            foreach ($teams as $t) {
+                $qualifiedTeams[] = [
+                    'team_id' => (int) $t['team_id'],
+                    'id' => (int) $t['team_id'],
+                    'name' => $t['name'] ?? 'فريق',
+                    'logo_url' => $t['logo_url'] ?? null,
+                    'is_confirmed' => true,
+                    'group_name' => $t['group_name'] ?? null,
+                    'rank' => $t['rank'] ?? null,
+                    'source_label' => ($t['rank'] ?? null) === 1 ? 'متصدر المجموعة' : 'وصيف المجموعة',
+                ];
+            }
+        } else {
+            // Subsequent round (e.g. Semi-Final, Final) - qualified teams from previous round winners
+            $prevFixtures = Fixture::query()
+                ->with(['homeTeam', 'awayTeam', 'byeTeam', 'match'])
+                ->where('round_id', $previousRound->id)
+                ->orderBy('id')
+                ->get();
+
+            $totalPrev = $prevFixtures->count();
+            $finishedCount = 0;
+
+            foreach ($prevFixtures as $idx => $pf) {
+                $winnerId = $pf->bye_team_id ?: $pf->match?->winner_team_id;
+                $matchNum = $idx + 1;
+                $matchName = "المباراة {$matchNum} ({$previousRound->name})";
+
+                if ($winnerId) {
+                    $finishedCount++;
+                    $team = Team::query()->find($winnerId);
+                    if ($team) {
+                        $qualifiedTeams[] = [
+                            'team_id' => (int) $team->id,
+                            'id' => (int) $team->id,
+                            'name' => $team->name,
+                            'logo_url' => $team->logo_url,
+                            'is_confirmed' => true,
+                            'source_fixture_id' => $pf->id,
+                            'source_label' => "فائز {$matchName}",
+                            'home_team_name' => $pf->homeTeam?->name,
+                            'away_team_name' => $pf->awayTeam?->name,
+                        ];
+                    }
+                } else {
+                    $qualifiedTeams[] = [
+                        'team_id' => null,
+                        'id' => null,
+                        'name' => "فائز {$matchName}",
+                        'logo_url' => null,
+                        'is_confirmed' => false,
+                        'source_fixture_id' => $pf->id,
+                        'source_label' => "بانتظار حسم {$matchName}",
+                        'home_team_name' => $pf->homeTeam?->name,
+                        'away_team_name' => $pf->awayTeam?->name,
+                    ];
+                }
+            }
+
+            $allPrevFinished = $totalPrev > 0 && $finishedCount === $totalPrev;
+        }
+
+        $fixtures = Fixture::query()
+            ->with(['homeTeam', 'awayTeam', 'byeTeam', 'match.stadium', 'stadium'])
+            ->where('round_id', $round->id)
+            ->orderBy('id')
+            ->get();
+
+        $anyMatchStartedOrFinished = false;
+        $fixturesData = $fixtures->map(function (Fixture $f) use (&$anyMatchStartedOrFinished) {
+            $m = $f->match;
+            $mStatus = $m?->status?->value ?? $f->status->value;
+            $isLocked = in_array($mStatus, [MatchStatus::Finished->value, ...MatchStatus::live()], true);
+            if ($isLocked) {
+                $anyMatchStartedOrFinished = true;
+            }
+
+            return [
+                'id' => $f->id,
+                'fixture_id' => $f->id,
+                'match_id' => $f->match_id,
+                'home_team_id' => $f->home_team_id,
+                'away_team_id' => $f->away_team_id,
+                'home_team' => $f->homeTeam ? ['id' => $f->homeTeam->id, 'name' => $f->homeTeam->name, 'logo_url' => $f->homeTeam->logo_url] : null,
+                'away_team' => $f->awayTeam ? ['id' => $f->awayTeam->id, 'name' => $f->awayTeam->name, 'logo_url' => $f->awayTeam->logo_url] : null,
+                'scheduled_at' => $m?->scheduled_at?->toIso8601String() ?? $f->scheduled_at?->toIso8601String(),
+                'stadium_id' => $m?->stadium_id ?? $f->stadium_id,
+                'stadium' => $m?->stadium ? ['id' => $m->stadium->id, 'name' => $m->stadium->name, 'city' => $m->stadium->city] : ($f->stadium ? ['id' => $f->stadium->id, 'name' => $f->stadium->name, 'city' => $f->stadium->city] : null),
+                'status' => $mStatus,
+                'home_score' => $m?->home_score,
+                'away_score' => $m?->away_score,
+                'winner_team_id' => $m?->winner_team_id,
+                'is_locked' => $isLocked,
+                'source_home_fixture_id' => $f->source_home_fixture_id,
+                'source_away_fixture_id' => $f->source_away_fixture_id,
+            ];
+        })->values()->all();
+
+        $plan = $tournament->plan ?? [];
+        $roundPlan = $plan['knockout']['rounds'][$round->id] ?? null;
+        $drawStatus = $roundPlan['draw_status'] ?? ($roundIndex === 0 ? ($plan['knockout']['draw_status'] ?? 'pending') : 'pending');
+
+        if (! $roundPlan && count(array_filter($fixturesData, fn ($f) => $f['home_team_id'] && $f['away_team_id'])) === count($fixturesData) && count($fixturesData) > 0) {
+            $drawStatus = 'confirmed';
+        }
+
+        $stadiums = $tournament->stadiums()->orderBy('stadiums.name')->get(['stadiums.id', 'stadiums.name', 'stadiums.city']);
+        if ($stadiums->isEmpty()) {
+            $stadiums = Stadium::query()->orderBy('name')->take(50)->get(['id', 'name', 'city']);
+        }
+
+        return response()->json([
+            'data' => [
+                'round' => [
+                    'id' => $round->id,
+                    'name' => $round->name,
+                    'stage' => $round->stage->value,
+                    'order_index' => $round->order_index,
+                    'round_index' => $roundIndex,
+                    'total_rounds' => $knockoutRounds->count(),
+                ],
+                'previous_round' => $previousRound ? [
+                    'id' => $previousRound->id,
+                    'name' => $previousRound->name,
+                    'stage' => $previousRound->stage->value,
+                ] : null,
+                'qualified_teams' => $qualifiedTeams,
+                'all_previous_finished' => $allPrevFinished,
+                'fixtures' => $fixturesData,
+                'draw_status' => $drawStatus,
+                'can_unlock' => ! $anyMatchStartedOrFinished,
+                'can_confirm' => ! $anyMatchStartedOrFinished,
+                'confirmed_at' => $roundPlan['confirmed_at'] ?? null,
+                'confirmed_by_name' => $roundPlan['confirmed_by_name'] ?? null,
+                'stadiums' => $stadiums->map(fn ($s) => [
+                    'id' => $s->id,
+                    'name' => $s->name,
+                    'city' => $s->city,
+                ])->all(),
+                'main_stadium_id' => $tournament->stadium_id,
+            ],
+        ]);
+    }
+
+    public function confirmRoundDraw(Request $request, Tournament $tournament, Round $round): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
+            throw new DomainException('لا يمكن تعديل القرعة لبطولة مكتملة أو ملغاة');
+        }
+
+        if ((int) $round->competition_id !== (int) $tournament->competition_id || (int) $round->season_id !== (int) $tournament->season_id) {
+            throw new DomainException('هذا الدور لا يتبع لهذه البطولة');
+        }
+
+        $knockoutRounds = Round::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('stage', '!=', RoundStage::Group)
+            ->orderBy('order_index')
+            ->get()
+            ->values();
+
+        $roundIndex = $knockoutRounds->search(fn ($r) => (int) $r->id === (int) $round->id);
+        if ($roundIndex === false) {
+            throw new DomainException('الدور المحدد ليس دوراً إقصائياً');
+        }
+
+        $fixtures = Fixture::query()
+            ->where('round_id', $round->id)
+            ->with('match')
+            ->orderBy('id')
+            ->get()
+            ->keyBy('id');
+
+        if ($fixtures->isEmpty()) {
+            throw new DomainException('لا توجد مباريات في هذا الدور لتسكين الفرق فيها');
+        }
+
+        foreach ($fixtures as $f) {
+            $mStatus = $f->match?->status?->value ?? $f->status->value;
+            if (in_array($mStatus, [MatchStatus::Finished->value, ...MatchStatus::live()], true)) {
+                throw new DomainException('لا يمكن تعديل قرعة هذا الدور لوجود مباريات بدأت أو انتهت بالفعل');
+            }
+        }
+
+        $assignments = $request->input('assignments', []);
+        if (empty($assignments) || ! is_array($assignments)) {
+            throw new DomainException('يرجى تحديد مواجهات هذا الدور بالكامل');
+        }
+
+        $assignedTeamIds = [];
+
+        foreach ($assignments as $a) {
+            $fixtureId = $a['fixture_id'] ?? null;
+            $homeId = $a['home_team_id'] ?? null;
+            $awayId = $a['away_team_id'] ?? null;
+
+            if (! $fixtureId || ! isset($fixtures[$fixtureId])) {
+                throw new DomainException('مباراة غير صالحة في القرعة');
+            }
+
+            if (! $homeId || ! $awayId) {
+                throw new DomainException('يجب تعيين الفريقين معاً في كل مباراة');
+            }
+
+            if ((int) $homeId === (int) $awayId) {
+                throw new DomainException('لا يمكن لفريق أن يواجه نفسه في المباراة');
+            }
+
+            if (in_array((int) $homeId, $assignedTeamIds, true) || in_array((int) $awayId, $assignedTeamIds, true)) {
+                throw new DomainException('تم تعيين أحد الفرق في أكثر من خانة واحدة في هذا الدور');
+            }
+
+            $assignedTeamIds[] = (int) $homeId;
+            $assignedTeamIds[] = (int) $awayId;
+        }
+
+        $expectedCount = $fixtures->count() * 2;
+        if (count($assignedTeamIds) !== $expectedCount) {
+            throw new DomainException("يجب تعيين جميع الفرق في خانات هذا الدور ($expectedCount فريقاً)");
+        }
+
+        DB::transaction(function () use ($tournament, $round, $roundIndex, $knockoutRounds, $assignments, $fixtures, $request) {
+            $prevRound = $roundIndex > 0 ? $knockoutRounds[$roundIndex - 1] : null;
+            $prevFixtures = $prevRound ? Fixture::query()->where('round_id', $prevRound->id)->with('match')->get() : collect();
+
+            foreach ($assignments as $a) {
+                $f = $fixtures[$a['fixture_id']];
+                $homeId = (int) $a['home_team_id'];
+                $awayId = (int) $a['away_team_id'];
+                $scheduledAt = ! empty($a['scheduled_at']) ? Carbon::parse($a['scheduled_at']) : $f->scheduled_at;
+                $stadiumId = ! empty($a['stadium_id']) ? (int) $a['stadium_id'] : $f->stadium_id;
+
+                $sourceHomeId = $a['source_home_fixture_id'] ?? null;
+                $sourceAwayId = $a['source_away_fixture_id'] ?? null;
+
+                if (! $sourceHomeId && $prevFixtures->isNotEmpty()) {
+                    $sourceHomeId = $prevFixtures->first(function ($pf) use ($homeId) {
+                        return (int) $pf->bye_team_id === $homeId || (int) $pf->match?->winner_team_id === $homeId;
+                    })?->id;
+                }
+
+                if (! $sourceAwayId && $prevFixtures->isNotEmpty()) {
+                    $sourceAwayId = $prevFixtures->first(function ($pf) use ($awayId) {
+                        return (int) $pf->bye_team_id === $awayId || (int) $pf->match?->winner_team_id === $awayId;
+                    })?->id;
+                }
+
+                $f->forceFill([
+                    'home_team_id' => $homeId,
+                    'away_team_id' => $awayId,
+                    'scheduled_at' => $scheduledAt,
+                    'stadium_id' => $stadiumId,
+                    'source_home_fixture_id' => $sourceHomeId ?: $f->source_home_fixture_id,
+                    'source_away_fixture_id' => $sourceAwayId ?: $f->source_away_fixture_id,
+                ])->save();
+
+                $match = $this->bracket->ensureMatch($tournament, $f);
+                if ($match) {
+                    $match->forceFill([
+                        'home_team_id' => $homeId,
+                        'away_team_id' => $awayId,
+                        'scheduled_at' => $scheduledAt,
+                        'stadium_id' => $stadiumId,
+                    ])->save();
+                }
+            }
+
+            $plan = $tournament->plan ?? [];
+            $knockout = $plan['knockout'] ?? [];
+            $roundsConfig = $knockout['rounds'] ?? [];
+
+            $roundsConfig[$round->id] = [
+                'draw_status' => 'confirmed',
+                'confirmed_at' => now()->toISOString(),
+                'confirmed_by' => $request->user()?->id,
+                'confirmed_by_name' => $request->user()?->name ?? 'مسؤول اللجنة',
+                'assignments' => $assignments,
+                'reason' => $request->input('reason', "اعتماد قرعة وتسكين ومواعيد {$round->name}"),
+            ];
+
+            $knockout['rounds'] = $roundsConfig;
+
+            if ($roundIndex === 0) {
+                $knockout['draw_status'] = 'confirmed';
+                $knockout['draw_confirmed_at'] = now()->toISOString();
+                $knockout['draw_confirmed_by'] = $request->user()?->id;
+            }
+
+            $plan['knockout'] = $knockout;
+            $tournament->forceFill(['plan' => $plan])->save();
+        });
+
+        return response()->json([
+            'data' => $this->bracket->bracket($tournament),
+            'message' => "تم اعتماد قرعة ومباريات وتوقيت ({$round->name}) بنجاح",
+        ]);
+    }
+
+    public function unlockRoundDraw(Request $request, Tournament $tournament, Round $round): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        if (in_array($tournament->status, [Tournament::STATUS_COMPLETED, Tournament::STATUS_CANCELLED], true)) {
+            throw new DomainException('لا يمكن تعديل القرعة لبطولة مكتملة أو ملغاة');
+        }
+
+        $fixtures = Fixture::query()
+            ->where('round_id', $round->id)
+            ->with('match')
+            ->get();
+
+        foreach ($fixtures as $f) {
+            $mStatus = $f->match?->status?->value ?? $f->status->value;
+            if (in_array($mStatus, [MatchStatus::Finished->value, ...MatchStatus::live()], true)) {
+                throw new DomainException('لا يمكن فك قفل قرعة هذا الدور لوجود مباريات بدأت أو انتهت بالفعل');
+            }
+        }
+
+        $knockoutRounds = Round::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('stage', '!=', RoundStage::Group)
+            ->orderBy('order_index')
+            ->get()
+            ->values();
+
+        $roundIndex = $knockoutRounds->search(fn ($r) => (int) $r->id === (int) $round->id);
+
+        $plan = $tournament->plan ?? [];
+        $knockout = $plan['knockout'] ?? [];
+        $roundsConfig = $knockout['rounds'] ?? [];
+
+        $roundsConfig[$round->id] = array_merge($roundsConfig[$round->id] ?? [], [
+            'draw_status' => 'draft',
+            'unlocked_at' => now()->toISOString(),
+            'unlocked_by' => $request->user()?->id,
+            'unlocked_by_name' => $request->user()?->name ?? 'مسؤول اللجنة',
+        ]);
+
+        $knockout['rounds'] = $roundsConfig;
+
+        if ($roundIndex === 0) {
+            $knockout['draw_status'] = 'draft';
+        }
+
+        $plan['knockout'] = $knockout;
+        $tournament->forceFill(['plan' => $plan])->save();
+
+        return response()->json([
+            'data' => $this->bracket->bracket($tournament),
+            'message' => "تم فتح قرعة ({$round->name}) للتعديل وإعادة التسكين والبرمجة بنجاح",
+        ]);
+    }
+
+    public function roundAutoDraw(Tournament $tournament, Round $round): JsonResponse
+    {
+        $this->authorize('manage', $tournament);
+
+        $knockoutRounds = Round::query()
+            ->where('competition_id', $tournament->competition_id)
+            ->where('season_id', $tournament->season_id)
+            ->where('stage', '!=', RoundStage::Group)
+            ->orderBy('order_index')
+            ->get()
+            ->values();
+
+        $roundIndex = $knockoutRounds->search(fn ($r) => (int) $r->id === (int) $round->id);
+        if ($roundIndex === false) {
+            throw new DomainException('الدور المحدد ليس دوراً إقصائياً');
+        }
+
+        $fixtures = Fixture::query()
+            ->where('round_id', $round->id)
+            ->with(['match', 'stadium'])
+            ->orderBy('id')
+            ->get();
+
+        if ($fixtures->isEmpty()) {
+            throw new DomainException('لا توجد مباريات في هذا الدور');
+        }
+
+        $candidateTeams = [];
+
+        if ($roundIndex === 0) {
+            $proposal = $this->bracket->proposeAutomaticDraw($tournament);
+            return response()->json(['data' => $proposal['assignments'] ?? []]);
+        }
+
+        // For subsequent rounds (e.g. semi-finals or final)
+        $prevRound = $knockoutRounds[$roundIndex - 1];
+        $prevFixtures = Fixture::query()
+            ->where('round_id', $prevRound->id)
+            ->with('match')
+            ->get();
+
+        foreach ($prevFixtures as $pf) {
+            $winnerId = $pf->bye_team_id ?: $pf->match?->winner_team_id;
+            if ($winnerId) {
+                $team = Team::query()->find($winnerId);
+                if ($team) {
+                    $candidateTeams[] = [
+                        'team_id' => (int) $team->id,
+                        'name' => $team->name,
+                        'logo_url' => $team->logo_url,
+                        'source_fixture_id' => $pf->id,
+                    ];
+                }
+            }
+        }
+
+        $neededCount = $fixtures->count() * 2;
+        if (count($candidateTeams) < $neededCount) {
+            throw new DomainException("لم تكتمل الفرق المتأهلة لهذا الدور بعد — يتطلب هذا الدور {$neededCount} فرق متأهلة من ({$prevRound->name})");
+        }
+
+        // Shuffle candidate teams randomly for an exciting fair draw
+        shuffle($candidateTeams);
+
+        $assignments = [];
+        foreach ($fixtures as $idx => $f) {
+            $home = $candidateTeams[$idx * 2];
+            $away = $candidateTeams[$idx * 2 + 1];
+
+            $assignments[] = [
+                'fixture_id' => $f->id,
+                'home_team_id' => $home['team_id'],
+                'away_team_id' => $away['team_id'],
+                'home_team' => $home,
+                'away_team' => $away,
+                'source_home_fixture_id' => $home['source_fixture_id'] ?? null,
+                'source_away_fixture_id' => $away['source_fixture_id'] ?? null,
+                'scheduled_at' => $f->match?->scheduled_at?->toIso8601String() ?? $f->scheduled_at?->toIso8601String(),
+                'stadium_id' => $f->match?->stadium_id ?? $f->stadium_id,
+            ];
+        }
+
+        return response()->json([
+            'data' => $assignments,
+            'message' => "تم إجراء قرعة تلقائية عادلة لـ ({$round->name}) بنجاح",
         ]);
     }
 

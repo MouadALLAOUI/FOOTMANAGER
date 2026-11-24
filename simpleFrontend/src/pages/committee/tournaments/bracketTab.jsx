@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Award,
+  Calendar,
   Check,
   CheckCircle2,
   ChevronLeft,
@@ -16,6 +17,7 @@ import {
   Info,
   Layers,
   Lock,
+  MapPin,
   Network,
   Play,
   RefreshCw,
@@ -38,6 +40,7 @@ import { toastApiError } from '../../../lib/errors'
 import CommitteeBracket from '../../../domains/committee/components/CommitteeBracket'
 import KnockoutOptionModal from '../../../domains/committee/components/KnockoutOptionModal'
 import KnockoutDrawModal from './draw/KnockoutDrawModal'
+import RoundDrawModal from './draw/RoundDrawModal'
 import DisciplinaryModal from './DisciplinaryModal'
 import TournamentStageBar from '../../../components/tournaments/TournamentStageBar'
 import { ODD_KO_OPTIONS, ODD_KO_TITLE_KEYS } from '../../../domains/committee/lib/knockoutOptions'
@@ -59,6 +62,8 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
   const [busy, setBusy] = useState(null)
   const [optionModal, setOptionModal] = useState(false)
   const [drawModal, setDrawModal] = useState(false)
+  const [roundDrawModalRound, setRoundDrawModalRound] = useState(null)
+  const [activeKnockoutRoundId, setActiveKnockoutRoundId] = useState(null)
   const [disciplinaryModal, setDisciplinaryModal] = useState(false)
   const [oddChoice, setOddChoice] = useState(false)
   const [invalidNotice, setInvalidNotice] = useState(null)
@@ -129,6 +134,16 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
     }
     return null
   }, [finalRound])
+
+  const selectedKnockoutRound = useMemo(() => {
+    if (!rounds || rounds.length === 0) return null
+    if (activeKnockoutRoundId) {
+      return rounds.find((r) => (r.round_id || r.id) === activeKnockoutRoundId) || rounds[0]
+    }
+    const inProgress = rounds.find((r) => r.status === 'in_progress')
+    const available = rounds.find((r) => r.status === 'available')
+    return inProgress || available || rounds[0]
+  }, [rounds, activeKnockoutRoundId])
 
   // Derive Current Official Workflow Step (1 through 6)
   const actualCurrentStep = useMemo(() => {
@@ -651,7 +666,18 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {rounds.length > 1 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRoundDrawModalRound(rounds[1])}
+                  className="border-[#179955]/40 text-[#179955] dark:text-[#42D889] font-bold hover:bg-[#179955]/10"
+                >
+                  <Swords className="size-4" />
+                  قرعة وبرمجة {rounds[1].name}
+                </Button>
+              )}
               <Button
                 variant="primary"
                 size="sm"
@@ -878,6 +904,165 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
             </div>
           </div>
 
+          {/* Knockout Rounds Independent Management Section (A1, A2, A3) */}
+          {rounds.length > 0 && (
+            <div className="rounded-2xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-5 shadow-sm space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#E1E5DF] dark:border-[#303832] pb-3">
+                <div>
+                  <h4 className="text-sm font-black text-[#111313] dark:text-[#F5F7F2] flex items-center gap-2">
+                    <Swords className="size-4 text-[#179955]" />
+                    برنامج وإدارة كل دور إقصائي على حدة
+                  </h4>
+                  <p className="text-xs text-[#65706A] dark:text-[#B2B9B3] mt-0.5">
+                    إمكانية إجراء قرعة مستقلة وتعديل أطراف المواجهات والملاعب وتوقيت المباريات لكل دور إقصائي على حدة.
+                  </p>
+                </div>
+
+                {selectedKnockoutRound && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setRoundDrawModalRound(selectedKnockoutRound)}
+                    className="bg-[#179955] hover:bg-[#138047] text-white font-bold"
+                  >
+                    <Shuffle className="size-3.5" />
+                    تعديل وقرعة ({selectedKnockoutRound.name})
+                  </Button>
+                )}
+              </div>
+
+              {/* Rounds Tabs Selector (A3) */}
+              <div className="flex flex-wrap items-center gap-2">
+                {rounds.map((r) => {
+                  const rId = r.round_id || r.id
+                  const isSelected = (selectedKnockoutRound?.round_id || selectedKnockoutRound?.id) === rId
+                  const fixturesCount = r.fixtures?.length || 0
+                  const isCompleted = r.status === 'completed'
+                  const isInProgress = r.status === 'in_progress'
+
+                  return (
+                    <button
+                      key={rId}
+                      type="button"
+                      onClick={() => setActiveKnockoutRoundId(rId)}
+                      className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer border ${
+                        isSelected
+                          ? 'border-[#179955] bg-[#179955] text-white shadow-sm'
+                          : 'border-[#E1E5DF] dark:border-[#303832] bg-[#F7F8F5] dark:bg-[#252B27] text-[#111313] dark:text-[#F5F7F2] hover:border-[#179955]'
+                      }`}
+                    >
+                      <span>{r.name}</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                          isSelected
+                            ? 'bg-white/20 text-white'
+                            : isCompleted
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                            : isInProgress
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'
+                            : 'bg-gray-200 dark:bg-gray-800 text-[#65706A]'
+                        }`}
+                      >
+                        {fixturesCount} {fixturesCount === 1 ? 'مباراة' : 'مباريات'}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Selected Round Overview & Fixtures Card */}
+              {selectedKnockoutRound && (
+                <div className="rounded-xl border border-[#E1E5DF]/70 dark:border-[#303832]/70 bg-[#F7F8F5]/60 dark:bg-[#252B27]/40 p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-black text-[#111313] dark:text-[#F5F7F2]">
+                        مباريات ومواعيد {selectedKnockoutRound.name}:
+                      </span>
+                      <span className="text-[#65706A] dark:text-[#B2B9B3]">
+                        ({selectedKnockoutRound.fixtures?.length || 0} مواجهات)
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setRoundDrawModalRound(selectedKnockoutRound)}
+                      className="text-xs font-bold text-[#179955] dark:text-[#42D889] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Sparkles className="size-3.5" />
+                      فتح نافذة التسكين والملاعب
+                    </button>
+                  </div>
+
+                  {/* Fixtures list of this round */}
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    {(selectedKnockoutRound.fixtures || []).map((f, idx) => {
+                      const hasHome = Boolean(f.home_team)
+                      const hasAway = Boolean(f.away_team)
+                      const isPlayed = f.status === 'finished' || f.home_score !== null
+
+                      return (
+                        <div
+                          key={f.id}
+                          className="rounded-xl border border-[#E1E5DF] dark:border-[#303832] bg-white dark:bg-[#1B201D] p-3 shadow-2xs space-y-2"
+                        >
+                          <div className="flex items-center justify-between text-[11px] text-[#65706A] dark:text-[#B2B9B3]">
+                            <span className="font-bold">المباراة {idx + 1}</span>
+                            {f.scheduled_at && (
+                              <span className="flex items-center gap-1 text-[10px]">
+                                <Calendar className="size-3 text-[#179955]" />
+                                {new Date(f.scheduled_at).toLocaleDateString('ar-EG', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Teams display */}
+                          <div className="space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] p-2 font-bold">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {hasHome ? (
+                                  <>
+                                    <TeamAvatar team={f.home_team} className="size-5 shrink-0" />
+                                    <span className="truncate">{f.home_team.name}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-[#65706A] text-[11px]">بانتظار تحديد المتأهل</span>
+                                )}
+                              </div>
+                              {isPlayed && (
+                                <span className="font-black text-sm">{f.home_score ?? 0}</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 rounded-lg bg-[#F7F8F5] dark:bg-[#252B27] p-2 font-bold">
+                              <div className="flex items-center gap-2 min-w-0">
+                                {hasAway ? (
+                                  <>
+                                    <TeamAvatar team={f.away_team} className="size-5 shrink-0" />
+                                    <span className="truncate">{f.away_team.name}</span>
+                                  </>
+                                ) : (
+                                  <span className="text-[#65706A] text-[11px]">بانتظار تحديد المتأهل</span>
+                                )}
+                              </div>
+                              {isPlayed && (
+                                <span className="font-black text-sm">{f.away_score ?? 0}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Full Interactive Knockout Bracket Hierarchy */}
           {rounds.length === 0 ? (
             <Empty
@@ -1025,6 +1210,21 @@ export default function BracketTab({ tournament, refresh, refreshKey, setActive 
           refetchDraw()
         }}
       />
+
+      {/* Independent Knockout Round Draw & Schedule Modal */}
+      {roundDrawModalRound && (
+        <RoundDrawModal
+          open={Boolean(roundDrawModalRound)}
+          onClose={() => setRoundDrawModalRound(null)}
+          tournament={tournament}
+          round={roundDrawModalRound}
+          onSuccess={() => {
+            if (refresh) refresh()
+            refetch()
+            refetchDraw()
+          }}
+        />
+      )}
 
       {/* Destructive Reconfigure Safety Dialog (TEST G) */}
       <Modal

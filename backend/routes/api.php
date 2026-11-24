@@ -1022,6 +1022,8 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
             Route::get('/bracket/validation', [TournamentBracketController::class, 'validation']);
             Route::get('/bracket/draw-teams', [TournamentBracketController::class, 'drawTeams']);
             Route::get('/bracket/draw-versions', [TournamentBracketController::class, 'drawVersions']);
+            Route::get('/bracket/rounds/{round}/draw-data', [TournamentBracketController::class, 'roundDrawData']);
+            Route::get('/bracket/rounds/{round}/auto-draw', [TournamentBracketController::class, 'roundAutoDraw']);
             Route::get('/disciplinary', [TournamentBracketController::class, 'disciplinary']);
 
             Route::middleware('activity.not_locked')->group(function () {
@@ -1030,6 +1032,8 @@ Route::middleware(['auth:sanctum', 'user.approved'])->group(function () {
                 Route::post('/bracket/populate', [TournamentBracketController::class, 'populate']);
                 Route::post('/bracket/confirm-draw', [TournamentBracketController::class, 'confirmDraw']);
                 Route::post('/bracket/draw-rollback', [TournamentBracketController::class, 'drawRollback']);
+                Route::post('/bracket/rounds/{round}/confirm-draw', [TournamentBracketController::class, 'confirmRoundDraw']);
+                Route::post('/bracket/rounds/{round}/unlock-draw', [TournamentBracketController::class, 'unlockRoundDraw']);
                 Route::put('/bracket/rules', [TournamentBracketController::class, 'updateKnockoutRules']);
                 Route::post('/bracket/sync', [TournamentBracketController::class, 'sync']);
                 Route::post('/disciplinary/tournament-long', [TournamentBracketController::class, 'issueTournamentLongSuspension']);

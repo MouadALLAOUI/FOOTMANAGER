@@ -948,6 +948,8 @@ class TournamentBracketService
                 ->values();
 
             $previousById = $previous->keyBy('id');
+            $roundsConfig = ($tournament->plan ?? [])['knockout']['rounds'] ?? [];
+            $isRoundConfirmed = ($roundsConfig[$rounds[$i]->id]['draw_status'] ?? null) === 'confirmed';
 
             $foldIndex = $previous->count() % 2 === 1
                 ? intdiv($previous->count(), 2)
@@ -960,10 +962,10 @@ class TournamentBracketService
 
                 $homeSource = $fixture->source_home_fixture_id
                     ? ($previousById[$fixture->source_home_fixture_id] ?? null)
-                    : ($previous[$index * 2] ?? null);
+                    : ($isRoundConfirmed ? null : ($previous[$index * 2] ?? null));
                 $awaySource = $fixture->source_away_fixture_id
                     ? ($previousById[$fixture->source_away_fixture_id] ?? null)
-                    : ($previous[$index * 2 + 1] ?? null);
+                    : ($isRoundConfirmed ? null : ($previous[$index * 2 + 1] ?? null));
 
                 $homeWinner = $homeSource?->bye_team_id ?: $homeSource?->match?->winner_team_id;
                 $awayWinner = $awaySource?->bye_team_id ?: $awaySource?->match?->winner_team_id;
